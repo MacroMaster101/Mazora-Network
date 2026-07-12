@@ -104,7 +104,7 @@ export function NewsBoard({ articles, pageSize = 4 }: { articles: NewsArticle[];
       <FeaturedCard article={featured} />
 
       {slice.length > 0 && (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {slice.map((a) => (
             <GridCard key={a.slug} article={a} />
           ))}

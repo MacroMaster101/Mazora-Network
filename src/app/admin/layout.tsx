@@ -19,7 +19,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <span>Signed in as {session.displayName} · {session.role}</span>
         </div>
       </div>
-      <main id="main" className="pad-bottom-nav shell grid gap-8 py-8 lg:grid-cols-[220px_1fr]">
+      <main id="main" className="shell grid gap-8 py-8 lg:grid-cols-[220px_1fr]">
         <AdminSidebar />
         <div className="min-w-0">{children}</div>
       </main>
