@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, LayoutDashboard, LogOut, Settings, ShieldCheck, Ticket, User } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, ShieldCheck, Sparkles, Ticket, User } from "lucide-react";
 import type { Session } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -27,12 +27,14 @@ export function HeaderActions({ session }: { session: Session | null }) {
 
   if (!session) {
     return (
-      <div className="hidden items-center gap-2 min-[1400px]:flex">
-        <Link href="/login" className="btn btn-ghost btn-sm">
-          Log in
+      <div className="hidden items-center gap-1.5 min-[1200px]:flex">
+        <Link href="/login" className="desktop-login-link" title="Log in">
+          <LogIn size={15} />
+          <span>Log in</span>
         </Link>
-        <Link href="/register" className="btn btn-primary btn-sm">
-          Register
+        <Link href="/register" className="desktop-register-link">
+          <Sparkles size={14} />
+          <span>Join</span>
         </Link>
       </div>
     );
@@ -41,7 +43,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
   const isAdmin = ["administrator", "owner"].includes(session.role);
 
   return (
-    <div className="relative hidden min-[1400px]:block" ref={ref}>
+    <div className="relative hidden min-[1200px]:block" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
