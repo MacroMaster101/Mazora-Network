@@ -35,8 +35,8 @@ export default async function StatusPage() {
           <Reveal className="glass mb-8 flex items-center gap-3 p-5">
             <Activity size={20} className="text-warning" />
             <p className="text-sm text-muted">
-              Server status is temporarily unavailable. Set <span className="telemetry text-ink">MINECRAFT_STATUS_API_URL</span> to
-              stream live player counts, MOTD and ping — until then we won&apos;t show fabricated numbers.
+              The live provider could not reach <span className="telemetry text-ink">{site.javaIp}</span>. Check that the
+              server is running and accepts Server List Ping requests; the website will not show fabricated numbers.
             </p>
           </Reveal>
         )}

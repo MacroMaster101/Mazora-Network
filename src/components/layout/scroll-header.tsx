@@ -4,27 +4,41 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-/**
- * Scroll-aware header shell. Transparent at the very top; solidifies into a glass
- * bar once scrolled; auto-hides on scroll down and reveals on scroll up. Falls
- * back to solidify-only when the user prefers reduced motion.
- */
+/** Transparent navigation that hides on scroll down and returns on scroll up. */
 export function ScrollHeader({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [scrolled, setScrolled] = useState(false);
+  const onHome = pathname === "/";
   const [hidden, setHidden] = useState(false);
+  const [away, setAway] = useState(false);
   const lastY = useRef(0);
+  const upwardTravel = useRef(0);
   const ticking = useRef(false);
 
   useEffect(() => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    lastY.current = window.scrollY;
+    upwardTravel.current = 0;
+    setHidden(false);
 
     const update = () => {
       const y = window.scrollY;
-      setScrolled(y > 8);
-      if (!reduce) {
-        if (y > 120 && y > lastY.current + 4) setHidden(true);
-        else if (y < lastY.current - 4 || y <= 120) setHidden(false);
+      const delta = y - lastY.current;
+      const heroHeight = onHome
+        ? document.querySelector<HTMLElement>(".hero-stage")?.offsetHeight ?? 0
+        : 0;
+      setAway(y > 80);
+      if (y <= 80) {
+        upwardTravel.current = 0;
+        setHidden(false);
+      } else if (onHome && y < heroHeight - 120) {
+        upwardTravel.current = 0;
+        setHidden(true);
+      } else if (delta > 5) {
+        upwardTravel.current = 0;
+        setHidden(true);
+      } else if (delta < -2) {
+        upwardTravel.current += Math.abs(delta);
+        const revealDistance = window.innerWidth >= 1200 ? 300 : 120;
+        if (upwardTravel.current >= revealDistance) setHidden(false);
       }
       lastY.current = y;
       ticking.current = false;
@@ -36,20 +50,19 @@ export function ScrollHeader({ children }: { children: ReactNode }) {
       requestAnimationFrame(update);
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
     update();
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [onHome, pathname]);
 
   return (
     <header
+      data-hidden={hidden}
+      data-away={away}
       className={cn(
-        "sticky top-0 z-50 border-b transition-[transform,background-color,border-color,box-shadow] duration-300 ease-out",
-        hidden ? "-translate-y-full" : "translate-y-0",
-        pathname === "/" && !scrolled && "hero-nav",
-        scrolled
-          ? "border-line bg-base/80 shadow-lg shadow-black/20 backdrop-blur-xl"
-          : "border-transparent bg-base/0",
+        "scroll-header sticky top-0 z-50 w-full",
+        hidden ? "-translate-y-[115%]" : "translate-y-0",
+        onHome && "hero-nav -mb-[4.75rem]",
       )}
     >
       {children}

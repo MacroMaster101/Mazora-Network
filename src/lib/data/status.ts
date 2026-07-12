@@ -1,7 +1,9 @@
 /**
  * Live Minecraft server status. Fetched server-side and cached so we never hit
- * the upstream API from every browser. When MINECRAFT_STATUS_API_URL is not set
- * (or the request fails), we return a non-live fallback — callers must show
+ * the upstream API from every browser. The provider defaults to mcsrvstat.us
+ * for the configured Java address and can be overridden with
+ * MINECRAFT_STATUS_API_URL. When the request fails, we return a non-live
+ * fallback — callers must show
  * "Server status temporarily unavailable" rather than fabricate live numbers.
  */
 import { site } from "@/lib/site";
@@ -27,20 +29,22 @@ interface UpstreamShape {
   online?: boolean;
   players?: { online?: number; max?: number } | number;
   version?: string | { name?: string };
-  motd?: string | { clean?: string[]; raw?: string[] };
+  motd?: string | { clean?: string | string[]; raw?: string | string[] };
   ping?: number;
 }
 
 /**
  * Normalises a few common status-API shapes (mcsrvstat-like / mcstatus-like)
- * into our ServerStatus. Extend the mapping when you wire a specific provider.
+ * into our ServerStatus.
  */
 export async function getServerStatus(): Promise<ServerStatus> {
-  const url = process.env.MINECRAFT_STATUS_API_URL;
-  if (!url) return fallback();
+  const url = process.env.MINECRAFT_STATUS_API_URL || `https://api.mcsrvstat.us/3/${encodeURIComponent(site.javaIp)}`;
 
   try {
-    const res = await fetch(url, { next: { revalidate: 60 } });
+    const res = await fetch(url, {
+      headers: { "User-Agent": "MazoraNetworkWebsite/1.0" },
+      next: { revalidate: 300 },
+    });
     if (!res.ok) return fallback();
     const data = (await res.json()) as UpstreamShape;
 
@@ -51,10 +55,8 @@ export async function getServerStatus(): Promise<ServerStatus> {
 
     const version = typeof data.version === "string" ? data.version : data.version?.name ?? site.version;
 
-    const motd =
-      typeof data.motd === "string"
-        ? data.motd
-        : data.motd?.clean?.join(" ") ?? data.motd?.raw?.join(" ") ?? "";
+    const motdValue = typeof data.motd === "string" ? data.motd : data.motd?.clean ?? data.motd?.raw ?? "";
+    const motd = Array.isArray(motdValue) ? motdValue.join(" ") : motdValue;
 
     return {
       online: data.online ?? true,
