@@ -21,5 +21,5 @@ export const accentStyles: Record<Accent, { text: string; border: string; bg: st
  */
 export function coverGradient(accent: Accent): string {
   const hex = accentStyles[accent].hex;
-  return `radial-gradient(120% 120% at 15% 10%, ${hex}38, transparent 55%), linear-gradient(150deg, rgb(var(--surface)), rgb(var(--base)) 65%)`;
+  return `radial-gradient(120% 120% at 15% 10%, ${hex}52, transparent 58%), linear-gradient(150deg, rgb(var(--surface)), rgb(var(--base)) 76%)`;
 }

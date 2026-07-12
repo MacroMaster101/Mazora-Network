@@ -7,7 +7,7 @@ import { CopyIpButton } from "@/components/shared/copy-ip-button";
 export function SiteFooter() {
   const year = new Date().getFullYear();
   return (
-    <footer className="pad-bottom-nav mt-24 border-t border-line bg-surface/50">
+    <footer className="site-footer">
       <div className="shell grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
         <div className="max-w-xs">
           <Logo />
@@ -48,7 +48,7 @@ export function SiteFooter() {
         ))}
       </div>
 
-      <div className="border-t border-line">
+      <div>
         <div className="shell flex flex-col gap-4 py-6 text-sm text-muted md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <span>
