@@ -1,0 +1,31 @@
+import Image from "next/image";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+
+const RATIO = 1536 / 1024; // source logo aspect
+
+/** The Mazora Network brand lockup, rendered from the source logo art. */
+export function Logo({
+  className,
+  height = 48,
+  priority = false,
+}: {
+  className?: string;
+  height?: number;
+  priority?: boolean;
+}) {
+  const width = Math.round(height * RATIO);
+  return (
+    <Link href="/" className={cn("inline-flex items-center", className)} aria-label="Mazora Network — home">
+      <Image
+        src="/images/mazora-logo.png"
+        alt="Mazora Network"
+        width={width}
+        height={height}
+        priority={priority}
+        className="max-w-none object-contain"
+        style={{ width, height }}
+      />
+    </Link>
+  );
+}
