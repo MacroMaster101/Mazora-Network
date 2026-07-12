@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 /**
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils";
  * back to solidify-only when the user prefers reduced motion.
  */
 export function ScrollHeader({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
   const lastY = useRef(0);
@@ -44,6 +46,7 @@ export function ScrollHeader({ children }: { children: ReactNode }) {
       className={cn(
         "sticky top-0 z-50 border-b transition-[transform,background-color,border-color,box-shadow] duration-300 ease-out",
         hidden ? "-translate-y-full" : "translate-y-0",
+        pathname === "/" && !scrolled && "hero-nav",
         scrolled
           ? "border-line bg-base/80 shadow-lg shadow-black/20 backdrop-blur-xl"
           : "border-transparent bg-base/0",

@@ -3,28 +3,26 @@ import { Logo } from "./logo";
 import { NavLinks } from "./nav-links";
 import { HeaderActions } from "./header-actions";
 import { ScrollHeader } from "./scroll-header";
-import { BottomNav } from "./bottom-nav";
+import { MobileMenu } from "./mobile-menu";
 import { LivePlayerCount } from "@/components/shared/live-player-count";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export async function SiteHeader() {
   const session = await getSession();
   return (
-    <>
-      <ScrollHeader>
-        <div className="shell flex h-16 items-center justify-between gap-4">
-          <div className="flex items-center gap-6">
-            <Logo priority />
-            <NavLinks />
-          </div>
-          <div className="flex items-center gap-2.5">
-            <LivePlayerCount />
-            <ThemeToggle className="hidden xl:inline-flex" />
-            <HeaderActions session={session} />
-          </div>
+    <ScrollHeader>
+      <div className="header-shell shell flex h-16 items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-6">
+          <Logo priority className="shrink-0" />
+          <NavLinks />
         </div>
-      </ScrollHeader>
-      <BottomNav session={session} />
-    </>
+        <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+          <LivePlayerCount className="hidden sm:inline-flex" />
+          <ThemeToggle className="hidden min-[1400px]:inline-flex" />
+          <HeaderActions session={session} />
+          <MobileMenu session={session} />
+        </div>
+      </div>
+    </ScrollHeader>
   );
 }

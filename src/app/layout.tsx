@@ -12,7 +12,7 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", displ
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
-    default: `${site.name} — ${site.tagline}`,
+    default: site.name,
     template: `%s · ${site.name}`,
   },
   description: site.description,
@@ -35,7 +35,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${display.variable} ${sans.variable} ${mono.variable}`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
+      className={`${display.variable} ${sans.variable} ${mono.variable}`}
+    >
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeNoFlashScript }} />
         <a

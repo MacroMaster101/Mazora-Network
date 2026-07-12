@@ -15,12 +15,17 @@ function parts(target: number) {
 /** Live countdown to an ISO time. Compact by default; `big` for detail pages. */
 export function Countdown({ to, className, big = false }: { to: string; className?: string; big?: boolean }) {
   const target = new Date(to).getTime();
-  const [t, setT] = useState(() => parts(target));
+  const [t, setT] = useState<ReturnType<typeof parts> | null>(null);
 
   useEffect(() => {
+    setT(parts(target));
     const id = setInterval(() => setT(parts(target)), 1000);
     return () => clearInterval(id);
   }, [target]);
+
+  if (!t) {
+    return <span className={cn("telemetry text-muted", className)}>{big ? "00d 00h 00m 00s" : "--:--:--"}</span>;
+  }
 
   if (t.done) {
     return <span className={cn("telemetry text-muted", className)}>Started</span>;

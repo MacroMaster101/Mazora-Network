@@ -12,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <>
       <SiteHeader />
-      <main id="main" className="pad-bottom-nav shell grid gap-8 py-8 lg:grid-cols-[240px_1fr]">
+      <main id="main" className="shell grid gap-8 py-8 lg:grid-cols-[240px_1fr]">
         <DashboardSidebar session={session} />
         <div className="min-w-0">{children}</div>
       </main>
