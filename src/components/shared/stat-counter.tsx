@@ -18,8 +18,10 @@ export function StatCounter({ value, className }: { value: string; className?: s
   const started = useRef(false);
 
   useEffect(() => {
+    started.current = false;
+    setDisplay(isNaN(target) ? value : "0");
+
     if (isNaN(target)) {
-      setDisplay(value);
       return;
     }
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

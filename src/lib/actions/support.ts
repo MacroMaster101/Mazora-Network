@@ -68,6 +68,16 @@ const suggestionSchema = z.object({
   description: z.string().min(20, "Explain your idea (min 20 chars)."),
 });
 
+const staffApplicationSchema = z.object({
+  minecraftUsername: z.string().min(3, "Enter your Minecraft username."),
+  age: z.string().min(1, "Enter your age."),
+  role: z.string().min(1, "Choose the role you are applying for."),
+  timezone: z.string().min(2, "Enter your timezone."),
+  experience: z.string().min(30, "Tell us a little more about your experience (min 30 chars)."),
+  motivation: z.string().min(30, "Tell us why you want to join the team (min 30 chars)."),
+  availability: z.string().min(10, "Describe when you are usually available."),
+});
+
 function fields(formData: FormData): Record<string, string> {
   const out: Record<string, string> = {};
   formData.forEach((v, k) => (out[k] = typeof v === "string" ? v : ""));
@@ -170,4 +180,16 @@ export async function submitSuggestion(_prev: ActionResult, formData: FormData):
     }),
   );
   return { ok: true, message: "Suggestion submitted. The community can vote on it soon." };
+}
+
+export async function submitStaffApplication(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ("ok" in auth) return auth;
+  const parsed = staffApplicationSchema.safeParse(fields(formData));
+  if (!parsed.success) return { ok: false, errors: zodErrors(parsed.error) };
+
+  return {
+    ok: true,
+    message: "Application received. The management team will contact shortlisted applicants on Discord.",
+  };
 }

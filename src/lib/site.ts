@@ -5,35 +5,58 @@ export const site = {
   tagline: "Build. Survive. Compete. Create.",
   description:
     "A player-first Minecraft network built around unforgettable worlds, fair competition, and a community worth staying for.",
-  javaIp: "play.mazora.net",
+  javaIp: "mc.mazora.us",
   bedrockIp: "bedrock.mazora.net",
   bedrockPort: "19132",
   version: "1.21.x",
   region: "Asia Pacific",
   launchDate: "2023-10-01",
-  discord: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/example",
+  discord: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt",
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
   socials: [
-    { label: "Discord", href: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/example", icon: "MessagesSquare" },
+    { label: "Discord", href: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt", icon: "MessagesSquare" },
     { label: "YouTube", href: "https://youtube.com", icon: "Youtube" },
     { label: "X / Twitter", href: "https://x.com", icon: "Twitter" },
     { label: "TikTok", href: "https://tiktok.com", icon: "Music2" },
   ],
 } as const;
 
+export type NavItem = {
+  label: string;
+  href?: string;
+  children?: { label: string; href: string; description?: string }[];
+};
+
 /** Primary navigation shown in the header. */
-export const primaryNav: { label: string; href: string }[] = [
+export const primaryNav: NavItem[] = [
   { label: "Home", href: "/" },
   { label: "Play", href: "/play" },
-  { label: "Modes", href: "/game-modes" },
-  { label: "Players", href: "/players" },
-  { label: "Ranks", href: "/leaderboards" },
-  { label: "News", href: "/news" },
-  { label: "Events", href: "/events" },
+  { label: "Gallery", href: "/gallery" },
+  {
+    label: "Forums",
+    children: [
+      { label: "Staff application", href: "/support/staff-application", description: "Apply to join the Mazora team" },
+      { label: "Ban appeal", href: "/support/appeal", description: "Request a punishment review" },
+      { label: "Suggestions", href: "/support/suggestions", description: "Share an idea with the community" },
+      { label: "Discussion forum", href: "/forums", description: "Talk updates, modes and builds" },
+    ],
+  },
+  { label: "Our Team", href: "/staff" },
   { label: "Rules", href: "/rules" },
-  { label: "Vote", href: "/vote" },
   { label: "Store", href: "/store" },
-  { label: "Support", href: "/support" },
+  {
+    label: "More",
+    children: [
+      { label: "Game modes", href: "/game-modes" },
+      { label: "Players", href: "/players" },
+      { label: "Leaderboards", href: "/leaderboards" },
+      { label: "News", href: "/news" },
+      { label: "Events", href: "/events" },
+      { label: "Vote", href: "/vote" },
+      { label: "Support", href: "/support" },
+      { label: "Discord", href: "/discord" },
+    ],
+  },
 ];
 
 export const footerNav = {
