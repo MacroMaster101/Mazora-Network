@@ -50,106 +50,113 @@ export default async function HomePage() {
   return (
     <>
       {/* HERO */}
-      <section className="relative -mt-16 overflow-hidden pt-16">
+      <section className="hero-stage relative -mt-16 isolate flex min-h-[720px] overflow-hidden pt-16 sm:min-h-[780px] lg:min-h-[min(900px,100svh)]">
         <div className="pointer-events-none absolute inset-0">
           <Image
-            src="/images/mazora-hero.png"
+            src="/images/mazora-community-hero.png"
             alt=""
             fill
             priority
             sizes="100vw"
-            className="object-cover object-center opacity-45 dark:opacity-35"
+            className="hero-backdrop object-cover object-center"
           />
-          <div className="absolute inset-0 [background:linear-gradient(180deg,rgb(var(--base)/0.5),rgb(var(--base)/0.82)_58%,rgb(var(--base)))]" />
-          <div className="absolute inset-0 mix-blend-overlay [background:linear-gradient(120deg,rgb(var(--accent-rgb)/0.5),transparent_55%)]" />
-          <div className="absolute inset-0 [background:radial-gradient(60rem_36rem_at_50%_-10%,rgb(var(--accent-rgb)/0.24),transparent_60%)]" />
-          <div className="absolute inset-0 opacity-[0.05] [background:linear-gradient(rgb(var(--ink)/0.5)_1px,transparent_1px),linear-gradient(90deg,rgb(var(--ink)/0.5)_1px,transparent_1px)] [background-size:40px_40px]" />
+          <div className="hero-vignette absolute inset-0" />
+          <div className="absolute inset-0 opacity-30 [background:linear-gradient(110deg,transparent_20%,rgb(var(--accent-rgb)/0.22)_50%,transparent_80%)]" />
+          <div className="hero-grid absolute inset-0" />
+          <div className="hero-orbit absolute left-1/2 top-[43%] h-[26rem] w-[26rem] -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-[34rem] sm:w-[34rem] lg:h-[42rem] lg:w-[42rem]" />
         </div>
 
-        <div className="shell relative py-14 sm:py-20 lg:py-24">
-          <p className="eyebrow mb-8 flex animate-fade-up justify-center">
-            <span className="dot animate-pulse" /> Season II · Frontiers is live
-          </p>
-
+        <div className="shell relative z-10 flex flex-1 flex-col justify-center pb-16 pt-12 sm:pb-20 sm:pt-16 lg:pb-24 lg:pt-20">
+          <div className="mb-8 flex animate-fade-up justify-center lg:mb-12">
+            <div className="hero-kicker">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-300" />
+              </span>
+              Season II <span className="text-white/25">/</span> Frontiers
+            </div>
+          </div>
           {/* Centered logo flanked by the two live community stats */}
-          <div className="grid items-center gap-8 lg:grid-cols-[1fr_auto_1fr]">
+          <div className="grid items-center gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,390px)_minmax(0,1fr)] lg:gap-6 xl:gap-10">
             {/* Players online */}
-            <div className="order-2 flex animate-fade-up items-center justify-center gap-4 lg:order-1 lg:justify-end" style={{ animationDelay: "120ms" }}>
-              <div className="text-center lg:text-right">
-                <p className="font-display text-xl font-extrabold sm:text-2xl">
-                  <span className="text-accent-bright">{status.live ? withCommas(status.players) : "—"}</span>{" "}
-                  <span className="uppercase tracking-wide text-ink/90">Players Online</span>
-                </p>
-                <div className="mt-1.5 flex justify-center lg:justify-end">
-                  <CopyIpButton ip={site.javaIp} variant="inline" />
+            <div className="order-2 animate-fade-up lg:order-1" style={{ animationDelay: "120ms" }}>
+              <div className="hero-stat hero-stat-left group mx-auto max-w-[360px] lg:ml-auto lg:mr-0">
+                <div className="hero-stat-icon">
+                  <Play size={18} className="ml-0.5 fill-current" />
                 </div>
+                <div className="min-w-0 text-left lg:text-right">
+                  <p className="font-display text-base font-extrabold sm:text-lg xl:text-xl">
+                    <span className="text-white">{status.live ? withCommas(status.players) : "—"}</span>{" "}
+                    <span className="uppercase tracking-[0.08em] text-white/80">Players Online</span>
+                  </p>
+                  <div className="relative z-10 mt-1 flex lg:justify-end">
+                    <CopyIpButton ip={site.javaIp} variant="inline" />
+                  </div>
+                </div>
+                <Link href="/play" aria-label="How to play" className="absolute inset-0 rounded-[inherit]" />
               </div>
-              <Link
-                href="/play"
-                aria-label="How to play"
-                className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent-bright to-accent text-white shadow-lg shadow-accent/40 transition-transform hover:scale-105"
-              >
-                <Play size={22} className="ml-0.5 fill-current" />
-              </Link>
             </div>
 
             {/* Logo */}
-            <div className="order-1 flex animate-fade-up justify-center lg:order-2">
-              <Image
-                src="/images/mazora-logo.png"
-                alt="Mazora Network"
-                width={360}
-                height={240}
-                priority
-                sizes="(max-width: 640px) 80vw, 360px"
-                className="w-[min(78vw,360px)] max-w-none object-contain drop-shadow-[0_10px_40px_rgba(139,92,246,0.4)]"
-              />
+            <div className="group order-1 flex animate-fade-up justify-center lg:order-2">
+              <div className="hero-logo-wrap relative">
+                <div className="hero-logo-aura absolute inset-[13%] rounded-full blur-3xl transition-colors duration-500" />
+                <Image
+                  src="/images/mazora-logo.png"
+                  alt="Mazora Network"
+                  width={390}
+                  height={260}
+                  priority
+                  sizes="(max-width: 640px) 82vw, 390px"
+                  className="relative w-[min(82vw,390px)] max-w-none animate-float object-contain drop-shadow-[0_18px_45px_rgba(12,5,28,0.75)] transition-[filter,transform] duration-500 ease-out group-hover:scale-[1.035] group-hover:drop-shadow-[0_18px_55px_rgba(167,110,255,0.55)]"
+                />
+              </div>
             </div>
 
             {/* Discord */}
-            <div className="order-3 flex animate-fade-up items-center justify-center gap-4 lg:justify-start" style={{ animationDelay: "120ms" }}>
-              <a
-                href={site.discord}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Join our Discord"
-                className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent-bright to-accent text-white shadow-lg shadow-accent/40 transition-transform hover:scale-105"
-              >
-                <MessagesSquare size={22} />
+            <div className="order-3 animate-fade-up" style={{ animationDelay: "120ms" }}>
+              <a href={site.discord} target="_blank" rel="noreferrer" className="hero-stat hero-stat-right group mx-auto max-w-[360px] lg:ml-0 lg:mr-auto">
+                <div className="hero-stat-icon">
+                  <MessagesSquare size={18} />
+                </div>
+                <div className="min-w-0 text-left">
+                  <p className="font-display text-base font-extrabold sm:text-lg xl:text-xl">
+                    <span className="text-white">3,128</span>{" "}
+                    <span className="uppercase tracking-[0.08em] text-white/80">Users Online</span>
+                  </p>
+                  <span className="telemetry mt-1 block text-xs text-white/45 transition-colors group-hover:text-violet-200">
+                    discord.mazora.net
+                  </span>
+                </div>
               </a>
-              <div className="text-center lg:text-left">
-                <p className="font-display text-xl font-extrabold sm:text-2xl">
-                  <span className="text-accent-bright">3,128</span>{" "}
-                  <span className="uppercase tracking-wide text-ink/90">Users Online</span>
-                </p>
-                <a
-                  href={site.discord}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="telemetry mt-1.5 inline-block text-sm text-muted hover:text-accent-bright"
-                >
-                  discord.mazora.net
-                </a>
-              </div>
             </div>
           </div>
 
           {/* Primary actions */}
-          <div className="mt-11 flex animate-fade-up flex-wrap justify-center gap-3" style={{ animationDelay: "200ms" }}>
-            <Link href="/play" className="btn btn-primary">
-              Play now <ArrowRight size={16} />
-            </Link>
-            <CopyIpButton ip={site.javaIp} label="Copy server IP" />
-            <a href={site.discord} target="_blank" rel="noreferrer" className="btn btn-ghost">
-              <MessagesSquare size={16} /> Join Discord
-            </a>
+          <div className="mt-9 flex animate-fade-up justify-center sm:mt-12" style={{ animationDelay: "220ms" }}>
+            <div className="hero-actions flex w-full max-w-[560px] flex-col gap-2 p-2 sm:w-auto sm:flex-row">
+              <Link href="/play" className="hero-cta hero-cta-primary">
+                <Play size={16} className="fill-current" /> Enter the world <ArrowRight size={16} />
+              </Link>
+              <CopyIpButton ip={site.javaIp} label="Copy server IP" />
+              <a href={site.discord} target="_blank" rel="noreferrer" className="hero-cta hero-cta-quiet">
+                <MessagesSquare size={16} /> Discord
+              </a>
+            </div>
+          </div>
+
+          <div className="mt-8 flex animate-fade-up justify-center" style={{ animationDelay: "300ms" }}>
+            <span className="telemetry text-[10px] uppercase tracking-[0.32em] text-white/35">Java + Bedrock · Season live now</span>
           </div>
         </div>
+
+        <div className="hero-theme-transition pointer-events-none absolute inset-x-0 bottom-0 z-10" />
       </section>
 
+      <div className="home-world">
       {/* NEWS — featured story + card grid */}
-      <section className="section shell pt-14 sm:pt-16">
-        <Reveal>
+      <section className="home-section home-section-base home-news-band section shell pt-14 sm:pt-16">
+        <Reveal className="home-section-heading">
           <SectionHeader eyebrow="From the network" title="Latest news & updates." href="/news" action="All news" />
         </Reveal>
         <Reveal className="mt-8">
@@ -158,7 +165,7 @@ export default async function HomePage() {
       </section>
 
       {/* STATS */}
-      <section className="shell -mt-4">
+      <section className="home-stats shell relative z-20 -mt-5 pb-8">
         <Reveal className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
           <div className="panel hud flex flex-col justify-center p-5">
             <span className="telemetry text-3xl font-bold">
@@ -180,9 +187,9 @@ export default async function HomePage() {
       </section>
 
       {/* ABOUT */}
-      <section className="section shell">
+      <section className="home-section home-section-alt home-about-band section shell">
         <Reveal>
-          <div className="glass grid gap-8 p-8 md:grid-cols-2 md:p-12">
+          <div className="home-about glass grid gap-8 p-8 md:grid-cols-2 md:p-12">
             <div>
               <p className="eyebrow mb-3">About the network</p>
               <h2 className="text-3xl font-bold sm:text-4xl">A place worth logging back in for.</h2>
@@ -219,8 +226,8 @@ export default async function HomePage() {
       </section>
 
       {/* GAME MODES */}
-      <section className="section shell">
-        <Reveal>
+      <section className="home-section home-section-base home-modes-band section shell">
+        <Reveal className="home-section-heading">
           <SectionHeader
             eyebrow="Choose your story"
             title="Six worlds. Endless possibilities."
@@ -239,11 +246,11 @@ export default async function HomePage() {
       </section>
 
       {/* WHY PLAY */}
-      <section className="section shell">
-        <Reveal>
+      <section className="home-section home-section-alt home-features-band section shell">
+        <Reveal className="home-section-heading">
           <SectionHeader eyebrow="The Mazora difference" title="Built around players, not purchases." center />
         </Reveal>
-        <div className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
+        <div className="home-feature-grid mt-10 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
             <div key={f.title} className="group bg-card p-6 transition-colors hover:bg-accent/[0.06]">
               <f.icon size={22} className="text-accent-bright" />
@@ -255,8 +262,8 @@ export default async function HomePage() {
       </section>
 
       {/* EVENTS */}
-      <section className="section shell">
-        <Reveal>
+      <section className="home-section home-section-base home-events-band section shell">
+        <Reveal className="home-section-heading">
           <SectionHeader eyebrow="Save the date" title="Meet us in the arena." href="/events" action="All events" />
         </Reveal>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -269,8 +276,8 @@ export default async function HomePage() {
       </section>
 
       {/* GALLERY PREVIEW */}
-      <section className="section shell">
-        <Reveal>
+      <section className="home-section home-section-alt home-gallery-band section shell">
+        <Reveal className="home-section-heading">
           <SectionHeader eyebrow="Screenshots" title="Worlds worth showing off." href="/gallery" action="Open gallery" />
         </Reveal>
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -278,12 +285,13 @@ export default async function HomePage() {
             <Link
               key={g.id}
               href="/gallery"
-              className="group relative aspect-square overflow-hidden rounded-xl border border-line"
+              className="home-gallery-tile group relative aspect-square overflow-hidden rounded-xl border border-line"
               style={{ backgroundImage: coverGradient(g.accent) }}
             >
-              <span className="absolute inset-0 grid place-items-end p-3">
-                <span className="text-xs font-medium text-white/70 opacity-0 transition-opacity group-hover:opacity-100">
-                  {g.title}
+              <span className="absolute inset-0 flex items-end bg-gradient-to-t from-black/65 via-transparent to-transparent p-3">
+                <span className="translate-y-1 text-left transition-transform group-hover:translate-y-0">
+                  <span className="block text-xs font-semibold text-white/90">{g.title}</span>
+                  <span className="mt-0.5 block text-[10px] uppercase tracking-wider text-white/55">{g.category}</span>
                 </span>
               </span>
             </Link>
@@ -292,9 +300,9 @@ export default async function HomePage() {
       </section>
 
       {/* DISCORD CTA */}
-      <section className="section shell">
+      <section className="home-section home-section-base home-discord-band section shell">
         <Reveal>
-          <div className="glass relative overflow-hidden p-8 text-center sm:p-14">
+          <div className="home-cta glass relative overflow-hidden p-8 text-center sm:p-14">
             <div className="pointer-events-none absolute inset-0 opacity-70 [background:radial-gradient(40rem_20rem_at_50%_0%,rgba(139,92,246,0.14),transparent_60%)]" />
             <div className="relative">
               <p className="eyebrow justify-center">18,400+ members</p>
@@ -318,9 +326,9 @@ export default async function HomePage() {
       </section>
 
       {/* FINAL CTA */}
-      <section className="section shell">
+      <section className="home-section home-section-alt home-final-band section shell">
         <Reveal>
-          <div className="flex flex-col items-center gap-6 rounded-2xl border border-line bg-gradient-to-b from-card to-surface p-10 text-center sm:p-16">
+          <div className="home-final-card flex flex-col items-center gap-6 rounded-2xl border border-line bg-gradient-to-b from-card to-surface p-10 text-center sm:p-16">
             <Gamepad2 size={32} className="text-accent-bright" />
             <h2 className="max-w-2xl text-3xl font-bold sm:text-4xl">Ready to start your adventure?</h2>
             <div className="flex flex-wrap justify-center gap-3">
@@ -335,6 +343,7 @@ export default async function HomePage() {
           </div>
         </Reveal>
       </section>
+      </div>
     </>
   );
 }

@@ -27,7 +27,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
 
   if (!session) {
     return (
-      <div className="hidden items-center gap-2 xl:flex">
+      <div className="hidden items-center gap-2 min-[1400px]:flex">
         <Link href="/login" className="btn btn-ghost btn-sm">
           Log in
         </Link>
@@ -41,7 +41,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
   const isAdmin = ["administrator", "owner"].includes(session.role);
 
   return (
-    <div className="relative hidden xl:block" ref={ref}>
+    <div className="relative hidden min-[1400px]:block" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
