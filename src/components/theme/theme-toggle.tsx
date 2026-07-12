@@ -40,3 +40,23 @@ export function ThemeToggle({ className }: { className?: string }) {
     </div>
   );
 }
+
+export function ThemeCycleButton({ className }: { className?: string }) {
+  const { resolved, setTheme } = useTheme();
+  const isDark = resolved === "dark";
+  const Icon = isDark ? Moon : Sun;
+  const nextTheme = isDark ? "light" : "dark";
+
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(nextTheme)}
+      aria-label={`Switch to ${nextTheme} theme`}
+      title={`Switch to ${nextTheme} theme`}
+      className={cn("theme-orb", className)}
+    >
+      <span className="theme-orb-glow" aria-hidden="true" />
+      <Icon size={17} className="relative z-10" />
+    </button>
+  );
+}

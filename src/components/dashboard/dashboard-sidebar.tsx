@@ -12,7 +12,6 @@ import {
   ShieldAlert,
   Ticket,
   Trophy,
-  User,
   Vote,
   CalendarDays,
   LogOut,

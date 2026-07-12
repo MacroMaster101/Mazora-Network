@@ -86,7 +86,7 @@ export async function getCommunityStats(): Promise<ServerStat[]> {
   const modes = await getGameModes();
   return [
     { label: "Registered players", value: "42.1K", detail: "+318 this week", icon: "Users" },
-    { label: "Discord members", value: "18.4K", detail: "3,128 online now", icon: "MessagesSquare" },
+    { label: "Discord members", value: "—", detail: "live count unavailable", icon: "MessagesSquare" },
     { label: "World uptime", value: "99.98%", detail: "past 30 days", icon: "Activity" },
     { label: "Game modes", value: String(modes.length), detail: "unique adventures", icon: "Layers" },
   ];

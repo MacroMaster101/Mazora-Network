@@ -1,199 +1,191 @@
 <div align="center">
 
-# 🎮 Mazora Network
+# Mazora Network
 
-**A production-grade Minecraft server community platform.**
+The official community platform for the Mazora Minecraft network.
 
-Built with the Next.js App Router, TypeScript, and a custom dark, cinematic "game-HUD" design system —
-zero-config by default, backed by Postgres when you're ready.
+**Java server:** `mc.mazora.us`<br>
+**Discord:** [discord.gg/ZPrzyGpMyt](https://discord.gg/ZPrzyGpMyt)
 
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js&logoColor=white)](https://nextjs.org)
-[![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![Drizzle ORM](https://img.shields.io/badge/Drizzle-ORM-C5F74F?logo=drizzle&logoColor=black)](https://orm.drizzle.team)
-[![Neon](https://img.shields.io/badge/Neon-Postgres-00E599?logo=postgresql&logoColor=white)](https://neon.tech)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-149ECA?logo=react)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss)](https://tailwindcss.com)
 
 </div>
 
----
+## About the project
 
-## ✨ Overview
+Mazora Network is a responsive Minecraft community website built with the Next.js App Router. It combines a cinematic Minecraft presentation with practical community features: server connection details, live Minecraft and Discord counts, news, events, forums, player profiles, game modes, support forms, store pages, account areas, and administration scaffolds.
 
-Mazora Network is a full-featured community site for a Minecraft server — the kind of platform you'd
-actually run in production, not a template. **Phase 1** ships the complete public-facing site plus
-scaffolded authenticated areas, and it runs with **zero configuration**: no database, no env vars,
-no setup. Add a `DATABASE_URL` when you're ready to go live, and every page seamlessly switches from
-typed demo data to real Postgres — no code changes required.
+The public site works without a database by using typed demo content. When `DATABASE_URL` is configured, repository functions can read and write Postgres data through Drizzle ORM.
 
-| | |
+### Current experience
+
+- Responsive homepage with a full-screen Minecraft hero and continuous themed background
+- Separate light and dark component themes over one consistent visual world
+- Desktop navigation that hides while scrolling down and returns cleanly on intentional upward scrolling
+- Mobile navigation drawer with forums, additional pages, theme selection, and account actions
+- Live Java server count for `mc.mazora.us`
+- Live Discord member and online counts from the Mazora invite
+- News board, pagination, network summary, responsive footer, and copy-IP actions
+- Keyboard focus states, semantic landmarks, skip navigation, accessible labels, and reduced-motion support
+
+## Technology
+
+| Area | Implementation |
 |---|---|
-| 🧊 **Zero-config** | Runs instantly on in-memory demo data — no database needed to explore it |
-| 🐘 **Neon → Supabase** | Same Postgres schema either way; swap by changing one env var |
-| 🎨 **Custom design system** | Dark, cinematic "game-HUD" aesthetic, built from scratch in Tailwind |
-| 🔒 **Type-safe end to end** | TypeScript + Zod-validated server actions + Drizzle schema |
-| 🧭 **Honest by default** | Live server status shows "temporarily unavailable" instead of faking numbers |
+| Framework | Next.js 15 App Router, React 19, Server Components, Server Actions |
+| Language | TypeScript with strict checking |
+| Styling | Tailwind CSS 3 plus theme tokens in `src/styles/globals.css` |
+| UI | Lucide icons and Framer Motion |
+| Data | Drizzle ORM with PostgreSQL and typed demo fallbacks |
+| Database driver | Neon serverless PostgreSQL driver |
+| Validation | Zod |
+| Authentication | Demonstration cookie-session abstraction; Supabase packages are prepared for a future secure auth implementation |
+| Quality | ESLint, TypeScript, Next.js production builds, npm audit |
 
----
+## Quick start
 
-## 🛠️ Tech stack
+Requirements:
 
-| Layer | Technology |
-|---|---|
-| **Framework** | [Next.js 15](https://nextjs.org) (App Router, Server Components, Server Actions) |
-| **UI** | [React 19](https://react.dev) · [TypeScript 5](https://www.typescriptlang.org) |
-| **Styling** | [Tailwind CSS 3](https://tailwindcss.com) · custom design tokens |
-| **Animation** | [Framer Motion](https://www.framer.com/motion/) |
-| **Icons** | [Lucide](https://lucide.dev) |
-| **Database** | [Postgres](https://www.postgresql.org) via [Neon](https://neon.tech) (serverless driver) — swappable to [Supabase](https://supabase.com) |
-| **ORM** | [Drizzle ORM](https://orm.drizzle.team) + Drizzle Kit |
-| **Validation** | [Zod](https://zod.dev) |
-| **Auth (Phase 2)** | [Supabase Auth](https://supabase.com/auth) via `@supabase/ssr` |
-| **Tooling** | `tsx`, ESLint, PostCSS, Autoprefixer |
-
----
-
-## 🚀 Quick start
+- Node.js 20 or newer
+- npm 10 or newer
 
 ```bash
 npm install
-cp .env.example .env.local   # optional — the site runs without any env vars
 npm run dev
 ```
 
-Open **[http://localhost:3000](http://localhost:3000)**. With no environment variables set, the entire
-public site runs on in-memory demo content — nothing to configure.
+Open [http://localhost:3000](http://localhost:3000). Environment variables and a database are optional for local UI development.
 
----
+## Commands
 
-## 📦 What's included
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start the local development server |
+| `npm run lint` | Run ESLint with zero warnings allowed |
+| `npm run typecheck` | Run strict TypeScript checking without emitting files |
+| `npm run build` | Create and validate the production build |
+| `npm run start` | Serve a completed production build |
+| `npm run db:generate` | Generate SQL migrations from the Drizzle schema |
+| `npm run db:push` | Push the current schema to the configured Postgres database |
+| `npm run db:seed` | Seed the configured database using `.env` |
 
-<details>
-<summary><b>🌐 Public site</b> — fully built</summary>
-
-Home, play guide, live status, game modes + detail pages, player directory + profiles,
-leaderboards, news + articles, events + detail pages, rules, staff, gallery (lightbox),
-Discord, voting, store + product pages, cart, and the full support center
-(ban appeals, report player, report bug, suggestions).
-
-</details>
-
-<details>
-<summary><b>🔐 Authentication</b> — Phase-1 demo</summary>
-
-Login, register, forgot/reset password, and email verification screens, backed by a
-swappable session abstraction (`src/lib/auth`).
-
-</details>
-
-<details>
-<summary><b>📊 User dashboard</b></summary>
-
-Overview, Minecraft account linking flow, statistics, tickets, appeals, reports, events,
-votes, purchases, notifications, and settings.
-
-</details>
-
-<details>
-<summary><b>🛡️ Admin dashboard</b></summary>
-
-Role-gated overview, users, players, content management tables (news, events, game modes,
-rules, gallery, staff, store), moderation queues, orders, voting, notifications, site
-settings, and audit logs.
-
-</details>
-
-<details>
-<summary><b>🗄️ Data layer</b></summary>
-
-Drizzle schema mirroring a normalized Postgres design, a repository layer
-(`src/lib/data`) that every page reads through, a seed script, and graceful fallback to
-demo data when no database is connected.
-
-</details>
-
-<details>
-<summary><b>⚙️ Cross-cutting</b></summary>
-
-Cached + validated Minecraft status proxy, Zod-validated server actions, sitemap, robots,
-per-page metadata/OpenGraph, and loading/empty/error states throughout.
-
-</details>
-
----
-
-## 🐘 Database: Neon now, Supabase later
-
-Both Neon and Supabase are PostgreSQL under the hood, so migrating between them is just a
-connection string swap.
+Before handing off a change, run:
 
 ```bash
-# 1. Set a Neon connection string
-echo 'DATABASE_URL=postgres://...neon.tech/db?sslmode=require' >> .env.local
-
-# 2. Create the tables from the Drizzle schema
-npm run db:push
-
-# 3. Seed Phase-1 demo content
-npm run db:seed
-```
-
-Pages never import the database driver directly — they call `src/lib/data/*`. Pointing at
-Supabase later just means changing `DATABASE_URL` (and, in Phase 2, swapping the auth
-abstraction for Supabase Auth). **No page changes required.**
-
----
-
-## 🔑 Environment variables
-
-Everything is optional — see [`.env.example`](.env.example) for the full template.
-
-| Variable | Purpose |
-|---|---|
-| `DATABASE_URL` | Neon (now) or Supabase (later) Postgres connection string |
-| `MINECRAFT_STATUS_API_URL` | Live server status source |
-| `MINECRAFT_PLUGIN_SECRET` | Shared secret for the account-link plugin endpoint |
-| `NEXT_PUBLIC_SITE_URL` | Public site URL |
-| `NEXT_PUBLIC_DISCORD_INVITE_URL` | Discord invite link |
-| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Reserved for Phase 2 |
-| `SUPABASE_SERVICE_ROLE_KEY` | Reserved for Phase 2 |
-
-> ⚠️ **Never** expose the service-role key or plugin secret to the browser.
-
----
-
-## 📜 Scripts
-
-| Command | Description |
-|---|---|
-| `npm run dev` | Start the dev server |
-| `npm run build` | Production build |
-| `npm run start` | Run the production build |
-| `npm run lint` | Lint the codebase |
-| `npm run typecheck` | Type-check with no emit |
-| `npm run db:generate` | Generate Drizzle migrations from the schema |
-| `npm run db:push` | Push the schema straight to the database |
-| `npm run db:seed` | Seed Phase-1 demo content |
-
-## ✅ Verification
-
-```bash
+npm run lint
 npm run typecheck
 npm run build
 ```
 
+Development output is stored in `.next-dev`, separately from the production `.next` directory. This allows a production build to run without corrupting an active development server's manifests.
+
+## Environment configuration
+
+Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never commit either file.
+
+| Variable | Required | Description |
+|---|---:|---|
+| `NEXT_PUBLIC_SITE_URL` | No | Canonical public URL. Defaults to `http://localhost:3000`. |
+| `NEXT_PUBLIC_DISCORD_INVITE_URL` | No | Public Discord invite override. The Mazora invite is used by default. |
+| `MINECRAFT_STATUS_API_URL` | No | Custom Minecraft status JSON endpoint. The site otherwise queries mcsrvstat.us for `mc.mazora.us`. |
+| `DATABASE_URL` | No | Neon or Supabase-compatible PostgreSQL connection string. Demo data is used when absent. |
+| `MINECRAFT_PLUGIN_SECRET` | For plugin callbacks | Server-only secret used by the Minecraft link endpoint. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Future auth | Supabase project URL. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Future auth | Browser-safe Supabase anonymous key. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Future server use | Server-only Supabase service key. Never expose it publicly. |
+
+The live integrations fail safely:
+
+- Minecraft status is fetched server-side and cached for five minutes. Failed requests return an unavailable state instead of invented player counts.
+- Discord counts are fetched from Discord's invite API and cached for five minutes. A failed or invalid invite returns a join prompt instead of a fabricated count.
+
+## Main navigation and routes
+
+The public navigation is:
+
+`Home` · `Play` · `Gallery` · `Forums` · `Our Team` · `Rules` · `Store` · `More`
+
+Forums contains staff applications, ban appeals, suggestions, and the discussion forum. More contains game modes, players, leaderboards, news, events, voting, support, and Discord.
+
+### Public areas
+
+- `/` — homepage, live counts, news, and network summary
+- `/play`, `/status`, `/discord`, `/vote`
+- `/gallery`, `/game-modes`, `/game-modes/[slug]`
+- `/players`, `/players/[username]`, `/leaderboards`
+- `/news`, `/news/[slug]`, `/events`, `/events/[slug]`
+- `/forums`, `/staff`, `/rules`
+- `/store`, `/store/[slug]`, `/cart`
+- `/support` and the appeal, report, suggestion, and staff-application forms
+
+### Account areas
+
+- Authentication screens for login, registration, verification, and password recovery
+- `/dashboard` plus Minecraft linking, statistics, tickets, appeals, reports, events, votes, purchases, notifications, and settings
+- `/admin` plus users, players, content, moderation, orders, voting, configuration, and audit views
+
+The current session implementation is deliberately a demonstration layer. It is suitable for navigating and testing role-aware UI, but it is not a production authentication boundary. Replace it with Supabase Auth or another secure identity provider before accepting real accounts.
+
+## Data and database setup
+
+Pages read through the repositories in `src/lib/data`. Repositories use PostgreSQL when a database is configured and typed fixtures when it is not.
+
+To use a database:
+
+1. Add a valid PostgreSQL connection string to `DATABASE_URL`.
+2. Push or generate the schema.
+3. Seed the initial content if desired.
+
+```bash
+npm run db:push
+npm run db:seed
+```
+
+The Drizzle schema lives in `src/lib/db/schema.ts`. Generated migrations are written to `supabase/migrations` and remain compatible with PostgreSQL providers such as Neon and Supabase.
+
+## Project structure
+
+```text
+src/
+  app/                 Route groups, pages, API routes, metadata, and layouts
+  components/
+    admin/             Administration UI
+    dashboard/         Member dashboard UI
+    layout/            Header, navigation, footer, and mobile drawer
+    shared/            Reusable cards, forms, live status, and content blocks
+    theme/             Theme controls and persistence
+    ui/                UI primitives
+  lib/
+    actions/           Validated server actions
+    auth/              Swappable session abstraction
+    data/              Data repositories and live integrations
+    db/                Database client, schema, demo fixtures, and seed logic
+    site.ts            Server identity, navigation, social, and footer configuration
+  styles/globals.css   Design tokens, themes, layout, and responsive styling
+public/images/         Logo, Minecraft artwork, avatars, and content imagery
+supabase/migrations/   PostgreSQL migrations
+docs/                  Maintainer documentation
+```
+
+For architecture, live integrations, theme behavior, and deployment notes, see [docs/README.md](docs/README.md).
+
+## Production notes
+
+- Set `NEXT_PUBLIC_SITE_URL` to the deployed HTTPS origin.
+- Configure a production Postgres database before enabling persistent forms or account data.
+- Replace the demonstration session implementation before launching real authentication.
+- Set a strong `MINECRAFT_PLUGIN_SECRET` before enabling Minecraft account linking callbacks.
+- Replace placeholder social destinations in `src/lib/site.ts` with official Mazora accounts.
+- Store all server-only secrets in the deployment platform, never in public environment variables or source control.
+- Payments are not implemented; store and cart pages are presentation and architecture only.
+
+## Status
+
+The public platform and responsive homepage are implemented. Database-backed content is optional. Secure production authentication, payment processing, complete admin mutations, and production Minecraft synchronization remain deployment-phase work.
+
 ---
 
-## 🧭 Phase 1 scope
-
-Payments are architecture-only — **no charges are processed**. Full auth/RLS, Minecraft
-stat sync, admin write operations, and notifications are scaffolded for later phases.
-See [`docs/superpowers/specs`](docs/superpowers/specs) for the full design and plan.
-
----
-
-<div align="center">
-
-Not affiliated with Mojang Studios or Microsoft.
-
-</div>
+Mazora Network is an independent Minecraft community and is not affiliated with Mojang Studios or Microsoft.
