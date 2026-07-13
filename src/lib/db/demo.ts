@@ -1,7 +1,7 @@
 /**
  * Typed demo content. This is the canonical Phase-1 dataset — every page reads
  * through the repositories in src/lib/data, which return this when no database
- * is configured. Replace by seeding a Neon/Supabase database (see seed.ts).
+ * is configured. Replace by seeding the Supabase database (see seed.ts).
  */
 import type {
   EventItem,

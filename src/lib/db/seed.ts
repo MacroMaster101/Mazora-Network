@@ -1,9 +1,9 @@
 /**
  * Seed the connected database with the Phase-1 demo content, so you can verify
- * a Neon (or later Supabase) connection end-to-end.
+ * the Supabase connection end-to-end.
  *
  * Usage:
- *   1. Set DATABASE_URL to your Neon connection string.
+ *   1. Set DATABASE_URL to your Supabase Postgres connection string.
  *   2. Run `npm run db:push` to create the tables from the Drizzle schema.
  *   3. Run `npm run db:seed`.
  *
