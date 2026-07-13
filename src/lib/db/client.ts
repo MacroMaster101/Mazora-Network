@@ -1,12 +1,14 @@
 /**
- * Database client. Returns a Drizzle instance over the Neon serverless driver
- * when DATABASE_URL is set, otherwise null so callers fall back to demo data.
+ * Database client. Returns a Drizzle instance over the Supabase Postgres
+ * database (via the postgres-js driver) when DATABASE_URL is set, otherwise
+ * null so callers fall back to demo data.
  *
- * Swapping to Supabase later means only changing DATABASE_URL to the Supabase
- * Postgres connection string — this file and every repository stay the same.
+ * DATABASE_URL is the Supabase connection string — use the connection pooler
+ * URL (Project Settings → Database → Connection pooling) for serverless/Next.js.
+ * `prepare: false` is required when connecting through Supabase's pooler.
  */
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
 
 export type Database = ReturnType<typeof drizzle<typeof schema>>;
@@ -20,7 +22,7 @@ export function getDb(): Database | null {
     cached = null;
     return cached;
   }
-  const sql = neon(url);
+  const sql = postgres(url, { prepare: false });
   cached = drizzle(sql, { schema });
   return cached;
 }

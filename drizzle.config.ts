@@ -1,8 +1,8 @@
 import type { Config } from "drizzle-kit";
 
 /**
- * Drizzle Kit config. Works against any Postgres connection string:
- * Neon now, Supabase later — only DATABASE_URL changes.
+ * Drizzle Kit config. Runs against the Supabase Postgres database via the
+ * DATABASE_URL connection string.
  */
 export default {
   schema: "./src/lib/db/schema.ts",
