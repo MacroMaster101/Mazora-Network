@@ -1,8 +1,8 @@
 /**
  * Content repositories. Pages import ONLY from here (and players/status), never
  * the database driver or demo module directly. That keeps the data source a
- * single swappable seam: today these return demo fixtures; wiring them to Neon
- * or Supabase later changes only this file — no page changes.
+ * single swappable seam: today these return demo fixtures; wiring them to the
+ * Supabase database later changes only this file — no page changes.
  *
  * Functions are async so the swap to real DB reads is a drop-in.
  */

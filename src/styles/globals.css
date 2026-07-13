@@ -151,6 +151,51 @@ h1, h2, h3, h4 {
     padding-block: clamp(3.5rem, 8vw, 6.5rem);
   }
 
+  /* Long-form legal / policy copy (privacy, terms). */
+  .legal-prose {
+    max-width: 46rem;
+    color: rgb(var(--muted));
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+  .legal-prose h2 {
+    margin-top: 2.5rem;
+    margin-bottom: 0.75rem;
+    color: rgb(var(--ink));
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .legal-prose h2:first-child {
+    margin-top: 0;
+  }
+  .legal-prose p {
+    margin-bottom: 1rem;
+  }
+  .legal-prose ul {
+    margin-bottom: 1rem;
+    padding-left: 1.25rem;
+    list-style: disc;
+  }
+  .legal-prose li {
+    margin-bottom: 0.5rem;
+  }
+  .legal-prose li::marker {
+    color: rgb(var(--accent-bright));
+  }
+  .legal-prose strong {
+    color: rgb(var(--ink));
+    font-weight: 600;
+  }
+  .legal-prose a {
+    color: rgb(var(--accent-bright));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .legal-prose a:hover {
+    opacity: 0.85;
+  }
+
   /* Account portal: cinematic world panel + focused form workspace. */
   .auth-shell {
     min-height: 100svh;

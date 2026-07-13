@@ -69,7 +69,7 @@ UI routes should not import the database driver directly. Read through `src/lib/
 
 `getDb()` returns:
 
-- a Drizzle/Neon database instance when `DATABASE_URL` exists;
+- a Drizzle instance over the Supabase Postgres database when `DATABASE_URL` exists;
 - `null` in zero-config mode, allowing repositories to use typed fixtures.
 
 Support submissions require a session, and persistence requires a configured database. Production authentication uses Supabase SSR cookies and the PKCE callback flow when the Supabase variables are configured. Email/password, Google, and Discord paths are implemented; provider credentials and callback allow lists still need to be configured in Supabase before deployment. `AUTH_DEMO_MODE` is strictly for local UI previews and must remain disabled in production.

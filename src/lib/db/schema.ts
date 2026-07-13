@@ -1,7 +1,6 @@
 /**
- * Drizzle schema — the single source of truth for the database.
- * Works against any Postgres: Neon today, Supabase later (only DATABASE_URL changes).
- * `npm run db:generate` emits SQL into supabase/migrations for the future swap.
+ * Drizzle schema — the single source of truth for the Supabase Postgres database.
+ * `npm run db:generate` emits SQL into supabase/migrations.
  */
 import {
   pgTable,

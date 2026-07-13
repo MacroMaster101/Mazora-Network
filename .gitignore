@@ -1,9 +1,50 @@
+# Dependencies
 node_modules
+.pnp
+.pnp.js
+
+# Next.js build output
 .next
 .next-dev
+/out
+/build
+
+# Production / misc build
+/coverage
+
+# Environment variables (never commit real secrets — .env.example is the template)
 .env
 .env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript
 *.tsbuildinfo
+next-env.d.ts
+
+# Deployment
+.vercel
+
+# Certificates / keys
+*.pem
+
+# Editor / IDE
+.vscode
+.idea
+*.swp
+
+# OS junk
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# Local project docs (superpowers scratch)
 /docs/superpowers
