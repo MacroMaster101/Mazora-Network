@@ -28,7 +28,7 @@ export function RuleBook({ categories }: { categories: RuleCategory[] }) {
   const shown = searching ? results : current ? [current] : [];
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
+    <div className="rule-book grid gap-8 lg:grid-cols-[240px_1fr]">
       <aside className="lg:sticky lg:top-24 lg:self-start">
         <div className="relative mb-4">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />

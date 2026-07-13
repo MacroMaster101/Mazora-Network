@@ -5,9 +5,13 @@ import { SiteFooter } from "@/components/layout/site-footer";
 export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <>
-      <SiteHeader />
-      <main id="main">{children}</main>
-      <SiteFooter />
+      <SiteHeader world />
+      <div className="site-world-frame">
+        <main id="main" className="site-world-main">
+          <div className="site-world-content">{children}</div>
+        </main>
+        <SiteFooter />
+      </div>
     </>
   );
 }

@@ -134,12 +134,6 @@ export interface VoteSite {
   cooldownHours: number;
 }
 
-export interface ServerStat {
-  label: string;
-  value: string;
-  detail: string;
-  icon: string;
-}
 
 export interface ServerStatus {
   online: boolean;
