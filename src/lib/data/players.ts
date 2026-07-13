@@ -14,15 +14,7 @@ export async function getPlayer(username: string): Promise<Player | null> {
   return demoPlayers.find((p) => p.username.toLowerCase() === u) ?? null;
 }
 
-export async function searchPlayers(query: string): Promise<Player[]> {
-  const q = query.trim().toLowerCase();
-  if (!q) return demoPlayers;
-  return demoPlayers.filter((p) => p.username.toLowerCase().includes(q));
-}
 
-export async function getOnlinePlayers(): Promise<Player[]> {
-  return demoPlayers.filter((p) => p.status === "online");
-}
 
 export type LeaderboardKey =
   | "overall"

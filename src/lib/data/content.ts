@@ -23,7 +23,6 @@ import type {
   NewsArticle,
   Product,
   RuleCategory,
-  ServerStat,
   StaffMember,
   VoteSite,
 } from "@/lib/types";
@@ -76,18 +75,4 @@ export async function getProduct(slug: string): Promise<Product | null> {
 
 export async function getVoteSites(): Promise<VoteSite[]> {
   return demoVoteSites;
-}
-
-/**
- * Community stats for the homepage. These are network-level figures (not the
- * live player count, which comes from the status API in data/status.ts).
- */
-export async function getCommunityStats(): Promise<ServerStat[]> {
-  const modes = await getGameModes();
-  return [
-    { label: "Registered players", value: "42.1K", detail: "+318 this week", icon: "Users" },
-    { label: "Discord members", value: "—", detail: "live count unavailable", icon: "MessagesSquare" },
-    { label: "World uptime", value: "99.98%", detail: "past 30 days", icon: "Activity" },
-    { label: "Game modes", value: String(modes.length), detail: "unique adventures", icon: "Layers" },
-  ];
 }

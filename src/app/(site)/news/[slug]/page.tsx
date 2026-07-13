@@ -32,8 +32,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   return (
     <article>
-      <CoverArt accent={article.accent} icon="Sparkles" height="h-56 sm:h-72" />
-      <div className="shell -mt-16 max-w-3xl">
+      <CoverArt accent={article.accent} icon="Sparkles" height="h-[14.75rem] sm:h-[17.75rem]" className="article-cover" />
+      <div className="shell -mt-12 max-w-3xl">
         <div className="glass p-7 sm:p-10">
           <Link href="/news" className="mb-5 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
             <ArrowLeft size={15} /> Back to news

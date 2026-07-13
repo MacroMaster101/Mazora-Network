@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function Badge({ children, className }: { children: ReactNode; className?: string }) {
-  return <span className={cn("chip", className)}>{children}</span>;
-}
 
 const toneMap: Record<string, string> = {
   green: "border-accent/40 text-accent-bright bg-accent/10",

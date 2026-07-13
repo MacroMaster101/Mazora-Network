@@ -6,10 +6,10 @@ import { ScrollHeader } from "./scroll-header";
 import { MobileMenu } from "./mobile-menu";
 import { ThemeCycleButton } from "@/components/theme/theme-toggle";
 
-export async function SiteHeader() {
+export async function SiteHeader({ world = false }: { world?: boolean }) {
   const session = await getSession();
   return (
-    <ScrollHeader>
+    <ScrollHeader world={world}>
       <div className="header-shell shell grid h-[4.75rem] grid-cols-[1fr_auto] items-center gap-3 min-[1200px]:grid-cols-[1fr_auto_1fr]">
         <div className="justify-self-start min-[1200px]:hidden">
           <Logo priority height={84} className="mobile-header-logo" />

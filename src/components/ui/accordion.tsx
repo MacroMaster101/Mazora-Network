@@ -12,7 +12,7 @@ export interface AccordionItemData {
 export function Accordion({ items, className }: { items: AccordionItemData[]; className?: string }) {
   const [open, setOpen] = useState<number | null>(0);
   return (
-    <div className={cn("divide-y divide-line overflow-hidden rounded-xl border border-line", className)}>
+    <div className={cn("panel divide-y divide-line overflow-hidden", className)}>
       {items.map((item, i) => {
         const isOpen = open === i;
         return (

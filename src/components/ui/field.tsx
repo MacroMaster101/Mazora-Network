@@ -46,7 +46,7 @@ export function FormRow({
         {label}
       </Label>
       {children}
-      {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}
+      {error && <p id={htmlFor ? `${htmlFor}-error` : undefined} className="mt-1.5 text-xs text-danger" role="alert">{error}</p>}
     </div>
   );
 }
