@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 /** Transparent navigation that hides on scroll down and returns on scroll up. */
-export function ScrollHeader({ children }: { children: ReactNode }) {
+export function ScrollHeader({ children, world = false }: { children: ReactNode; world?: boolean }) {
   const pathname = usePathname();
   const onHome = pathname === "/";
   const [hidden, setHidden] = useState(false);
@@ -62,7 +62,8 @@ export function ScrollHeader({ children }: { children: ReactNode }) {
       className={cn(
         "scroll-header sticky top-0 z-50 w-full",
         hidden ? "-translate-y-[115%]" : "translate-y-0",
-        onHome && "hero-nav -mb-[4.75rem]",
+        world && "hero-nav",
+        onHome && "-mb-[4.75rem]",
       )}
     >
       {children}

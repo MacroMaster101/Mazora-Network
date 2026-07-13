@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, MessagesSquare, MonitorSmartphone, Play, ShieldCheck, UsersRound } from "lucide-react";
@@ -8,8 +9,9 @@ import { getDiscordStats } from "@/lib/data/discord";
 import { getServerStatus } from "@/lib/data/status";
 import { site } from "@/lib/site";
 import { withCommas } from "@/lib/utils";
+import { LoadingScreen } from "@/components/shared/loading-screen";
 
-export default async function HomePage() {
+async function HomeContent() {
   const [status, discord, news] = await Promise.all([
     getServerStatus(),
     getDiscordStats(),
@@ -18,8 +20,8 @@ export default async function HomePage() {
 
   return (
     <>
-      <section className="hero-stage relative z-[3] -mt-16 isolate flex min-h-[660px] overflow-hidden pt-16 sm:min-h-[710px] lg:min-h-[100svh]">
-        <div className="pointer-events-none absolute inset-0">
+      <section className="hero-stage relative z-[3] -mt-[4.75rem] isolate flex min-h-[660px] overflow-hidden pt-[4.75rem] sm:min-h-[710px] lg:min-h-[100svh]">
+        <div className="hero-art pointer-events-none absolute inset-0">
           <Image
             src="/images/mazora-community-hero.png"
             alt=""
@@ -100,7 +102,7 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="hero-theme-transition pointer-events-none absolute inset-x-0 bottom-0 z-[5]" />
+
       </section>
 
       <div className="home-world">
@@ -164,5 +166,12 @@ export default async function HomePage() {
         </section>
       </div>
     </>
+  );
+}
+export default function HomePage() {
+  return (
+    <Suspense fallback={<LoadingScreen variant="home" />}>
+      <HomeContent />
+    </Suspense>
   );
 }

@@ -10,6 +10,7 @@ import type { Session } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 import { NavIcon } from "./nav-icon";
+import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
 
 export function MobileMenu({ session }: { session: Session | null }) {
   const [open, setOpen] = useState(false);
@@ -145,8 +146,8 @@ export function MobileMenu({ session }: { session: Session | null }) {
                   </form>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
-                    <Link href="/login" className="btn btn-ghost">Log in</Link>
-                    <Link href="/register" className="btn btn-primary">Register</Link>
+                    <AuthDialogTrigger view="login" onOpen={() => setOpen(false)} className="btn btn-ghost">Log in</AuthDialogTrigger>
+                    <AuthDialogTrigger view="register" onOpen={() => setOpen(false)} className="btn btn-primary">Register</AuthDialogTrigger>
                   </div>
                 )}
                 <a href={site.discord} target="_blank" rel="noreferrer" className="mt-3 block text-center text-xs text-muted hover:text-accent-bright">

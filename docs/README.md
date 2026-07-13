@@ -1,8 +1,8 @@
-# Mazora Network maintainer guide
+# 🛠️ Mazora Network maintainer guide
 
 This document explains the current project architecture and the operational details that are easy to miss when working only from individual components.
 
-## Rendering model
+## 🧩 Rendering model
 
 The site uses the Next.js App Router. Public pages are primarily Server Components; interactive controls such as the theme switcher, mobile drawer, copy buttons, galleries, forms, and scroll-aware header are Client Components.
 
@@ -17,13 +17,13 @@ The homepage is intentionally compact:
 
 The background continues from the hero through the content and footer. Section borders are avoided so the page reads as one continuous Minecraft world.
 
-## Theme behavior
+## 🌓 Theme behavior
 
 Theme state is managed by the providers and controls in `src/components/theme`. Semantic color variables are defined in `src/styles/globals.css` and mapped into Tailwind in `tailwind.config.ts`.
 
-Light and dark modes share the same background artwork. They change component surfaces, borders, text, and contrast rather than replacing the world image. When adjusting a component, always preview both themes because translucent cards inherit significant color from the background.
+Light and dark modes share the same background artwork. On a first visit, the no-flash boot script follows the device preference; after the visitor chooses light or dark, that explicit choice is stored locally. The two visible choices keep desktop and mobile controls consistent. Themes change component surfaces, borders, text, and contrast rather than replacing the world image. Always preview both themes because translucent cards inherit significant color from the background.
 
-## Header behavior
+## 🧭 Header behavior
 
 Desktop navigation is centered, with the logo on the left and theme/account actions on the right. It has no full-width glass card or persistent background.
 
@@ -39,7 +39,7 @@ The mobile header contains a cropped logo and menu button. The logo crop compens
 
 The drawer starts with all dropdown groups collapsed. Its backdrop is not an accessible button; the explicit close button is the single reliable close target for keyboard and automated interaction.
 
-## Live Minecraft status
+## ⛏️ Live Minecraft status
 
 `src/lib/data/status.ts` fetches Minecraft server data on the server and normalizes common status API shapes. The default endpoint is:
 
@@ -51,7 +51,7 @@ Set `MINECRAFT_STATUS_API_URL` to use a custom proxy or plugin API. Responses ar
 
 The `/api/status` route exposes the normalized site status for same-origin clients.
 
-## Live Discord counts
+## 💬 Live Discord counts
 
 `src/lib/data/discord.ts` extracts the invite code from `site.discord` and requests Discord's invite endpoint with `with_counts=true`. It returns approximate member and presence counts and caches them for 300 seconds.
 
@@ -63,7 +63,7 @@ https://discord.gg/ZPrzyGpMyt
 
 Set `NEXT_PUBLIC_DISCORD_INVITE_URL` only when the official invite changes. Invalid invites fail safely and show a join action without invented numbers.
 
-## Data repositories
+## 🗄️ Data repositories
 
 UI routes should not import the database driver directly. Read through `src/lib/data` and write through validated server actions in `src/lib/actions`.
 
@@ -72,9 +72,9 @@ UI routes should not import the database driver directly. Read through `src/lib/
 - a Drizzle/Neon database instance when `DATABASE_URL` exists;
 - `null` in zero-config mode, allowing repositories to use typed fixtures.
 
-Support submissions require a session. Persistence requires a configured database. The current authentication abstraction is demonstrational and must be replaced before real accounts or sensitive moderation data are enabled.
+Support submissions require a session, and persistence requires a configured database. Production authentication uses Supabase SSR cookies and the PKCE callback flow when the Supabase variables are configured. Email/password, Google, and Discord paths are implemented; provider credentials and callback allow lists still need to be configured in Supabase before deployment. `AUTH_DEMO_MODE` is strictly for local UI previews and must remain disabled in production.
 
-## Database changes
+## 🧬 Database changes
 
 Change the schema in `src/lib/db/schema.ts`, then run:
 
@@ -85,7 +85,7 @@ npm run typecheck
 
 Review generated SQL before applying it. For a development database, `npm run db:push` can apply the schema directly. `npm run db:seed` loads environment variables from `.env`.
 
-## Quality gates
+## ✅ Quality gates
 
 Every completed change should pass:
 
@@ -105,18 +105,24 @@ For visual changes, also test:
 - the entire page through the legal footer row;
 - horizontal overflow and browser console errors.
 
-## Dependency security
+## 🧹 Repository hygiene
 
-Run `npm audit --omit=dev` for production dependency risk. The project uses patched Drizzle ORM releases because older versions had an identifier-escaping advisory.
+Generated directories (`.next`, `.next-dev`, and `node_modules`), `*.log`, `*.tsbuildinfo`, and local environment files are ignored and should never be reviewed as source changes. Before removing a source file or image, verify references in TypeScript, CSS, metadata, and Markdown. Keep the lockfile committed and use `npm ci` for reproducible installs.
 
-The current Drizzle Kit dependency tree may report a moderate development-server advisory in a legacy nested esbuild package. It is not shipped in the production dependency set, and npm currently offers no compatible non-breaking remediation for that transitive package. Do not use `npm audit fix --force`; it proposes an incompatible Drizzle Kit downgrade.
+If a development cache produces route-type errors after route groups or slots change, stop duplicate dev servers, remove `.next-dev`, and rerun `npm run typecheck`. Do not commit a generated cache as a workaround.
 
-## Deployment checklist
+## 🔒 Dependency security
+
+Run `npm audit --audit-level=moderate` for the complete dependency tree and `npm audit --omit=dev --audit-level=high` for production-only risk. Both current audits report zero vulnerabilities. Review automated upgrades deliberately; never use `npm audit fix --force` without checking framework and Drizzle compatibility.
+
+Next.js may print an Edge-runtime compatibility warning from `@supabase/supabase-js` while bundling the session-refresh middleware. The optimized build still succeeds. Do not silence it by forcing middleware to the Node.js runtime: with the current broad matcher, that makes public routes dynamic. Recheck the warning after Supabase or Next.js upgrades.
+
+## 🚀 Deployment checklist
 
 1. Run all quality gates.
 2. Set the canonical HTTPS site URL.
 3. Configure Postgres and apply reviewed migrations.
-4. Replace demo authentication with a secure provider.
+4. Configure Supabase Auth, provider credentials, callback URLs, and production session policies.
 5. Set server-only secrets in the host environment.
 6. Confirm the Java status endpoint and Discord invite from the deployed server.
 7. Replace placeholder social links.

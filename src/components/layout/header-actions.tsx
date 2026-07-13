@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, ShieldCheck, Sparkles, Ticket, User } from "lucide-react";
 import type { Session } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
 
 const menu = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -28,14 +29,14 @@ export function HeaderActions({ session }: { session: Session | null }) {
   if (!session) {
     return (
       <div className="hidden items-center gap-1.5 min-[1200px]:flex">
-        <Link href="/login" className="desktop-login-link" title="Log in">
+        <AuthDialogTrigger view="login" className="desktop-login-link" title="Log in">
           <LogIn size={15} />
           <span>Log in</span>
-        </Link>
-        <Link href="/register" className="desktop-register-link">
+        </AuthDialogTrigger>
+        <AuthDialogTrigger view="register" className="desktop-register-link">
           <Sparkles size={14} />
           <span>Join</span>
-        </Link>
+        </AuthDialogTrigger>
       </div>
     );
   }

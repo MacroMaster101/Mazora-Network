@@ -1,63 +1,34 @@
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 
-/**
- * Route protection based on the Phase-1 session cookie. This is a convenience
- * gate for navigation; real authorization is enforced server-side in each
- * protected page/layout via getSession()/requireRole (and moves to Supabase
- * Auth in Phase 2). We only read cookie presence here — never trust it as the
- * sole security boundary.
- */
-const SESSION_COOKIE = "mz_session";
+export async function middleware(request: NextRequest) {
+  const config = getSupabaseConfig();
+  const hasAuthCookie = request.cookies.getAll().some(({ name }) => name.startsWith("sb-") && name.includes("auth-token"));
 
-function readRole(request: NextRequest): string | null {
-  const raw = request.cookies.get(SESSION_COOKIE)?.value;
-  if (!raw) return null;
-  try {
-    const json = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));
-    return typeof json?.role === "string" ? json.role : null;
-  } catch {
-    return null;
-  }
-}
-
-const ADMIN_ROLES = new Set(["administrator", "owner"]);
-const STAFF_ROLES = new Set(["staff", "moderator", "administrator", "owner"]);
-
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const role = readRole(request);
-
-  const needsAuth =
-    pathname.startsWith("/dashboard") || pathname.startsWith("/admin") || pathname.startsWith("/staff/");
-
-  if (needsAuth && !role) {
-    const login = request.nextUrl.clone();
-    login.pathname = "/login";
-    login.searchParams.set("next", pathname);
-    return NextResponse.redirect(login);
+  if (!config || !hasAuthCookie || request.nextUrl.pathname.startsWith("/auth/")) {
+    return NextResponse.next({ request });
   }
 
-  if (pathname.startsWith("/admin") && (!role || !ADMIN_ROLES.has(role))) {
-    const dash = request.nextUrl.clone();
-    dash.pathname = "/dashboard";
-    return NextResponse.redirect(dash);
-  }
+  let response = NextResponse.next({ request });
+  const supabase = createServerClient(config.url, config.key, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        response = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+      },
+    },
+  });
 
-  if (pathname.startsWith("/staff/") && (!role || !STAFF_ROLES.has(role))) {
-    const dash = request.nextUrl.clone();
-    dash.pathname = "/dashboard";
-    return NextResponse.redirect(dash);
-  }
-
-  if (role && (pathname === "/login" || pathname === "/register")) {
-    const dash = request.nextUrl.clone();
-    dash.pathname = "/dashboard";
-    return NextResponse.redirect(dash);
-  }
-
-  return NextResponse.next();
+  await supabase.auth.getClaims();
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/staff/:path*", "/login", "/register"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

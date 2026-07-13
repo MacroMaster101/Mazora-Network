@@ -44,7 +44,7 @@ export default async function PlayerProfile({ params }: { params: Promise<{ user
 
   return (
     <>
-      <section className="border-b border-line">
+      <section className="page-detail-hero">
         <div className="shell py-12">
           <Link href="/players" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
             <ArrowLeft size={15} /> All players
