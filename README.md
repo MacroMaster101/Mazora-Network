@@ -40,7 +40,7 @@ The public site works without a database by using typed demo content. When `DATA
 | Styling | Tailwind CSS 3 plus theme tokens in `src/styles/globals.css` |
 | UI | Lucide icons and Framer Motion |
 | Data | Drizzle ORM with PostgreSQL and typed demo fallbacks |
-| Database driver | Neon serverless PostgreSQL driver |
+| Database driver | postgres-js driver against Supabase PostgreSQL |
 | Validation | Zod |
 | Authentication | Supabase SSR cookies, PKCE callbacks, email/password, Google, and Discord OAuth; local demo fallback |
 | Quality | ESLint, TypeScript, Next.js production builds, npm audit |
@@ -91,7 +91,7 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `NEXT_PUBLIC_SITE_URL` | No | Canonical public URL. Defaults to `http://localhost:3000`. |
 | `NEXT_PUBLIC_DISCORD_INVITE_URL` | No | Public Discord invite override. The Mazora invite is used by default. |
 | `MINECRAFT_STATUS_API_URL` | No | Custom Minecraft status JSON endpoint. The site otherwise queries mcsrvstat.us for `mc.mazora.us`. |
-| `DATABASE_URL` | No | Neon or Supabase-compatible PostgreSQL connection string. Demo data is used when absent. |
+| `DATABASE_URL` | No | Supabase PostgreSQL connection string (use the connection pooler URL). Demo data is used when absent. |
 | `MINECRAFT_PLUGIN_SECRET` | For plugin callbacks | Server-only secret used by the Minecraft link endpoint. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Production auth | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production auth | Browser-safe Supabase publishable key for new projects. |
@@ -154,7 +154,7 @@ npm run db:push
 npm run db:seed
 ```
 
-The Drizzle schema lives in `src/lib/db/schema.ts`. Generated migrations are written to `supabase/migrations` and remain compatible with PostgreSQL providers such as Neon and Supabase.
+The Drizzle schema lives in `src/lib/db/schema.ts`. Generated migrations are written to `supabase/migrations` and run against the Supabase PostgreSQL database.
 
 ## 🗂️ Project structure
 
