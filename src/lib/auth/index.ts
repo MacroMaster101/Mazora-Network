@@ -1,17 +1,8 @@
-/**
- * Auth abstraction. Phase 1 uses a lightweight signed-ish session cookie so the
- * authenticated flows (dashboard, admin gating, support forms) are navigable and
- * role-based access can be demonstrated server-side.
- *
- * Phase 2 swaps the body of these functions for Supabase Auth — callers
- * (getSession / requireRole) keep the same signatures, so pages don't change.
- *
- * NOTE: this is intentionally NOT a security boundary for real accounts. It
- * demonstrates the authorization *shape*; real auth arrives with Supabase.
- */
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Role } from "@/lib/types";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const SESSION_COOKIE = "mz_session";
 
@@ -33,9 +24,6 @@ const ROLE_RANK: Record<Role, number> = {
 
 export function hasAtLeast(role: Role, min: Role): boolean {
   return ROLE_RANK[role] >= ROLE_RANK[min];
-}
-export function isStaff(role: Role): boolean {
-  return hasAtLeast(role, "staff");
 }
 export function isAdmin(role: Role): boolean {
   return hasAtLeast(role, "administrator");
@@ -65,7 +53,40 @@ function decode(raw: string): Session | null {
   }
 }
 
+const roles: Role[] = ["guest", "member", "vip", "staff", "moderator", "administrator", "owner"];
+
+function safeRole(value: unknown): Role {
+  return typeof value === "string" && roles.includes(value as Role) ? (value as Role) : "member";
+}
+
+function cleanUsername(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 32) || "player";
+}
+
 export async function getSession(): Promise<Session | null> {
+  if (isSupabaseConfigured()) {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) return null;
+
+    const metadata = data.user.user_metadata ?? {};
+    const emailName = data.user.email?.split("@")[0] ?? "player";
+    const username = cleanUsername(
+      metadata.username ?? metadata.preferred_username ?? metadata.user_name ?? emailName,
+    );
+    const displayName = String(
+      metadata.display_name ?? metadata.full_name ?? metadata.global_name ?? metadata.name ?? username,
+    ).slice(0, 64);
+
+    return {
+      username,
+      displayName,
+      role: safeRole(data.user.app_metadata?.role),
+    };
+  }
+
+  if (!isDemoAuthEnabled()) return null;
   const store = await cookies();
   const raw = store.get(SESSION_COOKIE)?.value;
   return raw ? decode(raw) : null;
@@ -87,6 +108,7 @@ export async function requireRole(min: Role, next = "/dashboard"): Promise<Sessi
 
 /** Create the session cookie (call from a Server Action or Route Handler). */
 export async function createSession(username: string, displayName?: string): Promise<Session> {
+  if (!isDemoAuthEnabled()) throw new Error("Demo authentication is disabled.");
   const session: Session = {
     username,
     displayName: displayName || username,
@@ -104,6 +126,10 @@ export async function createSession(username: string, displayName?: string): Pro
 }
 
 export async function destroySession(): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const supabase = await createSupabaseServerClient();
+    if (supabase) await supabase.auth.signOut();
+  }
   const store = await cookies();
   store.delete(SESSION_COOKIE);
 }

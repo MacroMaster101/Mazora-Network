@@ -5,7 +5,7 @@ import { ArrowLeft, Check, Gift, Trophy, Users } from "lucide-react";
 import { getEvent, getEvents } from "@/lib/data/content";
 import { fmtDate } from "@/lib/utils";
 import { Countdown, Icon, MinecraftAvatar, Reveal } from "@/components/shared";
-import { accentStyles, coverGradient } from "@/components/shared/accent";
+import { accentStyles } from "@/components/shared/accent";
 import { cn } from "@/lib/utils";
 
 export async function generateStaticParams() {
@@ -34,8 +34,7 @@ export default async function EventDetail({ params }: { params: Promise<{ slug: 
 
   return (
     <>
-      <section className="relative overflow-hidden border-b border-line" style={{ backgroundImage: coverGradient(event.accent) }}>
-        <div className="absolute inset-0 opacity-[0.12] [background:linear-gradient(rgb(var(--ink)/0.5)_1px,transparent_1px),linear-gradient(90deg,rgb(var(--ink)/0.5)_1px,transparent_1px)] [background-size:32px_32px]" />
+      <section className="page-detail-hero">
         <div className="shell relative py-14 sm:py-20">
           <Link href="/events" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
             <ArrowLeft size={15} /> All events

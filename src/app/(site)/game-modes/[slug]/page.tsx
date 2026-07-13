@@ -5,7 +5,7 @@ import { ArrowLeft, Check, Terminal, Users } from "lucide-react";
 import { getGameMode, getGameModes } from "@/lib/data/content";
 import { site } from "@/lib/site";
 import { CopyIpButton, Icon, Reveal } from "@/components/shared";
-import { accentStyles, coverGradient } from "@/components/shared/accent";
+import { accentStyles } from "@/components/shared/accent";
 
 export async function generateStaticParams() {
   const modes = await getGameModes();
@@ -28,8 +28,7 @@ export default async function GameModeDetail({ params }: { params: Promise<{ slu
 
   return (
     <>
-      <section className="relative overflow-hidden border-b border-line" style={{ backgroundImage: coverGradient(mode.accent) }}>
-        <div className="absolute inset-0 opacity-[0.12] [background:linear-gradient(rgb(var(--ink)/0.5)_1px,transparent_1px),linear-gradient(90deg,rgb(var(--ink)/0.5)_1px,transparent_1px)] [background-size:32px_32px]" />
+      <section className="page-detail-hero">
         <div className="shell relative py-16 sm:py-24">
           <Link href="/game-modes" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
             <ArrowLeft size={15} /> All game modes
