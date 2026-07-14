@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <div className="account-area admin-area">
-      <SiteHeader />
+      <SiteHeader world />
       <div className="admin-session-bar border-b border-line bg-surface/40">
         <div className="shell flex items-center gap-2 py-2 text-xs text-muted">
           <span className="chip border-gold/40 text-gold">Staff</span>

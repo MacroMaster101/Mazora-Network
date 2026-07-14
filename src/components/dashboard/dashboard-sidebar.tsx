@@ -14,6 +14,7 @@ import {
   Trophy,
   Vote,
   CalendarDays,
+  ChevronDown,
   LogOut,
   ShieldCheck,
 } from "lucide-react";
@@ -37,6 +38,27 @@ const items = [
 
 export function DashboardSidebar({ session }: { session: Session }) {
   const pathname = usePathname();
+  const isActive = (href: string) => (href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href));
+  const activeItem = items.find((item) => isActive(item.href)) ?? items[0];
+  const ActiveIcon = activeItem.icon;
+
+  const accountLinks = items.map((item) => {
+    const active = isActive(item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+          active ? "bg-accent/10 text-accent-bright" : "text-muted hover:bg-ink/5 hover:text-ink",
+        )}
+      >
+        <item.icon size={16} /> {item.label}
+      </Link>
+    );
+  });
+
   return (
     <aside className="dashboard-sidebar lg:sticky lg:top-24 lg:h-fit">
       <div className="dashboard-profile-card glass mb-4 flex items-center gap-3 p-4">
@@ -48,7 +70,37 @@ export function DashboardSidebar({ session }: { session: Session }) {
           <p className="text-xs text-muted">{roleLabel(session.role)}</p>
         </div>
       </div>
-      <nav className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
+      <details className="dashboard-mobile-nav lg:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5">
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent/12 text-accent-bright">
+              <ActiveIcon size={18} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">Account menu</span>
+              <span className="block truncate text-sm font-semibold">{activeItem.label}</span>
+            </span>
+          </span>
+          <ChevronDown className="dashboard-mobile-nav-chevron shrink-0 text-muted transition-transform" size={18} />
+        </summary>
+        <nav className="grid grid-cols-2 gap-1 border-t border-line/70 p-2">
+          {isStaff(session.role) && (
+            <Link
+              href="/admin"
+              className="col-span-2 flex items-center gap-2.5 rounded-lg border border-gold/30 bg-gold/10 px-3 py-2.5 text-sm font-semibold text-gold transition-colors hover:bg-gold/15"
+            >
+              <ShieldCheck size={16} /> Admin Panel
+            </Link>
+          )}
+          {accountLinks}
+          <form action="/logout" method="post" className="col-span-2 mt-1 border-t border-line/70 pt-2">
+            <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-muted hover:bg-ink/5 hover:text-danger">
+              <LogOut size={16} /> Log out
+            </button>
+          </form>
+        </nav>
+      </details>
+      <nav className="hidden gap-1 lg:flex lg:flex-col">
         {isStaff(session.role) && (
           <Link
             href="/admin"
@@ -57,22 +109,7 @@ export function DashboardSidebar({ session }: { session: Session }) {
             <ShieldCheck size={16} /> Admin Panel
           </Link>
         )}
-        {items.map((item) => {
-          const active = item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                active ? "bg-accent/10 text-accent-bright" : "text-muted hover:bg-ink/5 hover:text-ink",
-              )}
-            >
-              <item.icon size={16} /> {item.label}
-            </Link>
-          );
-        })}
+        {accountLinks}
         <form action="/logout" method="post" className="lg:mt-2">
           <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-ink/5 hover:text-danger">
             <LogOut size={16} /> Log out
