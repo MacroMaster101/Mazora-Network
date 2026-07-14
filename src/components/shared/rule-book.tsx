@@ -28,8 +28,8 @@ export function RuleBook({ categories }: { categories: RuleCategory[] }) {
   const shown = searching ? results : current ? [current] : [];
 
   return (
-    <div className="rule-book grid gap-8 lg:grid-cols-[240px_1fr]">
-      <aside className="lg:sticky lg:top-24 lg:self-start">
+    <div className="rule-book grid min-w-0 gap-8 lg:grid-cols-[240px_1fr]">
+      <aside className="min-w-0 lg:sticky lg:top-24 lg:self-start">
         <div className="relative mb-4">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search rules…" aria-label="Search rules" className="field pl-9" />
@@ -53,7 +53,7 @@ export function RuleBook({ categories }: { categories: RuleCategory[] }) {
         </nav>
       </aside>
 
-      <div className="space-y-8">
+      <div className="min-w-0 space-y-8">
         {shown.length === 0 && (
           <p className="glass px-6 py-12 text-center text-sm text-muted">No rules match “{query}”.</p>
         )}
