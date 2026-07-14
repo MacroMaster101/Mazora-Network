@@ -9,16 +9,18 @@ export function Logo({
   className,
   height = 48,
   priority = false,
+  variant = "lockup",
 }: {
   className?: string;
   height?: number;
   priority?: boolean;
+  variant?: "lockup" | "mark";
 }) {
-  const width = Math.round(height * RATIO);
+  const width = variant === "mark" ? height : Math.round(height * RATIO);
   return (
-    <Link href="/" className={cn("inline-flex items-center", className)} aria-label="Mazora Network — home">
+    <Link href="/" className={cn("inline-flex items-center", variant === "mark" && "brand-mark", className)} aria-label="Mazora Network — home">
       <Image
-        src="/images/mazora-logo.webp"
+        src={variant === "mark" ? "/icon.png" : "/images/mazora-logo.webp"}
         alt="Mazora Network"
         width={width}
         height={height}

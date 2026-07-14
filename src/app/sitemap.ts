@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { site } from "@/lib/site";
 import { getEvents, getGameModes, getNews, getProducts } from "@/lib/data/content";
 import { getPlayers } from "@/lib/data/players";
+import { isRouteLaunchGated } from "@/lib/launch";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = site.url.replace(/\/$/, "");
@@ -29,7 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/support/suggestions",
     "/privacy",
     "/terms",
-  ].map((path) => ({
+  ].filter((path) => !isRouteLaunchGated(path || "/")).map((path) => ({
     url: `${base}${path}`,
     lastModified: now,
     changeFrequency: "weekly" as const,
@@ -52,5 +53,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...players.map((p) => ({ url: `${base}/players/${p.username}`, lastModified: now, priority: 0.4 })),
   ];
 
-  return [...staticRoutes, ...dynamic];
+  return [...staticRoutes, ...dynamic].filter(({ url }) => !isRouteLaunchGated(new URL(url).pathname));
 }

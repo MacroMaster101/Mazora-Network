@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, ShieldCheck, Sparkles, Ticket, User } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, LogIn, LogOut, Settings, ShieldCheck, Sparkles, Ticket, User } from "lucide-react";
 import type { Session } from "@/lib/auth";
-import { cn } from "@/lib/utils";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
+import { cn } from "@/lib/utils";
 
 const menu = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -17,6 +18,7 @@ const menu = [
 export function HeaderActions({ session }: { session: Session | null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -42,50 +44,55 @@ export function HeaderActions({ session }: { session: Session | null }) {
   }
 
   const isAdmin = ["administrator", "owner"].includes(session.role);
+  const activeMenuHref = menu
+    .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+  const initials = session.displayName.slice(0, 2).toUpperCase();
 
   return (
     <div className="relative hidden min-[1200px]:block" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-lg border border-line-strong bg-ink/5 py-1.5 pl-1.5 pr-2.5 hover:border-accent/50"
+        aria-label={`Open account menu for ${session.displayName}`}
+        title={session.displayName}
+        className="account-avatar-trigger"
       >
-        <span className="grid h-7 w-7 place-items-center rounded-md bg-accent/15 text-xs font-bold text-accent-bright">
-          {session.displayName.slice(0, 2).toUpperCase()}
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-accent/15 text-xs font-bold text-accent-bright">
+          {initials}
         </span>
-        <span className="max-w-[8rem] truncate text-sm font-semibold">{session.displayName}</span>
-        <ChevronDown size={15} className={cn("text-muted transition-transform", open && "rotate-180")} />
+        <span className="account-avatar-status" aria-hidden="true" />
       </button>
 
       {open && (
-        <div className="animate-fade-up absolute right-0 top-[calc(100%+8px)] w-60 overflow-hidden rounded-xl border border-line-strong bg-card shadow-2xl">
-          <div className="border-b border-line px-4 py-3">
-            <p className="text-sm font-semibold">{session.displayName}</p>
-            <p className="text-xs capitalize text-muted">{session.role}</p>
+        <div className="account-menu animate-fade-up absolute right-0 top-[calc(100%+10px)] z-[90] overflow-hidden">
+          <div className="account-menu-header">
+            <p className="account-menu-name">{session.displayName}</p>
+            <p className="account-menu-role">{session.role}</p>
           </div>
-          <nav className="p-1.5">
+          <nav className="account-menu-links" aria-label="Account navigation">
             {menu.map((m) => (
               <Link
                 key={m.href}
                 href={m.href}
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted hover:bg-ink/5 hover:text-ink"
+                className={cn("account-menu-link", activeMenuHref === m.href && "is-active")}
               >
-                <m.icon size={16} /> {m.label}
+                <span className="account-menu-link-icon"><m.icon size={16} /></span><span>{m.label}</span>
               </Link>
             ))}
             {isAdmin && (
               <Link
                 href="/admin"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-gold hover:bg-ink/5"
+                className={cn("account-menu-link account-menu-admin", pathname.startsWith("/admin") && "is-active")}
               >
-                <ShieldCheck size={16} /> Admin Dashboard
+                <span className="account-menu-link-icon"><ShieldCheck size={16} /></span><span>Admin Dashboard</span>
               </Link>
             )}
           </nav>
-          <form action="/logout" method="post" className="border-t border-line p-1.5">
-            <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted hover:bg-ink/5 hover:text-danger">
+          <form action="/logout" method="post" className="account-menu-footer">
+            <button type="submit" className="account-menu-logout">
               <LogOut size={16} /> Log out
             </button>
           </form>

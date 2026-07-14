@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export function DashHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="dash-header mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 className="font-display text-2xl font-bold">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
@@ -41,7 +41,7 @@ export function DashEmpty({
 
 export function StatTile({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return (
-    <div className="panel p-5">
+    <div className="dashboard-stat-tile panel p-5">
       <div className="text-xs uppercase tracking-widest text-muted">{label}</div>
       <div className="telemetry mt-1 text-2xl font-bold">{value}</div>
       {detail && <div className="text-xs text-muted">{detail}</div>}
