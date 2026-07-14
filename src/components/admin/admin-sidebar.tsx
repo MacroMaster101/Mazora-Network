@@ -25,64 +25,69 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Role } from "@/lib/types";
+import { hasAtLeast } from "@/lib/auth/roles";
 
-const groups: { heading: string; items: { label: string; href: string; icon: typeof Users }[] }[] = [
+const groups: { heading: string; items: { label: string; href: string; icon: typeof Users; minRole: Role }[] }[] = [
   {
     heading: "Overview",
-    items: [{ label: "Dashboard", href: "/admin", icon: Gauge }],
+    items: [{ label: "Dashboard", href: "/admin", icon: Gauge, minRole: "helper" }],
   },
   {
     heading: "Community",
     items: [
-      { label: "Users", href: "/admin/users", icon: Users },
-      { label: "Minecraft Players", href: "/admin/players", icon: Blocks },
-      { label: "Staff", href: "/admin/staff", icon: ShieldCheck },
+      { label: "Users", href: "/admin/users", icon: Users, minRole: "owner" },
+      { label: "Minecraft Players", href: "/admin/players", icon: Blocks, minRole: "moderator" },
+      { label: "Staff", href: "/admin/staff", icon: ShieldCheck, minRole: "owner" },
     ],
   },
   {
     heading: "Content",
     items: [
-      { label: "News", href: "/admin/news", icon: FileText },
-      { label: "Events", href: "/admin/events", icon: CalendarDays },
-      { label: "Game Modes", href: "/admin/game-modes", icon: Blocks },
-      { label: "Rules", href: "/admin/rules", icon: ScrollText },
-      { label: "Gallery", href: "/admin/gallery", icon: Image },
+      { label: "News", href: "/admin/news", icon: FileText, minRole: "administrator" },
+      { label: "Events", href: "/admin/events", icon: CalendarDays, minRole: "administrator" },
+      { label: "Game Modes", href: "/admin/game-modes", icon: Blocks, minRole: "administrator" },
+      { label: "Rules", href: "/admin/rules", icon: ScrollText, minRole: "administrator" },
+      { label: "Gallery", href: "/admin/gallery", icon: Image, minRole: "administrator" },
     ],
   },
   {
     heading: "Support",
     items: [
-      { label: "Tickets", href: "/admin/tickets", icon: Ticket },
-      { label: "Appeals", href: "/admin/appeals", icon: Gavel },
-      { label: "Reports", href: "/admin/reports", icon: ShieldAlert },
-      { label: "Bug Reports", href: "/admin/bugs", icon: Bug },
-      { label: "Suggestions", href: "/admin/suggestions", icon: Lightbulb },
+      { label: "Tickets", href: "/admin/tickets", icon: Ticket, minRole: "helper" },
+      { label: "Appeals", href: "/admin/appeals", icon: Gavel, minRole: "helper" },
+      { label: "Reports", href: "/admin/reports", icon: ShieldAlert, minRole: "helper" },
+      { label: "Bug Reports", href: "/admin/bugs", icon: Bug, minRole: "helper" },
+      { label: "Suggestions", href: "/admin/suggestions", icon: Lightbulb, minRole: "helper" },
     ],
   },
   {
     heading: "Commerce",
     items: [
-      { label: "Store", href: "/admin/store", icon: ShoppingBag },
-      { label: "Orders", href: "/admin/orders", icon: Receipt },
-      { label: "Voting", href: "/admin/voting", icon: Vote },
+      { label: "Store", href: "/admin/store", icon: ShoppingBag, minRole: "administrator" },
+      { label: "Orders", href: "/admin/orders", icon: Receipt, minRole: "administrator" },
+      { label: "Voting", href: "/admin/voting", icon: Vote, minRole: "administrator" },
     ],
   },
   {
     heading: "System",
     items: [
-      { label: "Notifications", href: "/admin/notifications", icon: Bell },
-      { label: "Settings", href: "/admin/settings", icon: Settings },
-      { label: "Audit Logs", href: "/admin/audit-logs", icon: UsersRound },
+      { label: "Notifications", href: "/admin/notifications", icon: Bell, minRole: "owner" },
+      { label: "Settings", href: "/admin/settings", icon: Settings, minRole: "it" },
+      { label: "Audit Logs", href: "/admin/audit-logs", icon: UsersRound, minRole: "it" },
     ],
   },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ role }: { role: Role }) {
   const pathname = usePathname();
+  const visibleGroups = groups
+    .map((group) => ({ ...group, items: group.items.filter((item) => hasAtLeast(role, item.minRole)) }))
+    .filter((group) => group.items.length > 0);
   return (
     <aside className="lg:sticky lg:top-24 lg:h-fit lg:self-start">
       <nav className="flex gap-4 overflow-x-auto pb-1 lg:flex-col lg:gap-5 lg:overflow-visible">
-        {groups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.heading} className="shrink-0">
             <p className="mb-1.5 hidden px-3 text-[10px] uppercase tracking-widest text-muted lg:block">{group.heading}</p>
             <div className="flex gap-1 lg:flex-col">

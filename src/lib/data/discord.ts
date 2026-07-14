@@ -10,6 +10,8 @@ interface DiscordInviteResponse {
   approximate_member_count?: number;
   approximate_presence_count?: number;
 }
+const UPSTREAM_TIMEOUT_MS = 2500;
+
 
 function inviteCode(url: string): string | null {
   try {
@@ -28,6 +30,7 @@ export async function getDiscordStats(): Promise<DiscordStats> {
     const res = await fetch(`https://discord.com/api/v10/invites/${encodeURIComponent(code)}?with_counts=true`, {
       headers: { "User-Agent": "MazoraNetworkWebsite/1.0" },
       next: { revalidate: 300 },
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
     if (!res.ok) return { members: 0, online: 0, live: false };
 

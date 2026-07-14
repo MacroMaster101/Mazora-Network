@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus } from "lucide-react";
+import { requireRole } from "@/lib/auth";
 import { getProducts } from "@/lib/data/content";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
@@ -9,6 +10,7 @@ import type { Product } from "@/lib/types";
 export const metadata: Metadata = { title: "Store · Admin" };
 
 export default async function AdminStorePage() {
+  await requireRole("administrator", "/admin/store");
   const products = await getProducts();
   const columns: Column<Product>[] = [
     { header: "Product", cell: (p) => <span className="font-semibold">{p.name}</span> },

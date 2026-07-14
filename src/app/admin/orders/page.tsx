@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Receipt } from "lucide-react";
+import { requireRole } from "@/lib/auth";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminPlaceholder } from "@/components/admin/admin-ui";
 
 export const metadata: Metadata = { title: "Orders · Admin" };
 
-export default function AdminOrdersPage() {
+export default async function AdminOrdersPage() {
+  await requireRole("administrator", "/admin/orders");
   return (
     <>
       <DashHeader title="Orders" subtitle="Store orders and payment status." />

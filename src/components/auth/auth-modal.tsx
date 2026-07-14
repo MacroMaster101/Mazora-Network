@@ -80,7 +80,7 @@ export function AuthModal({
         className="auth-modal-shell"
       >
         <aside className="auth-modal-world">
-          <Logo priority height={82} className="auth-modal-logo" />
+          <Logo height={82} className="auth-modal-logo" />
           <div>
             <p className="auth-world-kicker"><span /> Mazora access</p>
             <h2>Your world is waiting.</h2>
@@ -94,7 +94,7 @@ export function AuthModal({
 
         <div className="auth-modal-form-side">
           <header className="auth-modal-toolbar">
-            <Logo priority height={52} className="auth-modal-mobile-logo" />
+            <Logo height={52} className="auth-modal-mobile-logo" />
             <p><Server size={14} /> Player portal</p>
             <div>
               <ThemeCycleButton className="auth-theme-toggle" />

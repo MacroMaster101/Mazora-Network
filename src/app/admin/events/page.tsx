@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus } from "lucide-react";
+import { requireRole } from "@/lib/auth";
 import { getEvents } from "@/lib/data/content";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
@@ -9,6 +10,7 @@ import type { EventItem } from "@/lib/types";
 export const metadata: Metadata = { title: "Events · Admin" };
 
 export default async function AdminEventsPage() {
+  await requireRole("administrator", "/admin/events");
   const events = await getEvents();
   const columns: Column<EventItem>[] = [
     { header: "Event", cell: (e) => <span className="font-semibold">{e.title}</span> },

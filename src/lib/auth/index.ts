@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { Role } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
+import { hasAtLeast, isAdmin, isStaff, roleLabel, STAFF_ROLES } from "@/lib/auth/roles";
 
 export const SESSION_COOKIE = "mz_session";
 
@@ -12,30 +13,20 @@ export interface Session {
   role: Role;
 }
 
-const ROLE_RANK: Record<Role, number> = {
-  guest: 0,
-  member: 1,
-  vip: 2,
-  staff: 3,
-  moderator: 4,
-  administrator: 5,
-  owner: 6,
-};
-
-export function hasAtLeast(role: Role, min: Role): boolean {
-  return ROLE_RANK[role] >= ROLE_RANK[min];
-}
-export function isAdmin(role: Role): boolean {
-  return hasAtLeast(role, "administrator");
-}
+// Re-export the pure role helpers so existing server-side callers of
+// "@/lib/auth" keep working unchanged. Client Components must import
+// these directly from "@/lib/auth/roles" to avoid pulling in
+// "next/headers" via this file.
+export { hasAtLeast, isAdmin, isStaff, roleLabel, STAFF_ROLES };
 
 /** Demo-only role mapping so the scaffolds can be explored by username. */
 export function demoRoleFor(username: string): Role {
   const u = username.toLowerCase();
+  if (u === "it") return "it";
   if (u === "owner") return "owner";
   if (u === "admin") return "administrator";
   if (u === "mod" || u === "moderator") return "moderator";
-  if (u === "staff") return "staff";
+  if (u === "helper" || u === "staff") return "helper";
   if (u === "vip") return "vip";
   return "member";
 }
@@ -53,7 +44,7 @@ function decode(raw: string): Session | null {
   }
 }
 
-const roles: Role[] = ["guest", "member", "vip", "staff", "moderator", "administrator", "owner"];
+const roles: Role[] = ["guest", "member", "vip", "helper", "moderator", "administrator", "owner", "it"];
 
 function safeRole(value: unknown): Role {
   return typeof value === "string" && roles.includes(value as Role) ? (value as Role) : "member";

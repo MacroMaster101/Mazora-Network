@@ -1,27 +1,45 @@
 import type { Metadata } from "next";
-import { getPlayers } from "@/lib/data/players";
-import { getStaff } from "@/lib/data/content";
+import { requireRole, roleLabel, hasAtLeast, STAFF_ROLES } from "@/lib/auth";
+import type { Role } from "@/lib/types";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
-import { MinecraftAvatar, RoleBadge } from "@/components/shared";
-import { fmtDate } from "@/lib/utils";
+import { MinecraftAvatar } from "@/components/shared";
+import { RoleManager } from "@/components/admin/role-manager";
 
 export const metadata: Metadata = { title: "Users · Admin" };
 
 interface Row {
+  userId: string;
   username: string;
-  role: string;
-  rank: string;
-  status: string;
-  joined: string;
+  role: Role;
+  email: string;
+}
+
+function roleOf(value: unknown): Role {
+  const roles: Role[] = ["guest", "member", "vip", "helper", "moderator", "administrator", "owner", "it"];
+  return typeof value === "string" && roles.includes(value as Role) ? (value as Role) : "member";
 }
 
 export default async function AdminUsersPage() {
-  const [players, staff] = await Promise.all([getPlayers(), getStaff()]);
-  const rows: Row[] = [
-    ...staff.map((s) => ({ username: s.username, role: s.group.toLowerCase(), rank: "STAFF", status: s.status, joined: s.joinDate })),
-    ...players.map((p) => ({ username: p.username, role: "member", rank: p.rank, status: p.status, joined: p.firstJoined })),
-  ];
+  const session = await requireRole("owner", "/admin/users");
+  const admin = getSupabaseAdmin();
+
+  let rows: Row[] = [];
+  if (admin) {
+    const { data } = await admin.auth.admin.listUsers({ perPage: 200 });
+    rows = (data?.users ?? []).map((u) => ({
+      userId: u.id,
+      username: String(u.user_metadata?.username ?? u.email?.split("@")[0] ?? "player"),
+      role: roleOf(u.app_metadata?.role),
+      email: u.email ?? "",
+    }));
+  }
+
+  // Roles the current actor may assign: strictly below their own rank.
+  const assignable: Role[] = (["member", "vip", ...STAFF_ROLES] as Role[]).filter(
+    (r) => !hasAtLeast(r, session.role),
+  );
 
   const columns: Column<Row>[] = [
     {
@@ -33,23 +51,28 @@ export default async function AdminUsersPage() {
         </span>
       ),
     },
-    { header: "Role", cell: (r) => <span className="capitalize text-muted">{r.role}</span> },
-    { header: "Rank", cell: (r) => <RoleBadge rank={r.rank} /> },
+    { header: "Email", cell: (r) => <span className="text-muted">{r.email}</span> },
+    { header: "Current role", cell: (r) => <span className="text-muted">{roleLabel(r.role)}</span> },
     {
-      header: "Status",
-      cell: (r) => (
-        <span className="inline-flex items-center gap-1.5 text-muted">
-          <span className={r.status === "online" ? "dot" : "dot dot-off"} /> {r.status}
-        </span>
-      ),
+      header: "Change role",
+      cell: (r) => {
+        // Cannot manage self or anyone at/above the actor's rank.
+        const editable = !hasAtLeast(r.role, session.role) && r.username !== session.username;
+        return editable ? (
+          <RoleManager userId={r.userId} currentRole={r.role} assignable={assignable} />
+        ) : (
+          <span className="text-xs text-muted">—</span>
+        );
+      },
     },
-    { header: "Joined", align: "right", cell: (r) => <span className="telemetry text-muted">{fmtDate(r.joined)}</span> },
   ];
 
   return (
     <>
       <DashHeader title="Users" subtitle={`${rows.length} accounts`} />
-      <ReadOnlyBanner note="Role changes, suspensions and account actions are permission-controlled and activate with the database." />
+      {!admin && (
+        <ReadOnlyBanner note="User management requires SUPABASE_SERVICE_ROLE_KEY to be configured on the server." />
+      )}
       <AdminTable columns={columns} rows={rows} />
     </>
   );

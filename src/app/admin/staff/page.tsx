@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus } from "lucide-react";
+import { requireRole } from "@/lib/auth";
 import { getStaff } from "@/lib/data/content";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
@@ -9,6 +10,7 @@ import type { StaffMember } from "@/lib/types";
 export const metadata: Metadata = { title: "Staff · Admin" };
 
 export default async function AdminStaffPage() {
+  await requireRole("owner", "/admin/staff");
   const staff = await getStaff();
   const columns: Column<StaffMember>[] = [
     { header: "Member", cell: (s) => <span className="font-semibold">{s.username}</span> },

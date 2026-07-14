@@ -1,64 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
-import { LoadingScreen, type LoadingVariant } from "./loading-screen";
-
-type Phase = "visible" | "leaving" | "hidden";
+import { useCallback, useEffect, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 const authPopupPaths = new Set(["/login", "/register", "/forgot-password"]);
 
-function variantFor(pathname: string): LoadingVariant {
-  if (pathname === "/") return "home";
-  if (authPopupPaths.has(pathname)) return "auth";
-  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) return "portal";
-  return "page";
-}
-
 export function NavigationLoader() {
   const pathname = usePathname();
-  const [phase, setPhase] = useState<Phase>("visible");
-  const [variant, setVariant] = useState<LoadingVariant>(() => variantFor(pathname));
-  const startedAt = useRef(0);
-  const firstPaint = useRef(true);
-  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const safetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchParams = useSearchParams();
+  const routeKey = `${pathname}?${searchParams.toString()}`;
 
-  const clearTimers = useCallback(() => {
-    if (hideTimer.current) clearTimeout(hideTimer.current);
-    if (exitTimer.current) clearTimeout(exitTimer.current);
-    if (safetyTimer.current) clearTimeout(safetyTimer.current);
-  }, []);
+  // States for page transitions
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-  const finish = useCallback((delay: number) => {
-    if (hideTimer.current) clearTimeout(hideTimer.current);
-    if (exitTimer.current) clearTimeout(exitTimer.current);
-    hideTimer.current = setTimeout(() => {
-      setPhase("leaving");
-      exitTimer.current = setTimeout(() => setPhase("hidden"), 190);
-    }, delay);
-  }, []);
-
-  const begin = useCallback((destination: string) => {
-    clearTimers();
-    startedAt.current = Date.now();
-    setVariant(variantFor(destination));
-    setPhase("visible");
-    safetyTimer.current = setTimeout(() => finish(0), 6000);
-  }, [clearTimers, finish]);
-
-  useEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (startedAt.current === 0) startedAt.current = Date.now();
-    if (safetyTimer.current) clearTimeout(safetyTimer.current);
-
-    const initial = firstPaint.current;
-    firstPaint.current = false;
-    const minimum = reducedMotion ? 180 : initial ? (pathname === "/" ? 1100 : 650) : pathname === "/" ? 800 : 420;
-    const elapsed = Date.now() - startedAt.current;
-    finish(Math.max(0, minimum - elapsed));
-  }, [finish, pathname]);
+  // Click & popstate listener logic for page-to-page navigation
+  const startTransition = useCallback(() => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+  }, [isTransitioning]);
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
@@ -71,12 +31,13 @@ export function NavigationLoader() {
       const destination = new URL(anchor.href, window.location.href);
       if (destination.origin !== window.location.origin) return;
       if (authPopupPaths.has(destination.pathname)) return;
-      if (destination.pathname === pathname && destination.search === window.location.search) return;
-      begin(destination.pathname);
+      if (destination.pathname === window.location.pathname && destination.search === window.location.search) return;
+
+      startTransition();
     }
 
     function onPopState() {
-      begin(window.location.pathname);
+      startTransition();
     }
 
     document.addEventListener("click", onClick, true);
@@ -85,14 +46,49 @@ export function NavigationLoader() {
       document.removeEventListener("click", onClick, true);
       window.removeEventListener("popstate", onPopState);
     };
-  }, [begin, pathname]);
+  }, [startTransition]);
 
-  useEffect(() => clearTimers, [clearTimers]);
+  // Increment progress over time while transitioning
+  useEffect(() => {
+    if (!isTransitioning) return;
+    setProgress(15);
 
-  if (phase === "hidden") return null;
+    const timers = [
+      setTimeout(() => setProgress(35), 100),
+      setTimeout(() => setProgress(65), 350),
+      setTimeout(() => setProgress(85), 700),
+      setTimeout(() => setIsTransitioning(false), 10000),
+    ];
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [isTransitioning]);
+
+  // Complete on pathname and query-string changes.
+  useEffect(() => {
+    if (isTransitioning) {
+      setProgress(100);
+      const timer = setTimeout(() => {
+        setIsTransitioning(false);
+        setProgress(0);
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+    // isTransitioning is intentionally sampled only when the route completes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey]);
+
+  if (!isTransitioning) return null;
+
   return (
-    <div className="navigation-loader-overlay" data-phase={phase}>
-      <LoadingScreen variant={variant} />
+    <div
+      className="page-transition-loader"
+      data-complete={progress === 100}
+      style={{ opacity: progress === 100 ? 0 : 1 }}
+      aria-hidden="true"
+    >
+      <div className="page-transition-progress-bar" style={{ width: `${progress}%` }} />
     </div>
   );
 }

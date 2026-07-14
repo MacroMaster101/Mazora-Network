@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireRole } from "@/lib/auth";
 import { getRules } from "@/lib/data/content";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
@@ -8,6 +9,7 @@ import type { RuleCategory } from "@/lib/types";
 export const metadata: Metadata = { title: "Rules · Admin" };
 
 export default async function AdminRulesPage() {
+  await requireRole("administrator", "/admin/rules");
   const categories = await getRules();
   const columns: Column<RuleCategory>[] = [
     { header: "Category", cell: (c) => <span className="font-semibold">{c.name}</span> },
