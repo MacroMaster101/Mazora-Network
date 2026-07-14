@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus } from "lucide-react";
+import { requireRole } from "@/lib/auth";
 import { getGallery } from "@/lib/data/content";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
@@ -8,6 +9,7 @@ import type { GalleryImage } from "@/lib/types";
 export const metadata: Metadata = { title: "Gallery · Admin" };
 
 export default async function AdminGalleryPage() {
+  await requireRole("administrator", "/admin/gallery");
   const images = await getGallery();
   const columns: Column<GalleryImage>[] = [
     { header: "Title", cell: (g) => <span className="font-semibold">{g.title}</span> },

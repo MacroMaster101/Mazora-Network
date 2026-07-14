@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireRole } from "@/lib/auth";
 import { getPlayers } from "@/lib/data/players";
 import { getStaff, getEvents } from "@/lib/data/content";
 import { getServerStatus } from "@/lib/data/status";
@@ -8,6 +9,7 @@ import { fmtDate } from "@/lib/utils";
 export const metadata: Metadata = { title: "Admin" };
 
 export default async function AdminOverview() {
+  await requireRole("helper", "/admin");
   const [players, staff, events, status] = await Promise.all([getPlayers(), getStaff(), getEvents(), getServerStatus()]);
   const online = players.filter((p) => p.status === "online").length;
   const activeEvents = events.filter((e) => e.status !== "completed").length;

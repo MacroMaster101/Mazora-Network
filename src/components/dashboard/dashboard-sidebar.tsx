@@ -15,8 +15,10 @@ import {
   Vote,
   CalendarDays,
   LogOut,
+  ShieldCheck,
 } from "lucide-react";
 import type { Session } from "@/lib/auth";
+import { isStaff, roleLabel } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -43,10 +45,18 @@ export function DashboardSidebar({ session }: { session: Session }) {
         </span>
         <div className="min-w-0">
           <p className="truncate font-semibold">{session.displayName}</p>
-          <p className="text-xs capitalize text-muted">{session.role}</p>
+          <p className="text-xs text-muted">{roleLabel(session.role)}</p>
         </div>
       </div>
       <nav className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
+        {isStaff(session.role) && (
+          <Link
+            href="/admin"
+            className="mb-1 flex shrink-0 items-center gap-2.5 rounded-lg border border-gold/30 bg-gold/10 px-3 py-2 text-sm font-semibold text-gold transition-colors hover:bg-gold/15"
+          >
+            <ShieldCheck size={16} /> Admin Panel
+          </Link>
+        )}
         {items.map((item) => {
           const active = item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href);
           return (

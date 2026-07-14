@@ -11,7 +11,7 @@ export function SiteFooter() {
       <div className="shell grid grid-cols-2 gap-x-8 gap-y-10 py-14 sm:py-16 lg:grid-cols-[1.4fr_repeat(4,1fr)] lg:gap-x-10">
         <div className="col-span-2 mx-auto max-w-xs text-center lg:col-span-1 lg:mx-0 lg:text-left">
           <div className="flex justify-center">
-            <Logo priority height={96} className="footer-brand-logo" />
+            <Logo height={96} className="footer-brand-logo" />
           </div>
           <p className="mt-4 text-sm leading-relaxed text-muted">{site.description}</p>
           <div className="mt-5 space-y-2">

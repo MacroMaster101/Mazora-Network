@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx --env-file=.env src/lib/db/seed.ts"
+    "db:seed": "tsx --env-file=.env src/lib/db/seed.ts",
+    "role:set": "tsx --env-file=.env scripts/set-role.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -22,6 +23,7 @@
     "postgres": "^3.4.9",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "server-only": "^0.0.1",
     "zod": "^3.24.2"
   },
   "devDependencies": {

@@ -12,10 +12,11 @@ export type Role =
   | "guest"
   | "member"
   | "vip"
-  | "staff"
+  | "helper"
   | "moderator"
   | "administrator"
-  | "owner";
+  | "owner"
+  | "it";
 
 export interface GameMode {
   slug: string;
