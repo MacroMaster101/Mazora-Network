@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireRole } from "@/lib/auth";
 import { getGameModes } from "@/lib/data/content";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
@@ -7,6 +8,7 @@ import type { GameMode } from "@/lib/types";
 export const metadata: Metadata = { title: "Game Modes · Admin" };
 
 export default async function AdminGameModesPage() {
+  await requireRole("administrator", "/admin/game-modes");
   const modes = await getGameModes();
   const columns: Column<GameMode>[] = [
     { header: "Name", cell: (m) => <span className="font-semibold">{m.name}</span> },

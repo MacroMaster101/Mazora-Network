@@ -1,5 +1,5 @@
-import { LoadingScreen } from "@/components/shared/loading-screen";
+import { RouteLoading } from "@/components/shared/route-loading";
 
 export default function SiteLoading() {
-  return <LoadingScreen variant="page" />;
+  return <RouteLoading />;
 }

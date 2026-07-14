@@ -1,5 +1,5 @@
-import { LoadingScreen } from "@/components/shared/loading-screen";
+import { RouteLoading } from "@/components/shared/route-loading";
 
 export default function AuthLoading() {
-  return <LoadingScreen variant="auth" />;
+  return <RouteLoading />;
 }
