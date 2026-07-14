@@ -85,7 +85,7 @@ export function AdminSidebar({ role }: { role: Role }) {
     .map((group) => ({ ...group, items: group.items.filter((item) => hasAtLeast(role, item.minRole)) }))
     .filter((group) => group.items.length > 0);
   return (
-    <aside className="lg:sticky lg:top-24 lg:h-fit lg:self-start">
+    <aside className="admin-sidebar lg:sticky lg:top-24 lg:h-fit lg:self-start">
       <nav className="flex gap-4 overflow-x-auto pb-1 lg:flex-col lg:gap-5 lg:overflow-visible">
         {visibleGroups.map((group) => (
           <div key={group.heading} className="shrink-0">
@@ -97,6 +97,7 @@ export function AdminSidebar({ role }: { role: Role }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
                       "flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                       active ? "bg-gold/10 text-gold" : "text-muted hover:bg-ink/5 hover:text-ink",

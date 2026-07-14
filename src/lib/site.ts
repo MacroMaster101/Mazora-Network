@@ -7,7 +7,7 @@ export const site = {
     "A player-first Minecraft network built around unforgettable worlds, fair competition, and a community worth staying for.",
   javaIp: "mc.mazora.us",
   bedrockIp: "mc.mazora.us",
-  bedrockPort: "19132",
+  bedrockPort: process.env.NEXT_PUBLIC_BEDROCK_PORT ?? "8876",
   version: "1.21.x",
   region: "Asia Pacific",
   launchDate: "2023-10-01",

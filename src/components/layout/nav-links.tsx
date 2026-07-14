@@ -20,7 +20,9 @@ export function NavLinks() {
   return (
     <nav className="desktop-nav-shell hidden items-center gap-1 min-[1200px]:flex">
       {primaryNav.map((item) => {
-        const active = item.href === bestMatch || item.children?.some((child) => child.href === bestMatch);
+        const active = Boolean(
+          bestMatch && (item.href === bestMatch || item.children?.some((child) => child.href === bestMatch)),
+        );
 
         if (item.children) {
           return (
@@ -31,7 +33,7 @@ export function NavLinks() {
                 data-active={active}
                 title={item.label}
                 className={cn(
-                  "desktop-nav-item relative flex min-h-10 items-center gap-2 px-3 text-sm font-semibold transition-all duration-200",
+                  "desktop-nav-item relative flex min-h-11 items-center gap-2.5 px-3 text-[0.9375rem] font-semibold transition-all duration-200",
                   active && "is-active",
                 )}
               >
@@ -81,7 +83,7 @@ export function NavLinks() {
             data-active={active}
             title={item.label}
             className={cn(
-              "desktop-nav-item relative flex min-h-10 items-center gap-2 px-3 text-sm font-semibold transition-all duration-200",
+              "desktop-nav-item relative flex min-h-11 items-center gap-2.5 px-3 text-[0.9375rem] font-semibold transition-all duration-200",
               active && "is-active",
             )}
           >
