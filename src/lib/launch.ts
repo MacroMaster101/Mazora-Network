@@ -70,6 +70,12 @@ export const launchGates: LaunchGate[] = [
     message: "Voting, moderation and account attribution are being completed before ideas are accepted.",
   },
   {
+    path: "/support/content-creator",
+    eyebrow: "Creator program",
+    title: "The Content Creator program is coming soon.",
+    message: "Applications, creator benefits and publishing guidelines are being finalized before the program opens.",
+  },
+  {
     path: "/support/staff-application",
     eyebrow: "Team launch",
     title: "Staff applications are currently closed.",
