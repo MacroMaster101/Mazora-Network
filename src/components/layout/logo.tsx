@@ -18,7 +18,7 @@ export function Logo({
   return (
     <Link href="/" className={cn("inline-flex items-center", className)} aria-label="Mazora Network — home">
       <Image
-        src="/images/mazora-logo.png"
+        src="/images/mazora-logo.webp"
         alt="Mazora Network"
         width={width}
         height={height}

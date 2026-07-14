@@ -1,5 +1,5 @@
-import { LoadingScreen } from "@/components/shared/loading-screen";
+import { RouteLoading } from "@/components/shared/route-loading";
 
 export default function AdminLoading() {
-  return <LoadingScreen variant="portal" />;
+  return <RouteLoading />;
 }

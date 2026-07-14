@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireRole } from "@/lib/auth";
 import { getVoteSites } from "@/lib/data/content";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
@@ -7,6 +8,7 @@ import type { VoteSite } from "@/lib/types";
 export const metadata: Metadata = { title: "Voting · Admin" };
 
 export default async function AdminVotingPage() {
+  await requireRole("administrator", "/admin/voting");
   const sites = await getVoteSites();
   const columns: Column<VoteSite>[] = [
     { header: "Site", cell: (v) => <span className="font-semibold">{v.name}</span> },

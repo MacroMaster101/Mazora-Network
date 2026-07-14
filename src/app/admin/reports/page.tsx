@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { ShieldAlert } from "lucide-react";
+import { requireRole } from "@/lib/auth";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminPlaceholder } from "@/components/admin/admin-ui";
 
 export const metadata: Metadata = { title: "Reports · Admin" };
 
-export default function AdminReportsPage() {
+export default async function AdminReportsPage() {
+  await requireRole("helper", "/admin/reports");
   return (
     <>
       <DashHeader title="Player reports" subtitle="Investigate and action reports." />

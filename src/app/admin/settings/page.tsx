@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requireRole, hasAtLeast } from "@/lib/auth";
 import { site } from "@/lib/site";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { ReadOnlyBanner } from "@/components/admin/admin-ui";
@@ -17,8 +17,8 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 export default async function AdminSettingsPage() {
-  const session = await requireRole("administrator", "/admin/settings");
-  const ownerOnly = session.role === "owner";
+  const session = await requireRole("it", "/admin/settings");
+  const ownerOnly = hasAtLeast(session.role, "owner");
 
   return (
     <>

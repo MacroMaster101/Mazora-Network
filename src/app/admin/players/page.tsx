@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireRole } from "@/lib/auth";
 import { getPlayers } from "@/lib/data/players";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
@@ -9,6 +10,7 @@ import type { Player } from "@/lib/types";
 export const metadata: Metadata = { title: "Players · Admin" };
 
 export default async function AdminPlayersPage() {
+  await requireRole("moderator", "/admin/players");
   const players = await getPlayers();
   const columns: Column<Player>[] = [
     {

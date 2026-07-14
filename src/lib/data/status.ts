@@ -32,6 +32,8 @@ interface UpstreamShape {
   motd?: string | { clean?: string | string[]; raw?: string | string[] };
   ping?: number;
 }
+const UPSTREAM_TIMEOUT_MS = 2500;
+
 
 /**
  * Normalises a few common status-API shapes (mcsrvstat-like / mcstatus-like)
@@ -44,6 +46,7 @@ export async function getServerStatus(): Promise<ServerStatus> {
     const res = await fetch(url, {
       headers: { "User-Agent": "MazoraNetworkWebsite/1.0" },
       next: { revalidate: 300 },
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
     if (!res.ok) return fallback();
     const data = (await res.json()) as UpstreamShape;
