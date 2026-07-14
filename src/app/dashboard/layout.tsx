@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <div className="account-area">
-      <SiteHeader />
+      <SiteHeader world />
       <main id="main" className="account-layout shell grid gap-8 py-8 lg:grid-cols-[240px_1fr]">
         <DashboardSidebar session={session} />
         <div className="account-content min-w-0">{children}</div>

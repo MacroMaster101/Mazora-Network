@@ -10,11 +10,9 @@ export function NavigationLoader() {
   const searchParams = useSearchParams();
   const routeKey = `${pathname}?${searchParams.toString()}`;
 
-  // States for page transitions
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // Click & popstate listener logic for page-to-page navigation
   const startTransition = useCallback(() => {
     if (isTransitioning) return;
     setIsTransitioning(true);
@@ -48,7 +46,6 @@ export function NavigationLoader() {
     };
   }, [startTransition]);
 
-  // Increment progress over time while transitioning
   useEffect(() => {
     if (!isTransitioning) return;
     setProgress(15);
