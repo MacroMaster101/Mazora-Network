@@ -3567,8 +3567,9 @@ body.initial-load-active {
 }
 
 .initial-loader {
-  position: fixed;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  height: 100%;
   z-index: 9998;
   display: grid;
   min-height: 100svh;
@@ -3969,4 +3970,491 @@ body.initial-load-active {
   .initial-loader-mark { width: 12.5rem; height: 9.5rem; }
   .initial-loader-copy { max-width: 18rem; margin-inline: auto; }
   .initial-loader-footer { bottom: 1.2rem; }
+}
+
+.launch-status-page {
+  display: grid;
+  min-height: calc(100svh - 4.75rem);
+  place-items: center;
+  padding-block: clamp(4rem, 9vw, 8rem);
+}
+
+.launch-status-card {
+  position: relative;
+  width: min(100%, 48rem);
+  overflow: hidden;
+  border: 1px solid rgb(var(--line-strong));
+  border-radius: 1.75rem;
+  background: linear-gradient(145deg, rgb(var(--card) / 0.98), rgb(var(--surface) / 0.94));
+  box-shadow: 0 35px 90px -48px rgb(var(--accent-rgb) / 0.72);
+}
+
+.launch-status-glow {
+  position: absolute;
+  inset: -40% 15% auto;
+  height: 24rem;
+  border-radius: 999px;
+  background: rgb(var(--accent-rgb) / 0.18);
+  filter: blur(70px);
+}
+
+.launch-status-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(2.25rem, 7vw, 5rem);
+  text-align: center;
+}
+
+.launch-status-icon {
+  display: grid;
+  width: 4rem;
+  height: 4rem;
+  margin-bottom: 1.5rem;
+  place-items: center;
+  border: 1px solid rgb(var(--accent-rgb) / 0.28);
+  border-radius: 1.25rem;
+  background: rgb(var(--accent-rgb) / 0.12);
+  color: rgb(var(--accent-bright));
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.14), 0 18px 45px -25px rgb(var(--accent-rgb));
+}
+
+.launch-status-content h1 {
+  max-width: 38rem;
+  margin-top: 1rem;
+  color: rgb(var(--ink));
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(2rem, 6vw, 3.75rem);
+  font-weight: 850;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+
+.launch-status-message {
+  max-width: 37rem;
+  margin-top: 1.25rem;
+  color: rgb(var(--muted));
+  font-size: clamp(0.95rem, 2vw, 1.08rem);
+  line-height: 1.8;
+}
+
+.launch-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1.5rem;
+  border: 1px solid rgb(var(--success) / 0.25);
+  border-radius: 999px;
+  background: rgb(var(--success) / 0.08);
+  padding: 0.45rem 0.75rem;
+  color: rgb(var(--success));
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.launch-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.launch-status-note {
+  margin-top: 1.4rem;
+  color: rgb(var(--muted));
+  font-size: 0.72rem;
+}
+/* Signed-in navigation and account portal surfaces. */
+.signed-in-header-mark {
+  position: relative;
+  display: grid;
+  width: 2.7rem;
+  height: 2.7rem;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(var(--accent-rgb) / 0.34);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 26%, rgb(255 255 255 / 0.18), transparent 34%),
+    linear-gradient(145deg, rgb(var(--accent-rgb) / 0.2), rgb(var(--card) / 0.9));
+  box-shadow: 0 9px 24px -15px rgb(var(--accent-rgb) / 0.9), inset 0 1px rgb(255 255 255 / 0.18);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.signed-in-header-mark:hover {
+  transform: translateY(-1px) scale(1.035);
+  border-color: rgb(var(--accent-rgb) / 0.62);
+  box-shadow: 0 12px 28px -14px rgb(var(--accent-rgb) / 0.95), 0 0 0 3px rgb(var(--accent-rgb) / 0.08);
+}
+
+.signed-in-header-mark img {
+  width: 82% !important;
+  height: 82% !important;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 8px rgb(var(--accent-rgb) / 0.5));
+}
+
+.account-avatar-trigger {
+  position: relative;
+  display: grid;
+  width: 2.7rem;
+  height: 2.7rem;
+  place-items: center;
+  border: 1px solid rgb(var(--line-strong));
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgb(var(--card) / 0.96), rgb(var(--surface) / 0.82));
+  box-shadow: 0 10px 26px -18px rgb(var(--accent-rgb) / 0.9), inset 0 1px rgb(255 255 255 / 0.2);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.account-avatar-trigger:hover,
+.account-avatar-trigger[aria-expanded="true"] {
+  transform: translateY(-1px);
+  border-color: rgb(var(--accent-rgb) / 0.65);
+  box-shadow: 0 11px 28px -16px rgb(var(--accent-rgb) / 0.9), 0 0 0 3px rgb(var(--accent-rgb) / 0.1);
+}
+
+.account-avatar-status {
+  position: absolute;
+  right: 0;
+  bottom: 0.05rem;
+  width: 0.48rem;
+  height: 0.48rem;
+  border: 2px solid rgb(var(--base));
+  border-radius: 999px;
+  background: rgb(var(--success));
+  box-shadow: 0 0 9px rgb(var(--success) / 0.65);
+}
+.hero-nav .account-avatar-trigger {
+  border-color: rgb(216 180 254 / 0.28);
+  background: rgb(12 7 24 / 0.76);
+  box-shadow: 0 12px 30px -18px rgb(0 0 0 / 0.9), inset 0 1px rgb(255 255 255 / 0.1);
+}
+
+.hero-nav .account-avatar-trigger > span:first-child {
+  background: rgb(216 180 254 / 0.14);
+  color: #f3e8ff;
+}
+
+.hero-nav .account-avatar-status {
+  border-color: rgb(12 7 24);
+}
+.account-menu {
+  width: 17.5rem;
+  border: 1px solid rgb(var(--line-strong));
+  border-radius: 1rem;
+  background: rgb(var(--card));
+  color: rgb(var(--ink));
+  box-shadow: 0 22px 60px -28px rgb(23 11 43 / 0.48), 0 8px 24px -18px rgb(var(--accent-rgb) / 0.45);
+  isolation: isolate;
+}
+
+.account-menu::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: 4.5rem;
+  background:
+    radial-gradient(circle at 12% 0%, rgb(var(--accent-rgb) / 0.18), transparent 68%),
+    linear-gradient(100deg, rgb(var(--accent-rgb) / 0.08), transparent 72%);
+  pointer-events: none;
+}
+
+.account-menu-header {
+  padding: 1rem;
+  border-bottom: 1px solid rgb(var(--line));
+}
+
+.account-menu-name {
+  overflow: hidden;
+  color: rgb(var(--ink));
+  font-size: 0.9rem;
+  font-weight: 750;
+  line-height: 1.25rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu-role {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.18rem;
+  color: rgb(var(--muted));
+  font-size: 0.7rem;
+  line-height: 1rem;
+  text-transform: capitalize;
+}
+
+.account-menu-role::before {
+  content: "";
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 999px;
+  background: rgb(var(--success));
+  box-shadow: 0 0 7px rgb(var(--success) / 0.45);
+}
+
+.account-menu-links {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.55rem;
+}
+
+.account-menu-link {
+  display: flex;
+  min-height: 2.6rem;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: 0.75rem;
+  padding: 0.45rem 0.6rem;
+  color: rgb(var(--muted));
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.account-menu-link:hover,
+.account-menu-link.is-active {
+  background: rgb(var(--accent-rgb) / 0.1);
+  color: rgb(var(--ink));
+}
+
+.account-menu-link:hover {
+  transform: translateX(2px);
+}
+
+.account-menu-link.is-active {
+  color: rgb(var(--accent-bright));
+}
+
+.account-menu-link-icon {
+  display: grid;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(var(--line));
+  border-radius: 0.6rem;
+  background: rgb(var(--surface) / 0.72);
+  color: rgb(var(--accent-bright));
+}
+
+.account-menu-admin {
+  color: rgb(var(--gold));
+}
+
+.account-menu-footer {
+  border-top: 1px solid rgb(var(--line));
+  padding: 0.55rem;
+}
+
+.account-menu-logout {
+  display: flex;
+  width: 100%;
+  min-height: 2.45rem;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: 0.7rem;
+  padding: 0.45rem 0.7rem;
+  color: rgb(var(--muted));
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.account-menu-logout:hover {
+  background: rgb(var(--danger) / 0.08);
+  color: rgb(var(--danger));
+}
+
+.hero-nav .account-menu {
+  border-color: rgb(216 180 254 / 0.22);
+  background: rgb(12 7 24 / 0.98);
+  color: white;
+  box-shadow: 0 24px 64px -28px rgb(0 0 0 / 0.92), 0 0 0 1px rgb(255 255 255 / 0.025);
+}
+
+.hero-nav .account-menu-header,
+.hero-nav .account-menu-footer {
+  border-color: rgb(216 180 254 / 0.13);
+}
+
+.hero-nav .account-menu-name,
+.hero-nav .account-menu-link:hover {
+  color: white;
+}
+
+.hero-nav .account-menu-link-icon {
+  border-color: rgb(216 180 254 / 0.14);
+  background: rgb(216 180 254 / 0.08);
+  color: #d8b4fe;
+}
+
+.hero-nav .account-menu-link:hover,
+.hero-nav .account-menu-link.is-active {
+  background: rgb(216 180 254 / 0.1);
+}
+
+.hero-nav .account-menu-link.is-active {
+  color: #d8b4fe;
+}
+
+.scroll-header:not(.hero-nav) {
+  border-bottom: 1px solid rgb(var(--line) / 0.78);
+  background: rgb(var(--base) / 0.96);
+  box-shadow: 0 12px 32px -28px rgb(var(--accent-rgb) / 0.55);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.scroll-header:not(.hero-nav) .desktop-nav-item {
+  color: rgb(var(--ink) / 0.72);
+}
+
+.scroll-header:not(.hero-nav) .desktop-nav-item:hover,
+.scroll-header:not(.hero-nav) .desktop-nav-item.is-active {
+  color: rgb(var(--accent-bright));
+}
+
+.account-area {
+  min-height: 100svh;
+  background:
+    radial-gradient(48rem 32rem at 8% 0%, rgb(var(--accent-rgb) / 0.1), transparent 66%),
+    radial-gradient(42rem 30rem at 100% 12%, rgb(var(--accent-rgb) / 0.065), transparent 68%);
+}
+
+.account-layout {
+  position: relative;
+  min-height: calc(100svh - 4.75rem);
+  padding-block: clamp(2rem, 4vw, 3.5rem);
+}
+
+.account-content {
+  min-height: 34rem;
+}
+
+.dash-header {
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid rgb(var(--line) / 0.78);
+}
+
+.account-content .panel,
+.account-content .glass,
+.dashboard-profile-card {
+  border-color: rgb(var(--line-strong) / 0.78);
+  box-shadow: 0 16px 42px -32px rgb(45 27 72 / 0.42), inset 0 1px rgb(255 255 255 / 0.5);
+}
+
+.account-content .glass,
+.dashboard-profile-card {
+  background: linear-gradient(145deg, rgb(var(--card) / 0.94), rgb(var(--surface) / 0.88));
+  backdrop-filter: none;
+}
+
+.dashboard-stat-tile {
+  position: relative;
+  overflow: hidden;
+}
+
+.dashboard-stat-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.18), rgb(var(--accent-rgb) / 0.72), transparent 82%);
+}
+
+.dashboard-profile-avatar {
+  border: 1px solid rgb(var(--accent-rgb) / 0.22);
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.16), 0 10px 24px -18px rgb(var(--accent-rgb));
+}
+
+.dashboard-sidebar nav a,
+.dashboard-sidebar nav button,
+.admin-sidebar nav a,
+.admin-sidebar nav button {
+  color: rgb(var(--ink) / 0.7);
+}
+
+.dashboard-sidebar nav a:hover,
+.dashboard-sidebar nav button:hover,
+.admin-sidebar nav a:hover,
+.admin-sidebar nav button:hover {
+  background: rgb(var(--accent-rgb) / 0.075);
+  color: rgb(var(--ink));
+}
+
+.dashboard-sidebar nav a[aria-current="page"] {
+  color: rgb(var(--accent-bright));
+  background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.17), rgb(var(--accent-rgb) / 0.07));
+  box-shadow: inset 3px 0 rgb(var(--accent));
+}
+
+.admin-sidebar nav a[aria-current="page"] {
+  color: rgb(var(--gold));
+  background: linear-gradient(90deg, rgb(var(--gold) / 0.15), rgb(var(--gold) / 0.05));
+  box-shadow: inset 3px 0 rgb(var(--gold));
+}
+
+.admin-session-bar {
+  background: rgb(var(--surface) / 0.72);
+  backdrop-filter: none;
+}
+
+:root[data-theme="dark"] .scroll-header:not(.hero-nav) {
+  background: rgb(9 6 16 / 0.96);
+  border-bottom-color: rgb(98 73 128 / 0.28);
+  box-shadow: 0 12px 38px -26px rgb(0 0 0 / 0.95);
+}
+
+:root[data-theme="dark"] .account-area {
+  background:
+    radial-gradient(52rem 36rem at 4% -4%, rgb(var(--accent-rgb) / 0.16), transparent 66%),
+    radial-gradient(44rem 34rem at 100% 10%, rgb(75 38 128 / 0.13), transparent 68%);
+}
+
+:root[data-theme="dark"] .account-content .panel {
+  border-color: rgb(94 73 118 / 0.58);
+  background: linear-gradient(145deg, rgb(27 20 41 / 0.98), rgb(20 14 31 / 0.96));
+  box-shadow: 0 18px 46px -30px rgb(0 0 0 / 0.92), inset 0 1px rgb(255 255 255 / 0.04);
+}
+
+:root[data-theme="dark"] .account-content .glass,
+:root[data-theme="dark"] .dashboard-profile-card {
+  border-color: rgb(94 73 118 / 0.52);
+  background: linear-gradient(145deg, rgb(29 21 44 / 0.94), rgb(18 13 28 / 0.91));
+  box-shadow: 0 18px 46px -30px rgb(0 0 0 / 0.94), inset 0 1px rgb(255 255 255 / 0.035);
+}
+
+:root[data-theme="dark"] .dashboard-sidebar nav a,
+:root[data-theme="dark"] .dashboard-sidebar nav button,
+:root[data-theme="dark"] .admin-sidebar nav a,
+:root[data-theme="dark"] .admin-sidebar nav button {
+  color: rgb(214 205 226 / 0.72);
+}
+
+:root[data-theme="dark"] .dashboard-sidebar nav a[aria-current="page"] {
+  color: rgb(216 180 254);
+}
+
+@media (max-width: 1023px) {
+  .account-layout { gap: 1.5rem; }
+  .dashboard-profile-card { margin-bottom: 0.75rem; }
+}
+
+@media (max-width: 639px) {
+  .signed-in-header-mark,
+  .account-avatar-trigger {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .account-layout {
+    padding-block: 1.5rem 2.5rem;
+  }
 }

@@ -11,18 +11,18 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   if (!isStaff(session.role)) redirect("/dashboard");
 
   return (
-    <>
+    <div className="account-area admin-area">
       <SiteHeader />
-      <div className="border-b border-line bg-surface/40">
+      <div className="admin-session-bar border-b border-line bg-surface/40">
         <div className="shell flex items-center gap-2 py-2 text-xs text-muted">
           <span className="chip border-gold/40 text-gold">Staff</span>
           <span>Signed in as {session.displayName} · {roleLabel(session.role)}</span>
         </div>
       </div>
-      <main id="main" className="shell grid gap-8 py-8 lg:grid-cols-[220px_1fr]">
+      <main id="main" className="account-layout shell grid gap-8 py-8 lg:grid-cols-[220px_1fr]">
         <AdminSidebar role={session.role} />
-        <div className="min-w-0">{children}</div>
+        <div className="account-content min-w-0">{children}</div>
       </main>
-    </>
+    </div>
   );
 }
