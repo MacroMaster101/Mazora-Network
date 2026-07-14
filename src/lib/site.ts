@@ -36,6 +36,7 @@ export const primaryNav: NavItem[] = [
     label: "Forums",
     children: [
       { label: "Staff application", href: "/support/staff-application", description: "Apply to join the Mazora team" },
+      { label: "Content Creator", href: "/support/content-creator", description: "Creator applications and community media" },
       { label: "Ban appeal", href: "/support/appeal", description: "Request a punishment review" },
       { label: "Suggestions", href: "/support/suggestions", description: "Share an idea with the community" },
       { label: "Discussion forum", href: "/forums", description: "Talk updates, modes and builds" },
