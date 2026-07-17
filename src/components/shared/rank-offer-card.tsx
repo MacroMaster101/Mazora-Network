@@ -6,7 +6,6 @@ import { ArrowUpRight, Plus } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { storeArtFor } from "@/lib/store-art";
 import { usd } from "@/lib/utils";
-import { useToast } from "@/components/ui";
 import { useCart } from "./cart-provider";
 
 export function RankOfferCard({
@@ -17,14 +16,12 @@ export function RankOfferCard({
   products: Product[];
 }) {
   const { add, openCart } = useCart();
-  const { toast } = useToast();
   const monthly = products.find((product) => product.billing === "Monthly");
   const permanent = products.find((product) => product.billing === "Permanent");
   const accent = permanent?.accent ?? monthly?.accent ?? "violet";
 
   function addRank(product: Product) {
     add(product);
-    toast(`${product.name} added to cart`, "success");
     openCart();
   }
 
