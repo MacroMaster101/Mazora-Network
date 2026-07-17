@@ -39,7 +39,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const toast = useCallback((message: string, tone: ToastTone = "success") => {
     const id = Date.now() + Math.random();
     setToasts((t) => [...t, { id, message, tone }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5000);
   }, []);
 
   return (
@@ -47,7 +47,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {mounted &&
         createPortal(
-          <div className="pointer-events-none fixed bottom-5 right-5 z-[200] flex flex-col gap-2">
+          <div className="pointer-events-none fixed bottom-5 right-5 z-[300] flex flex-col gap-2">
             {toasts.map((t) => {
               const Icon = icons[t.tone];
               return (

@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
-import { AlertTriangle, KeyRound, Link2, Monitor } from "lucide-react";
-import { requireSession } from "@/lib/auth";
+import { AlertTriangle, Link2, Monitor } from "lucide-react";
+import { requireSession, getDiscordIdentity } from "@/lib/auth";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { DashHeader } from "@/components/dashboard/dash-ui";
+import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
+import { AccountSecurity } from "@/components/dashboard/account-security";
 import { FormRow, Input, Textarea } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
@@ -18,6 +22,23 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 export default async function SettingsPage() {
   const session = await requireSession("/dashboard/settings");
+
+  // Fetch user email & linked providers for the Connected Accounts card.
+  let email = "";
+  let hasGoogle = false;
+  let hasPassword = false;
+  const discord = await getDiscordIdentity();
+  if (isSupabaseConfigured()) {
+    const supabase = await createSupabaseServerClient();
+    if (supabase) {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        email = data.user.email ?? "";
+        hasGoogle = data.user.identities?.some((i) => i.provider === "google") ?? false;
+        hasPassword = data.user.identities?.some((i) => i.provider === "email") ?? false;
+      }
+    }
+  }
 
   return (
     <>
@@ -42,16 +63,19 @@ export default async function SettingsPage() {
 
         <Card title="Account">
           <FormRow label="Email" htmlFor="email">
-            <Input id="email" type="email" placeholder="you@example.com" />
+            <Input id="email" type="email" value={email} disabled />
           </FormRow>
-          <div className="flex flex-wrap gap-3">
-            <span className="chip">
-              <KeyRound size={13} /> Change password
-            </span>
-            <a href="/dashboard/minecraft" className="chip hover:border-accent/50">
+          <div className="flex flex-wrap items-start gap-3">
+            <AccountSecurity hasPassword={hasPassword} />
+            <a href="/dashboard/minecraft" className="inline-flex items-center gap-2 rounded-lg border border-line-strong px-3 py-2 text-xs font-semibold transition hover:border-accent/50 hover:text-accent-bright">
               <Link2 size={13} /> Minecraft linking
             </a>
           </div>
+        </Card>
+
+        <Card title="Connected accounts">
+          <p className="-mt-2 text-xs text-muted">Sign in with any of these providers. Linking Discord lets you use it for orders and login.</p>
+          <ConnectedAccounts email={email} hasGoogle={hasGoogle} initialDiscord={discord} />
         </Card>
 
         <Card title="Preferences">

@@ -81,7 +81,11 @@ export function isLaunchModeEnabled(): boolean {
   return process.env.MAZORA_LAUNCH_MODE !== "off";
 }
 
+/** Paths that are ready even when the dashboard children gate is active. */
+const dashboardExclusions = new Set(["/dashboard/settings"]);
+
 export function getLaunchGate(pathname: string): LaunchGate | undefined {
+  if (dashboardExclusions.has(pathname)) return undefined;
   return launchGates.find((gate) => {
     if (gate.match === "tree") return pathname === gate.path || pathname.startsWith(gate.path + "/");
     if (gate.match === "children") return pathname.startsWith(gate.path + "/");

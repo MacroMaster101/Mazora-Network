@@ -61,13 +61,18 @@ export async function getSession(): Promise<Session | null> {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) return null;
 
-    const metadata = data.user.user_metadata ?? {};
+    // Prefer the Google identity's metadata for display name so it doesn't
+    // flip to the Discord username when signing in with Discord.
+    const googleIdentity = data.user.identities?.find((i) => i.provider === "google");
+    const preferredMeta = googleIdentity?.identity_data ?? data.user.user_metadata ?? {};
+    const fallbackMeta = data.user.user_metadata ?? {};
+
     const emailName = data.user.email?.split("@")[0] ?? "player";
     const username = cleanUsername(
-      metadata.username ?? metadata.preferred_username ?? metadata.user_name ?? emailName,
+      fallbackMeta.username ?? fallbackMeta.preferred_username ?? fallbackMeta.user_name ?? emailName,
     );
     const displayName = String(
-      metadata.display_name ?? metadata.full_name ?? metadata.global_name ?? metadata.name ?? username,
+      preferredMeta.full_name ?? preferredMeta.name ?? preferredMeta.display_name ?? fallbackMeta.full_name ?? fallbackMeta.name ?? username,
     ).slice(0, 64);
 
     return {

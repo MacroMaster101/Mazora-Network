@@ -148,3 +148,28 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
 
   return { ok: true };
 }
+
+export async function unlinkDiscordAction(_previous: AuthResult): Promise<AuthResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, message: "Authentication has not been configured yet." };
+  }
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
+
+  const { data, error: userError } = await supabase.auth.getUser();
+  if (userError || !data.user) return { ok: false, message: "You must be signed in to unlink an account." };
+
+  const discordIdentity = data.user.identities?.find((i) => i.provider === "discord");
+  if (!discordIdentity) return { ok: false, message: "No Discord account is linked." };
+
+  // Supabase requires at least one identity to remain on the account.
+  const remaining = (data.user.identities?.length ?? 0) - 1;
+  if (remaining < 1) {
+    return { ok: false, message: "You cannot unlink Discord because it is your only sign-in method. Link Google or set a password first." };
+  }
+
+  const { error } = await supabase.auth.unlinkIdentity(discordIdentity);
+  if (error) return { ok: false, message: "Discord could not be unlinked. Please try again." };
+
+  return { ok: true, message: "Discord has been disconnected from your account." };
+}
