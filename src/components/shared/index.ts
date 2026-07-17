@@ -15,3 +15,5 @@ export { StaffCard } from "./staff-card";
 export { ProductCard } from "./product-card";
 export { LeaderboardTable } from "./leaderboard-table";
 export { accentStyles, coverGradient } from "./accent";
+export { LegalToc, LegalMobileToc } from "./legal-toc";
+

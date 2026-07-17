@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { Role } from "@/lib/types";
+import type { DiscordIdentity, Role } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { hasAtLeast, isAdmin, isStaff, roleLabel, STAFF_ROLES } from "@/lib/auth/roles";
@@ -81,6 +81,35 @@ export async function getSession(): Promise<Session | null> {
   const store = await cookies();
   const raw = store.get(SESSION_COOKIE)?.value;
   return raw ? decode(raw) : null;
+}
+
+/** Discord identity of the signed-in user, when they authenticated with Discord. */
+export async function getDiscordIdentity(): Promise<DiscordIdentity | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+
+  const identity = data.user.identities?.find((entry) => entry.provider === "discord");
+  const fromDiscord = Boolean(identity) || data.user.app_metadata?.provider === "discord";
+  if (!fromDiscord) return null;
+
+  const identityData: Record<string, unknown> = identity?.identity_data ?? data.user.user_metadata ?? {};
+  const customClaims = identityData.custom_claims as Record<string, unknown> | undefined;
+  // "name" arrives as "username#0" — the retired discriminator is dropped.
+  const username = String(identityData.name ?? identityData.full_name ?? customClaims?.global_name ?? "")
+    .trim()
+    .replace(/#0$/, "");
+  if (!username) return null;
+
+  const rawId = String(identityData.provider_id ?? identityData.sub ?? "").trim();
+  const rawAvatar = String(identityData.avatar_url ?? "").trim();
+  return {
+    id: /^\d{17,20}$/.test(rawId) ? rawId : "",
+    username: username.slice(0, 64),
+    avatarUrl: rawAvatar.startsWith("https://cdn.discordapp.com/") ? rawAvatar : undefined,
+  };
 }
 
 /** Returns the session or redirects to login. Use in protected pages. */

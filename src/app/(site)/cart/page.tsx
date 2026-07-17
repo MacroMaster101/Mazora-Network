@@ -1,19 +1,11 @@
 import type { Metadata } from "next";
-import { PageHero } from "@/components/shared";
-import { CartView } from "@/components/shared/cart-view";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Cart",
-  description: "Review the items in your cart before checkout.",
+  description: "Review your items in Mazora's slide-over cart and send a manual order request.",
 };
 
 export default function CartPage() {
-  return (
-    <>
-      <PageHero eyebrow="Almost there" title="Your cart" />
-      <section className="section shell">
-        <CartView />
-      </section>
-    </>
-  );
+  redirect("/store?cart=open");
 }

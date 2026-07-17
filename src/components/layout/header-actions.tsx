@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, LogIn, LogOut, Settings, ShieldCheck, Sparkles, Ticket, User } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, ShieldCheck, Sparkles, Ticket, User } from "lucide-react";
 import type { Session } from "@/lib/auth";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
 import { cn } from "@/lib/utils";
@@ -58,10 +58,11 @@ export function HeaderActions({ session }: { session: Session | null }) {
         title={session.displayName}
         className="account-avatar-trigger"
       >
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-accent/15 text-xs font-bold text-accent-bright">
+        <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-bold text-accent-bright">
           {initials}
+          <span className="account-avatar-status" aria-hidden="true" />
         </span>
-        <span className="account-avatar-status" aria-hidden="true" />
+        <ChevronDown size={13} className="account-avatar-caret" aria-hidden="true" />
       </button>
 
       {open && (

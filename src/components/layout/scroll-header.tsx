@@ -19,13 +19,23 @@ export function ScrollHeader({ children, world = false }: { children: ReactNode;
     upwardTravel.current = 0;
     setHidden(false);
 
+    const isLegalPage = pathname === "/privacy" || pathname === "/terms";
+
     const update = () => {
       const y = window.scrollY;
+      setAway(y > 80);
+
+      if (isLegalPage) {
+        setHidden(false);
+        lastY.current = y;
+        ticking.current = false;
+        return;
+      }
+
       const delta = y - lastY.current;
       const heroHeight = onHome
         ? document.querySelector<HTMLElement>(".hero-stage")?.offsetHeight ?? 0
         : 0;
-      setAway(y > 80);
       if (y <= 80) {
         upwardTravel.current = 0;
         setHidden(false);
@@ -35,10 +45,11 @@ export function ScrollHeader({ children, world = false }: { children: ReactNode;
       } else if (delta > 5) {
         upwardTravel.current = 0;
         setHidden(true);
-      } else if (delta < -2) {
-        upwardTravel.current += Math.abs(delta);
-        const revealDistance = window.innerWidth >= 1200 ? 300 : 120;
-        if (upwardTravel.current >= revealDistance) setHidden(false);
+      } else if (delta < 0) {
+        upwardTravel.current += -delta;
+        if (upwardTravel.current >= 120) setHidden(false);
+      } else if (delta > 0) {
+        upwardTravel.current = 0;
       }
       lastY.current = y;
       ticking.current = false;
