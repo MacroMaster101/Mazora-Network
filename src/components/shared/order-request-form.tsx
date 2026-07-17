@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, startTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { BadgeCheck, CheckCircle2, Loader2, MessageCircle, Send } from "lucide-react";
@@ -81,6 +81,28 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
     if (!oauthState.ok && oauthState.message) toast(oauthState.message, "error");
   }, [oauthState, toast]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("error") === "oauth_failed") {
+        toast("Discord connection failed. That account might already be linked to someone else.", "error");
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete("error");
+        window.history.replaceState({}, "", cleanUrl.toString());
+      }
+    }
+  }, [toast]);
+
+  const connectDiscord = () => {
+    saveDraft();
+    const formData = new FormData();
+    formData.append("provider", "discord");
+    formData.append("next", "/store?cart=request");
+    startTransition(() => {
+      oauthFormAction(formData);
+    });
+  };
+
   if (state.ok) {
     return (
       <div className="mt-5 rounded-xl border border-success/25 bg-success/5 p-5 text-center">
@@ -98,12 +120,6 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
 
   return (
     <>
-      {/* Separate form for the Discord OAuth hop; the connect button inside the
-          request form targets it via the `form` attribute (forms cannot nest). */}
-      <form id="cart-discord-connect" action={oauthFormAction} className="hidden" aria-hidden="true">
-        <input type="hidden" name="provider" value="discord" />
-        <input type="hidden" name="next" value="/store?cart=request" />
-      </form>
 
       <form action={formAction} className="store-request-form mt-5 space-y-4 border-t pt-5">
         <input type="hidden" name="items" value={JSON.stringify(items.map(({ slug, qty }) => ({ slug, qty })))} />
@@ -177,9 +193,8 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
                 straight to your DMs.
               </p>
               <button
-                type="submit"
-                form="cart-discord-connect"
-                onClick={saveDraft}
+                type="button"
+                onClick={connectDiscord}
                 disabled={oauthPending}
                 className="cart-discord-connect-btn mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60"
               >
