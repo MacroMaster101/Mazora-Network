@@ -18,6 +18,15 @@ export type Role =
   | "owner"
   | "it";
 
+/** Discord account details captured from a Discord OAuth sign-in. */
+export interface DiscordIdentity {
+  /** Discord snowflake ID, or empty string when the provider did not supply one. */
+  id: string;
+  username: string;
+  /** CDN avatar URL, when Discord supplied one. */
+  avatarUrl?: string;
+}
+
 export interface GameMode {
   slug: string;
   name: string;
@@ -118,13 +127,16 @@ export interface GalleryImage {
 export interface Product {
   slug: string;
   name: string;
-  category: "Ranks" | "Cosmetics" | "Coins" | "Crate Keys" | "Bundles";
+  category: "Ranks" | "Crate Keys" | "Battlepass" | "Add-ons";
   description: string;
   price: number;
   salePrice?: number;
   features: string[];
   accent: Accent;
   badge?: string;
+  family?: string;
+  billing?: "Monthly" | "Permanent";
+  subcategory?: "XP Boosts" | "Claim Blocks" | "Player Points";
 }
 
 export interface VoteSite {
@@ -134,6 +146,16 @@ export interface VoteSite {
   reward: string;
   cooldownHours: number;
 }
+
+export interface TopVoter {
+  username: string;
+  dailyVotes: number;
+  weeklyVotes: number;
+  monthlyVotes: number;
+  lastMonthVotes: number;
+  allTimeVotes: number;
+}
+
 
 
 export interface ServerStatus {

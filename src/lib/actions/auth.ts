@@ -85,13 +85,32 @@ export async function oauthAction(_previous: AuthResult, formData: FormData): Pr
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
   const nextValue = formData.get("next");
   const next = safeNext(typeof nextValue === "string" ? nextValue : undefined);
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: {
-      redirectTo: `${site.url}/auth/callback?next=${encodeURIComponent(next)}`,
-      skipBrowserRedirect: true,
-    },
-  });
+  const oauthOptions = {
+    redirectTo: `${site.url}/auth/callback?next=${encodeURIComponent(next)}`,
+    skipBrowserRedirect: true,
+  };
+
+  // A signed-in visitor is LINKING the provider to their current account, not
+  // switching accounts. signInWithOAuth would silently log them into a
+  // different account whenever the provider email differs. Requires the
+  // "Manual Linking" toggle in Supabase Authentication settings.
+  const { data: existingUser } = await supabase.auth.getUser();
+  if (existingUser?.user) {
+    const { data, error } = await supabase.auth.linkIdentity({ provider, options: oauthOptions });
+    if (error || !data.url) {
+      const reason = error?.message?.toLowerCase() ?? "";
+      if (reason.includes("already") && reason.includes("link")) {
+        return { ok: false, message: "That account is already linked to a different Mazora account." };
+      }
+      if (reason.includes("manual linking")) {
+        return { ok: false, message: "Account linking is not enabled yet. Please contact Mazora staff." };
+      }
+      return { ok: false, message: "The account could not be connected. Please try again." };
+    }
+    redirect(data.url);
+  }
+
+  const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: oauthOptions });
 
   if (error || !data.url) return { ok: false, message: "Social login could not be started. Please try again." };
   redirect(data.url);

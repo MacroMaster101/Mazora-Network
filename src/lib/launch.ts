@@ -8,19 +8,6 @@ export type LaunchGate = {
 
 export const launchGates: LaunchGate[] = [
   {
-    path: "/store",
-    match: "tree",
-    eyebrow: "Store launch",
-    title: "The Mazora Store is opening soon.",
-    message: "Payments and automatic in-game delivery are in final testing. No products are being sold or charges processed yet.",
-  },
-  {
-    path: "/cart",
-    eyebrow: "Store launch",
-    title: "Checkout is not open yet.",
-    message: "The secure checkout and delivery flow will appear here when the store is ready.",
-  },
-  {
     path: "/forums",
     eyebrow: "Community launch",
     title: "The forums are opening soon.",

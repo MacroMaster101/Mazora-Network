@@ -13,7 +13,9 @@ import type {
   RuleCategory,
   StaffMember,
   VoteSite,
+  TopVoter,
 } from "@/lib/types";
+
 
 export const demoGameModes: GameMode[] = [
   {
@@ -538,23 +540,45 @@ export const demoGallery: GalleryImage[] = [
 ];
 
 export const demoProducts: Product[] = [
-  { slug: "rank-adventurer", name: "Adventurer", category: "Ranks", description: "A friendly first step: coloured chat, extra homes, and a starter cosmetic pack.", price: 7.99, features: ["Coloured chat name", "5 /sethome slots", "Adventurer cosmetic pack", "Priority queue"], accent: "green" },
-  { slug: "rank-champion", name: "Champion", category: "Ranks", description: "For the committed: bigger claims, exclusive kits, and monthly coin bonuses.", price: 19.99, salePrice: 14.99, features: ["Everything in Adventurer", "10 /sethome slots", "Champion kit access", "Monthly coin stipend", "Champion tag"], accent: "cyan", badge: "Popular" },
-  { slug: "rank-mythic", name: "Mythic", category: "Ranks", description: "The flagship rank. Every perk, particle trails, and a permanent place on the supporters wall.", price: 39.99, features: ["Everything in Champion", "Unlimited homes", "Mythic particle trails", "Cosmetic vault access", "Supporters wall"], accent: "gold", badge: "Best value" },
-  { slug: "cosmetic-aurora-trail", name: "Aurora Trail", category: "Cosmetics", description: "Leave a shimmering aurora wherever you walk.", price: 4.99, features: ["Animated particle trail", "Works in all modes", "Toggle any time"], accent: "violet" },
-  { slug: "cosmetic-dragon-wings", name: "Dragon Wings", category: "Cosmetics", description: "Elytra reskin with animated ember wings.", price: 6.49, features: ["Animated wing cosmetic", "Ember particle effect", "Cross-mode"], accent: "rose" },
-  { slug: "coins-5000", name: "5,000 Coins", category: "Coins", description: "A handy stack of coins to jump-start your economy.", price: 4.99, features: ["5,000 in-game coins", "Instant delivery", "Any mode wallet"], accent: "gold" },
-  { slug: "coins-25000", name: "25,000 Coins", category: "Coins", description: "A serious war chest for traders and builders.", price: 19.99, salePrice: 16.99, features: ["25,000 in-game coins", "Instant delivery", "Best coin rate"], accent: "gold", badge: "Bonus" },
-  { slug: "key-vote-bundle", name: "Vote Key x10", category: "Crate Keys", description: "Ten vote crate keys for cosmetics, coins, and rare loot.", price: 5.99, features: ["10 vote crate keys", "Cosmetic & coin rewards", "Stackable"], accent: "green" },
-  { slug: "key-mythic-crate", name: "Mythic Key x3", category: "Crate Keys", description: "Three keys to the Mythic crate — the best loot table on the network.", price: 12.99, features: ["3 Mythic crate keys", "Top-tier loot table", "Guaranteed rare"], accent: "violet", badge: "Rare" },
-  { slug: "bundle-starter", name: "Starter Bundle", category: "Bundles", description: "Adventurer rank, 5,000 coins, and a cosmetic — everything to begin.", price: 14.99, salePrice: 11.99, features: ["Adventurer rank", "5,000 coins", "Aurora Trail cosmetic"], accent: "cyan", badge: "Save 30%" },
-  { slug: "bundle-champion", name: "Champion Bundle", category: "Bundles", description: "Champion rank, 25,000 coins, and Dragon Wings in one pack.", price: 44.99, salePrice: 34.99, features: ["Champion rank", "25,000 coins", "Dragon Wings cosmetic", "5 Mythic keys"], accent: "gold", badge: "Save 22%" },
+  { slug: "rank-hero-monthly", name: "Hero (Monthly)", family: "Hero", billing: "Monthly", category: "Ranks", description: "The first step into Mazora's Survival supporter ranks.", price: 2, features: ["Hero rank benefits", "Monthly access", "Survival SMP"], accent: "green", badge: "Monthly" },
+  { slug: "rank-hero-permanent", name: "Hero (Permanent)", family: "Hero", billing: "Permanent", category: "Ranks", description: "Keep the Hero rank and its Survival perks permanently.", price: 6, features: ["Hero rank benefits", "Permanent access", "Survival SMP"], accent: "green", badge: "Permanent" },
+  { slug: "rank-veteran-monthly", name: "Veteran (Monthly)", family: "Veteran", billing: "Monthly", category: "Ranks", description: "A stronger monthly Survival rank for regular players.", price: 4, features: ["Veteran rank benefits", "Monthly access", "Survival SMP"], accent: "cyan", badge: "Monthly" },
+  { slug: "rank-veteran-permanent", name: "Veteran (Permanent)", family: "Veteran", billing: "Permanent", category: "Ranks", description: "Unlock the Veteran rank permanently on Survival.", price: 8, features: ["Veteran rank benefits", "Permanent access", "Survival SMP"], accent: "cyan", badge: "Permanent" },
+  { slug: "rank-vip-monthly", name: "VIP (Monthly)", family: "VIP", billing: "Monthly", category: "Ranks", description: "Premium monthly recognition and perks on Survival.", price: 6, features: ["VIP rank benefits", "Monthly access", "Survival SMP"], accent: "violet", badge: "Monthly" },
+  { slug: "rank-vip-permanent", name: "VIP (Permanent)", family: "VIP", billing: "Permanent", category: "Ranks", description: "Permanent VIP status across the Survival experience.", price: 10, features: ["VIP rank benefits", "Permanent access", "Survival SMP"], accent: "violet", badge: "Permanent" },
+  { slug: "rank-legend-monthly", name: "Legend (Monthly)", family: "Legend", billing: "Monthly", category: "Ranks", description: "A high-tier monthly rank for dedicated Survival players.", price: 10, features: ["Legend rank benefits", "Monthly access", "Survival SMP"], accent: "orange", badge: "Monthly" },
+  { slug: "rank-legend-permanent", name: "Legend (Permanent)", family: "Legend", billing: "Permanent", category: "Ranks", description: "Keep the Legend rank and its perks forever.", price: 25, features: ["Legend rank benefits", "Permanent access", "Survival SMP"], accent: "orange", badge: "Permanent" },
+  { slug: "rank-immortal-monthly", name: "Immortal (Monthly)", family: "Immortal", billing: "Monthly", category: "Ranks", description: "Elite monthly status for the Survival community.", price: 12, features: ["Immortal rank benefits", "Monthly access", "Survival SMP"], accent: "rose", badge: "Monthly" },
+  { slug: "rank-immortal-permanent", name: "Immortal (Permanent)", family: "Immortal", billing: "Permanent", category: "Ranks", description: "Permanent Immortal status and Survival perks.", price: 29.99, features: ["Immortal rank benefits", "Permanent access", "Survival SMP"], accent: "rose", badge: "Permanent" },
+  { slug: "rank-conqueror-monthly", name: "Conqueror (Monthly)", family: "Conqueror", billing: "Monthly", category: "Ranks", description: "Mazora's flagship monthly Survival rank.", price: 14.99, features: ["Conqueror rank benefits", "Monthly access", "Survival SMP"], accent: "gold", badge: "Monthly" },
+  { slug: "rank-conqueror-permanent", name: "Conqueror (Permanent)", family: "Conqueror", billing: "Permanent", category: "Ranks", description: "The complete permanent Survival supporter rank.", price: 54.99, features: ["Conqueror rank benefits", "Permanent access", "Survival SMP"], accent: "gold", badge: "Top rank" },
+
+  { slug: "key-vote-5", name: "Vote Keys x5", category: "Crate Keys", description: "Five Vote crate keys for Survival rewards.", price: 0.99, features: ["5 Vote keys", "Survival crate access", "Staff delivery"], accent: "green" },
+  { slug: "key-epic-3", name: "Epic Keys x3", category: "Crate Keys", description: "Three Epic crate keys with upgraded rewards.", price: 1.5, features: ["3 Epic keys", "Upgraded loot pool", "Staff delivery"], accent: "cyan" },
+  { slug: "key-mystery-3", name: "Mystery Keys x3", category: "Crate Keys", description: "Three Mystery crate keys for surprise rewards.", price: 2.5, features: ["3 Mystery keys", "Mystery reward pool", "Staff delivery"], accent: "violet" },
+  { slug: "key-seasonal-2", name: "Seasonal Keys x2", category: "Crate Keys", description: "Two limited Seasonal crate keys.", price: 5, features: ["2 Seasonal keys", "Limited reward pool", "Staff delivery"], accent: "rose", badge: "Seasonal" },
+  { slug: "key-spawner-2", name: "Spawner Keys x2", category: "Crate Keys", description: "Two keys for the Survival spawner crate.", price: 7, features: ["2 Spawner keys", "Spawner reward pool", "Staff delivery"], accent: "orange" },
+  { slug: "key-legendary-1", name: "Legendary Key x1", category: "Crate Keys", description: "One Legendary key for the premium crate.", price: 7.99, features: ["1 Legendary key", "Premium reward pool", "Staff delivery"], accent: "gold", badge: "Legendary" },
+
+  { slug: "battlepass-premium", name: "Premium Battlepass", category: "Battlepass", description: "Unlock the premium Survival battlepass reward track.", price: 4.5, features: ["Premium reward track", "Survival season access", "Staff activation"], accent: "violet", badge: "Premium" },
+  { slug: "battlepass-free-reset", name: "Free Battlepass Reset", category: "Battlepass", description: "Reset your free battlepass progress and start the track again.", price: 3.99, features: ["Free track reset", "Survival battlepass", "Staff activation"], accent: "cyan" },
+
+  { slug: "addon-xp-50", name: "50 XP", category: "Add-ons", subcategory: "XP Boosts", description: "Add 50 XP to your Survival progression.", price: 2.99, features: ["50 Survival XP", "Applied by staff", "Manual delivery"], accent: "green" },
+  { slug: "addon-xp-200", name: "200 XP", category: "Add-ons", subcategory: "XP Boosts", description: "Add 200 XP to your Survival progression.", price: 11.5, features: ["200 Survival XP", "Applied by staff", "Manual delivery"], accent: "cyan" },
+  { slug: "addon-xp-500", name: "500 XP", category: "Add-ons", subcategory: "XP Boosts", description: "Add 500 XP to your Survival progression.", price: 25.99, features: ["500 Survival XP", "Applied by staff", "Manual delivery"], accent: "gold", badge: "Largest boost" },
+  { slug: "addon-claim-1000", name: "1,000 Claim Blocks", category: "Add-ons", subcategory: "Claim Blocks", description: "Expand your protected Survival land by 1,000 blocks.", price: 3, features: ["1,000 claim blocks", "Survival SMP", "Staff delivery"], accent: "green" },
+  { slug: "addon-claim-4000", name: "4,000 Claim Blocks", category: "Add-ons", subcategory: "Claim Blocks", description: "Expand your protected Survival land by 4,000 blocks.", price: 11.5, features: ["4,000 claim blocks", "Survival SMP", "Staff delivery"], accent: "cyan" },
+  { slug: "addon-claim-8000", name: "8,000 Claim Blocks", category: "Add-ons", subcategory: "Claim Blocks", description: "Expand your protected Survival land by 8,000 blocks.", price: 20.99, features: ["8,000 claim blocks", "Survival SMP", "Staff delivery"], accent: "violet" },
+  { slug: "addon-claim-10000", name: "10,000 Claim Blocks", category: "Add-ons", subcategory: "Claim Blocks", description: "Expand your protected Survival land by 10,000 blocks.", price: 28.99, features: ["10,000 claim blocks", "Survival SMP", "Staff delivery"], accent: "orange" },
+  { slug: "addon-claim-12000", name: "12,000 Claim Blocks", category: "Add-ons", subcategory: "Claim Blocks", description: "The largest Claim Block package in the Survival store.", price: 34.99, features: ["12,000 claim blocks", "Survival SMP", "Staff delivery"], accent: "gold", badge: "Largest pack" },
+  { slug: "addon-pp-50", name: "50 Player Points", category: "Add-ons", subcategory: "Player Points", description: "Add 50 Player Points to your Survival account.", price: 3.25, features: ["50 Player Points", "Survival account", "Staff delivery"], accent: "violet" },
+  { slug: "addon-pp-100", name: "100 Player Points", category: "Add-ons", subcategory: "Player Points", description: "Add 100 Player Points to your Survival account.", price: 6.5, features: ["100 Player Points", "Survival account", "Staff delivery"], accent: "gold", badge: "Best value" },
 ];
 
 export const demoVoteSites: VoteSite[] = [
-  { id: "v1", name: "MinecraftServers.org", url: "https://minecraftservers.org", reward: "1 Vote Key + 250 coins", cooldownHours: 24 },
-  { id: "v2", name: "Minecraft-MP.com", url: "https://minecraft-mp.com", reward: "1 Vote Key + 250 coins", cooldownHours: 24 },
-  { id: "v3", name: "PlanetMinecraft", url: "https://planetminecraft.com", reward: "300 coins + 50 XP", cooldownHours: 24 },
-  { id: "v4", name: "TopG.org", url: "https://topg.org", reward: "1 Vote Key + 200 coins", cooldownHours: 12 },
-  { id: "v5", name: "ServersMC", url: "https://serversmc.net", reward: "250 coins + cosmetic roll", cooldownHours: 24 },
+  { id: "v1", name: "MinecraftServers.org", url: "https://minecraftservers.org/server/688211", reward: "1 Vote Key + 250 coins", cooldownHours: 24 },
+  { id: "v2", name: "Minecraft-MP.com", url: "https://minecraft-mp.com/server-s358100", reward: "1 Vote Key + 250 coins", cooldownHours: 24 },
 ];
+
+export const demoTopVoters: TopVoter[] = [];
+

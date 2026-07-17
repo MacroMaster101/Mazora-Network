@@ -2,6 +2,7 @@
 export const site = {
   name: "Mazora Network",
   shortName: "MAZORA",
+  domain: "mazora.us",
   tagline: "Build. Survive. Compete. Create.",
   description:
     "A player-first Minecraft network built around unforgettable worlds, fair competition, and a community worth staying for.",
@@ -12,7 +13,7 @@ export const site = {
   region: "Asia Pacific",
   launchDate: "2023-10-01",
   discord: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://mazora.us",
   socials: [
     { label: "Discord", href: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt", icon: "MessagesSquare" },
     { label: "YouTube", href: "https://youtube.com", icon: "Youtube" },
