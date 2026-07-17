@@ -88,19 +88,31 @@ export async function POST(request: Request) {
     if (bot) {
           const dmPayload = confirmed
             ? {
-                content:
-                  `✅ **Order Confirmed!**\n` +
-                  `Your Mazora Network order (\`${reference}\`) has just been confirmed by **${actorName}**.\n` +
-                  `They will be reaching out to you here shortly to arrange payment and finalize the delivery.\n\n` +
-                  (items ? `**Order Summary**\n${items}\n\n` : "") +
-                  (total ? `**Total:** ${total}\n` : "") +
-                  `_No payment has been taken yet — staff will never ask for card details in chat._`,
+                embeds: [
+                  {
+                    author: { name: "Mazora Network", icon_url: "https://mazora.us/images/mazora-logo.webp" },
+                    title: "✅ Order Confirmed!",
+                    description:
+                      `Your Mazora Network order (\`${reference}\`) has just been confirmed by **${actorName}**.\n` +
+                      `They will be reaching out to you here shortly to arrange payment and finalize the delivery.\n\n` +
+                      (items ? `**Order Summary**\n${items}\n\n` : "") +
+                      (total ? `**Total:** ${total}\n` : "") +
+                      `_No payment has been taken yet — staff will never ask for card details in chat._`,
+                    color: 0x34d399,
+                  },
+                ],
               }
             : {
-                content:
-                  `❌ **Order Declined**\n` +
-                  `Your Mazora Network order (\`${reference}\`) was reviewed and declined by **${actorName}**.\n` +
-                  `If you believe this is a mistake or have questions, please reach out in the Mazora Discord server.`,
+                embeds: [
+                  {
+                    author: { name: "Mazora Network", icon_url: "https://mazora.us/images/mazora-logo.webp" },
+                    title: "❌ Order Declined",
+                    description:
+                      `Your Mazora Network order (\`${reference}\`) was reviewed and declined by **${actorName}**.\n` +
+                      `If you believe this is a mistake or have questions, please reach out in the Mazora Discord server.`,
+                    color: 0xf87171,
+                  },
+                ],
               };
       // Wait up to 1.5 seconds to see if the DM delivers so we don't hit the 3s interaction timeout.
       // If the DM is just slow, we don't append a status, but it still sends in the background.
