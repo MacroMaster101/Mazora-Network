@@ -1,0 +1,242 @@
+"use client";
+
+import { useActionState, useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { BadgeCheck, CheckCircle2, Loader2, MessageCircle, Send } from "lucide-react";
+import { submitStoreRequest, type StoreRequestResult } from "@/lib/actions/store";
+import { oauthAction, type AuthResult } from "@/lib/actions/auth";
+import type { DiscordIdentity } from "@/lib/types";
+import { DiscordIcon } from "@/components/auth/provider-icons";
+import { FormRow, Input, Textarea, useToast } from "@/components/ui";
+import { useCart } from "./cart-provider";
+
+const initialState: StoreRequestResult = { ok: false };
+const initialOauthState: AuthResult = { ok: false };
+const DRAFT_KEY = "mz_order_draft";
+
+interface OrderDraft {
+  minecraftUsername?: string;
+  notes?: string;
+}
+
+function readDraft(): OrderDraft {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.sessionStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as OrderDraft) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function OrderRequestForm({ configured }: { configured: boolean }) {
+  const { items, clear } = useCart();
+  const [state, formAction, pending] = useActionState(submitStoreRequest, initialState);
+  const [oauthState, oauthFormAction, oauthPending] = useActionState(oauthAction, initialOauthState);
+  const [discord, setDiscord] = useState<DiscordIdentity | null | undefined>(undefined);
+  // Values typed before a "Connect Discord" hop survive the OAuth redirect.
+  const [draft] = useState<OrderDraft>(readDraft);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* Session storage unavailable; the draft simply is not restored. */
+    }
+  }, []);
+
+  const saveDraft = () => {
+    const username = (document.getElementById("minecraftUsername") as HTMLInputElement | null)?.value ?? "";
+    const notes = (document.getElementById("notes") as HTMLTextAreaElement | null)?.value ?? "";
+    try {
+      window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ minecraftUsername: username, notes }));
+    } catch {
+      /* Session storage unavailable; the draft simply is not saved. */
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me/discord", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { discord: null }))
+      .then((body) => {
+        if (!cancelled) setDiscord(body.discord ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setDiscord(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (state.ok && state.message) toast(state.message, "success");
+    else if (!state.ok && state.message) toast(state.message, "error");
+  }, [state, toast]);
+
+  useEffect(() => {
+    if (!oauthState.ok && oauthState.message) toast(oauthState.message, "error");
+  }, [oauthState, toast]);
+
+  if (state.ok) {
+    return (
+      <div className="mt-5 rounded-xl border border-success/25 bg-success/5 p-5 text-center">
+        <CheckCircle2 size={32} className="mx-auto text-success" />
+        <h3 className="mt-3 font-display text-lg font-bold">Request sent</h3>
+        <p className="telemetry mt-1 text-sm font-semibold text-accent-bright">{state.reference}</p>
+        <p className="mt-2 text-sm text-muted">{state.message}</p>
+        <p className="mt-2 text-xs text-muted">Save the reference above. No payment has been taken.</p>
+        <button type="button" onClick={clear} className="btn btn-ghost btn-sm mt-4">
+          Start a new order
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Separate form for the Discord OAuth hop; the connect button inside the
+          request form targets it via the `form` attribute (forms cannot nest). */}
+      <form id="cart-discord-connect" action={oauthFormAction} className="hidden" aria-hidden="true">
+        <input type="hidden" name="provider" value="discord" />
+        <input type="hidden" name="next" value="/store?cart=request" />
+      </form>
+
+      <form action={formAction} className="store-request-form mt-5 space-y-4 border-t pt-5">
+        <input type="hidden" name="items" value={JSON.stringify(items.map(({ slug, qty }) => ({ slug, qty })))} />
+        <div className="hidden" aria-hidden="true">
+          <label htmlFor="website">Website</label>
+          <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+        </div>
+
+        <div>
+          <h3 className="flex items-center gap-2 font-display font-bold">
+            <MessageCircle size={17} className="text-accent-bright" /> Request this order
+          </h3>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            Staff will receive the request in Discord, confirm payment with you, and deliver the items manually.
+          </p>
+        </div>
+
+        <FormRow label="Minecraft username" htmlFor="minecraftUsername" error={state.errors?.minecraftUsername}>
+          <Input
+            id="minecraftUsername"
+            name="minecraftUsername"
+            autoComplete="username"
+            placeholder="Your in-game name"
+            maxLength={16}
+            required
+            defaultValue={draft.minecraftUsername}
+            aria-invalid={Boolean(state.errors?.minecraftUsername)}
+          />
+        </FormRow>
+
+        <div>
+          <span className="mb-1.5 block text-xs font-semibold">Discord</span>
+          {discord === undefined ? (
+            <div className="cart-skeleton h-[4.35rem] animate-pulse rounded-xl" aria-hidden="true" />
+          ) : discord ? (
+            <div className="cart-discord-card flex items-center gap-3 rounded-xl p-3">
+              <input type="hidden" name="discordUsername" value={discord.username} />
+              <input type="hidden" name="discordId" value={discord.id} />
+              {discord.avatarUrl ? (
+                <Image
+                  src={discord.avatarUrl}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 shrink-0 rounded-full"
+                />
+              ) : (
+                <span className="cart-discord-avatar grid h-10 w-10 shrink-0 place-items-center rounded-full">
+                  <DiscordIcon className="h-5 w-5" />
+                </span>
+              )}
+              <span className="min-w-0 flex-1">
+                <strong className="flex items-center gap-1.5 text-sm">
+                  <span className="truncate">@{discord.username}</span>
+                  <BadgeCheck size={15} className="cart-assurance-ico shrink-0" aria-label="Verified" />
+                </strong>
+                <span className="cart-muted mt-0.5 block text-xs">Verified · order updates arrive by Discord DM</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setDiscord(null)}
+                className="cart-link-muted shrink-0 text-xs font-semibold underline-offset-2 transition hover:underline"
+              >
+                Switch
+              </button>
+            </div>
+          ) : (
+            <div className="cart-discord-card rounded-xl p-4">
+              <p className="cart-muted text-xs leading-relaxed">
+                Connect your Discord to place the order — it fills in your username and lets us send order updates
+                straight to your DMs.
+              </p>
+              <button
+                type="submit"
+                form="cart-discord-connect"
+                onClick={saveDraft}
+                disabled={oauthPending}
+                className="cart-discord-connect-btn mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {oauthPending ? <Loader2 size={16} className="animate-spin" /> : <DiscordIcon className="h-5 w-5" />}
+                {oauthPending ? "Opening Discord…" : "Connect Discord"}
+              </button>
+            </div>
+          )}
+          {(state.errors?.discordId || state.errors?.discordUsername) && (
+            <p className="mt-1.5 text-xs text-danger">{state.errors?.discordId ?? state.errors?.discordUsername}</p>
+          )}
+        </div>
+
+        <FormRow label="Notes" htmlFor="notes" hint="Optional" error={state.errors?.notes}>
+          <Textarea id="notes" name="notes" rows={3} maxLength={500} defaultValue={draft.notes} placeholder="Anything staff should know?" />
+        </FormRow>
+
+        <div>
+          <label className="flex cursor-pointer items-start gap-2.5 text-xs leading-relaxed text-muted">
+            <input name="agreement" value="yes" type="checkbox" className="mt-0.5 h-4 w-4 accent-accent" required />
+            <span>
+              I understand this is an order request. No payment is taken on this website and delivery starts after staff
+              confirms payment.
+            </span>
+          </label>
+          {state.errors?.agreement && <p className="mt-1.5 text-xs text-danger">{state.errors.agreement}</p>}
+        </div>
+
+        {state.message && !state.ok && (
+          <p className="rounded-lg border border-danger/25 bg-danger/5 p-3 text-xs text-danger" role="alert">
+            {state.message}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={pending || !configured || !discord}
+          className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {pending ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} />}
+          {pending ? "Sending to staff…" : "Send order request"}
+        </button>
+
+        {configured && discord === null && (
+          <p className="cart-muted text-center text-xs">Connect your Discord above to send the request.</p>
+        )}
+
+        {!configured && (
+          <p className="cart-muted text-center text-xs leading-relaxed">
+            Online requests are temporarily unavailable. Message our team in the{" "}
+            <Link href="/discord" className="underline underline-offset-2 hover:text-accent-bright">
+              Mazora Discord
+            </Link>{" "}
+            to complete your order.
+          </p>
+        )}
+      </form>
+    </>
+  );
+}

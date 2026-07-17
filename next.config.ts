@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "mc-heads.net" },
       { protocol: "https", hostname: "api.dicebear.com" },
+      { protocol: "https", hostname: "cdn.discordapp.com" },
     ],
   },
   poweredByHeader: false,

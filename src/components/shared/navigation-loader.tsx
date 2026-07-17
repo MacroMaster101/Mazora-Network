@@ -35,7 +35,13 @@ export function NavigationLoader() {
     }
 
     function onPopState() {
-      startTransition();
+      // Native back/forward is instant — flash the bar to completion immediately.
+      setIsTransitioning(true);
+      setProgress(100);
+      setTimeout(() => {
+        setIsTransitioning(false);
+        setProgress(0);
+      }, 200);
     }
 
     document.addEventListener("click", onClick, true);
