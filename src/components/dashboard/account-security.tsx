@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState, startTransition } from "react";
-import { Check, Eye, EyeOff, KeyRound, Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
+import { Eye, EyeOff, KeyRound, Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { updatePasswordAction, type AuthResult } from "@/lib/actions/auth";
 import { FormRow, Input, useToast } from "@/components/ui";
 

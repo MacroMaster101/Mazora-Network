@@ -85,8 +85,6 @@ export async function POST(request: Request) {
     let statusValue = confirmed
       ? `✅ Confirmed by **${actorName}**`
       : `❌ Declined by **${actorName}**`;
-
-    let dmDelivered = false;
     if (bot) {
           const dmPayload = confirmed
             ? {
@@ -114,7 +112,6 @@ export async function POST(request: Request) {
       let dmStatus = "";
       if (dmResult === true) dmStatus = " · player notified by DM";
       else if (dmResult === false) dmStatus = " · ⚠️ DM failed (DMs off)";
-
       statusValue = confirmed
         ? `✅ Confirmed by **${actorName}**${dmStatus}`
         : `❌ Declined by **${actorName}**${dmStatus}`;
