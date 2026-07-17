@@ -82,28 +82,43 @@ export async function POST(request: Request) {
     const total = fieldValue(originalEmbed, "Order total");
     const items = fieldValue(originalEmbed, "Items");
 
+    let statusValue = confirmed
+      ? `✅ Confirmed by **${actorName}**`
+      : `❌ Declined by **${actorName}**`;
+
     let dmDelivered = false;
     if (bot) {
-      const dmPayload = confirmed
-        ? {
-            content:
-              `✅ **Your Mazora order ${reference} has been confirmed!**\n` +
-              `A staff member will contact you here to arrange payment and delivery.\n\n` +
-              (items ? `**Items**\n${items}\n\n` : "") +
-              (total ? `**Total:** ${total}\n` : "") +
-              `_No payment has been taken yet — staff will never ask for card details in chat._`,
-          }
-        : {
-            content:
-              `❌ **Your Mazora order ${reference} was declined.**\n` +
-              `If you think this is a mistake, reach out to the team in the Mazora Discord server.`,
-          };
-      dmDelivered = await sendBotDirectMessage(bot.token, discordUserId!, dmPayload).catch(() => false);
-    }
+          const dmPayload = confirmed
+            ? {
+                content:
+                  `✅ **Order Confirmed!**\n` +
+                  `Your Mazora Network order (\`${reference}\`) has just been confirmed by **${actorName}**.\n` +
+                  `They will be reaching out to you here shortly to arrange payment and finalize the delivery.\n\n` +
+                  (items ? `**Order Summary**\n${items}\n\n` : "") +
+                  (total ? `**Total:** ${total}\n` : "") +
+                  `_No payment has been taken yet — staff will never ask for card details in chat._`,
+              }
+            : {
+                content:
+                  `❌ **Order Declined**\n` +
+                  `Your Mazora Network order (\`${reference}\`) was reviewed and declined by **${actorName}**.\n` +
+                  `If you believe this is a mistake or have questions, please reach out in the Mazora Discord server.`,
+              };
+      // Wait up to 1.5 seconds to see if the DM delivers so we don't hit the 3s interaction timeout.
+      // If the DM is just slow, we don't append a status, but it still sends in the background.
+      const dmResult = await Promise.race([
+        sendBotDirectMessage(bot.token, discordUserId!, dmPayload).catch(() => false),
+        new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), 1500)),
+      ]);
+      
+      let dmStatus = "";
+      if (dmResult === true) dmStatus = " · player notified by DM";
+      else if (dmResult === false) dmStatus = " · ⚠️ DM failed (DMs off)";
 
-    const statusValue = confirmed
-      ? `✅ Confirmed by ${actorName}${dmDelivered ? " · player notified by DM" : " · ⚠️ DM failed — contact the player manually"}`
-      : `❌ Rejected by ${actorName}${dmDelivered ? " · player notified by DM" : " · ⚠️ DM failed — contact the player manually"}`;
+      statusValue = confirmed
+        ? `✅ Confirmed by **${actorName}**${dmStatus}`
+        : `❌ Declined by **${actorName}**${dmStatus}`;
+    }
 
     const updatedEmbed: Embed = {
       ...originalEmbed,
