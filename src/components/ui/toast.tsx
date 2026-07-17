@@ -25,11 +25,6 @@ export function useToast(): ToastCtx {
 }
 
 const icons = { success: CheckCircle2, info: Info, error: TriangleAlert };
-const tones: Record<ToastTone, string> = {
-  success: "text-accent-bright",
-  info: "text-ink",
-  error: "text-danger",
-};
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -47,21 +42,27 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {mounted &&
         createPortal(
-          <div className="pointer-events-none fixed bottom-5 right-5 z-[300] flex flex-col gap-2">
+          // Bottom-left keeps alerts clear of the right-side cart drawer.
+          <div className="pointer-events-none fixed bottom-5 left-5 z-[300] flex w-[min(24rem,calc(100vw-2.5rem))] flex-col gap-2">
             {toasts.map((t) => {
               const Icon = icons[t.tone];
               return (
                 <div
                   key={t.id}
-                  className="pointer-events-auto flex animate-fade-up items-center gap-3 rounded-xl border border-line-strong bg-card/95 px-4 py-3 shadow-2xl backdrop-blur"
+                  className={cn(
+                    "toast-card pointer-events-auto flex animate-fade-up items-start gap-3 rounded-2xl p-3.5",
+                    `is-${t.tone}`,
+                  )}
                   role="status"
                 >
-                  <Icon size={18} className={cn(tones[t.tone])} />
-                  <span className="text-sm font-medium">{t.message}</span>
+                  <span className="toast-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg">
+                    <Icon size={16} />
+                  </span>
+                  <span className="min-w-0 flex-1 pt-1 text-sm font-medium leading-snug">{t.message}</span>
                   <button
                     aria-label="Dismiss"
                     onClick={() => setToasts((x) => x.filter((y) => y.id !== t.id))}
-                    className="ml-1 text-muted hover:text-ink"
+                    className="toast-dismiss mt-1 shrink-0 transition"
                   >
                     <X size={14} />
                   </button>

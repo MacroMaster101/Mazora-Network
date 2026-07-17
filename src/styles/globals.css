@@ -7260,6 +7260,27 @@ body:has(.store-hero) {
   }
 }
 
+/* A later unguarded .store-catalog-heading rule (above) re-set the 3-column
+   desktop grid, which was silently overriding the single-column mobile
+   layout defined earlier in the file (same specificity, later wins) and
+   squeezed the "Build your Survival legacy." heading into a ~100px column.
+   Restoring the collapse here, after the offending rule, so mobile wins. */
+@media (max-width: 1100px) {
+  .store-catalog-heading {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .store-catalog-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .store-catalog-heading h2 {
+    max-width: none;
+  }
+}
+
 /* Store world blend — seamless header, marketplace, and footer */
 .site-world-frame:has(.store-hero)::before {
   background-image:
@@ -9327,4 +9348,60 @@ body:has(.store-detail-page) .scroll-header[data-away="true"][data-hidden="false
 
 :root[data-theme="light"] .cart-discord-card strong {
   color: rgb(30 23 43);
+}
+
+/* Toast alerts — tone-tinted glass cards, themed for light and dark. */
+.toast-card {
+  border: 1px solid rgb(var(--line-strong));
+  background: linear-gradient(165deg, rgb(var(--card) / 0.97), rgb(var(--surface) / 0.92));
+  color: rgb(var(--ink));
+  box-shadow: 0 18px 48px -22px rgb(24 12 44 / 0.45), inset 0 1px rgb(255 255 255 / 0.55);
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+}
+
+:root[data-theme="dark"] .toast-card {
+  box-shadow: 0 18px 48px -22px rgb(0 0 0 / 0.85), inset 0 1px rgb(255 255 255 / 0.05);
+}
+
+.toast-card.is-success {
+  border-color: rgb(var(--success) / 0.45);
+}
+
+.toast-card.is-error {
+  border-color: rgb(var(--danger) / 0.45);
+}
+
+.toast-card.is-info {
+  border-color: rgb(var(--accent-rgb) / 0.45);
+}
+
+.toast-icon {
+  border: 1px solid transparent;
+}
+
+.toast-card.is-success .toast-icon {
+  border-color: rgb(var(--success) / 0.3);
+  background: rgb(var(--success) / 0.12);
+  color: rgb(var(--success));
+}
+
+.toast-card.is-error .toast-icon {
+  border-color: rgb(var(--danger) / 0.3);
+  background: rgb(var(--danger) / 0.1);
+  color: rgb(var(--danger));
+}
+
+.toast-card.is-info .toast-icon {
+  border-color: rgb(var(--accent-rgb) / 0.3);
+  background: rgb(var(--accent-rgb) / 0.12);
+  color: rgb(var(--accent-bright));
+}
+
+.toast-dismiss {
+  color: rgb(var(--muted));
+}
+
+.toast-dismiss:hover {
+  color: rgb(var(--ink));
 }

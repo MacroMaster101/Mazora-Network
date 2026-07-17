@@ -3,11 +3,9 @@
 import { Plus, ShoppingBag } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { useCart } from "./cart-provider";
-import { useToast } from "@/components/ui";
 
 export function AddToCartButton({ product }: { product: Product }) {
   const { add, openCart } = useCart();
-  const { toast } = useToast();
 
   return (
     <div className="flex flex-wrap gap-3">
@@ -15,7 +13,6 @@ export function AddToCartButton({ product }: { product: Product }) {
         type="button"
         onClick={() => {
           add(product);
-          toast(`${product.name} added to cart`, "success");
           openCart();
         }}
         className="btn btn-primary"

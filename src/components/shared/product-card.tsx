@@ -7,11 +7,10 @@ import type { Product } from "@/lib/types";
 import { storeArtFor } from "@/lib/store-art";
 import { usd } from "@/lib/utils";
 import { useCart } from "./cart-provider";
-import { useToast, TonePill } from "@/components/ui";
+import { TonePill } from "@/components/ui";
 
 export function ProductCard({ product }: { product: Product }) {
   const { add, openCart } = useCart();
-  const { toast } = useToast();
   const onSale = product.salePrice != null;
   const currentPrice = product.salePrice ?? product.price;
   const discount = onSale ? Math.round((1 - currentPrice / product.price) * 100) : 0;
@@ -25,7 +24,6 @@ export function ProductCard({ product }: { product: Product }) {
 
   function addProduct() {
     add(product);
-    toast(`${product.name} added to cart`, "success");
     openCart();
   }
 
