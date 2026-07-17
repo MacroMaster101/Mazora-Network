@@ -95,6 +95,8 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `MINECRAFT_PLUGIN_SECRET` | For plugin callbacks | Server-only secret used by the Minecraft link endpoint. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Production auth | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production auth | Browser-safe Supabase publishable key for new projects. |
+| `DISCORD_STORE_WEBHOOK_URL` | Manual store orders | Private webhook URL for the staff order channel. Never expose it as a public variable. |
+| `DISCORD_STORE_STAFF_ROLE_ID` | Optional store alerts | Discord role ID to mention for new order requests. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Legacy auth | Legacy browser-safe anonymous key; used only when no publishable key is set. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Future server use | Server-only Supabase service key. Never expose it publicly. |
 | `AUTH_DEMO_MODE` | Local only | Set to `true` only for local UI previews without Supabase. Never enable in production. |

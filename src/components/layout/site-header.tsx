@@ -5,6 +5,7 @@ import { HeaderActions } from "./header-actions";
 import { ScrollHeader } from "./scroll-header";
 import { MobileMenu } from "./mobile-menu";
 import { ThemeCycleButton } from "@/components/theme/theme-toggle";
+import { CartTrigger } from "@/components/shared/cart-trigger";
 
 export async function SiteHeader({ world = false }: { world?: boolean }) {
   const session = await getSession();
@@ -20,11 +21,16 @@ export async function SiteHeader({ world = false }: { world?: boolean }) {
         <div className="hidden min-w-0 justify-self-center min-[1200px]:block">
           <NavLinks />
         </div>
-        <div className="desktop-account-dock hidden shrink-0 items-center gap-1.5 justify-self-end min-[1200px]:flex">
-          <ThemeCycleButton />
+        <div className="desktop-account-dock hidden shrink-0 items-center justify-self-end min-[1200px]:flex">
+          <div className="flex items-center gap-1.5">
+            <CartTrigger compact className="header-cart-trigger" />
+            <ThemeCycleButton />
+          </div>
+          <span className="dock-divider" aria-hidden="true" />
           <HeaderActions session={session} />
         </div>
-        <div className="col-start-2 row-start-1 flex justify-self-end min-[1200px]:hidden">
+        <div className="col-start-2 row-start-1 flex items-center gap-2 justify-self-end min-[1200px]:hidden">
+          <CartTrigger compact className="header-cart-trigger" />
           <MobileMenu session={session} />
         </div>
       </div>
