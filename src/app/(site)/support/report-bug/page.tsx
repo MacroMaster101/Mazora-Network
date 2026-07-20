@@ -14,7 +14,7 @@ const fields: FieldConfig[] = [
   { name: "gameMode", label: "Game mode", type: "select", options: ["Survival SMP", "Skyblock", "Lifesteal", "OneBlock", "KitPvP", "Creative", "Website", "Other"] },
   { name: "description", label: "Description", type: "textarea", required: true, placeholder: "What went wrong?" },
   { name: "reproductionSteps", label: "Steps to reproduce", type: "textarea", hint: "1, 2, 3…", placeholder: "1. …\n2. …" },
-  { name: "minecraftVersion", label: "Minecraft version", placeholder: "e.g. 1.21.4" },
+  { name: "minecraftVersion", label: "Minecraft version", placeholder: "e.g. 1.21.11" },
   { name: "evidenceUrl", label: "Screenshot or video URL", type: "url", placeholder: "https://…" },
 ];
 

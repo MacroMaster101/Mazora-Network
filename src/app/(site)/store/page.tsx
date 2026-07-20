@@ -5,14 +5,12 @@ import {
   CheckCircle2,
   Gamepad2,
   Headphones,
-  MessageCircle,
-  PackageCheck,
   ShieldCheck,
-  ShoppingCart,
   Sparkles,
   Zap,
 } from "lucide-react";
 import { getGameModes, getProducts } from "@/lib/data/content";
+import { site } from "@/lib/site";
 import { Reveal } from "@/components/shared";
 import { CartTrigger } from "@/components/shared/cart-trigger";
 import { StoreExplorer } from "@/components/shared/store-explorer";
@@ -24,30 +22,9 @@ export const metadata: Metadata = {
   description: "Survival ranks, crate keys, battlepass upgrades and progression add-ons for the Mazora Network.",
 };
 
-const orderSteps = [
-  {
-    icon: ShoppingCart,
-    step: "01",
-    title: "Build your cart",
-    body: "Pick your upgrades and review everything in the slide-over cart.",
-  },
-  {
-    icon: MessageCircle,
-    step: "02",
-    title: "Send to staff",
-    body: "Your private request arrives in the Mazora staff order channel.",
-  },
-  {
-    icon: PackageCheck,
-    step: "03",
-    title: "Get your items",
-    body: "Staff confirms payment and delivers your rewards in-game.",
-  },
-];
-
 const benefits = [
   { icon: ShieldCheck, title: "Fair-play promise", body: "Cosmetic and convenience rewards — never unfair power." },
-  { icon: Gamepad2, title: "Network-wide", body: "Rewards built for your Mazora adventures." },
+  { icon: Gamepad2, title: "Survival RPG", body: "Dungeons, custom bosses, skills, enchantments, and a player economy." },
   { icon: Headphones, title: "Human support", body: "Every order is checked by a real staff member." },
   { icon: Zap, title: "Quick fulfilment", body: "Staff delivers as soon as payment is confirmed." },
 ];
@@ -61,7 +38,6 @@ export default async function StorePage({
   const featuredSlugs = ["rank-conqueror-permanent", "battlepass-premium", "key-legendary-1", "rank-immortal-permanent"];
   const featuredDrops = featuredSlugs.flatMap((slug) => products.find((product) => product.slug === slug) ?? []);
   const drops = featuredDrops.length > 0 ? featuredDrops : products.slice(0, 3);
-  const itemCount = new Set(products.map((product) => product.family ?? product.slug)).size;
 
   return (
     <>
@@ -119,7 +95,7 @@ export default async function StorePage({
           <div className="store-hero-trust">
             <span><CheckCircle2 size={13} /> No online payment</span>
             <span><CheckCircle2 size={13} /> Staff-verified delivery</span>
-            <span><CheckCircle2 size={13} /> {itemCount} Survival items</span>
+            <span><CheckCircle2 size={13} /> Minecraft {site.version}</span>
           </div>
         </div>
       </section>
@@ -148,31 +124,6 @@ export default async function StorePage({
       <section className="section shell store-catalog-shell">
         <Reveal>
           <StoreExplorer products={products} modes={modes} />
-        </Reveal>
-
-        <Reveal className="store-order-guide mt-14">
-          <div className="max-w-xl">
-            <p className="eyebrow">Simple and personal</p>
-            <h2 className="mt-2 text-3xl font-extrabold">From cart to your account</h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted">
-              We are keeping checkout human while payments are being prepared. You stay in control and never enter payment
-              details on this website.
-            </p>
-          </div>
-          <div className="mt-8 grid gap-3 md:grid-cols-3">
-            {orderSteps.map(({ icon: Icon, step, title, body }) => (
-              <div key={step} className="store-order-step">
-                <div className="flex items-center justify-between">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/10 text-accent-bright">
-                    <Icon size={18} />
-                  </span>
-                  <span className="telemetry text-[10px] font-bold tracking-[0.18em] text-muted">{step}</span>
-                </div>
-                <h3 className="mt-5 text-lg font-bold">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
-              </div>
-            ))}
-          </div>
         </Reveal>
       </section>
       </div>
