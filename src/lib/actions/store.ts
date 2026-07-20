@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { getDiscordIdentity } from "@/lib/auth";
 import { getProducts } from "@/lib/data/content";
 import { getDiscordBotConfig, sendBotChannelMessage } from "@/lib/discord";
 import { usd } from "@/lib/utils";
@@ -21,17 +22,6 @@ const contactSchema = z.object({
     .min(3, "Enter your Minecraft username.")
     .max(16, "Minecraft usernames are at most 16 characters.")
     .regex(/^[A-Za-z0-9_]+$/, "Use only letters, numbers and underscores."),
-  discordUsername: z
-    .string()
-    .trim()
-    .min(2, "Enter your Discord username.")
-    .max(64, "Discord username is too long."),
-  // Ordering is connect-only: a verified Discord ID is required so staff
-  // decisions can always be delivered by DM.
-  discordId: z
-    .string()
-    .trim()
-    .regex(/^\d{17,20}$/, "Connect your Discord account to place the order."),
   notes: z.string().trim().max(500, "Keep notes under 500 characters.").optional(),
   agreement: z.literal("yes", { errorMap: () => ({ message: "Confirm that this is a manual order request." }) }),
   website: z.string().max(0),
@@ -50,6 +40,11 @@ const itemsSchema = z
 const attempts = new Map<string, { count: number; resetAt: number }>();
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_REQUESTS = 5;
+
+/** Neutralises Discord markdown so player-supplied text cannot restyle the embed. */
+function escapeMarkdown(value: string): string {
+  return value.replace(/[\\*_~`|>]/g, (match) => `\\${match}`);
+}
 
 function fieldErrors(error: z.ZodError): Record<string, string> {
   const errors: Record<string, string> = {};
@@ -95,14 +90,20 @@ export async function submitStoreRequest(
 ): Promise<StoreRequestResult> {
   const contact = contactSchema.safeParse({
     minecraftUsername: formData.get("minecraftUsername"),
-    discordUsername: formData.get("discordUsername"),
-    discordId: formData.get("discordId") || "",
     notes: formData.get("notes") || undefined,
     agreement: formData.get("agreement"),
     website: formData.get("website") || "",
   });
 
   if (!contact.success) return { ok: false, errors: fieldErrors(contact.error) };
+
+  // The Discord identity is read from the signed-in session, never from the
+  // submitted form: a crafted request must not be able to attach someone
+  // else's Discord account (and therefore DM target) to an order.
+  const discord = await getDiscordIdentity();
+  if (!discord?.id) {
+    return { ok: false, errors: { discordId: "Connect your Discord account to place the order." } };
+  }
 
   let rawItems: unknown;
   try {
@@ -145,20 +146,20 @@ export async function submitStoreRequest(
     .map((item) => `**${item.quantity}× ${item.name}** — ${usd(item.lineTotal)} (${usd(item.price)} each)`)
     .join("\n")
     .slice(0, 1024);
-  // The ID comes from Discord OAuth, so the mention is always verified. It
-  // renders as a clickable mention in the embed without pinging anyone.
-  const discordValue = `@${contact.data.discordUsername} · <@${contact.data.discordId}> ✓ verified`;
+  // The ID comes from the session's Discord OAuth identity, so the mention is
+  // always verified. It renders as a clickable mention without pinging anyone.
+  const discordValue = `@${escapeMarkdown(discord.username)} · <@${discord.id}> ✓ verified`;
 
   const embed = {
     title: `New manual order · ${reference}`,
     description: "No payment has been collected. Contact the player on Discord, arrange payment manually, then fulfil the items in-game.",
     color: 0x9b5cff,
     fields: [
-      { name: "Minecraft username", value: contact.data.minecraftUsername, inline: true },
+      { name: "Minecraft username", value: escapeMarkdown(contact.data.minecraftUsername), inline: true },
       { name: "Order total", value: usd(total), inline: true },
       { name: "Discord", value: discordValue },
       { name: "Items", value: itemLines },
-      { name: "Player notes", value: contact.data.notes || "None" },
+      { name: "Player notes", value: escapeMarkdown(contact.data.notes || "None") },
     ],
     footer: { text: "Manual store request · Payment pending" },
     timestamp: new Date().toISOString(),
@@ -183,13 +184,15 @@ export async function submitStoreRequest(
                 type: 2,
                 style: 3,
                 label: "Confirm order",
-                custom_id: `mzo:confirm:${contact.data.discordId}:${reference}`,
+                // The DM target is the verified session Discord ID, never a
+                // client-supplied value, so staff decisions reach the real buyer.
+                custom_id: `mzo:confirm:${discord.id}:${reference}`,
               },
               {
                 type: 2,
                 style: 4,
                 label: "Reject",
-                custom_id: `mzo:reject:${contact.data.discordId}:${reference}`,
+                custom_id: `mzo:reject:${discord.id}:${reference}`,
               },
             ],
           },
