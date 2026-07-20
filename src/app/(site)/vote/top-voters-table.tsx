@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, ChevronDown, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 import type { TopVoter } from "@/lib/types";
 import { MinecraftAvatar } from "@/components/shared";
 import { cn } from "@/lib/utils";
@@ -65,7 +65,7 @@ export function TopVotersTable({ entries }: { entries: TopVoter[] }) {
   }, [entries, query, sortKey, sortDesc]);
 
   // Pagination logic
-  const pageSize = limit === "all" ? processedEntries.length : limit;
+  const pageSize = limit === "all" ? Math.max(1, processedEntries.length) : limit;
   const totalPages = Math.max(1, Math.ceil(processedEntries.length / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
   
@@ -242,7 +242,7 @@ export function TopVotersTable({ entries }: { entries: TopVoter[] }) {
             {paginatedEntries.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted">
-                  No voters found matching &quot;{query}&quot;.
+                  {query ? `No voters found matching “${query}”.` : "No votes have been recorded yet. The first supporter will appear here."}
                 </td>
               </tr>
             )}
@@ -250,44 +250,36 @@ export function TopVotersTable({ entries }: { entries: TopVoter[] }) {
         </table>
       </div>
 
-      {/* Pagination (Page Swapping Way) */}
-      {totalPages > 1 && (
-        <div className="mt-2 flex items-center justify-between">
-          <span className="text-xs text-muted">
-            Showing {currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, processedEntries.length)} of {processedEntries.length} entries
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage(Math.max(0, currentPage - 1))}
-              disabled={currentPage === 0}
-              className="btn btn-ghost btn-sm px-3 disabled:opacity-40"
-            >
-              Prev
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setPage(i)}
-                  className={cn(
-                    "btn btn-sm w-8 h-8 p-0 flex items-center justify-center font-semibold text-xs rounded-lg transition-all",
-                    currentPage === i ? "btn-primary" : "btn-ghost"
-                  )}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setPage(Math.min(totalPages - 1, currentPage + 1))}
-              disabled={currentPage === totalPages - 1}
-              className="btn btn-ghost btn-sm px-3 disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
+      {/* Compact pagination stays visible so row limits and page swapping are always clear. */}
+      <div className="vote-ref-pagination">
+        <span>
+          {processedEntries.length === 0
+            ? "0 voters"
+            : `${currentPage * pageSize + 1}–${Math.min((currentPage + 1) * pageSize, processedEntries.length)} of ${processedEntries.length}`}
+        </span>
+
+        <div className="vote-ref-page-controls" aria-label="Voter table pagination">
+          <button
+            type="button"
+            onClick={() => setPage(Math.max(0, currentPage - 1))}
+            disabled={currentPage === 0 || limit === "all"}
+            aria-label="Previous voter page"
+            className="btn btn-ghost btn-sm"
+          >
+            <ChevronLeft size={15} /> Prev
+          </button>
+          <span className="telemetry">{currentPage + 1} / {totalPages}</span>
+          <button
+            type="button"
+            onClick={() => setPage(Math.min(totalPages - 1, currentPage + 1))}
+            disabled={currentPage === totalPages - 1 || limit === "all"}
+            aria-label="Next voter page"
+            className="btn btn-ghost btn-sm"
+          >
+            Next <ChevronRight size={15} />
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -11,9 +11,11 @@ import { useCart } from "./cart-provider";
 export function RankOfferCard({
   family,
   products,
+  onOpenDetails,
 }: {
   family: string;
   products: Product[];
+  onOpenDetails?: () => void;
 }) {
   const { add, openCart } = useCart();
   const monthly = products.find((product) => product.billing === "Monthly");
@@ -47,7 +49,7 @@ export function RankOfferCard({
       <div className="store-rank-options">
         {[monthly, permanent].filter(Boolean).map((product) => (
           <div key={product!.slug} className="store-rank-option">
-            <Link href={`/store/${product!.slug}`} className="min-w-0 flex-1">
+            <Link href={`/store/${product!.slug}`} onClick={onOpenDetails} className="min-w-0 flex-1">
               <span>{product!.billing}</span>
               <strong>
                 {usd(product!.price)}
@@ -56,6 +58,7 @@ export function RankOfferCard({
             </Link>
             <Link
               href={`/store/${product!.slug}`}
+              onClick={onOpenDetails}
               className="store-rank-details"
               aria-label={`View ${product!.name} details`}
             >
