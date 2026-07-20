@@ -24,8 +24,14 @@ export function getSupabaseConfig(): { url: string; key: string } | null {
   return configured && url && key ? { url, key } : null;
 }
 
-/** Demo cookies are never accepted by default in production. */
+/**
+ * Whether unsigned demo-session cookies are accepted. Demo auth is a
+ * development-only convenience and is rejected unconditionally in production —
+ * AUTH_DEMO_MODE cannot re-enable it there, so a stray env var can never open
+ * up unsigned sessions on a live deployment.
+ */
 export function isDemoAuthEnabled(): boolean {
+  if (process.env.NODE_ENV === "production") return false;
   if (process.env.AUTH_DEMO_MODE === "true") return true;
-  return process.env.NODE_ENV !== "production" && !isSupabaseConfigured();
+  return !isSupabaseConfigured();
 }

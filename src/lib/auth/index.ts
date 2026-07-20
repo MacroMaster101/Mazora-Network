@@ -88,6 +88,21 @@ export async function getSession(): Promise<Session | null> {
   return raw ? decode(raw) : null;
 }
 
+/**
+ * The Supabase auth user id (a UUID) of the signed-in user, or null. Server
+ * actions that persist rows need this real id rather than a placeholder so the
+ * data actually belongs to the submitting user. Returns null in demo mode,
+ * where there is no backing auth user.
+ */
+export async function getSessionUserId(): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return data.user.id;
+}
+
 /** Discord identity of the signed-in user, when they authenticated with Discord. */
 export async function getDiscordIdentity(): Promise<DiscordIdentity | null> {
   if (!isSupabaseConfigured()) return null;

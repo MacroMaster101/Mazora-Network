@@ -1,6 +1,43 @@
 import type { NextConfig } from "next";
 
+// Content Security Policy.
+//
+// script-src / style-src keep 'unsafe-inline' because the app ships an inline
+// theme-no-flash script (src/app/layout.tsx) and inline styles, and Next.js's
+// hydration bootstrap is inline; locking these down requires per-request
+// nonces threaded through middleware, which is a larger change. Everything
+// else is tightened: framing is denied, plugins/objects are blocked, and the
+// document base and form targets are pinned to same-origin.
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https://mc-heads.net https://api.dicebear.com https://cdn.discordapp.com",
+  "font-src 'self'",
+  // https: covers the env-configured Supabase host without hard-coding it.
+  "connect-src 'self' https:",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-src 'none'",
+  "upgrade-insecure-requests",
+].join("; ");
+
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: contentSecurityPolicy },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=()" },
+  { key: "X-DNS-Prefetch-Control", value: "off" },
+];
+
 const nextConfig: NextConfig = {
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
   // Keep the hot-reload cache separate from production builds. Running
   // `next build` while `next dev` is open can otherwise replace manifests the
   // development server is actively reading and cause intermittent 500 errors.

@@ -1,5 +1,14 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+
+/** Constant-time secret comparison so response timing can't leak the secret. */
+function secretMatches(provided: string | null, expected: string): boolean {
+  if (!provided) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 /**
  * Endpoint the Minecraft plugin POSTs to when a player runs `/link <code>`.
@@ -18,7 +27,7 @@ export async function POST(request: Request) {
   const secret = process.env.MINECRAFT_PLUGIN_SECRET;
   const provided = request.headers.get("x-plugin-secret");
 
-  if (!secret || provided !== secret) {
+  if (!secret || !secretMatches(provided, secret)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
