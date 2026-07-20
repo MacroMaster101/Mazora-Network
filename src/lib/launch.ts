@@ -27,12 +27,6 @@ export const launchGates: LaunchGate[] = [
     message: "Rankings will open when live server statistics replace preview data.",
   },
   {
-    path: "/vote",
-    eyebrow: "Rewards launch",
-    title: "Voting rewards are coming soon.",
-    message: "Vote callbacks, streaks and automatic rewards are being connected before this page opens.",
-  },
-  {
     path: "/support/appeal",
     eyebrow: "Support launch",
     title: "Appeals will open soon.",

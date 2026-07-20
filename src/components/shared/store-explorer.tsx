@@ -1,42 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Image from "next/image";
-import { ArrowDownUp, Clock3, Gamepad2, PackageSearch, Search, Sparkles, Lock, Sword, PawPrint, Coins } from "lucide-react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import Link from "next/link";
+import { ArrowRight, ChevronDown, Clock3, Gamepad2, House, MessageCircle, PackageCheck, PackageSearch, ShoppingCart, Sparkles } from "lucide-react";
 import type { GameMode, Product } from "@/lib/types";
 import { ProductCard } from "./product-card";
 import { RankOfferCard } from "./rank-offer-card";
 import { cn } from "@/lib/utils";
-import { storeCategoryDetails, bundleArtFor } from "@/lib/store-art";
+import { storeCategoryDetails } from "@/lib/store-art";
+import { site } from "@/lib/site";
+import { readStoreReturnState, STORE_RETURN_KEY, STORE_RETURN_PENDING_KEY } from "@/lib/store-navigation";
 
-type SortMode = "featured" | "low" | "high";
+type StoreView = Product["category"] | "All" | "Cosmetics";
 
-const weaponBundles = [
-  { name: "Frost Bundle", accent: "cyan" },
-  { name: "Abominable Bundle", accent: "violet" },
-  { name: "Demon Lord Bundle", accent: "rose" },
-  { name: "Soul Bundle", accent: "green" },
-] as const;
-
-const comingSoonSections = [
-  {
-    title: "Weapons",
-    eyebrow: "Custom arsenal",
-    description: "Individual custom weapons are coming to the Survival store.",
-    icon: "sword" as const,
-  },
-  {
-    title: "Custom Pets",
-    eyebrow: "Adventure companions",
-    description: "Collectible Survival pets are currently in development.",
-    icon: "paw" as const,
-  },
-  {
-    title: "Tokens",
-    eyebrow: "Network currency",
-    description: "Token packages will become available in a future store update.",
-    icon: "coins" as const,
-  },
+const checkoutSteps = [
+  { icon: ShoppingCart, step: "01", title: "Build your cart" },
+  { icon: MessageCircle, step: "02", title: "Send to staff" },
+  { icon: PackageCheck, step: "03", title: "Get your items" },
 ] as const;
 
 export function StoreExplorer({ products, modes }: { products: Product[]; modes: GameMode[] }) {
@@ -45,35 +25,41 @@ export function StoreExplorer({ products, modes }: { products: Product[]; modes:
     [products],
   );
   const [activeMode, setActiveMode] = useState("survival-smp");
-  const [active, setActive] = useState<Product["category"] | "All">("All");
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<SortMode>("featured");
+  const [active, setActive] = useState<StoreView>("All");
+  const [subfilter, setSubfilter] = useState<string | null>(null);
 
-  const list = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const filtered = products.filter((product) => {
-      const inCategory = active === "All" || product.category === active;
-      const matchesQuery =
-        !normalizedQuery ||
-        product.name.toLowerCase().includes(normalizedQuery) ||
-        product.description.toLowerCase().includes(normalizedQuery) ||
-        product.category.toLowerCase().includes(normalizedQuery);
-      return inCategory && matchesQuery;
-    });
+  useEffect(() => {
+    if (window.sessionStorage.getItem(STORE_RETURN_PENDING_KEY) !== "1") return;
+    window.sessionStorage.removeItem(STORE_RETURN_PENDING_KEY);
+    const saved = readStoreReturnState();
+    if (!saved) return;
 
-    if (sort === "low") {
-      return [...filtered].sort(
-        (a, b) => (a.salePrice ?? a.price) - (b.salePrice ?? b.price),
-      );
-    }
-    if (sort === "high") {
-      return [...filtered].sort(
-        (a, b) => (b.salePrice ?? b.price) - (a.salePrice ?? a.price),
-      );
-    }
-    return filtered;
-  }, [products, active, query, sort]);
+    setActiveMode(saved.activeMode);
+    setActive(saved.active as StoreView);
+    setSubfilter(saved.subfilter);
 
+    const restoreScroll = () => window.scrollTo({ top: saved.scrollY, behavior: "instant" });
+    window.requestAnimationFrame(() => window.requestAnimationFrame(restoreScroll));
+    window.setTimeout(restoreScroll, 300);
+    window.setTimeout(restoreScroll, 900);
+    window.setTimeout(restoreScroll, 1600);
+  }, []);
+
+  const list = useMemo(
+    () =>
+      products.filter((product) => {
+        const inCategory =
+          active === "All" ||
+          (active === "Cosmetics" ? product.category === "Battlepass" : product.category === active);
+        const inSubcategory =
+          !subfilter ||
+          (active === "Ranks" && product.billing === subfilter) ||
+          (active === "Add-ons" && product.subcategory === subfilter) ||
+          (active === "Cosmetics" && subfilter === "Battlepass" && product.category === "Battlepass");
+        return inCategory && inSubcategory;
+      }),
+    [products, active, subfilter],
+  );
   const groupedProducts = useMemo(
     () =>
       categories
@@ -85,6 +71,10 @@ export function StoreExplorer({ products, modes }: { products: Product[]; modes:
     [categories, list],
   );
 
+  const newArrivalSlugs = ["battlepass-premium", "key-legendary-1", "rank-conqueror-permanent"];
+  const newArrivals = newArrivalSlugs.flatMap(
+    (slug) => products.find((product) => product.slug === slug) ?? [],
+  );
   const selectedMode = modes.find((mode) => mode.slug === activeMode) ?? modes[0];
 
   function displayCount(source: Product[]) {
@@ -109,6 +99,29 @@ export function StoreExplorer({ products, modes }: { products: Product[]; modes:
     }));
   }
 
+  function chooseView(view: StoreView, nextSubfilter: string | null = null) {
+    setActive(view);
+    setSubfilter(nextSubfilter);
+  }
+
+  function rememberStorePosition() {
+    window.sessionStorage.setItem(STORE_RETURN_KEY, JSON.stringify({
+      activeMode,
+      active,
+      subfilter,
+      scrollY: window.scrollY,
+      savedAt: Date.now(),
+    }));
+  }
+
+  function chooseFromMenu(
+    event: MouseEvent<HTMLButtonElement>,
+    view: StoreView,
+    nextSubfilter: string | null = null,
+  ) {
+    chooseView(view, nextSubfilter);
+    event.currentTarget.closest("details")?.removeAttribute("open");
+  }
   return (
     <div id="catalog" className="scroll-mt-24">
       <div className="store-mode-selector">
@@ -173,58 +186,198 @@ export function StoreExplorer({ products, modes }: { products: Product[]; modes:
             Ranks, crate keys, battlepass upgrades and progression add-ons - organized exactly for the Survival experience.
           </p>
         </div>
-        <p className="store-catalog-count telemetry">
-          <Sparkles size={14} /> {displayCount(list)} {displayCount(list) === 1 ? "item" : "items"}
-        </p>
-      </div>
-
-      <div className="store-catalog-toolbar mt-7">
-        <div className="store-category-tabs" role="group" aria-label="Product categories">
-          {["All", ...categories].map((category) => {
-            const categoryProducts =
-              category === "All"
-                ? products
-                : products.filter((product) => product.category === category);
-            const categoryCount = displayCount(categoryProducts);
-            return (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setActive(category as Product["category"] | "All")}
-                className={cn("store-category-tab", active === category && "is-active")}
-                aria-pressed={active === category}
-              >
-                {category}
-                <span>{categoryCount}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:w-[38rem]">
-          <label className="store-search">
-            <Search size={16} />
-            <span className="sr-only">Search products</span>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search the store"
-            />
-          </label>
-          <label className="store-sort">
-            <ArrowDownUp size={15} />
-            <span className="sr-only">Sort products</span>
-            <select value={sort} onChange={(event) => setSort(event.target.value as SortMode)}>
-              <option value="featured">Featured</option>
-              <option value="low">Price: low</option>
-              <option value="high">Price: high</option>
-            </select>
-          </label>
+        <div className="store-catalog-side">
+          <p className="store-catalog-count telemetry">
+            <Sparkles size={14} /> {displayCount(list)} {displayCount(list) === 1 ? "item" : "items"}
+          </p>
+          <aside className="store-checkout-guide" aria-labelledby="store-checkout-guide-title">
+            <p className="eyebrow">Simple and personal</p>
+            <h3 id="store-checkout-guide-title">From cart to your account</h3>
+            <ol>
+              {checkoutSteps.map(({ icon: Icon, step, title }) => (
+                <li key={step}>
+                  <span><Icon size={14} /></span>
+                  <strong>{title}</strong>
+                  <small className="telemetry">{step}</small>
+                </li>
+              ))}
+            </ol>
+          </aside>
         </div>
       </div>
 
-      {list.length > 0 ? (
+      <nav className="store-shop-nav" aria-label="Survival store categories">
+        <div className="store-shop-nav-main">
+          <button
+            type="button"
+            onClick={() => chooseView("All")}
+            className={cn("store-shop-nav-item", active === "All" && "is-active")}
+            aria-pressed={active === "All"}
+          >
+            <House size={15} /> Store Home
+          </button>
+
+          <details className={cn("store-shop-menu", active === "Ranks" && "is-active")}>
+            <summary className="store-shop-nav-item">
+              Ranks <ChevronDown size={14} />
+            </summary>
+            <div className="store-shop-submenu">
+              <button type="button" onClick={(event) => chooseFromMenu(event, "Ranks", "Monthly")}>Monthly Ranks</button>
+              <button type="button" onClick={(event) => chooseFromMenu(event, "Ranks", "Permanent")}>Permanent Ranks</button>
+            </div>
+          </details>
+
+          <button
+            type="button"
+            onClick={() => chooseView("Crate Keys")}
+            className={cn("store-shop-nav-item", active === "Crate Keys" && "is-active")}
+            aria-pressed={active === "Crate Keys"}
+          >
+            Crate Keys
+          </button>
+
+          <details className={cn("store-shop-menu", active === "Cosmetics" && "is-active")}>
+            <summary className="store-shop-nav-item">
+              Cosmetics <ChevronDown size={14} />
+            </summary>
+            <div className="store-shop-submenu">
+              <button type="button" onClick={(event) => chooseFromMenu(event, "Cosmetics", "Battlepass")}>Battlepass</button>
+              <button type="button" disabled>Weapon Bundles <small>Soon</small></button>
+              <button type="button" disabled>Weapons <small>Soon</small></button>
+              <button type="button" disabled>Custom Pets <small>Soon</small></button>
+            </div>
+          </details>
+
+          <details className={cn("store-shop-menu", active === "Add-ons" && "is-active")}>
+            <summary className="store-shop-nav-item">
+              Add-ons <ChevronDown size={14} />
+            </summary>
+            <div className="store-shop-submenu">
+              <button type="button" onClick={(event) => chooseFromMenu(event, "Add-ons")}>All Add-ons</button>
+              <button type="button" onClick={(event) => chooseFromMenu(event, "Add-ons", "XP Boosts")}>XP Boosts</button>
+              <button type="button" onClick={(event) => chooseFromMenu(event, "Add-ons", "Claim Blocks")}>Claim Blocks</button>
+              <button type="button" onClick={(event) => chooseFromMenu(event, "Add-ons", "Player Points")}>Player Points</button>
+            </div>
+          </details>
+        </div>
+      </nav>
+
+      {active === "All" ? (
+        <div className="store-home-view">
+          <section className="store-home-welcome" aria-labelledby="store-welcome-title">
+            <div className="store-home-welcome-copy">
+              <p className="eyebrow">Welcome to Mazora Network</p>
+              <h3 id="store-welcome-title">Where Survival is only the beginning.</h3>
+              <p>
+                Step into a handcrafted Survival RPG shaped by ancient dungeons, custom bosses, deep skills,
+                unique enchantments, collectible weapon skins, and a balanced player economy.
+              </p>
+              <div className="store-home-feature-list" aria-label="Survival features">
+                <span>Custom bosses</span>
+                <span>Dungeons</span>
+                <span>Skills &amp; enchants</span>
+                <span>Player economy</span>
+              </div>
+            </div>
+            <aside className="store-home-server-card" aria-label="Server connection details">
+              <p className="eyebrow">Ready to join?</p>
+              <dl>
+                <div><dt>Server IP</dt><dd>{site.javaIp}</dd></div>
+                <div><dt>Version</dt><dd>{site.version}</dd></div>
+                <div><dt>Platforms</dt><dd>Java + Bedrock</dd></div>
+              </dl>
+              <Link href="/play">How to join <ArrowRight size={14} /></Link>
+            </aside>
+          </section>
+
+          <section className="store-home-update" aria-labelledby="store-update-title">
+            <div className="store-home-update-mark"><Sparkles size={20} /></div>
+            <div>
+              <p className="eyebrow">What&apos;s new</p>
+              <h3 id="store-update-title">The Survival Battlepass is live.</h3>
+              <p>Complete daily missions with <strong>/battlepass</strong> or <strong>/bp</strong>, earn free-track rewards, and unlock the premium reward path when you are ready.</p>
+            </div>
+            <Link href="/store/battlepass-premium">View Battlepass <ArrowRight size={14} /></Link>
+          </section>
+
+          <section className="store-home-new" aria-labelledby="store-featured-title">
+            <div className="store-home-section-head">
+              <div>
+                <p className="eyebrow">Popular right now</p>
+                <h3 id="store-featured-title">Featured picks</h3>
+                <p>Start with the newest and most useful Survival upgrades.</p>
+              </div>
+              <span className="telemetry"><Sparkles size={13} /> Updated picks</span>
+            </div>
+            <div className="store-product-deck" data-count={newArrivals.length}>
+              {newArrivals.map((product) => (
+                <ProductCard key={product.slug} product={product} onOpenDetails={rememberStorePosition} />
+              ))}
+            </div>
+          </section>
+
+          <section className="store-home-browse" aria-labelledby="store-browse-title">
+            <div className="store-home-section-head">
+              <div>
+                <p className="eyebrow">Find your upgrade</p>
+                <h3 id="store-browse-title">Shop by category</h3>
+                <p>Choose what you need without scrolling through the entire catalog.</p>
+              </div>
+            </div>
+
+            <div className="store-home-category-grid">
+              <article className="store-home-category-card">
+                <span className="telemetry">01</span>
+                <h4>Ranks</h4>
+                <p>Choose recurring support or keep your rank permanently.</p>
+                <div>
+                  <button type="button" onClick={() => chooseView("Ranks", "Monthly")}>Monthly</button>
+                  <button type="button" onClick={() => chooseView("Ranks", "Permanent")}>Permanent</button>
+                </div>
+              </article>
+
+              <article className="store-home-category-card">
+                <span className="telemetry">02</span>
+                <h4>Crate Keys</h4>
+                <p>Open Survival crates with reward pools for every budget.</p>
+                <button type="button" onClick={() => chooseView("Crate Keys")} className="store-home-category-action">
+                  Browse keys <ArrowRight size={14} />
+                </button>
+              </article>
+
+              <article className="store-home-category-card">
+                <span className="telemetry">03</span>
+                <h4>Cosmetics</h4>
+                <p>Explore Battlepass rewards and upcoming collectible items.</p>
+                <button type="button" onClick={() => chooseView("Cosmetics", "Battlepass")} className="store-home-category-action">
+                  View cosmetics <ArrowRight size={14} />
+                </button>
+              </article>
+
+              <article className="store-home-category-card">
+                <span className="telemetry">04</span>
+                <h4>Add-ons</h4>
+                <p>Progress faster with XP, Claim Blocks, and Player Points.</p>
+                <button type="button" onClick={() => chooseView("Add-ons")} className="store-home-category-action">
+                  Browse add-ons <ArrowRight size={14} />
+                </button>
+              </article>
+            </div>
+          </section>
+
+          <section className="store-home-coming" aria-label="Coming next">
+            <div>
+              <p className="eyebrow">In development</p>
+              <h3>Coming next</h3>
+            </div>
+            <div>
+              <span>Weapon Bundles <small>Soon</small></span>
+              <span>Custom Weapons <small>Soon</small></span>
+              <span>Custom Pets <small>Soon</small></span>
+            </div>
+          </section>
+        </div>
+      ) : list.length > 0 ? (
         <div className="store-category-sections">
           {groupedProducts.map(({ category, products: categoryProducts }, index) => {
             const details = storeCategoryDetails[category];
@@ -253,7 +406,7 @@ export function StoreExplorer({ products, modes }: { products: Product[]; modes:
                 {category === "Ranks" ? (
                   <div className="store-rank-grid">
                     {rankFamilies(categoryProducts).map((rank) => (
-                      <RankOfferCard key={rank.family} family={rank.family} products={rank.products} />
+                      <RankOfferCard key={rank.family} family={rank.family} products={rank.products} onOpenDetails={rememberStorePosition} />
                     ))}
                   </div>
                 ) : category === "Add-ons" ? (
@@ -267,7 +420,7 @@ export function StoreExplorer({ products, modes }: { products: Product[]; modes:
                         </div>
                         <div className={cn("store-product-deck", group.products.length > 3 && "store-product-grid")} data-count={group.products.length}>
                           {group.products.map((product) => (
-                            <ProductCard key={product.slug} product={product} />
+                            <ProductCard key={product.slug} product={product} onOpenDetails={rememberStorePosition} />
                           ))}
                         </div>
                       </div>
@@ -276,7 +429,7 @@ export function StoreExplorer({ products, modes }: { products: Product[]; modes:
                 ) : (
                   <div className={cn("store-product-deck", categoryProducts.length > 3 && "store-product-grid")} data-count={categoryProducts.length}>
                     {categoryProducts.map((product) => (
-                      <ProductCard key={product.slug} product={product} />
+                      <ProductCard key={product.slug} product={product} onOpenDetails={rememberStorePosition} />
                     ))}
                   </div>
                 )}
@@ -284,85 +437,17 @@ export function StoreExplorer({ products, modes }: { products: Product[]; modes:
             );
           })}
 
-          {/* Weapon Bundles — real artwork cards */}
-          {active === "All" && !query && (
-            <section className="store-category-section" id="shop-weapon-bundles">
-              <div className="store-category-section-head">
-                <div className="store-section-number telemetry">{String(groupedProducts.length + 1).padStart(2, "0")}</div>
-                <div>
-                  <p className="eyebrow">Forged for battle</p>
-                  <h3 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Weapon Bundles</h3>
-                  <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted">Four themed Survival weapon collections are being prepared.</p>
-                </div>
-              </div>
-              <div className="store-coming-soon-deck">
-                {weaponBundles.map((bundle) => (
-                  <div key={bundle.name} className="store-coming-soon-card store-bundle-card group" data-accent={bundle.accent}>
-                    <div className="store-coming-soon-card-media store-bundle-card-media">
-                      <Image
-                        src={bundleArtFor(bundle.name)}
-                        alt={bundle.name}
-                        fill
-                        className="object-contain p-4"
-                        sizes="(max-width: 640px) 100vw, 25vw"
-                      />
-                      <div className="store-coming-soon-card-lock">
-                        <Lock className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    <div className="store-coming-soon-card-body">
-                      <span>{bundle.name}</span>
-                      <span className="store-coming-soon-badge">Coming Soon</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Other coming soon — single card per section */}
-          {active === "All" && !query && comingSoonSections.map((section, index) => (
-            <section key={section.title} className="store-category-section" id={`shop-${section.title.toLowerCase().replace(/\s+/g, "-")}`}>
-              <div className="store-category-section-head">
-                <div className="store-section-number telemetry">{String(groupedProducts.length + index + 2).padStart(2, "0")}</div>
-                <div>
-                  <p className="eyebrow">{section.eyebrow}</p>
-                  <h3 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{section.title}</h3>
-                  <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted">{section.description}</p>
-                </div>
-              </div>
-              <div className="store-coming-soon-deck store-coming-soon-single">
-                <div className="store-coming-soon-card store-coming-soon-card-wide group">
-                  <div className="store-coming-soon-card-media">
-                    <div className="store-coming-soon-card-glow" />
-                    <div className="store-coming-soon-card-icon">
-                      {section.icon === "sword" && <Sword className="w-10 h-10 stroke-[1.25]" />}
-                      {section.icon === "paw" && <PawPrint className="w-10 h-10 stroke-[1.25]" />}
-                      {section.icon === "coins" && <Coins className="w-10 h-10 stroke-[1.25]" />}
-                    </div>
-                    <div className="store-coming-soon-card-lock">
-                      <Lock className="w-3.5 h-3.5" />
-                    </div>
-                  </div>
-                  <div className="store-coming-soon-card-body">
-                    <span>{section.title}</span>
-                    <span className="store-coming-soon-badge">Coming Soon</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-          ))}
         </div>
       ) : (
         <div className="mt-7 flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-line-strong bg-card/40 px-6 text-center">
           <PackageSearch size={34} className="text-accent-bright" />
           <h3 className="mt-4 text-lg font-bold">No products found</h3>
-          <p className="mt-1 text-sm text-muted">Try another search or switch categories.</p>
+          <p className="mt-1 text-sm text-muted">Choose another category to continue browsing.</p>
           <button
             type="button"
             onClick={() => {
-              setQuery("");
               setActive("All");
+              setSubfilter(null);
             }}
             className="btn btn-ghost btn-sm mt-5"
           >

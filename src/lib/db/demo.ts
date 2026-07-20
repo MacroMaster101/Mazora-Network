@@ -27,7 +27,7 @@ export const demoGameModes: GameMode[] = [
     description:
       "A rich survival world with custom biomes, land claims, player-run shops, and a genuine economy. Build a base, join a town, and leave a mark that lasts for seasons.",
     players: 86,
-    version: "1.21.x",
+    version: "1.21.11",
     features: ["Land claiming & towns", "Player-run shops", "Custom enchantments", "Weekly quest lines", "Seasonal world events"],
     commands: [
       { cmd: "/claim", desc: "Protect a chunk of land as your own." },
@@ -46,7 +46,7 @@ export const demoGameModes: GameMode[] = [
     description:
       "Start on a single floating island and grow an empire with co-op teams, resource minions, island levels, and seasonal leagues that reset the leaderboard.",
     players: 52,
-    version: "1.21.x",
+    version: "1.21.11",
     features: ["Island levels", "Co-op teams", "Resource minions", "Seasonal leagues", "Custom island upgrades"],
     commands: [
       { cmd: "/island", desc: "Create or teleport to your island." },
@@ -65,7 +65,7 @@ export const demoGameModes: GameMode[] = [
     description:
       "A ruthless open world where killing steals a heart and dying loses one. Forge alliances, set bounties, raid vaults, and survive when the whole server wants you gone.",
     players: 41,
-    version: "1.21.x",
+    version: "1.21.11",
     features: ["Heart economy", "Player bounties", "Team vaults", "Combat events", "Withdraw & revive items"],
     commands: [
       { cmd: "/hearts", desc: "Check your current heart count." },
@@ -84,7 +84,7 @@ export const demoGameModes: GameMode[] = [
     description:
       "Everything begins with a single, endless block. Mine through twelve progression phases, upgrade your island, meet custom mobs, and prestige for permanent rewards.",
     players: 28,
-    version: "1.21.x",
+    version: "1.21.11",
     features: ["12 progression phases", "Island upgrades", "Custom mobs", "Prestige rewards", "Phase leaderboards"],
     commands: [
       { cmd: "/ob", desc: "Teleport to your OneBlock island." },
@@ -103,7 +103,7 @@ export const demoGameModes: GameMode[] = [
     description:
       "Fast, balanced combat with ranked duels, custom kits, daily bounties, and ELO matchmaking. No pay-to-win — just you, your aim, and a growing streak.",
     players: 33,
-    version: "1.21.x",
+    version: "1.21.11",
     features: ["Ranked duels", "Balanced custom kits", "Daily bounties", "ELO matchmaking", "Kill-streak rewards"],
     commands: [
       { cmd: "/kit", desc: "Select a combat kit." },
@@ -122,7 +122,7 @@ export const demoGameModes: GameMode[] = [
     description:
       "Claim a generous plot and create with powerful, carefully moderated build tools. Enter build contests, showcase your work at spawn warps, and inspire the network.",
     players: 17,
-    version: "1.21.x",
+    version: "1.21.11",
     features: ["Large plots", "WorldEdit access", "Build contests", "Showcase warps", "Collaborative plots"],
     commands: [
       { cmd: "/plot claim", desc: "Claim an empty build plot." },

@@ -9,7 +9,7 @@ export const site = {
   javaIp: "mc.mazora.us",
   bedrockIp: "mc.mazora.us",
   bedrockPort: process.env.NEXT_PUBLIC_BEDROCK_PORT ?? "8876",
-  version: "1.21.x",
+  version: "1.21.11",
   region: "Asia Pacific",
   launchDate: "2023-10-01",
   discord: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt",
