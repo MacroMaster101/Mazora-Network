@@ -5,7 +5,11 @@ import Link from "next/link";
 import { Compass, Home, RefreshCw, ShieldAlert } from "lucide-react";
 
 export function ErrorScreen({ error, reset, code = "WORLD ERROR", title = "This chunk failed to load.", copy = "The network hit an unexpected obstacle while preparing this page. Your progress is safe—try loading the chunk again.", compact = false }: { error?: Error & { digest?: string }; reset?: () => void; code?: string; title?: string; copy?: string; compact?: boolean }) {
-  useEffect(() => { if (error) console.error(error); }, [error]);
+  // Only echo the error to the browser console in development. In production
+  // the visitor sees the incident digest (below) instead of raw error details.
+  useEffect(() => {
+    if (error && process.env.NODE_ENV !== "production") console.error(error);
+  }, [error]);
 
   return (
     <section className={`state-error${compact ? " state-error-compact" : ""}`}>

@@ -34,12 +34,29 @@ interface Embed {
 interface Interaction {
   type: number;
   data?: { custom_id?: string; component_type?: number };
-  member?: { user?: { id?: string; username?: string; global_name?: string | null } };
+  member?: { user?: { id?: string; username?: string; global_name?: string | null }; roles?: string[] };
   user?: { id?: string; username?: string; global_name?: string | null };
   message?: { embeds?: Embed[] };
 }
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
+
+/** Ephemeral (flags: 64) reply visible only to the clicking user. */
+const ephemeral = (content: string) => json({ type: 4, data: { content, flags: 64 } });
+
+/**
+ * Whether the interacting member holds the configured store-staff role. When
+ * DISCORD_STORE_STAFF_ROLE_ID is set, only members carrying that role may act
+ * on order buttons; without it configured, we fall back to Discord's own
+ * channel permissions (the orders channel should be staff-only) and allow the
+ * action. `member.roles` is only present for in-guild interactions.
+ */
+function isStaffMember(interaction: Interaction): boolean {
+  const staffRoleId = process.env.DISCORD_STORE_STAFF_ROLE_ID?.trim();
+  if (!staffRoleId || !/^\d{17,20}$/.test(staffRoleId)) return true;
+  const roles = interaction.member?.roles;
+  return Array.isArray(roles) && roles.includes(staffRoleId);
+}
 
 function fieldValue(embed: Embed | undefined, name: string): string {
   return embed?.fields?.find((field) => field.name === name)?.value ?? "";
@@ -72,6 +89,13 @@ export async function POST(request: Request) {
     const [prefix, action, discordUserId, reference] = customId.split(":");
     if (prefix !== "mzo" || !["confirm", "reject"].includes(action) || !/^\d{17,20}$/.test(discordUserId ?? "")) {
       return json({ type: 6 }); // unknown component: acknowledge silently
+    }
+
+    // Only staff may confirm or reject an order. This is enforced here rather
+    // than relying solely on who can see the channel, so a leaked or forwarded
+    // message component cannot be actioned by a non-staff user.
+    if (!isStaffMember(interaction)) {
+      return ephemeral("You don't have permission to action Mazora orders.");
     }
 
     const bot = getDiscordBotConfig();
