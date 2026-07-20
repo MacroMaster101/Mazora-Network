@@ -34,7 +34,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <div className="section shell pt-28">
         <StoreBackButton />
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(24rem,0.92fr)] lg:items-center lg:gap-12">
+      <div className="store-detail-layout grid gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(24rem,0.92fr)] lg:items-start lg:gap-12">
         <Reveal className="store-detail-media" data-accent={product.accent}>
           <Image
             src={storeArtFor(product)}
@@ -50,6 +50,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white/75 backdrop-blur-md">
               Digital item
             </span>
+          </span>
+          <span className="store-detail-media-caption">
+            <small>{product.subcategory ?? product.category}</small>
+            <strong>{product.name}</strong>
           </span>
         </Reveal>
 

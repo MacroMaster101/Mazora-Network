@@ -9,7 +9,7 @@ import { usd } from "@/lib/utils";
 import { useCart } from "./cart-provider";
 import { TonePill } from "@/components/ui";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product, onOpenDetails }: { product: Product; onOpenDetails?: () => void }) {
   const { add, openCart } = useCart();
   const onSale = product.salePrice != null;
   const currentPrice = product.salePrice ?? product.price;
@@ -29,12 +29,13 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <article className="store-product-card group" data-accent={product.accent} data-category={product.category} data-subcategory={product.subcategory}>
-      <Link href={`/store/${product.slug}`} className="store-product-media" aria-label={`View ${product.name} details`}>
+      <Link href={`/store/${product.slug}`} onClick={onOpenDetails} className="store-product-media" aria-label={`View ${product.name} details`}>
         <Image
           src={storeArtFor(product)}
           alt={`${product.name} product artwork`}
           fill
-          sizes="(max-width: 640px) 88px, 112px"
+          sizes="(max-width: 640px) calc(100vw - 3rem), (max-width: 1024px) 45vw, 30vw"
+          quality={90}
           className="object-cover transition duration-500 ease-out group-hover:scale-[1.045]"
         />
         <span className="store-product-media-shade" aria-hidden="true" />
@@ -67,7 +68,7 @@ export function ProductCard({ product }: { product: Product }) {
             <span className="store-product-kicker text-[10px] font-bold uppercase tracking-[0.18em] text-accent-bright">
               {product.category}
             </span>
-            <Link href={`/store/${product.slug}`} className="mt-1.5">
+            <Link href={`/store/${product.slug}`} onClick={onOpenDetails} className="mt-1.5">
               <h3 className="font-display text-lg font-extrabold tracking-tight transition group-hover:text-accent-bright">
                 {product.name}
               </h3>
