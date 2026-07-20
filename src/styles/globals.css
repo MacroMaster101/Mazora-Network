@@ -4714,14 +4714,19 @@ body.initial-load-active {
   width: min(100%, 18rem);
 }
 
-.team-tier-admins {
+.team-tier-seniors {
+  width: min(100%, 36rem);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.team-tier-mods {
   width: min(100%, 54rem);
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.team-tier-community {
+.team-tier-helpers {
   width: min(100%, 68.75rem);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .team-member-card {
@@ -4754,17 +4759,22 @@ body.initial-load-active {
   --team-tone-soft: 253 224 71;
 }
 
-.team-member-management {
+.team-member-admin {
   --team-tone: 168 85 247;
   --team-tone-soft: 216 180 254;
 }
 
-.team-member-admin {
+.team-member-senior {
   --team-tone: 59 130 246;
   --team-tone-soft: 147 197 253;
 }
 
-.team-member-community {
+.team-member-moderator {
+  --team-tone: 244 63 94;
+  --team-tone-soft: 253 164 175;
+}
+
+.team-member-helper {
   --team-tone: 20 184 166;
   --team-tone-soft: 94 234 212;
 }
@@ -4833,12 +4843,6 @@ body.initial-load-active {
   font-weight: 600;
 }
 
-.team-member-role {
-  margin-top: 0.38rem;
-  color: rgb(var(--muted));
-  font-size: 0.88rem;
-}
-
 .team-flow-connector,
 .team-branch,
 .team-merge {
@@ -4889,10 +4893,6 @@ body.initial-load-active {
   width: min(100%, 54rem);
 }
 
-.team-branch-four {
-  width: min(100%, 68.75rem);
-}
-
 .team-branch-stem {
   top: 0;
   left: 50%;
@@ -4936,25 +4936,60 @@ body.initial-load-active {
   left: 83.3333%;
 }
 
-.team-branch-four .team-branch-rail {
-  right: 12.5%;
-  left: 12.5%;
+/* Two- and five-wide plumbing for the current roster (2 senior moderators,
+   5 helpers). Drop positions are column centres: (2k−1)/2N. */
+.team-branch-two {
+  width: min(100%, 36rem);
 }
 
-.team-branch-four .team-branch-drop-1 {
-  left: 12.5%;
+.team-branch-two .team-branch-rail,
+.team-merge-two .team-merge-rail {
+  right: 25%;
+  left: 25%;
 }
 
-.team-branch-four .team-branch-drop-2 {
-  left: 37.5%;
+.team-branch-two .team-branch-drop-1,
+.team-merge-two .team-merge-rise-1 {
+  left: 25%;
 }
 
-.team-branch-four .team-branch-drop-3 {
-  left: 62.5%;
+.team-branch-two .team-branch-drop-2,
+.team-merge-two .team-merge-rise-2 {
+  left: 75%;
 }
 
-.team-branch-four .team-branch-drop-4 {
-  left: 87.5%;
+.team-branch-five {
+  width: min(100%, 68.75rem);
+}
+
+.team-branch-five .team-branch-rail {
+  right: 10%;
+  left: 10%;
+}
+
+.team-branch-five .team-branch-drop-1 {
+  left: 10%;
+}
+
+.team-branch-five .team-branch-drop-2 {
+  left: 30%;
+}
+
+.team-branch-five .team-branch-drop-3 {
+  left: 50%;
+}
+
+.team-branch-five .team-branch-drop-4 {
+  left: 70%;
+}
+
+.team-branch-five .team-branch-drop-5 {
+  left: 90%;
+}
+
+.team-merge-two {
+  width: min(100%, 36rem);
+  height: 3.5rem;
 }
 
 .team-merge-three {
@@ -4976,21 +5011,6 @@ body.initial-load-active {
   top: 1.5rem;
   bottom: 0;
   left: 50%;
-}
-
-.team-tier-label {
-  position: relative;
-  z-index: 1;
-  display: none;
-  width: fit-content;
-  align-items: center;
-  gap: 0.42rem;
-  margin: 0 auto 0.75rem;
-  color: rgb(238 232 248 / 0.76);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
 :root[data-theme="dark"] .team-member-card {
@@ -5048,27 +5068,28 @@ body.initial-load-active {
 
 
 @media (max-width: 1023px) {
-  .team-tier-community {
+  .team-tier-helpers {
     width: min(100%, 38rem);
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .team-branch-four {
+  .team-branch-five {
     width: min(100%, 38rem);
   }
 
-  .team-branch-four .team-branch-rail {
+  .team-branch-five .team-branch-rail {
     right: 25%;
     left: 25%;
   }
 
-  .team-branch-four .team-branch-drop-1,
-  .team-branch-four .team-branch-drop-3 {
+  .team-branch-five .team-branch-drop-1,
+  .team-branch-five .team-branch-drop-3,
+  .team-branch-five .team-branch-drop-5 {
     left: 25%;
   }
 
-  .team-branch-four .team-branch-drop-2,
-  .team-branch-four .team-branch-drop-4 {
+  .team-branch-five .team-branch-drop-2,
+  .team-branch-five .team-branch-drop-4 {
     left: 75%;
   }
 }
@@ -5085,8 +5106,9 @@ body.initial-load-active {
     padding: 1rem;
   }
 
-  .team-tier-admins,
-  .team-tier-community {
+  .team-tier-seniors,
+  .team-tier-mods,
+  .team-tier-helpers {
     width: 100%;
     grid-template-columns: minmax(0, 1fr);
     gap: 0.7rem;
@@ -5104,18 +5126,13 @@ body.initial-load-active {
 
   .team-member-tier,
   .team-member-card h3,
-  .team-member-alias,
-  .team-member-role {
+  .team-member-alias {
     grid-column: 2;
     margin-top: 0;
   }
 
   .team-member-card h3 {
     font-size: 1rem;
-  }
-
-  .team-member-role {
-    margin-top: 0.2rem;
   }
 
   .team-branch {
@@ -5148,9 +5165,6 @@ body.initial-load-active {
     border-left: 0.24rem solid transparent;
   }
 
-  .team-tier-label {
-    display: inline-flex;
-  }
 }
 
 @media (max-width: 420px) {
@@ -7388,13 +7402,20 @@ body:has(.store-hero) {
     height: 5rem;
   }
 
-  body:has(.store-hero) .desktop-nav-item {
+  /* The vote hero is the same kind of full-bleed cinematic header as the
+     store's, so its nav needs the same treatment: neither page paints a bar
+     behind the nav, and the text-shadow is what keeps the links readable
+     against whatever artwork sits underneath. */
+  body:has(.store-hero) .desktop-nav-item,
+  body:has(.vote-mission-hero) .desktop-nav-item {
     color: rgb(238 232 248 / 0.76);
     text-shadow: 0 2px 18px rgb(3 1 8 / 0.9);
   }
 
   body:has(.store-hero) .desktop-nav-item.is-active,
-  body:has(.store-hero) .desktop-nav-item:hover {
+  body:has(.store-hero) .desktop-nav-item:hover,
+  body:has(.vote-mission-hero) .desktop-nav-item.is-active,
+  body:has(.vote-mission-hero) .desktop-nav-item:hover {
     color: white;
   }
 }
@@ -9583,7 +9604,10 @@ body:has(.store-detail-page) .scroll-header[data-away="true"][data-hidden="false
   background:
     radial-gradient(40rem 30rem at 77% 47%, transparent 15%, rgb(5 3 12 / 0.32) 76%),
     linear-gradient(90deg, rgb(5 3 12 / 0.97) 0%, rgb(6 4 14 / 0.88) 31%, rgb(6 4 14 / 0.28) 67%, rgb(5 3 11 / 0.55) 100%),
-    linear-gradient(180deg, rgb(5 3 11 / 0.7), transparent 24%, transparent 64%, rgb(7 5 15) 100%);
+    /* Top stop matches the store hero's (0.46 fading out by 38%) so the
+       artwork reads through under the nav instead of being crushed to a flat
+       dark band. The lower stops are unchanged. */
+    linear-gradient(180deg, rgb(5 3 11 / 0.46), transparent 38%, transparent 64%, rgb(7 5 15) 100%);
 }
 
 .vote-mission-noise {
@@ -9688,9 +9712,10 @@ body:has(.store-detail-page) .scroll-header[data-away="true"][data-hidden="false
 .vote-mission-lead {
   max-width: 39rem;
   margin-top: 1.35rem;
-  color: rgb(255 255 255 / 0.62);
+  color: rgb(255 255 255 / 0.8);
   font-size: clamp(0.88rem, 1.15vw, 1rem);
   line-height: 1.75;
+  text-shadow: 0 1px 12px rgb(3 1 8 / 0.85);
 }
 
 .vote-mission-actions {
@@ -10607,12 +10632,13 @@ body:has(.vote-mission-hero) .scroll-header {
   color: #fff;
 }
 
+/* Superseded further down: the vote header shows no bar at all, matching the
+   store. Kept neutral here so the two rules cannot disagree. */
 body:has(.vote-mission-hero) .scroll-header:not([data-away="true"])::before {
-  opacity: 1;
-  border-bottom-color: rgb(196 157 255 / 0.08);
-  background: linear-gradient(180deg, rgb(5 3 12 / 0.88), rgb(5 3 12 / 0.34) 70%, transparent);
+  opacity: 0;
+  background: none;
   box-shadow: none;
-  backdrop-filter: blur(9px);
+  backdrop-filter: none;
 }
 
 @media (min-width: 900px) {
@@ -10761,9 +10787,13 @@ body:has(.vote-mission-hero) .scroll-header:not([data-away="true"])::before {
   align-items: center;
   gap: 0.48rem;
   margin-top: 1.25rem;
-  color: rgb(255 255 255 / 0.42);
+  /* Was 0.42 with no backing, sitting on the brightest part of the portal
+     artwork — effectively unreadable at this size. The shadow does the work
+     that a panel would, without adding another box to the composition. */
+  color: rgb(255 255 255 / 0.74);
   font-size: 0.66rem;
   font-weight: 700;
+  text-shadow: 0 1px 10px rgb(3 1 8 / 0.9), 0 0 22px rgb(3 1 8 / 0.7);
 }
 
 .vote-mission-quick-note svg {
@@ -11061,13 +11091,18 @@ body:has(.vote-mission-hero) .scroll-header::before {
   box-shadow: none !important;
 }
 
+/* The vote hero runs its artwork to the very top of the page, so the header
+   carries no bar of its own — the same treatment the store hero gets. The
+   scrim that used to sit here painted a dark slab behind the nav and left a
+   visible seam where its gradient ended 2.25rem lower down. Legibility is
+   handled by the nav text-shadow instead. */
 body:has(.vote-mission-hero) .scroll-header::before,
 body:has(.vote-mission-hero) .scroll-header:not([data-away="true"])::before,
 body:has(.vote-mission-hero) .scroll-header[data-away="true"][data-hidden="false"]::before {
-  inset: 0 0 -2.25rem;
-  opacity: 1;
+  inset: 0;
+  opacity: 0;
   border: 0;
-  background: linear-gradient(180deg, rgb(5 3 12 / 0.86), rgb(5 3 12 / 0.26) 68%, transparent);
+  background: none;
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -12357,11 +12392,13 @@ button.store-shop-nav-item:hover,
   align-items: center;
   justify-self: center;
   gap: 0.85rem;
-  border: 1px solid rgb(196 157 255 / 0.18);
+  border: 1px solid rgb(196 157 255 / 0.24);
   border-radius: 999px;
-  background: rgb(8 5 18 / 0.52);
+  /* This pill sits in the upper band, which is now less shaded so the artwork
+     can run under the nav — so it has to carry its own contrast. */
+  background: rgb(8 5 18 / 0.66);
   padding: 0.52rem 0.78rem;
-  color: rgb(255 255 255 / 0.54);
+  color: rgb(255 255 255 / 0.82);
   font-size: 0.56rem;
   font-weight: 850;
   letter-spacing: 0.15em;
@@ -12439,9 +12476,10 @@ button.store-shop-nav-item:hover,
 .vote-reward-layout .vote-mission-lead {
   max-width: 39rem;
   margin: 1.3rem auto 0;
-  color: rgb(245 241 250 / 0.7);
+  color: rgb(245 241 250 / 0.86);
   font-size: clamp(0.88rem, 1.15vw, 1.02rem);
   line-height: 1.72;
+  text-shadow: 0 1px 12px rgb(3 1 8 / 0.85);
   text-wrap: balance;
 }
 
@@ -12464,12 +12502,14 @@ button.store-shop-nav-item:hover,
   justify-content: center;
   gap: 0.8rem;
   margin-top: 1.45rem;
-  border: 1px solid rgb(255 255 255 / 0.1);
+  border: 1px solid rgb(255 255 255 / 0.14);
   border-radius: 999px;
-  background: rgb(8 5 18 / 0.48);
+  /* Denser backing so the row reads as a solid control against the portal
+     glow it sits on, rather than dissolving into it. */
+  background: rgb(8 5 18 / 0.62);
   padding: 0.55rem 0.75rem;
-  color: rgb(255 255 255 / 0.66);
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.055);
+  color: rgb(255 255 255 / 0.85);
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.07), 0 14px 34px -22px rgb(0 0 0 / 0.9);
   backdrop-filter: blur(14px);
 }
 
@@ -12506,7 +12546,8 @@ button.store-shop-nav-item:hover,
 .vote-reward-layout .vote-mission-quick-note {
   justify-content: center;
   margin-top: 0.8rem;
-  color: rgb(255 255 255 / 0.43);
+  color: rgb(255 255 255 / 0.76);
+  text-shadow: 0 1px 10px rgb(3 1 8 / 0.9), 0 0 22px rgb(3 1 8 / 0.7);
 }
 
 @media (max-width: 899px) {
@@ -13325,7 +13366,14 @@ body:has(.vote-mission-hero) {
   position: relative;
   isolation: isolate;
   min-height: 100svh;
-  overflow: hidden;
+  /* `clip`, not `hidden`. `hidden` establishes a block formatting context,
+     which stops .site-world-main's `margin-top: -76px` collapsing through —
+     the frame then stayed at y=76 and clipped the hero's top edge, leaving a
+     flat band behind the nav with a hard seam under it. `clip` contains
+     overflow the same way without creating a BFC, so the margin collapses,
+     the frame starts at y=0 and the artwork runs under the nav exactly as the
+     store hero does. */
+  overflow: clip;
   background: #05030a !important;
 }
 
