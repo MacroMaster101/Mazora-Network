@@ -8,14 +8,23 @@ import type { NextConfig } from "next";
 // nonces threaded through middleware, which is a larger change. Everything
 // else is tightened: framing is denied, plugins/objects are blocked, and the
 // document base and form targets are pinned to same-origin.
+//
+// 'unsafe-eval' is added in development ONLY: `next dev` evaluates every client
+// module through eval() (webpack's eval-source-map devtool) and React Refresh
+// does the same. Without it the whole client bundle throws EvalError, nothing
+// hydrates, and the site is stuck on the first-load screen. Production bundles
+// never eval, so the deployed policy stays strict.
+const isDev = process.env.NODE_ENV === "development";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://mc-heads.net https://api.dicebear.com https://cdn.discordapp.com",
   "font-src 'self'",
   // https: covers the env-configured Supabase host without hard-coding it.
-  "connect-src 'self' https:",
+  // ws: is dev-only, for the hot-reload socket.
+  `connect-src 'self' https:${isDev ? " ws:" : ""}`,
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",
