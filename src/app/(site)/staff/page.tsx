@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, Crown, Handshake, Shield, UsersRound } from "lucide-react";
+import { BadgeCheck, Crown, Gavel, Handshake, Shield, UsersRound } from "lucide-react";
 import { MinecraftAvatar, PageHero, Reveal } from "@/components/shared";
 
 export const metadata: Metadata = {
@@ -12,35 +12,44 @@ type TeamMember = {
   username: string;
   alias?: string;
   role: string;
-  tier: "owner" | "management" | "admin" | "community";
+  tier: "owner" | "admin" | "senior" | "moderator" | "helper";
 };
 
-const owner: TeamMember = { username: "LilyLuvv", alias: "Maali", role: "Owner & Founder", tier: "owner" };
-const manager: TeamMember = { username: "OshSparkyy", role: "Network Management", tier: "management" };
+const owner: TeamMember = { username: "LilyLuvv", alias: "Mali", role: "Owner & Founder", tier: "owner" };
+const admin: TeamMember = { username: "OshSparkyy", role: "Administrator", tier: "admin" };
 
-const administrators: TeamMember[] = [
-  { username: "87VX_z", role: "Administrator", tier: "admin" },
-  { username: "AIZENxuc", role: "Administrator", tier: "admin" },
-  { username: "Hina1015", role: "Administrator", tier: "admin" },
+const seniorModerators: TeamMember[] = [
+  { username: "Aizenxuc", role: "Senior Moderator", tier: "senior" },
+  { username: "87VX_z", role: "Senior Moderator", tier: "senior" },
 ];
 
-const communityTeam: TeamMember[] = [
-  { username: "Sanda_10", role: "Community Staff", tier: "community" },
-  { username: "Chandiya", role: "Community Staff", tier: "community" },
-  { username: "SHASHIYA", role: "Community Staff", tier: "community" },
-  { username: "NimA391", role: "Community Staff", tier: "community" },
+const moderators: TeamMember[] = [
+  { username: "Sanda_10", role: "Moderator", tier: "moderator" },
+  { username: "Jester_X_44", role: "Moderator", tier: "moderator" },
+  { username: "Hina1015", role: "Moderator", tier: "moderator" },
 ];
 
-const tierMeta = {
-  owner: { icon: Crown, label: "Leadership" },
-  management: { icon: BadgeCheck, label: "Management" },
-  admin: { icon: Shield, label: "Administration" },
-  community: { icon: Handshake, label: "Community Team" },
+const helpers: TeamMember[] = [
+  { username: "NimA391", role: "Helper", tier: "helper" },
+  { username: "RASTHA125", role: "Helper", tier: "helper" },
+  { username: "SHASHIYA", role: "Helper", tier: "helper" },
+  { username: "Chandiya", role: "Helper", tier: "helper" },
+  { username: "RUSHER", role: "Helper", tier: "helper" },
+];
+
+const teamCount = 2 + seniorModerators.length + moderators.length + helpers.length;
+
+/* Rank badge icons; the visible rank text on each card is member.role itself. */
+const tierIcons = {
+  owner: Crown,
+  admin: BadgeCheck,
+  senior: Shield,
+  moderator: Gavel,
+  helper: Handshake,
 };
 
 function TeamMemberCard({ member }: { member: TeamMember }) {
-  const meta = tierMeta[member.tier];
-  const RankIcon = meta.icon;
+  const RankIcon = tierIcons[member.tier];
 
   return (
     <article className={`team-member-card team-member-${member.tier}`}>
@@ -51,10 +60,9 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
           <RankIcon size={16} />
         </span>
       </div>
-      <p className="team-member-tier">{meta.label}</p>
+      <p className="team-member-tier">{member.role}</p>
       <h3>{member.username}</h3>
       {member.alias && <p className="team-member-alias">Known as {member.alias}</p>}
-      <p className="team-member-role">{member.role}</p>
     </article>
   );
 }
@@ -83,7 +91,7 @@ export default function StaffPage() {
               <p className="eyebrow">Network hierarchy</p>
               <h2>Meet the team, from leadership to community.</h2>
             </div>
-            <span className="team-count-chip"><UsersRound size={15} /> 9 team members</span>
+            <span className="team-count-chip"><UsersRound size={15} /> {teamCount} team members</span>
           </div>
         </Reveal>
 
@@ -96,7 +104,25 @@ export default function StaffPage() {
             <FlowConnector />
 
             <div className="team-tier team-tier-single">
-              <TeamMemberCard member={manager} />
+              <TeamMemberCard member={admin} />
+            </div>
+
+            <div className="team-branch team-branch-two" aria-hidden>
+              <span className="team-branch-stem" />
+              <span className="team-branch-rail" />
+              <span className="team-branch-drop team-branch-drop-1" />
+              <span className="team-branch-drop team-branch-drop-2" />
+            </div>
+
+            <div className="team-tier team-tier-seniors">
+              {seniorModerators.map((member) => <TeamMemberCard key={member.username} member={member} />)}
+            </div>
+
+            <div className="team-merge team-merge-two" aria-hidden>
+              <span className="team-merge-rise team-merge-rise-1" />
+              <span className="team-merge-rise team-merge-rise-2" />
+              <span className="team-merge-rail" />
+              <span className="team-merge-stem" />
             </div>
 
             <div className="team-branch team-branch-three" aria-hidden>
@@ -107,9 +133,8 @@ export default function StaffPage() {
               <span className="team-branch-drop team-branch-drop-3" />
             </div>
 
-            <div className="team-tier-label"><Shield size={14} /> Administration</div>
-            <div className="team-tier team-tier-admins">
-              {administrators.map((member) => <TeamMemberCard key={member.username} member={member} />)}
+            <div className="team-tier team-tier-mods">
+              {moderators.map((member) => <TeamMemberCard key={member.username} member={member} />)}
             </div>
 
             <div className="team-merge team-merge-three" aria-hidden>
@@ -120,18 +145,18 @@ export default function StaffPage() {
               <span className="team-merge-stem" />
             </div>
 
-            <div className="team-branch team-branch-four" aria-hidden>
+            <div className="team-branch team-branch-five" aria-hidden>
               <span className="team-branch-stem" />
               <span className="team-branch-rail" />
               <span className="team-branch-drop team-branch-drop-1" />
               <span className="team-branch-drop team-branch-drop-2" />
               <span className="team-branch-drop team-branch-drop-3" />
               <span className="team-branch-drop team-branch-drop-4" />
+              <span className="team-branch-drop team-branch-drop-5" />
             </div>
 
-            <div className="team-tier-label"><Handshake size={14} /> Community Team</div>
-            <div className="team-tier team-tier-community">
-              {communityTeam.map((member) => <TeamMemberCard key={member.username} member={member} />)}
+            <div className="team-tier team-tier-helpers">
+              {helpers.map((member) => <TeamMemberCard key={member.username} member={member} />)}
             </div>
           </div>
         </Reveal>
