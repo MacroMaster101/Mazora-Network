@@ -177,12 +177,16 @@ alter table public.gallery_images enable row level security; alter table public.
 
 create policy "profiles public read" on public.profiles for select using(account_status='active');
 create policy "profile owner update safe fields" on public.profiles for update to authenticated using(user_id=auth.uid()) with check(user_id=auth.uid() and role=(select role from public.profiles where user_id=auth.uid()));
-create policy "minecraft account public read" on public.minecraft_accounts for select using(true);
+-- Minecraft account mappings (UUID/username -> user) are personal data: only the
+-- owner and staff may read them. Server integrations use the service role, which
+-- bypasses RLS.
+create policy "minecraft account owner staff read" on public.minecraft_accounts for select to authenticated using(user_id=auth.uid() or public.is_staff());
 create policy "link codes owner read" on public.minecraft_link_codes for select to authenticated using(user_id=auth.uid());
 create policy "stats public read" on public.player_statistics for select using(true);
 create policy "published news public read" on public.news_articles for select using(status='published' or public.is_admin());
 create policy "public modes read" on public.game_modes for select using(enabled or public.is_admin());
-create policy "events public read" on public.events for select using(true); create policy "rules public read" on public.rules for select using(enabled or public.is_admin());
+-- Only non-draft events are public; drafts stay visible to admins only.
+create policy "events public read" on public.events for select using(status <> 'draft' or public.is_admin()); create policy "rules public read" on public.rules for select using(enabled or public.is_admin());
 create policy "rule categories public read" on public.rule_categories for select using(true); create policy "staff profiles public read" on public.staff_members for select using(visible or public.is_admin());
 create policy "registrations owner read" on public.event_registrations for select to authenticated using(user_id=auth.uid() or public.is_staff());
 create policy "registrations owner insert" on public.event_registrations for insert to authenticated with check(user_id=auth.uid());
@@ -200,7 +204,9 @@ create policy "products public read" on public.products for select using(enabled
 create policy "orders private read" on public.orders for select to authenticated using(user_id=auth.uid() or public.is_admin()); create policy "order items private read" on public.order_items for select to authenticated using(exists(select 1 from public.orders o where o.id=order_id and (o.user_id=auth.uid() or public.is_admin())));
 create policy "vote sites public read" on public.vote_sites for select using(enabled or public.is_admin()); create policy "vote history private" on public.vote_history for select to authenticated using(user_id=auth.uid() or public.is_admin());
 create policy "notifications owner read" on public.notifications for select to authenticated using(user_id=auth.uid()); create policy "notifications owner update" on public.notifications for update to authenticated using(user_id=auth.uid()) with check(user_id=auth.uid());
-create policy "gallery public read" on public.gallery_images for select using(true); create policy "audit admin only" on public.audit_logs for select to authenticated using(public.is_admin()); create policy "settings public read" on public.site_settings for select using(true);
+-- site_settings may hold internal configuration and is never world-readable;
+-- admins manage it through the "admin manage settings" policy below.
+create policy "gallery public read" on public.gallery_images for select using(true); create policy "audit admin only" on public.audit_logs for select to authenticated using(public.is_admin());
 
 -- All content-management mutations are limited to admins. Service-role integrations bypass RLS by design and must remain server-side.
 create policy "admin manage news" on public.news_articles for all to authenticated using(public.is_admin()) with check(public.is_admin());
