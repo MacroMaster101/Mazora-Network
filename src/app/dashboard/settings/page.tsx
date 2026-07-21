@@ -35,7 +35,14 @@ export default async function SettingsPage() {
       if (data?.user) {
         email = data.user.email ?? "";
         hasGoogle = data.user.identities?.some((i) => i.provider === "google") ?? false;
-        hasPassword = data.user.identities?.some((i) => i.provider === "email") ?? false;
+        // Supabase's updateUser({ password }) sets the password but does not add
+        // an "email" identity for accounts that originated from OAuth, so the
+        // identities list alone can't detect a password set this way. The
+        // has_password metadata flag (set in updatePasswordAction) is the
+        // reliable signal for that case.
+        hasPassword =
+          (data.user.identities?.some((i) => i.provider === "email") ?? false) ||
+          Boolean(data.user.user_metadata?.has_password);
       }
     }
   }

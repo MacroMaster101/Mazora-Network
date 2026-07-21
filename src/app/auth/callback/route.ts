@@ -1,8 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+/**
+ * Restricts the post-login redirect target to a same-origin path. Checking
+ * only for a leading "//" is not enough: browsers strip ASCII tab/CR/LF
+ * anywhere in a URL and treat a backslash the same as a forward slash before
+ * resolving it (WHATWG URL spec), so "/\evil.com" or "/\t/evil.com" both
+ * look like safe same-origin paths to a naive check but actually resolve to
+ * "https://evil.com" once new URL(next, origin) below is followed by the
+ * browser. Normalizing the same way before checking closes that bypass.
+ */
 function safeNext(value: string | null): string {
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+  if (!value) return "/";
+  const normalized = value.replace(/[\t\r\n]/g, "").replace(/\\/g, "/");
+  return normalized.startsWith("/") && !normalized.startsWith("//") ? normalized : "/";
 }
 
 /**

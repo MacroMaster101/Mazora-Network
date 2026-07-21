@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+/** Supabase's verifyOtp() token types, shared between the confirm-email action and its UI. */
+export const otpTypes = ["signup", "email", "recovery", "invite", "magiclink", "email_change"] as const;
+export type OtpType = (typeof otpTypes)[number];
+
 const email = z
   .string({ required_error: "Enter your email address." })
   .trim()
@@ -52,6 +56,14 @@ export const registerSchema = z
   });
 
 export const resetRequestSchema = z.object({ email });
+
+export const resetCodeSchema = z.object({
+  email,
+  token: z
+    .string({ required_error: "Enter the 6-digit code." })
+    .trim()
+    .regex(/^\d{6}$/, "Enter the 6-digit code from your email."),
+});
 
 export const newPasswordSchema = z
   .object({

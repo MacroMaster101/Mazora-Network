@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: `How ${site.name} collects, uses, and protects your personal information.`,
 };
 
-const LAST_UPDATED = "2026-07-15";
+const LAST_UPDATED = "2026-07-21";
 
 export default function PrivacyPage() {
   const updated = new Date(LAST_UPDATED).toLocaleDateString("en", {
@@ -73,7 +73,9 @@ export default function PrivacyPage() {
                   <li>
                     <strong>Store requests.</strong> Your Minecraft username, preferred contact method,
                     Discord username or email address, requested items, order total, and any notes you
-                    include with a manual order request.
+                    include with a manual order request. Payment itself (PayPal, bank transfer, or an
+                    assisted Discord payment) is arranged directly with a staff member and is not
+                    collected or stored through the website.
                   </li>
                   <li>
                     <strong>Technical data.</strong> Standard log information such as IP address,
@@ -88,6 +90,11 @@ export default function PrivacyPage() {
                   <li>To contact you, coordinate payment, and fulfil manual store requests.</li>
                   <li>To moderate the community and enforce our rules.</li>
                   <li>To protect against fraud, abuse, and security threats.</li>
+                  <li>
+                    To verify proof of purchase for rank or account transfer requests, and to
+                    respond to chargebacks or payment disputes, including sharing order and delivery
+                    records with the relevant payment provider where necessary.
+                  </li>
                 </ul>
 
                 <h2 id="auth">4. Authentication and third parties</h2>
@@ -153,7 +160,8 @@ export default function PrivacyPage() {
                   <a href={site.discord} target="_blank" rel="noreferrer">
                     Discord
                   </a>
-                  .
+                  . See also our <Link href="/terms">Terms of Service</Link> and{" "}
+                  <Link href="/refunds">Refund Policy</Link>.
                 </p>
               </div>
             </div>

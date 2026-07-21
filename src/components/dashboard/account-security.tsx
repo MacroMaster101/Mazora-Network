@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { updatePasswordAction, type AuthResult } from "@/lib/actions/auth";
 import { FormRow, Input, useToast } from "@/components/ui";
@@ -40,6 +41,7 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     if (state.ok && state.message) {
@@ -47,10 +49,14 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
       setIsOpen(false);
       setPassword("");
       setConfirm("");
+      // Re-run the settings server component so the "Set a password" /
+      // "Change password" label reflects the just-updated has_password flag
+      // without requiring the user to manually reload the page.
+      router.refresh();
     } else if (!state.ok && state.message) {
       toast(state.message, "error");
     }
-  }, [state, toast]);
+  }, [state, toast, router]);
 
   if (!isOpen) {
     return (

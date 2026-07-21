@@ -30,6 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/support/suggestions",
     "/privacy",
     "/terms",
+    "/refunds",
   ].filter((path) => !isRouteLaunchGated(path || "/")).map((path) => ({
     url: `${base}${path}`,
     lastModified: now,
