@@ -799,9 +799,13 @@ h4 {
 
   .auth-password-strength>div {
     display: grid;
-    width: min(8rem, 42%);
+    flex: 1 1 auto;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.28rem;
+  }
+
+  .auth-password-strength p {
+    flex: 0 0 auto;
   }
 
   .auth-password-strength i {
@@ -873,94 +877,26 @@ h4 {
     accent-color: rgb(var(--accent));
   }
 
-  .auth-checkbox {
-    position: relative;
+  .auth-remember {
     display: flex;
-    min-height: 3.35rem;
     align-items: center;
-    gap: 0.7rem;
-    padding: 0.55rem 0.75rem;
-    border: 1px solid rgb(var(--line-strong) / 0.7);
-    border-radius: 13px;
-    background: rgb(var(--card) / 0.48);
+    gap: 0.5rem;
     cursor: pointer;
     user-select: none;
-    transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
-  }
-
-  .auth-checkbox:hover {
-    border-color: rgb(var(--accent-rgb) / 0.46);
-    background: rgb(var(--accent-rgb) / 0.075);
-  }
-
-  .auth-checkbox:focus-within {
-    border-color: rgb(var(--accent-rgb) / 0.72);
-    box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.1);
-  }
-
-  .auth-checkbox input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .auth-remember-switch {
-    position: relative;
-    width: 2.25rem;
-    height: 1.3rem;
-    flex: 0 0 auto;
-    border: 1px solid rgb(var(--line-strong) / 0.86);
-    border-radius: 999px;
-    background: rgb(var(--line-strong) / 0.58);
-    box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.14);
-    transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
-  }
-
-  .auth-remember-switch i {
-    position: absolute;
-    top: 50%;
-    left: 0.18rem;
-    width: 0.9rem;
-    height: 0.9rem;
-    transform: translateY(-50%);
-    border-radius: 50%;
-    background: rgb(var(--ink) / 0.72);
-    box-shadow: 0 2px 6px rgb(0 0 0 / 0.24);
-    transition: transform 180ms ease, background 180ms ease;
-  }
-
-  .auth-checkbox input:checked+.auth-remember-switch {
-    border-color: rgb(var(--accent-rgb) / 0.9);
-    background: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-bright)));
-    box-shadow: 0 0 14px -5px rgb(var(--accent-rgb) / 0.9);
-  }
-
-  .auth-checkbox input:checked+.auth-remember-switch i {
-    transform: translate(0.92rem, -50%);
-    background: white;
-  }
-
-  .auth-remember-copy {
-    display: flex;
-    min-width: 0;
-    flex-direction: column;
-    line-height: 1.2;
-  }
-
-  .auth-remember-copy strong {
-    color: rgb(var(--ink));
-    font-size: 0.76rem;
-    font-weight: 760;
-  }
-
-  .auth-remember-copy small {
-    margin-top: 0.18rem;
     color: rgb(var(--muted));
-    font-size: 0.64rem;
-    white-space: nowrap;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .auth-remember:hover {
+    color: rgb(var(--ink));
+  }
+
+  .auth-remember input {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+    accent-color: rgb(var(--accent));
   }
 
   .auth-terms small {
@@ -1078,6 +1014,10 @@ h4 {
     text-align: center;
     color: rgb(var(--muted));
     font-size: 0.82rem;
+  }
+
+  .auth-resend-row {
+    margin-top: 0.7rem;
   }
 
   .auth-switch-copy button,
@@ -1541,15 +1481,9 @@ h4 {
       border-radius: 11px;
     }
 
-    .auth-checkbox,
     .auth-terms {
       border-radius: 17px;
       background: rgb(var(--card) / 0.5);
-    }
-
-    .auth-checkbox {
-      min-height: 3.65rem;
-      padding-inline: 0.9rem;
     }
 
     .auth-submit,

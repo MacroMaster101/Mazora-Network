@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, type FormEvent, type ReactNode } from "react";
+import { useActionState, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import type { ZodTypeAny } from "zod";
 import {
@@ -17,14 +17,17 @@ import {
   UserRound,
 } from "lucide-react";
 import {
+  confirmEmailAction,
+  finishPasswordResetAction,
   loginAction,
   oauthAction,
   registerAction,
   requestPasswordResetAction,
-  updatePasswordAction,
+  resendConfirmationAction,
+  verifyResetCodeAction,
   type AuthResult,
 } from "@/lib/actions/auth";
-import { FormRow, Input } from "@/components/ui";
+import { FormRow, Input, useToast } from "@/components/ui";
 import {
   authValidationErrors,
   loginSchema,
@@ -32,6 +35,7 @@ import {
   registerSchema,
   resetRequestSchema,
 } from "@/lib/validation/auth";
+import { AuthCard } from "./auth-card";
 import { DiscordIcon, GoogleIcon } from "./provider-icons";
 import { AuthFlowLink } from "./auth-dialog-provider";
 
@@ -150,17 +154,20 @@ function PasswordInput({
 }
 
 function PasswordStrength({ id, value }: { id: string; value: string }) {
+  // Same scoring + label set as the dashboard's PasswordStrengthMini
+  // (account-security.tsx), so the strength meter reads identically whether
+  // you're setting a password here or from account settings.
   const score = value
     ? [value.length >= 8, value.length >= 12, /[a-z]/.test(value) && /[A-Z]/.test(value), /[^a-zA-Z]/.test(value)].filter(Boolean).length
     : 0;
-  const labels = ["Add more characters", "Weak", "Fair", "Good", "Strong"];
+  const labels = ["Too short", "Weak", "Fair", "Good", "Strong"];
   return (
     <div id={id} className="auth-password-strength" data-score={score} aria-live="polite">
       <span className="sr-only">Password strength: {labels[score]}</span>
       <div aria-hidden="true">
         {[1, 2, 3, 4].map((segment) => <i key={segment} className={segment <= score ? "is-filled" : undefined} />)}
       </div>
-      <p>{value ? labels[score] : "Use 8–128 characters; 12+ is stronger."}</p>
+      {value && <p>{labels[score]}</p>}
     </div>
   );
 }
@@ -190,7 +197,7 @@ function AuthMessage({ message }: { message?: string }) {
   return message ? <p className="auth-form-message" role="alert">{message}</p> : null;
 }
 
-function SocialButtons({ next = "/dashboard", mode = "login" }: { next?: string; mode?: "login" | "register" }) {
+function SocialButtons({ next = "/", mode = "login" }: { next?: string; mode?: "login" | "register" }) {
   const [googleState, googleAction, googlePending] = useActionState(oauthAction, initial);
   const [discordState, discordAction, discordPending] = useActionState(oauthAction, initial);
   const message = googleState.message ?? discordState.message;
@@ -227,6 +234,38 @@ function AuthDivider() {
   );
 }
 
+function ResendConfirmationRow({ email }: { email: string }) {
+  const [state, action, pending] = useActionState(resendConfirmationAction, initial);
+  const [cooldown, setCooldown] = useState(0);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (state.ok && state.message) {
+      toast(state.message, "success");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    } else if (!state.ok && state.message) {
+      toast(state.message, "error");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  useEffect(() => {
+    if (cooldown === 0) return;
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
+
+  return (
+    <form action={action} className="auth-resend-row">
+      <input type="hidden" name="email" value={email} />
+      <button type="submit" disabled={pending || cooldown > 0} className="btn btn-ghost auth-submit disabled:opacity-60">
+        {pending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+        {pending ? "Sending…" : cooldown > 0 ? `Resend confirmation in ${cooldown}s` : "Resend confirmation email"}
+      </button>
+    </form>
+  );
+}
+
 export function LoginForm({ next }: { next?: string }) {
   const [state, action, pending] = useActionState(loginAction, initial);
   const validation = useClientValidation(loginSchema, state);
@@ -248,13 +287,9 @@ export function LoginForm({ next }: { next?: string }) {
         </FormRow>
         <AuthMessage message={validation.message} />
         <div className="auth-form-options">
-          <label className="auth-checkbox">
+          <label className="auth-remember">
             <input type="checkbox" name="remember" />
-            <span className="auth-remember-switch" aria-hidden="true"><i /></span>
-            <span className="auth-remember-copy">
-              <strong>Remember me</strong>
-              <small>Stay signed in on this device</small>
-            </span>
+            <span>Remember me</span>
           </label>
           <AuthFlowLink view="forgot-password" href="/forgot-password">Forgot password?</AuthFlowLink>
         </div>
@@ -269,6 +304,7 @@ export function LoginForm({ next }: { next?: string }) {
           <span className="auth-account-submit-arrow" aria-hidden="true"><ArrowRight size={17} /></span>
         </button>
       </form>
+      {state.unverifiedEmail && <ResendConfirmationRow email={state.unverifiedEmail} />}
       <p className="auth-switch-copy">
         <span>New to Mazora?</span>
         <AuthFlowLink view="register" href="/register">Create an account</AuthFlowLink>
@@ -277,15 +313,23 @@ export function LoginForm({ next }: { next?: string }) {
   );
 }
 
-export function RegisterForm() {
+export function RegisterForm({ onRegistered }: { onRegistered: (email: string) => void }) {
   const [state, action, pending] = useActionState(registerAction, initial);
   const [passwordValue, setPasswordValue] = useState("");
+  const [email, setEmail] = useState("");
   const validation = useClientValidation(registerSchema, state);
   const usernameError = validation.errorFor("username");
   const emailError = validation.errorFor("email");
   const passwordError = validation.errorFor("password");
   const confirmError = validation.errorFor("confirm");
   const termsError = validation.errorFor("terms");
+
+  useEffect(() => {
+    if (state.ok) onRegistered(email);
+    // Only fire once the server confirms success — not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.ok]);
+
   return (
     <div className="auth-form-stack auth-register-stack">
       <SocialButtons mode="register" />
@@ -299,7 +343,7 @@ export function RegisterForm() {
           </FormRow>
           <FormRow label="Email address" htmlFor="email" error={emailError}>
             <FieldShell icon={<AtSign size={17} />}>
-              <Input id="email" name="email" type="email" required maxLength={254} placeholder="you@example.com" autoComplete="email" inputMode="email" aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "email-error" : undefined} className="auth-field" />
+              <Input id="email" name="email" type="email" required maxLength={254} placeholder="you@example.com" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "email-error" : undefined} className="auth-field" />
             </FieldShell>
           </FormRow>
         </div>
@@ -315,7 +359,7 @@ export function RegisterForm() {
         <label className="auth-terms auth-register-terms">
           <input type="checkbox" name="terms" required aria-invalid={Boolean(termsError)} aria-describedby={termsError ? "terms-error" : undefined} />
           <span>
-            I agree to the <Link href="/rules">community rules</Link> and <Link href="/support">terms of service</Link>.
+            I agree to the <Link href="/rules">community rules</Link> and <Link href="/terms">terms of service</Link>.
             {termsError && <small id="terms-error" role="alert">{termsError}</small>}
           </span>
         </label>
@@ -339,38 +383,200 @@ export function RegisterForm() {
   );
 }
 
-export function PasswordResetRequestForm() {
+function RequestResetCodeForm({ onSent }: { onSent: (email: string) => void }) {
   const [state, action, pending] = useActionState(requestPasswordResetAction, initial);
+  const [email, setEmail] = useState("");
   const validation = useClientValidation(resetRequestSchema, state);
   const emailError = validation.errorFor("email");
-  if (state.ok) {
-    return (
-      <div className="auth-success-state">
-        <span><Send size={25} /></span>
-        <h2>Check your inbox</h2>
-        <p>If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.</p>
-        <AuthFlowLink view="login" href="/login" className="btn btn-ghost auth-submit">Back to login</AuthFlowLink>
-      </div>
-    );
-  }
+
+  useEffect(() => {
+    if (state.ok) onSent(email);
+    // Only fire when the server confirms the request went through — not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.ok]);
+
   return (
     <form action={action} className="auth-form" noValidate onSubmit={validation.onSubmit} onInput={validation.onInput}>
       <FormRow label="Account email" htmlFor="email" error={emailError}>
         <FieldShell icon={<AtSign size={17} />}>
-          <Input id="email" name="email" type="email" required maxLength={254} placeholder="you@example.com" autoComplete="email" inputMode="email" aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "email-error" : undefined} className="auth-field" />
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            required
+            maxLength={254}
+            placeholder="you@example.com"
+            autoComplete="email"
+            inputMode="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            aria-invalid={Boolean(emailError)}
+            aria-describedby={emailError ? "email-error" : undefined}
+            className="auth-field"
+          />
         </FieldShell>
       </FormRow>
       <AuthMessage message={validation.message} />
       <button type="submit" disabled={pending} className="btn btn-primary auth-submit disabled:opacity-70">
-        {pending ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />} Send reset link <ArrowRight size={16} className="ml-auto" />
+        {pending ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />} Send code <ArrowRight size={16} className="ml-auto" />
       </button>
       <p className="auth-switch-copy">Remembered it? <AuthFlowLink view="login" href="/login">Log in</AuthFlowLink></p>
     </form>
   );
 }
 
+const RESEND_COOLDOWN_SECONDS = 60;
+
+function VerifyResetCodeForm({ email, onVerified }: { email: string; onVerified: () => void }) {
+  const [state, action, pending] = useActionState(verifyResetCodeAction, initial);
+  const [resendState, resendAction, resendPending] = useActionState(requestPasswordResetAction, initial);
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+  const { toast } = useToast();
+  const tokenError = state.errors?.token;
+
+  useEffect(() => {
+    if (state.ok) onVerified();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.ok]);
+
+  useEffect(() => {
+    if (resendState.ok) {
+      toast("A new code has been sent.", "success");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resendState.ok]);
+
+  useEffect(() => {
+    if (cooldown === 0) return;
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
+
+  return (
+    <>
+      <form action={action} className="auth-form" noValidate>
+        <input type="hidden" name="email" value={email} />
+        <FormRow label="6-digit code" htmlFor="reset-token" error={tokenError}>
+          <FieldShell icon={<KeyRound size={17} />}>
+            <Input
+              id="reset-token"
+              name="token"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              required
+              placeholder="123456"
+              autoComplete="one-time-code"
+              aria-invalid={Boolean(tokenError)}
+              aria-describedby={tokenError ? "reset-token-error" : undefined}
+              className="auth-field"
+            />
+          </FieldShell>
+        </FormRow>
+        <AuthMessage message={state.message} />
+        <button type="submit" disabled={pending} className="btn btn-primary auth-submit disabled:opacity-70">
+          {pending ? <Loader2 size={17} className="animate-spin" /> : <BadgeCheck size={17} />} Verify code <ArrowRight size={16} className="ml-auto" />
+        </button>
+      </form>
+      <form action={resendAction} className="auth-resend-row">
+        <input type="hidden" name="email" value={email} />
+        <button type="submit" disabled={resendPending || cooldown > 0} className="btn btn-ghost auth-submit disabled:opacity-60">
+          {resendPending ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Send size={16} />
+          )}
+          {resendPending ? "Sending…" : cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
+        </button>
+      </form>
+    </>
+  );
+}
+
+function NewPasswordAfterResetForm({ onDone }: { onDone: () => void }) {
+  const [state, action, pending] = useActionState(finishPasswordResetAction, initial);
+  const validation = useClientValidation(newPasswordSchema, state);
+  const passwordError = validation.errorFor("password");
+  const confirmError = validation.errorFor("confirm");
+
+  useEffect(() => {
+    if (state.ok) onDone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.ok]);
+
+  return (
+    <form action={action} className="auth-form" noValidate onSubmit={validation.onSubmit} onInput={validation.onInput}>
+      <FormRow label="New password" htmlFor="reset-new-password" error={passwordError}>
+        <PasswordInput id="reset-new-password" name="password" placeholder="Create a secure password" autoComplete="new-password" error={passwordError} strength />
+      </FormRow>
+      <FormRow label="Confirm new password" htmlFor="reset-new-confirm" error={confirmError}>
+        <PasswordInput id="reset-new-confirm" name="confirm" placeholder="Repeat your new password" autoComplete="new-password" error={confirmError} />
+      </FormRow>
+      <AuthMessage message={validation.message} />
+      <button type="submit" disabled={pending} className="btn btn-primary auth-submit disabled:opacity-70">
+        {pending ? <Loader2 size={17} className="animate-spin" /> : <KeyRound size={17} />} Reset password <ArrowRight size={16} className="ml-auto" />
+      </button>
+    </form>
+  );
+}
+
+type ForgotStep = "email" | "code" | "password" | "done";
+
+export function ForgotPasswordFlow() {
+  const [step, setStep] = useState<ForgotStep>("email");
+  const [email, setEmail] = useState("");
+
+  if (step === "code") {
+    return (
+      <AuthCard kicker="Account recovery" title="Enter your code." subtitle={`We sent a 6-digit code to ${email}.`}>
+        <VerifyResetCodeForm email={email} onVerified={() => setStep("password")} />
+      </AuthCard>
+    );
+  }
+
+  if (step === "password") {
+    return (
+      <AuthCard kicker="Account recovery" title="Choose a new password." subtitle="Use a strong password you don't use anywhere else.">
+        <NewPasswordAfterResetForm onDone={() => setStep("done")} />
+      </AuthCard>
+    );
+  }
+
+  if (step === "done") {
+    return (
+      <AuthCard kicker="Account recovery" title="Password updated." subtitle="You can now log in with your new password.">
+        <div className="auth-success-state">
+          <span><ShieldCheckIcon /></span>
+          <h2>All set</h2>
+          <p>Your password has been reset. Log in with your new password to continue.</p>
+          <AuthFlowLink view="login" href="/login" className="btn btn-primary auth-submit">
+            Back to login <ArrowRight size={16} />
+          </AuthFlowLink>
+        </div>
+      </AuthCard>
+    );
+  }
+
+  return (
+    <AuthCard kicker="Account recovery" title="Find your way back." subtitle="Enter your account email and we'll send you a 6-digit code.">
+      <RequestResetCodeForm
+        onSent={(sentEmail) => {
+          setEmail(sentEmail);
+          setStep("code");
+        }}
+      />
+    </AuthCard>
+  );
+}
+
 export function PasswordResetForm() {
-  const [state, action, pending] = useActionState(updatePasswordAction, initial);
+  // finishPasswordResetAction (not updatePasswordAction): this page is reached
+  // via the recovery fallback link (/confirm-email?type=recovery -> here), and
+  // finishPasswordResetAction signs the user out after the change so they log
+  // back in fresh — matching the 6-digit-code recovery path exactly.
+  const [state, action, pending] = useActionState(finishPasswordResetAction, initial);
   const validation = useClientValidation(newPasswordSchema, state);
   const passwordError = validation.errorFor("password");
   const confirmError = validation.errorFor("confirm");
@@ -402,4 +608,22 @@ export function PasswordResetForm() {
 
 function ShieldCheckIcon() {
   return <BadgeCheck size={25} />;
+}
+
+export function ConfirmEmailForm({ tokenHash, type }: { tokenHash: string; type: string }) {
+  const [state, action, pending] = useActionState(confirmEmailAction, initial);
+  return (
+    <form action={action} className="auth-form">
+      <input type="hidden" name="token_hash" value={tokenHash} />
+      <input type="hidden" name="type" value={type} />
+      <AuthMessage message={state.message} />
+      <button type="submit" disabled={pending} className="btn btn-primary auth-submit disabled:opacity-70">
+        {pending ? <Loader2 size={17} className="animate-spin" /> : <BadgeCheck size={17} />} Confirm my email
+        <ArrowRight size={16} className="ml-auto" />
+      </button>
+      <p className="auth-switch-copy">
+        Wrong account? <AuthFlowLink view="login" href="/login">Log in</AuthFlowLink>
+      </p>
+    </form>
+  );
 }
