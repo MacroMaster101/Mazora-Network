@@ -94,5 +94,5 @@ export const footerNav = {
 export const legalNav = [
   { label: "Terms", href: "/terms" },
   { label: "Privacy", href: "/privacy" },
-  { label: "Refunds", href: "/support" },
+  { label: "Refunds", href: "/refunds" },
 ];
