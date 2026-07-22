@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import { AlertTriangle, Link2, Monitor } from "lucide-react";
+import { Link2, Monitor } from "lucide-react";
 import { requireSession, getDiscordIdentity } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { AccountSecurity } from "@/components/dashboard/account-security";
-import { FormRow, Input, Textarea } from "@/components/ui";
+import { ProfileForm } from "@/components/dashboard/profile-form";
+import { DangerZone } from "@/components/dashboard/danger-zone";
+import { FormRow, Input } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -27,6 +30,7 @@ export default async function SettingsPage() {
   let email = "";
   let hasGoogle = false;
   let hasPassword = false;
+  let hasMinecraft = false;
   const discord = await getDiscordIdentity();
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
@@ -43,6 +47,13 @@ export default async function SettingsPage() {
         hasPassword =
           (data.user.identities?.some((i) => i.provider === "email") ?? false) ||
           Boolean(data.user.user_metadata?.has_password);
+        const accountStore = getSupabaseAdmin() ?? supabase;
+        const { data: minecraftAccount } = await accountStore
+          .from("minecraft_accounts")
+          .select("id")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+        hasMinecraft = Boolean(minecraftAccount);
       }
     }
   }
@@ -52,20 +63,7 @@ export default async function SettingsPage() {
       <DashHeader title="Settings" subtitle="Manage your profile, account and preferences." />
       <div className="grid gap-5">
         <Card title="Profile">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormRow label="Display name" htmlFor="displayName">
-              <Input id="displayName" defaultValue={session.displayName} />
-            </FormRow>
-            <FormRow label="Username" htmlFor="username">
-              <Input id="username" defaultValue={session.username} disabled />
-            </FormRow>
-          </div>
-          <FormRow label="Bio" htmlFor="bio">
-            <Textarea id="bio" rows={3} placeholder="Tell the community a little about yourself…" />
-          </FormRow>
-          <button className="btn btn-primary btn-sm" disabled title="Saving is enabled once the database is connected">
-            Save profile
-          </button>
+          <ProfileForm username={session.username} displayName={session.displayName} bio={session.bio ?? ""} />
         </Card>
 
         <Card title="Account">
@@ -105,20 +103,11 @@ export default async function SettingsPage() {
           <span className="chip">Two-factor authentication · coming soon</span>
         </Card>
 
-        <section className="panel border-danger/30 p-6">
-          <h2 className="flex items-center gap-2 font-display text-lg font-bold text-danger">
-            <AlertTriangle size={18} /> Danger zone
-          </h2>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button className="btn btn-ghost btn-sm border-danger/40 text-danger" disabled title="Requires verification">
-              Disconnect Minecraft
-            </button>
-            <button className="btn btn-ghost btn-sm border-danger/40 text-danger" disabled title="Requires verification">
-              Delete account
-            </button>
-          </div>
-          <p className="mt-3 text-xs text-muted">Sensitive actions require additional verification and are enabled with full auth.</p>
-        </section>
+        <DangerZone
+          username={session.username}
+          initiallyLinked={hasMinecraft}
+          enabled={isSupabaseConfigured()}
+        />
       </div>
     </>
   );

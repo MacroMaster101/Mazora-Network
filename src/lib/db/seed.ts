@@ -84,6 +84,7 @@ async function main() {
         category: p.category,
         price: String(p.price),
         salePrice: p.salePrice ? String(p.salePrice) : null,
+        imageUrl: p.imageUrl ?? null,
       })
       .onConflictDoNothing();
   }

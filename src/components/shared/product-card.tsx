@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Plus } from "lucide-react";
 import type { Product } from "@/lib/types";
@@ -8,6 +7,7 @@ import { storeArtFor } from "@/lib/store-art";
 import { usd } from "@/lib/utils";
 import { useCart } from "./cart-provider";
 import { TonePill } from "@/components/ui";
+import { StoreArtwork } from "./store-artwork";
 
 export function ProductCard({ product, onOpenDetails }: { product: Product; onOpenDetails?: () => void }) {
   const { add, openCart } = useCart();
@@ -30,13 +30,11 @@ export function ProductCard({ product, onOpenDetails }: { product: Product; onOp
   return (
     <article className="store-product-card group" data-accent={product.accent} data-category={product.category} data-subcategory={product.subcategory}>
       <Link href={`/store/${product.slug}`} onClick={onOpenDetails} className="store-product-media" aria-label={`View ${product.name} details`}>
-        <Image
+        <StoreArtwork
           src={storeArtFor(product)}
           alt={`${product.name} product artwork`}
-          fill
           sizes="(max-width: 640px) calc(100vw - 3rem), (max-width: 1024px) 45vw, 30vw"
-          quality={90}
-          className="object-cover transition duration-500 ease-out group-hover:scale-[1.045]"
+          imageClassName="transition duration-500 ease-out group-hover:scale-[1.045]"
         />
         <span className="store-product-media-shade" aria-hidden="true" />
         <span className="store-product-view">

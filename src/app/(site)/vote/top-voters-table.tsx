@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, ChevronDown, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarDays, Rows3, Check } from "lucide-react";
 import type { TopVoter } from "@/lib/types";
 import { MinecraftAvatar } from "@/components/shared";
 import { cn } from "@/lib/utils";
@@ -10,13 +10,42 @@ import { cn } from "@/lib/utils";
 type SortKey = "username" | "dailyVotes" | "weeklyVotes" | "monthlyVotes" | "lastMonthVotes" | "allTimeVotes";
 
 const sortOptions: { key: SortKey; label: string }[] = [
-  { key: "dailyVotes", label: "Daily Votes" },
-  { key: "weeklyVotes", label: "Weekly Votes" },
-  { key: "monthlyVotes", label: "Monthly Votes" },
-  { key: "lastMonthVotes", label: "Last Month Votes" },
-  { key: "allTimeVotes", label: "All Time Votes" },
+  { key: "dailyVotes", label: "Today" },
+  { key: "weeklyVotes", label: "This week" },
+  { key: "monthlyVotes", label: "This month" },
+  { key: "lastMonthVotes", label: "Last month" },
+  { key: "allTimeVotes", label: "All time" },
 ];
 
+type FilterValue = string | number;
+function FilterMenu({ label, value, options, icon: Icon, onChange }: {
+  label: string;
+  value: FilterValue;
+  options: { value: FilterValue; label: string }[];
+  icon: typeof CalendarDays;
+  onChange: (value: FilterValue) => void;
+}) {
+  const selected = options.find((option) => option.value === value) ?? options[0];
+  return (
+    <details className="vote-filter-menu">
+      <summary aria-label={`${label}: ${selected.label}`}>
+        <Icon size={15} />
+        <span className="vote-filter-current"><small>{label}</small><strong>{selected.label}</strong></span>
+        <ChevronDown size={13} />
+      </summary>
+      <div className="vote-filter-options">
+        {options.map((option) => (
+          <button key={String(option.value)} type="button" className={cn(option.value === value && "is-selected")} onClick={(event) => {
+            onChange(option.value);
+            event.currentTarget.closest("details")?.removeAttribute("open");
+          }}>
+            {option.label}{option.value === value && <Check size={13} />}
+          </button>
+        ))}
+      </div>
+    </details>
+  );
+}
 export function TopVotersTable({ entries }: { entries: TopVoter[] }) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("monthlyVotes");
@@ -76,75 +105,24 @@ export function TopVotersTable({ entries }: { entries: TopVoter[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        {/* Search */}
-        <div className="relative w-full max-w-xs sm:w-auto">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(0);
-            }}
-            placeholder="Search voters…"
-            aria-label="Search voters"
-            className="field pl-9"
-          />
+      {/* Search and custom filters */}
+      <div className="vote-table-toolbar">
+        <div className="vote-table-search">
+          <Search size={16} />
+          <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); }} placeholder="Search voters…" aria-label="Search voters" className="field pl-9" />
         </div>
-
-        {/* Dropdowns */}
-        <div className="flex items-center gap-3">
-          {/* Order Dropdown */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs uppercase tracking-widest text-muted">Order</span>
-            <div className="relative">
-              <select
-                value={sortKey}
-                onChange={(e) => {
-                  setSortKey(e.target.value as SortKey);
-                  setSortDesc(true);
-                  setPage(0);
-                }}
-                className="field select-custom py-1.5 pl-3 pr-8 text-xs font-semibold uppercase tracking-wide cursor-pointer appearance-none bg-ink border border-line rounded-lg focus:border-accent-bright animate-none"
-              >
-                {sortOptions.map((opt) => (
-                  <option key={opt.key} value={opt.key}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted" />
-            </div>
-          </div>
-
-          {/* Limit / Page Size Dropdown */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs uppercase tracking-widest text-muted">Limit</span>
-            <div className="relative">
-              <select
-                value={limit}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setLimit(val === "all" ? "all" : Number(val));
-                  setPage(0);
-                }}
-                className="field select-custom py-1.5 pl-3 pr-8 text-xs font-semibold uppercase tracking-wide cursor-pointer appearance-none bg-ink border border-line rounded-lg focus:border-accent-bright animate-none"
-              >
-                <option value={5}>5 Rows</option>
-                <option value={10}>10 Rows</option>
-                <option value={25}>25 Rows</option>
-                <option value="all">Show All</option>
-              </select>
-              <ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted" />
-            </div>
-          </div>
+        <div className="vote-table-filters">
+          <FilterMenu label="Order" value={sortKey} icon={CalendarDays} options={sortOptions.map((option) => ({ value: option.key, label: option.label }))} onChange={(value) => {
+            setSortKey(value as SortKey); setSortDesc(true); setPage(0);
+          }} />
+          <FilterMenu label="Rows" value={limit} icon={Rows3} options={[
+            { value: 5, label: "5 rows" }, { value: 10, label: "10 rows" }, { value: 25, label: "25 rows" }, { value: "all", label: "All rows" },
+          ]} onChange={(value) => { setLimit(value === "all" ? "all" : Number(value)); setPage(0); }} />
         </div>
       </div>
-
       {/* Redesigned Glassmorphic Table Container */}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[700px] border-separate border-spacing-y-2 text-left text-sm">
+      <div className="vote-desktop-table overflow-x-auto">
+        <table className="w-full min-w-[640px] border-separate lg:min-w-[700px] border-spacing-y-2 text-left text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-widest text-muted">
               <th className="px-4 pb-1 font-semibold w-16 text-center">Rank</th>
@@ -250,6 +228,22 @@ export function TopVotersTable({ entries }: { entries: TopVoter[] }) {
         </table>
       </div>
 
+      <div className="vote-mobile-board" aria-label="Mobile voter leaderboard">
+        {paginatedEntries.map((entry) => {
+          const actualRank = processedEntries.findIndex((item) => item.username === entry.username) + 1;
+          const metric = entry[sortKey];
+          const metricValue = typeof metric === "number" ? metric.toLocaleString() : "—";
+          const metricLabel = sortOptions.find((option) => option.key === sortKey)?.label ?? "Votes";
+          return (
+            <div key={entry.username} className="vote-mobile-row">
+              <span className="vote-mobile-rank">#{actualRank}</span>
+              <Link href={`/players/${entry.username}`} className="vote-mobile-player"><MinecraftAvatar username={entry.username} size={28} /><span>{entry.username}</span></Link>
+              <span className="vote-mobile-metric"><small>{metricLabel}</small><strong className="telemetry">{metricValue}</strong></span>
+            </div>
+          );
+        })}
+        {paginatedEntries.length === 0 && <div className="vote-mobile-empty">{query ? `No voters found matching “${query}”.` : "No votes have been recorded yet. The first supporter will appear here."}</div>}
+      </div>
       {/* Compact pagination stays visible so row limits and page swapping are always clear. */}
       <div className="vote-ref-pagination">
         <span>

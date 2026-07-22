@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { BadgePercent, Star } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Product } from "@/lib/types";
 import { storeArtFor } from "@/lib/store-art";
 import { usd } from "@/lib/utils";
+import { StoreArtwork } from "./store-artwork";
 
 const ROTATE_MS = 6000;
 
@@ -71,7 +71,11 @@ export function FeaturedDrops({ drops }: { drops: Product[] }) {
           </div>
 
           <div className="store-hero-offer-art">
-            <Image src={storeArtFor(drop)} alt="" fill sizes="(max-width: 768px) 0px, 38vw" className="object-cover" />
+            <StoreArtwork
+              src={storeArtFor(drop)}
+              alt=""
+              sizes="(max-width: 599px) 38vw, (max-width: 900px) 34vw, 26vw"
+            />
             <span aria-hidden="true" />
           </div>
 
