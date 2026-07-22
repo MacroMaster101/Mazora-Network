@@ -13,10 +13,10 @@ export async function SiteHeader({ world = false }: { world?: boolean }) {
     <ScrollHeader world={world}>
       <div className="header-shell shell grid h-[4.75rem] grid-cols-[1fr_auto] items-center gap-3 min-[1280px]:grid-cols-[1fr_auto_1fr]">
         <div className="justify-self-start min-[1280px]:hidden">
-          <Logo height={84} className="mobile-header-logo" />
+          <Logo priority height={84} className="mobile-header-logo" />
         </div>
         <div className="hidden justify-self-start min-[1280px]:block">
-          <Logo height={96} className="header-brand-logo" />
+          <Logo priority height={96} className="header-brand-logo" />
         </div>
         <div className="hidden min-w-0 justify-self-center min-[1280px]:block">
           <NavLinks />

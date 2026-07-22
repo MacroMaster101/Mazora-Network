@@ -33,6 +33,7 @@ export function RouteLoading({ tone = "world" }: { tone?: "world" | "surface" })
           alt=""
           width={216}
           height={144}
+          priority
           className="route-loading-logo"
         />
       </div>

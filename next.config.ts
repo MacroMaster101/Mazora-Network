@@ -15,12 +15,36 @@ import type { NextConfig } from "next";
 // hydrates, and the site is stuck on the first-load screen. Production bundles
 // never eval, so the deployed policy stays strict.
 const isDev = process.env.NODE_ENV === "development";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+let supabaseImageOrigin = "";
+let supabaseImagePattern: {
+  protocol: "http" | "https";
+  hostname: string;
+  port: string;
+  pathname: string;
+} | null = null;
+
+if (supabaseUrl) {
+  try {
+    const parsed = new URL(supabaseUrl);
+    const protocol = parsed.protocol === "http:" ? "http" : "https";
+    supabaseImageOrigin = parsed.origin;
+    supabaseImagePattern = {
+      protocol,
+      hostname: parsed.hostname,
+      port: parsed.port,
+      pathname: "/storage/v1/object/**",
+    };
+  } catch {
+    // Invalid environment values are handled by the existing Supabase config.
+  }
+}
 
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https://mc-heads.net https://api.dicebear.com https://cdn.discordapp.com",
+  `img-src 'self' data: blob: https://mc-heads.net https://api.dicebear.com https://cdn.discordapp.com${supabaseImageOrigin ? ` ${supabaseImageOrigin}` : ""}`,
   "font-src 'self'",
   // https: covers the env-configured Supabase host without hard-coding it.
   // ws: is dev-only, for the hot-reload socket.
@@ -56,10 +80,12 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["lucide-react"],
   },
   images: {
+    qualities: [75, 90],
     remotePatterns: [
       { protocol: "https", hostname: "mc-heads.net" },
       { protocol: "https", hostname: "api.dicebear.com" },
       { protocol: "https", hostname: "cdn.discordapp.com" },
+      ...(supabaseImagePattern ? [supabaseImagePattern] : []),
     ],
   },
   poweredByHeader: false,

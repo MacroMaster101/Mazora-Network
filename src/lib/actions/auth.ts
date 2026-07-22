@@ -3,9 +3,11 @@
 import { redirect } from "next/navigation";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createSession } from "@/lib/auth";
+import { ensureUserProfile } from "@/lib/auth/profile";
 import { site } from "@/lib/site";
 import { getSupabaseConfig, isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   authFormValues,
   authValidationErrors,
@@ -114,6 +116,15 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
       },
     });
     if (error) return { ok: false, message: "That account could not be created. Try another email or sign in instead." };
+
+    // Keep account creation complete even on projects where the database
+    // signup trigger has not been applied yet.
+    const admin = getSupabaseAdmin();
+    if (data.user && admin && !(await ensureUserProfile(data.user))) {
+      await admin.auth.admin.deleteUser(data.user.id);
+      return { ok: false, message: "That account could not be created. Try another username or email." };
+    }
+
     if (data.session) redirect("/");
     // No redirect here: the modal is already mounted client-side, and routing
     // through /?auth=verify-email forces Next.js to re-render the whole home
