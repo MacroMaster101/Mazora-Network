@@ -39,7 +39,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <main id="main" className="auth-main">
         <div className="auth-mobile-scene" aria-hidden="true" />
         <header className="auth-topbar">
-          <Logo height={76} className="auth-mobile-logo" />
+          <Logo priority height={76} className="auth-mobile-logo" />
           <p className="auth-portal-label"><span /> Player portal</p>
           <div className="auth-topbar-actions">
             <ThemeCycleButton className="auth-theme-toggle" />

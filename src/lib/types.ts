@@ -127,6 +127,7 @@ export interface GalleryImage {
 export interface Product {
   slug: string;
   name: string;
+  imageUrl?: string;
   category: "Ranks" | "Crate Keys" | "Battlepass" | "Add-ons";
   description: string;
   price: number;

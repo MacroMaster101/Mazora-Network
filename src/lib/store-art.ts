@@ -1,7 +1,7 @@
 import type { Product } from "@/lib/types";
 
 export function storeArtFor(
-  itemOrCategory?: Product["category"] | { slug: string; category?: Product["category"] }
+  itemOrCategory?: Product["category"] | { slug: string; category?: Product["category"]; imageUrl?: string | null }
 ): string {
   if (!itemOrCategory) return "/images/store/battlepass-pass.png";
 
@@ -15,6 +15,8 @@ export function storeArtFor(
   }
 
   const { slug, category } = itemOrCategory;
+  const uploadedImage = itemOrCategory.imageUrl?.trim();
+  if (uploadedImage) return uploadedImage;
 
   // Specific rank image mappings (6 unique tiers)
   if (slug.includes("rank-hero")) {

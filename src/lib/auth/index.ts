@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { DiscordIdentity, Role } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ensureUserProfile } from "@/lib/auth/profile";
 import { isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { hasAtLeast, isAdmin, isStaff, roleLabel, STAFF_ROLES } from "@/lib/auth/roles";
 
@@ -10,6 +11,7 @@ export const SESSION_COOKIE = "mz_session";
 export interface Session {
   username: string;
   displayName: string;
+  bio?: string;
   role: Role;
 }
 
@@ -67,17 +69,23 @@ export async function getSession(): Promise<Session | null> {
     const preferredMeta = googleIdentity?.identity_data ?? data.user.user_metadata ?? {};
     const fallbackMeta = data.user.user_metadata ?? {};
 
+    // The public profile is the editable source of truth. Auth metadata remains
+    // a useful fallback for brand-new accounts while the signup trigger creates
+    // their profile row.
+    const profile = await ensureUserProfile(data.user);
+
     const emailName = data.user.email?.split("@")[0] ?? "player";
     const username = cleanUsername(
-      fallbackMeta.username ?? fallbackMeta.preferred_username ?? fallbackMeta.user_name ?? emailName,
+      profile?.username ?? fallbackMeta.username ?? fallbackMeta.preferred_username ?? fallbackMeta.user_name ?? emailName,
     );
     const displayName = String(
-      preferredMeta.full_name ?? preferredMeta.name ?? preferredMeta.display_name ?? fallbackMeta.full_name ?? fallbackMeta.name ?? username,
+      profile?.display_name ?? preferredMeta.full_name ?? preferredMeta.name ?? preferredMeta.display_name ?? fallbackMeta.full_name ?? fallbackMeta.name ?? username,
     ).slice(0, 64);
 
     return {
       username,
       displayName,
+      bio: typeof profile?.bio === "string" ? profile.bio : "",
       role: safeRole(data.user.app_metadata?.role),
     };
   }
