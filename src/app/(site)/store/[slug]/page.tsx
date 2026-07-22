@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Check, Clock3, ShieldCheck, Sparkles } from "lucide-react";
 import { getProduct, getProducts } from "@/lib/data/content";
@@ -9,6 +8,7 @@ import { Reveal } from "@/components/shared";
 import { TonePill } from "@/components/ui";
 import { AddToCartButton } from "@/components/shared/add-to-cart";
 import { StoreBackButton } from "@/components/shared/store-back-button";
+import { StoreArtwork } from "@/components/shared/store-artwork";
 
 export async function generateStaticParams() {
   const products = await getProducts();
@@ -36,13 +36,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       <div className="store-detail-layout grid gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(24rem,0.92fr)] lg:items-start lg:gap-12">
         <Reveal className="store-detail-media" data-accent={product.accent}>
-          <Image
+          <StoreArtwork
             src={storeArtFor(product)}
             alt={`${product.name} product artwork`}
-            fill
             priority
             sizes="(max-width: 1024px) 100vw, 55vw"
-            className="object-cover"
           />
           <span className="store-detail-media-glow" aria-hidden="true" />
           <span className="absolute left-5 top-5 flex gap-2">

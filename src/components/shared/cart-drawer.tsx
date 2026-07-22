@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
@@ -20,6 +19,7 @@ import { usd } from "@/lib/utils";
 import { storeArtFor } from "@/lib/store-art";
 import { useCart } from "./cart-provider";
 import { OrderRequestForm } from "./order-request-form";
+import { StoreArtwork } from "./store-artwork";
 
 export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean }) {
   const {
@@ -175,12 +175,11 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
                         onClick={closeCart}
                         className="cart-item-art relative aspect-square overflow-hidden rounded-xl"
                       >
-                        <Image
+                        <StoreArtwork
                           src={storeArtFor(item)}
                           alt=""
-                          fill
                           sizes="84px"
-                          className="object-cover transition duration-300 group-hover:scale-105"
+                          imageClassName="transition duration-300 group-hover:scale-105"
                         />
                       </Link>
                       <div className="min-w-0 py-0.5">
@@ -282,7 +281,7 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
                     {items.map((item) => (
                       <li key={item.slug} className="flex items-center gap-3">
                         <span className="cart-item-art relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
-                          <Image src={storeArtFor(item)} alt="" fill sizes="40px" className="object-cover" />
+                          <StoreArtwork src={storeArtFor(item)} alt="" sizes="40px" />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-xs font-bold">{item.name}</span>

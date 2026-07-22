@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ensureUserProfile } from "@/lib/auth/profile";
 
 /**
  * Restricts the post-login redirect target to a same-origin path. Checking
@@ -48,7 +49,11 @@ export async function GET(request: NextRequest) {
 
   if (code && supabase) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL(next, origin));
+    if (!error) {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) await ensureUserProfile(data.user);
+      return NextResponse.redirect(new URL(next, origin));
+    }
   }
 
   const errorUrl = new URL(next, origin);

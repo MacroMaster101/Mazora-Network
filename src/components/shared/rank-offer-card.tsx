@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowUpRight, Plus } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { storeArtFor } from "@/lib/store-art";
 import { usd } from "@/lib/utils";
 import { useCart } from "./cart-provider";
+import { StoreArtwork } from "./store-artwork";
 
 export function RankOfferCard({
   family,
@@ -31,12 +31,11 @@ export function RankOfferCard({
     <article className="store-rank-card" data-accent={accent}>
       <div className="store-rank-card-media relative overflow-hidden group">
         <div className="store-rank-medallion-container absolute inset-0">
-          <Image
+          <StoreArtwork
             src={storeArtFor(permanent ?? monthly ?? products[0])}
             alt={`${family} medallion`}
-            fill
             sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 33vw"
-            className="object-cover transition duration-500 ease-out group-hover:scale-[1.06]"
+            imageClassName="transition duration-500 ease-out group-hover:scale-[1.06]"
           />
         </div>
         <span aria-hidden="true" />
