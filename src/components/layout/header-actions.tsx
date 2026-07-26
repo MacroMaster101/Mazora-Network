@@ -3,14 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, ShieldCheck, Sparkles, Ticket, User } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, Sparkles, Ticket, User } from "lucide-react";
 import type { Session } from "@/lib/auth";
+import { isStaff, roleDashboardPath } from "@/lib/auth/roles";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
 import { cn } from "@/lib/utils";
 
-const menu = [
+/** Account menu for regular members — personal account screens under /dashboard. */
+const MEMBER_MENU = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "My Minecraft Profile", href: "/dashboard/minecraft", icon: User },
+  { label: "Minecraft · Coming soon", href: "/dashboard/minecraft", icon: User },
   { label: "Tickets", href: "/dashboard/tickets", icon: Ticket },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
@@ -43,7 +45,15 @@ export function HeaderActions({ session }: { session: Session | null }) {
     );
   }
 
-  const isAdmin = ["administrator", "owner"].includes(session.role);
+  // Staff manage the community from /admin and don't use the member dashboard,
+  // so their menu points at their own role dashboard instead.
+  const staff = isStaff(session.role);
+  const menu = staff
+    ? [
+        { label: "Dashboard", href: roleDashboardPath(session.role), icon: LayoutDashboard },
+        { label: "My Settings", href: "/admin/account", icon: Settings },
+      ]
+    : MEMBER_MENU;
   const activeMenuHref = menu
     .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
@@ -60,6 +70,15 @@ export function HeaderActions({ session }: { session: Session | null }) {
       >
         <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-bold text-accent-bright">
           {initials}
+          {session.avatarUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- profile avatars may come from Supabase storage or Minecraft.
+            <img
+              src={session.avatarUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full rounded-full object-cover"
+              onError={(event) => { event.currentTarget.hidden = true; }}
+            />
+          )}
           <span className="account-avatar-status" aria-hidden="true" />
         </span>
         <ChevronDown size={13} className="account-avatar-caret" aria-hidden="true" />
@@ -82,15 +101,6 @@ export function HeaderActions({ session }: { session: Session | null }) {
                 <span className="account-menu-link-icon"><m.icon size={16} /></span><span>{m.label}</span>
               </Link>
             ))}
-            {isAdmin && (
-              <Link
-                href="/admin"
-                onClick={() => setOpen(false)}
-                className={cn("account-menu-link account-menu-admin", pathname.startsWith("/admin") && "is-active")}
-              >
-                <span className="account-menu-link-icon"><ShieldCheck size={16} /></span><span>Admin Dashboard</span>
-              </Link>
-            )}
           </nav>
           <form action="/logout" method="post" className="account-menu-footer">
             <button type="submit" className="account-menu-logout">

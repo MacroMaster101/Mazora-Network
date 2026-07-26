@@ -1,8 +1,24 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
-/** Constant-time secret comparison so response timing can't leak the secret. */
+const MINECRAFT_LINKING_AVAILABLE = false;
+
+const bodySchema = z.object({
+  code: z.string().trim().toUpperCase().regex(/^MZ-[A-HJ-NP-Z2-9]{6}$/),
+  uuid: z.string().trim().regex(/^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i),
+  username: z.string().trim().regex(/^[A-Za-z0-9_]{3,16}$/),
+}).strict();
+
+function response(body: Record<string, unknown>, status: number) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
+/** Constant-time secret comparison so response timing cannot leak the secret. */
 function secretMatches(provided: string | null, expected: string): boolean {
   if (!provided) return false;
   const a = Buffer.from(provided);
@@ -10,43 +26,65 @@ function secretMatches(provided: string | null, expected: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function normalizeUuid(value: string) {
+  const compact = value.replaceAll("-", "").toLowerCase();
+  return `${compact.slice(0, 8)}-${compact.slice(8, 12)}-${compact.slice(12, 16)}-${compact.slice(16, 20)}-${compact.slice(20)}`;
+}
+
 /**
- * Endpoint the Minecraft plugin POSTs to when a player runs `/link <code>`.
- * The plugin authenticates with a shared secret (never exposed to the client).
- *
- * Phase 1: validates the shape and secret, then returns a stub result. Phase 2
- * verifies the code against minecraft_link_codes and links the UUID to the user.
+ * Called by the trusted Minecraft server plugin after `/link MZ-XXXXXX`.
+ * The database RPC locks and consumes the code atomically before attaching the
+ * authenticated website account to the player's UUID.
  */
-const bodySchema = z.object({
-  code: z.string().min(4),
-  uuid: z.string().min(8),
-  username: z.string().min(1),
-});
-
 export async function POST(request: Request) {
-  const secret = process.env.MINECRAFT_PLUGIN_SECRET;
-  const provided = request.headers.get("x-plugin-secret");
-
-  if (!secret || !secretMatches(provided, secret)) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!MINECRAFT_LINKING_AVAILABLE) {
+    return response(
+      { ok: false, error: "minecraft_linking_coming_soon" },
+      503,
+    );
   }
+
+  const secret = process.env.MINECRAFT_PLUGIN_SECRET?.trim() ?? "";
+  if (secret.length < 16) return response({ ok: false, error: "linking_unavailable" }, 503);
+  if (!secretMatches(request.headers.get("x-plugin-secret"), secret)) {
+    return response({ ok: false, error: "unauthorized" }, 401);
+  }
+
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > 4096) return response({ ok: false, error: "payload_too_large" }, 413);
 
   let json: unknown;
   try {
     json = await request.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
+    return response({ ok: false, error: "invalid_json" }, 400);
   }
 
   const parsed = bodySchema.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
+  if (!parsed.success) return response({ ok: false, error: "invalid_body" }, 400);
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return response({ ok: false, error: "linking_unavailable" }, 503);
+  const hash = createHash("sha256").update(parsed.data.code, "utf8").digest("hex");
+  const { data, error } = await admin.rpc("consume_minecraft_link_code", {
+    p_code_hash: hash,
+    p_minecraft_uuid: normalizeUuid(parsed.data.uuid),
+    p_minecraft_username: parsed.data.username,
+  });
+
+  if (error) {
+    console.error("Minecraft link RPC failed:", error.message);
+    return response({ ok: false, error: "linking_unavailable" }, 503);
   }
 
-  // Phase 2: look up the code, ensure it's unused + unexpired, then link the UUID.
-  return NextResponse.json({
-    ok: true,
-    linked: false,
-    message: "Received. Account linking is finalised once the database is connected.",
-  });
+  const outcome = Array.isArray(data) ? data[0] : data;
+  if (!outcome?.linked) {
+    const reason = String(outcome?.reason ?? "invalid_or_expired");
+    if (reason === "minecraft_already_linked") {
+      return response({ ok: false, error: reason }, 409);
+    }
+    return response({ ok: false, error: "invalid_or_expired_code" }, 404);
+  }
+
+  return response({ ok: true, linked: true, username: parsed.data.username }, 200);
 }

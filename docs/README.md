@@ -70,7 +70,8 @@ UI routes should not import the database driver directly. Read through `src/lib/
 `getDb()` returns:
 
 - a Drizzle instance over the Supabase Postgres database when `DATABASE_URL` exists;
-- `null` in zero-config mode, allowing repositories to use typed fixtures.
+- `null` in zero-config mode, in which repositories return empty results and pages render
+  their empty states.
 
 Support submissions require a session, and persistence requires a configured database. Production authentication uses Supabase SSR cookies and the PKCE callback flow when the Supabase variables are configured. Email/password, Google, and Discord paths are implemented; provider credentials and callback allow lists still need to be configured in Supabase before deployment. `AUTH_DEMO_MODE` is strictly for local UI previews and must remain disabled in production.
 
@@ -83,7 +84,23 @@ npm run db:generate
 npm run typecheck
 ```
 
-Review generated SQL before applying it. For a development database, `npm run db:push` can apply the schema directly. `npm run db:seed` loads environment variables from `.env`.
+Review generated SQL before applying it. For a development database, `npm run db:push` can
+apply the schema directly.
+
+Hand-written SQL (RLS policies, functions, triggers) lives in `supabase/migrations` using
+the Supabase CLI's `<timestamp>_name.sql` naming. Create one with `supabase migration new
+<name>` and apply it with `supabase db push`. Write migrations idempotently — `add column
+if not exists`, `drop policy if exists` before `create policy`, `create or replace
+function` — so re-running one is a safe no-op.
+
+`npm run db:apply -- <file.sql>` applies a single file straight through `DATABASE_URL`.
+It is a fallback for when the CLI is unavailable and does not record the migration in
+Supabase's history.
+
+Content seeds: `npm run db:seed:store` (storefront catalogue) and `npm run db:seed:rules`
+(community rulebook). Re-running the rules seed replaces the rules inside the baseline
+categories, overwriting edits made in `/admin/rules`; categories you created yourself are
+left alone.
 
 ## ✅ Quality gates
 

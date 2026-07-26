@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { ImageIcon } from "lucide-react";
 import { getGallery } from "@/lib/data/content";
-import { PageHero, Reveal } from "@/components/shared";
+import { EmptyState, PageHero, Reveal } from "@/components/shared";
 import { GalleryGrid } from "@/components/shared/gallery-grid";
 
 export const metadata: Metadata = {
@@ -15,7 +16,15 @@ export default async function GalleryPage() {
       <PageHero eyebrow="Screenshots" title="Look what the community built." lead="Spawns, player builds, events, and community moments. Tap any image to view it full-size." />
       <section className="section shell">
         <Reveal>
-          <GalleryGrid images={images} />
+          {images.length > 0 ? (
+            <GalleryGrid images={images} />
+          ) : (
+            <EmptyState
+              icon={<ImageIcon size={24} />}
+              title="The gallery is empty"
+              message="Screenshots of spawns, player builds and community moments will appear here once images are uploaded."
+            />
+          )}
         </Reveal>
       </section>
     </>

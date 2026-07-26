@@ -6,7 +6,17 @@ import { getSession, hasAtLeast, roleLabel } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getDb, schema } from "@/lib/db/client";
 
-const ASSIGNABLE: Role[] = ["member", "vip", "helper", "moderator", "administrator", "owner", "it"];
+const ASSIGNABLE: Role[] = [
+  "member",
+  "sponsor",
+  "vip",
+  "helper",
+  "moderator",
+  "senior_moderator",
+  "administrator",
+  "owner",
+  "it",
+];
 
 function safeRole(value: unknown): Role | null {
   return typeof value === "string" && ASSIGNABLE.includes(value as Role) ? (value as Role) : null;

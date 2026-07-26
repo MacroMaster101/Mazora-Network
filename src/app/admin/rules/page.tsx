@@ -1,26 +1,47 @@
 import type { Metadata } from "next";
+import { ScrollText } from "lucide-react";
 import { requireRole } from "@/lib/auth";
-import { getRules } from "@/lib/data/content";
+import { getEditableRules } from "@/lib/data/admin-overview";
 import { DashHeader } from "@/components/dashboard/dash-ui";
-import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
-import { fmtDate } from "@/lib/utils";
-import type { RuleCategory } from "@/lib/types";
+import { AdminPlaceholder } from "@/components/admin/admin-ui";
+import { RulesEditor } from "@/components/admin/rules-editor";
 
 export const metadata: Metadata = { title: "Rules · Admin" };
 
 export default async function AdminRulesPage() {
   await requireRole("administrator", "/admin/rules");
-  const categories = await getRules();
-  const columns: Column<RuleCategory>[] = [
-    { header: "Category", cell: (c) => <span className="font-semibold">{c.name}</span> },
-    { header: "Rules", cell: (c) => <span className="telemetry">{c.items.length}</span> },
-    { header: "Updated", align: "right", cell: (c) => <span className="telemetry text-muted">{fmtDate(c.updated)}</span> },
-  ];
+  const categories = await getEditableRules();
+
+  if (!categories) {
+    return (
+      <>
+        <DashHeader title="Rules" subtitle="Edit the public rulebook." />
+        <AdminPlaceholder
+          icon={<ScrollText size={24} />}
+          title="No database connection"
+          message="The rulebook is stored in the database. Set DATABASE_URL to load and edit it."
+        />
+      </>
+    );
+  }
+
+  const ruleCount = categories.reduce((n, c) => n + c.rules.length, 0);
+
   return (
     <>
-      <DashHeader title="Rules" subtitle={`${categories.length} categories`} />
-      <ReadOnlyBanner />
-      <AdminTable columns={columns} rows={categories} />
+      <DashHeader
+        title="Rules"
+        subtitle={`${categories.length} categories · ${ruleCount} rules · edits publish immediately`}
+      />
+      {categories.length === 0 ? (
+        <AdminPlaceholder
+          icon={<ScrollText size={24} />}
+          title="The rulebook is empty"
+          message="Create a category to start writing rules, or run the rules seed to load the baseline set."
+        />
+      ) : (
+        <RulesEditor categories={categories} />
+      )}
     </>
   );
 }

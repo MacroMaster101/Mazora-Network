@@ -8,7 +8,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 
-const ROLES = ["member", "vip", "helper", "moderator", "administrator", "owner", "it"];
+const ROLES = ["member", "sponsor", "vip", "helper", "moderator", "senior_moderator", "administrator", "owner", "it"];
 
 async function main() {
   const [email, role] = process.argv.slice(2);
