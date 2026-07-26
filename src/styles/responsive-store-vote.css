@@ -216,3 +216,321 @@
   .store-product-media { --store-artwork-padding: 0.55rem; }
   .store-detail-media { --store-artwork-padding: 0.75rem; }
 }
+
+/* Profile photo editor — one crop-safe avatar system for uploads and linked
+   Minecraft skins, with touch-friendly controls on compact screens. */
+.profile-avatar-editor {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1.15rem;
+  align-items: center;
+  border: 1px solid rgb(var(--line) / 0.82);
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 0 0, rgb(var(--accent) / 0.13), transparent 42%),
+    rgb(var(--surface) / 0.54);
+  padding: 1rem;
+}
+.profile-avatar-visual {
+  position: relative;
+  width: 5.5rem;
+  height: 5.5rem;
+  flex: none;
+}
+.profile-avatar-image,
+.profile-avatar-fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid rgb(var(--accent) / 0.55);
+  border-radius: 1.15rem;
+  background: linear-gradient(145deg, rgb(var(--accent) / 0.28), rgb(var(--accent-bright) / 0.12));
+  box-shadow: 0 14px 35px -20px rgb(var(--accent) / 0.85), inset 0 1px rgb(255 255 255 / 0.12);
+  color: rgb(var(--accent-bright));
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 1.45rem;
+  font-weight: 850;
+  object-fit: cover;
+  object-position: center;
+}
+.profile-avatar-image { position: absolute; inset: 0; }
+.profile-avatar-camera {
+  position: absolute;
+  right: -0.35rem;
+  bottom: -0.35rem;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 3px solid rgb(var(--card));
+  border-radius: 999px;
+  background: rgb(var(--accent));
+  color: white;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.24);
+}
+.profile-avatar-content { min-width: 0; }
+.profile-avatar-identity {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.profile-avatar-name { overflow: hidden; font-size: 0.96rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.profile-avatar-email { overflow: hidden; margin-top: 0.05rem; color: rgb(var(--muted)); font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
+.profile-avatar-source {
+  flex: none;
+  border: 1px solid rgb(var(--accent) / 0.24);
+  border-radius: 999px;
+  background: rgb(var(--accent) / 0.08);
+  padding: 0.25rem 0.5rem;
+  color: rgb(var(--accent-bright));
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.profile-avatar-actions,
+.profile-avatar-upload-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.profile-avatar-actions { margin-top: 0.78rem; }
+.profile-avatar-remove {
+  display: inline-flex;
+  min-height: 2.2rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.55rem;
+  color: rgb(var(--muted));
+  font-size: 0.68rem;
+  font-weight: 750;
+  transition: color 160ms ease, opacity 160ms ease;
+}
+.profile-avatar-remove:hover:not(:disabled) { color: rgb(var(--danger)); }
+.profile-avatar-remove:disabled { cursor: not-allowed; opacity: 0.38; }
+.profile-avatar-help { margin-top: 0.65rem; color: rgb(var(--muted)); font-size: 0.66rem; }
+.profile-avatar-divider { height: 1px; background: rgb(var(--line) / 0.7); }
+.dashboard-profile-avatar { overflow: hidden; }
+.account-content .panel { width: 100%; min-width: 0; max-width: 100%; }
+
+@media (max-width: 599px) {
+  .profile-avatar-editor { grid-template-columns: minmax(0, 1fr); justify-items: center; padding: 1rem 0.85rem; }
+  .profile-avatar-content { width: 100%; text-align: center; }
+  .profile-avatar-identity { align-items: center; flex-direction: column; gap: 0.45rem; }
+  .profile-avatar-identity > div { width: 100%; }
+  .profile-avatar-actions,
+  .profile-avatar-upload-form { width: 100%; }
+  .profile-avatar-actions form,
+  .profile-avatar-upload-form { flex: 1 1 100%; }
+  .profile-avatar-actions .btn,
+  .profile-avatar-upload-form .btn,
+  .profile-avatar-remove { width: 100%; justify-content: center; }
+}
+
+/* Real Minecraft account linking flow. */
+.minecraft-link-card,
+.minecraft-linked-card { padding: clamp(1.15rem, 3vw, 2rem); }
+.minecraft-link-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.minecraft-link-shield {
+  display: grid;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgb(85 166 48 / 0.32);
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgb(121 193 67 / 0.16), rgb(85 166 48 / 0.06));
+  box-shadow: 0 12px 28px -18px rgb(85 166 48 / 0.85), inset 0 1px rgb(255 255 255 / 0.16);
+}
+.minecraft-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgb(var(--line-strong) / 0.7);
+  border-radius: 999px;
+  background: rgb(var(--surface) / 0.68);
+  padding: 0.28rem 0.55rem;
+  color: rgb(var(--muted));
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.minecraft-status-chip.is-waiting { border-color: rgb(var(--warning) / 0.35); background: rgb(var(--warning) / 0.08); color: rgb(var(--warning)); }
+.minecraft-status-chip.is-connected { border-color: rgb(var(--success) / 0.35); background: rgb(var(--success) / 0.09); color: rgb(var(--success)); }
+.minecraft-config-warning,
+.minecraft-pending-hidden,
+.minecraft-sync-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1px solid rgb(var(--warning) / 0.28);
+  border-radius: 0.85rem;
+  background: rgb(var(--warning) / 0.07);
+  margin-top: 1.25rem;
+  padding: 0.78rem 0.85rem;
+  color: rgb(var(--warning));
+}
+.minecraft-config-warning svg,
+.minecraft-pending-hidden svg,
+.minecraft-sync-note svg { flex: none; margin-top: 0.1rem; }
+.minecraft-config-warning strong,
+.minecraft-config-warning span,
+.minecraft-pending-hidden strong,
+.minecraft-pending-hidden span { display: block; }
+.minecraft-config-warning strong,
+.minecraft-pending-hidden strong { font-size: 0.75rem; }
+.minecraft-config-warning span,
+.minecraft-pending-hidden span { margin-top: 0.12rem; color: rgb(var(--muted)); font-size: 0.66rem; line-height: 1.45; }
+.minecraft-link-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-top: 1.45rem;
+}
+.minecraft-link-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.78rem;
+  overflow: hidden;
+  border: 1px solid rgb(var(--line) / 0.88);
+  border-radius: 0.9rem;
+  background: rgb(var(--surface) / 0.45);
+  padding: 0.95rem;
+}
+.minecraft-link-steps li::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: rgb(var(--line-strong) / 0.7);
+  content: "";
+}
+.minecraft-link-steps li.is-active { border-color: rgb(var(--accent) / 0.34); background: rgb(var(--accent) / 0.07); }
+.minecraft-link-steps li.is-active::before { background: rgb(var(--accent)); }
+.minecraft-link-steps .minecraft-step-number {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgb(var(--accent-bright) / 0.25);
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgb(var(--accent-bright)), rgb(var(--accent)));
+  box-shadow: 0 8px 18px -10px rgb(var(--accent) / 0.9), inset 0 1px rgb(255 255 255 / 0.28);
+  color: white;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+}
+.minecraft-link-steps .minecraft-step-number.is-done { border-color: rgb(var(--success) / 0.5); background: rgb(var(--success)); color: white; }
+.minecraft-link-steps strong,
+.minecraft-link-steps span { display: block; }
+.minecraft-link-steps strong { font-size: 0.73rem; line-height: 1.35; }
+.minecraft-link-steps li > div > span { margin-top: 0.24rem; color: rgb(var(--muted)); font-size: 0.63rem; line-height: 1.5; }
+.minecraft-command-panel {
+  border: 1px solid rgb(var(--accent) / 0.3);
+  border-radius: 1rem;
+  background:
+    linear-gradient(rgb(var(--accent) / 0.075), rgb(var(--accent) / 0.025)),
+    rgb(var(--base) / 0.52);
+  margin-top: 1rem;
+  padding: 0.9rem;
+}
+.minecraft-command-topline { display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: rgb(var(--muted)); font-size: 0.62rem; font-weight: 750; text-transform: uppercase; letter-spacing: 0.08em; }
+.minecraft-command-topline .telemetry { display: inline-flex; align-items: center; gap: 0.3rem; color: rgb(var(--warning)); }
+.minecraft-command {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgb(var(--accent) / 0.35);
+  border-radius: 0.78rem;
+  background: rgb(var(--accent) / 0.11);
+  margin-top: 0.55rem;
+  padding: 0.85rem 1rem;
+  color: rgb(var(--accent-bright));
+  font-family: var(--font-mono), monospace;
+  font-size: clamp(0.95rem, 3vw, 1.25rem);
+  font-weight: 850;
+  letter-spacing: 0.055em;
+  text-align: left;
+}
+.minecraft-command:hover { background: rgb(var(--accent) / 0.16); }
+.minecraft-command-panel > p { margin-top: 0.55rem; color: rgb(var(--muted)); font-size: 0.61rem; line-height: 1.45; }
+.minecraft-pending-hidden { border-color: rgb(var(--accent) / 0.25); background: rgb(var(--accent) / 0.06); color: rgb(var(--accent-bright)); }
+.minecraft-pending-hidden.is-expired { border-color: rgb(var(--danger) / 0.25); background: rgb(var(--danger) / 0.055); color: rgb(var(--danger)); }
+.minecraft-link-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.55rem; border-top: 1px solid rgb(var(--line) / 0.72); margin-top: 1.1rem; padding-top: 1rem; }
+.minecraft-server-copy {
+  display: inline-flex;
+  min-height: 2.2rem;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+  color: rgb(var(--muted));
+  font-family: var(--font-mono), monospace;
+  font-size: 0.64rem;
+  font-weight: 720;
+}
+.minecraft-server-copy:hover { color: rgb(var(--accent-bright)); }
+.minecraft-linked-main { display: flex; min-width: 0; align-items: center; gap: 1rem; }
+.minecraft-linked-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; border-top: 1px solid rgb(var(--line) / 0.72); margin-top: 1.2rem; padding-top: 1rem; }
+.minecraft-sync-note { border-color: rgb(var(--success) / 0.25); background: rgb(var(--success) / 0.065); color: rgb(var(--success)); font-size: 0.68rem; }
+
+@media (max-width: 699px) {
+  .minecraft-link-shield { width: 2.8rem; height: 2.8rem; }
+  .minecraft-link-steps { grid-template-columns: minmax(0, 1fr); }
+  .minecraft-link-actions form,
+  .minecraft-link-actions .btn { width: 100%; }
+  .minecraft-link-actions .btn { justify-content: center; }
+  .minecraft-server-copy { width: 100%; justify-content: center; margin-left: 0; }
+  .minecraft-linked-actions .btn { width: 100%; justify-content: center; }
+}
+
+@media (max-width: 420px) {
+  .minecraft-link-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .minecraft-link-shield { display: grid; width: 2.75rem; height: 2.75rem; }
+  .minecraft-linked-main { align-items: flex-start; }
+}
+/* Connected account actions keep the existing provider rows usable on small screens. */
+.connected-account-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+.connected-account-action {
+  display: inline-flex;
+  min-height: 2.1rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid rgb(var(--line-strong));
+  border-radius: 0.55rem;
+  padding: 0.4rem 0.65rem;
+  color: rgb(var(--ink));
+  font-size: 0.78rem;
+  font-weight: 700;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+.connected-account-action:hover { border-color: rgb(var(--accent) / 0.45); background: rgb(var(--accent) / 0.08); }
+.connected-account-action:disabled { cursor: not-allowed; opacity: 0.5; }
+.connected-account-action.is-primary { border-color: rgb(var(--accent) / 0.42); color: rgb(var(--accent-bright)); }
+.connected-account-action.is-discord { border-color: rgb(88 101 242 / 0.42); background: rgb(88 101 242 / 0.09); color: #5865f2; }
+.connected-account-action.is-danger { border-color: rgb(var(--danger) / 0.35); color: rgb(var(--danger)); }
+.connected-account-action.is-danger:hover { background: rgb(var(--danger) / 0.09); }
+
+@media (max-width: 699px) {
+  .connected-account-row { align-items: flex-start; flex-wrap: wrap; }
+  .connected-account-row > .connected-account-actions { width: 100%; padding-left: 3.25rem; }
+  .connected-account-actions .connected-account-action { flex: 1 1 auto; }
+}
+
+@media (max-width: 390px) {
+  .connected-account-row > .connected-account-actions { padding-left: 0; }
+}

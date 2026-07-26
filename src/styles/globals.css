@@ -4409,10 +4409,6 @@ body.initial-load-active {
   color: rgb(var(--muted));
 }
 
-.admin-session-bar .text-muted {
-  color: rgb(238 232 248 / 0.72);
-}
-
 .dashboard-sidebar nav a,
 .dashboard-sidebar nav button,
 .admin-sidebar nav a,
@@ -4445,12 +4441,6 @@ body.initial-load-active {
   box-shadow: inset 3px 0 rgb(var(--gold));
 }
 
-.admin-session-bar {
-  border-bottom-color: rgb(255 255 255 / 0.14);
-  background: rgb(8 4 18 / 0.48);
-  color: white;
-  backdrop-filter: blur(16px);
-}
 
 :root[data-theme="dark"] .scroll-header:not(.hero-nav) {
   background: rgb(9 6 16 / 0.96);
@@ -4492,8 +4482,7 @@ body.initial-load-active {
 
 
 :root[data-theme="dark"] .dashboard-sidebar>nav .text-muted,
-:root[data-theme="dark"] .admin-sidebar>nav .text-muted,
-:root[data-theme="dark"] .admin-session-bar .text-muted {
+:root[data-theme="dark"] .admin-sidebar>nav .text-muted {
   color: rgb(214 205 226 / 0.72);
 }
 
@@ -13819,4 +13808,200 @@ body:has(.vote-mission-hero) {
 :root[data-theme="light"] .vote-hub-site-link,
 :root[data-theme="light"] .vote-hub-site-link:hover {
   color: white;
+}
+
+/* ============================================================
+   Staff control room (/admin)
+   One adaptive screen. Its signature is honesty about data
+   provenance: LIVE values (real upstream API / real DB rows) get
+   corner brackets and a pulsing dot; SCAFFOLD values carry a demo
+   tag; STANDBY blocks are dashed and dimmed because the feature
+   is not wired to the database yet. --ra is the viewer's role accent.
+   ============================================================ */
+.cr {
+  --ra: var(--accent);
+}
+
+/* --- Watch bar: who is on duty, and the network heartbeat --- */
+.cr-watch {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgb(var(--ra) / 0.38);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(120% 180% at 0% 0%, rgb(var(--ra) / 0.22), transparent 62%),
+    linear-gradient(180deg, rgb(var(--card) / 0.96), rgb(var(--surface) / 0.9));
+}
+
+/* Faint console rule pattern — reads as a server console, not decoration. */
+.cr-watch::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgb(var(--ra) / 0.13) 0 1px,
+    transparent 1px 46px
+  );
+  mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent);
+  pointer-events: none;
+}
+
+.cr-watch > * {
+  position: relative;
+}
+
+.cr-rolechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--ra) / 0.5);
+  background: rgb(var(--ra) / 0.14);
+  color: rgb(var(--ra));
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* --- Provenance: LIVE --- */
+.cr-live {
+  position: relative;
+}
+
+.cr-live::before,
+.cr-live::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgb(var(--ra) / 0.65);
+  pointer-events: none;
+}
+
+.cr-live::before {
+  top: -1px;
+  left: -1px;
+  border-right: 0;
+  border-bottom: 0;
+  border-top-left-radius: 6px;
+}
+
+.cr-live::after {
+  bottom: -1px;
+  right: -1px;
+  border-left: 0;
+  border-top: 0;
+  border-bottom-right-radius: 6px;
+}
+
+.cr-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgb(var(--success));
+  box-shadow: 0 0 0 3px rgb(var(--success) / 0.16);
+  animation: cr-blip 2.4s ease-in-out infinite;
+}
+
+@keyframes cr-blip {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* --- Provenance: STANDBY (not wired to the database yet) --- */
+.cr-standby {
+  border: 1px dashed rgb(var(--line-strong));
+  border-radius: 12px;
+  background: rgb(var(--ink) / 0.02);
+}
+
+.cr-standby:hover {
+  border-color: rgb(var(--ra) / 0.45);
+  background: rgb(var(--ra) / 0.04);
+}
+
+/* --- Metric --- */
+.cr-metric {
+  border: 1px solid rgb(var(--line));
+  border-radius: 12px;
+  background: rgb(var(--card));
+  padding: 1rem 1.05rem;
+}
+
+.cr-metric-value {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.65rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+/* --- Board (a titled region of the room) --- */
+.cr-board {
+  border: 1px solid rgb(var(--line));
+  border-radius: var(--radius);
+  background: rgb(var(--card));
+}
+
+.cr-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.15rem;
+  border-bottom: 1px solid rgb(var(--line));
+}
+
+.cr-board-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgb(var(--muted));
+}
+
+.cr-board-title svg {
+  color: rgb(var(--ra));
+}
+
+/* --- Rows --- */
+.cr-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 1.15rem;
+  border-bottom: 1px solid rgb(var(--line) / 0.6);
+}
+
+.cr-row:last-child {
+  border-bottom: 0;
+}
+
+.cr-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 5px;
+  border: 1px solid rgb(var(--line-strong));
+  background: rgb(var(--ink) / 0.03);
+  color: rgb(var(--muted));
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cr-dot { animation: none; }
 }

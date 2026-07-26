@@ -1,63 +1,255 @@
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
-import { getPlayers } from "@/lib/data/players";
-import { getStaff, getEvents } from "@/lib/data/content";
+import { redirect } from "next/navigation";
+import {
+  Activity,
+  Bug,
+  Gavel,
+  Lightbulb,
+  ScrollText,
+  ShieldAlert,
+  ShoppingBag,
+  Ticket,
+  UsersRound,
+  Radio,
+} from "lucide-react";
+import { getSession, hasAtLeast, isStaff, roleLabel } from "@/lib/auth";
 import { getServerStatus } from "@/lib/data/status";
-import { DashHeader, StatTile } from "@/components/dashboard/dash-ui";
-import { fmtDate } from "@/lib/utils";
+import { getDiscordStats } from "@/lib/data/discord";
+import { getPlayers } from "@/lib/data/players";
+import { getEvents, getNews, getProducts } from "@/lib/data/content";
+import { getAccountsSnapshot, getRecentAudit } from "@/lib/data/admin-overview";
+import {
+  Board,
+  BoardNotice,
+  Metric,
+  StandbyQueue,
+  WatchBar,
+  ago,
+  roleAccent,
+} from "@/components/admin/control-room";
 
-export const metadata: Metadata = { title: "Admin" };
+export const metadata: Metadata = { title: "Control room · Admin" };
 
-export default async function AdminOverview() {
-  await requireRole("helper", "/admin");
-  const [players, staff, events, status] = await Promise.all([getPlayers(), getStaff(), getEvents(), getServerStatus()]);
-  const online = players.filter((p) => p.status === "online").length;
-  const activeEvents = events.filter((e) => e.status !== "completed").length;
+const QUEUES = [
+  { label: "Tickets", href: "/admin/tickets", icon: <Ticket size={15} /> },
+  { label: "Appeals", href: "/admin/appeals", icon: <Gavel size={15} /> },
+  { label: "Player reports", href: "/admin/reports", icon: <ShieldAlert size={15} /> },
+  { label: "Bug reports", href: "/admin/bugs", icon: <Bug size={15} /> },
+  { label: "Suggestions", href: "/admin/suggestions", icon: <Lightbulb size={15} /> },
+];
 
-  const stats = [
-    { label: "Website users", value: String(players.length + staff.length), detail: "demo dataset" },
-    { label: "Minecraft players", value: String(players.length), detail: "registered" },
-    { label: "Online now", value: status.live ? String(status.players) : String(online), detail: status.live ? "live" : "demo" },
-    { label: "New this week", value: "12", detail: "signups" },
-    { label: "Open tickets", value: "0", detail: "unassigned: 0" },
-    { label: "Pending appeals", value: "0", detail: "awaiting review" },
-    { label: "Pending reports", value: "0", detail: "player + bug" },
-    { label: "Active events", value: String(activeEvents), detail: "upcoming + live" },
-  ];
+export default async function ControlRoom() {
+  const session = await getSession();
+  if (!session) redirect("/login?next=/admin");
+  if (!isStaff(session.role)) redirect("/");
 
-  const activity = [
-    { who: "NovaCrafter", what: "reached level 96", when: "2026-07-11" },
-    { who: "Aria", what: "published Summer Build Festival", when: "2026-07-04" },
-    { who: "Kade", what: "shipped combat balance 1.8", when: "2026-06-29" },
-    { who: "EnderVex", what: "won Spring Clash 2026", when: "2026-04-05" },
-  ];
+  const role = session.role;
+  const canModerate = hasAtLeast(role, "moderator");
+  const canManageContent = hasAtLeast(role, "administrator");
+  const canSeeAccounts = hasAtLeast(role, "owner");
+  const canSeeAudit = hasAtLeast(role, "it");
+
+  const [status, discord, players, events, news, products, accounts, audit] = await Promise.all([
+    getServerStatus(),
+    getDiscordStats(),
+    canModerate ? getPlayers() : Promise.resolve([]),
+    canManageContent ? getEvents() : Promise.resolve([]),
+    canManageContent ? getNews() : Promise.resolve([]),
+    canManageContent ? getProducts() : Promise.resolve([]),
+    canSeeAccounts ? getAccountsSnapshot() : Promise.resolve(null),
+    canSeeAudit ? getRecentAudit() : Promise.resolve(null),
+  ]);
+
+  const onlinePlayers = players.filter((p) => p.status === "online").slice(0, 6);
+  const liveEvents = events.filter((e) => e.status !== "completed").length;
 
   return (
-    <>
-      <DashHeader title="Admin overview" subtitle="Network health and recent activity at a glance." />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {stats.map((s) => (
-          <StatTile key={s.label} label={s.label} value={s.value} detail={s.detail} />
-        ))}
+    <div className="cr" style={{ "--ra": roleAccent(role) } as CSSProperties}>
+      <WatchBar
+        displayName={session.displayName}
+        role={role}
+        online={status.players}
+        max={status.max}
+        version={status.version}
+        live={status.live}
+      />
+
+      {/* Network telemetry — the only figures on this page that are genuinely live. */}
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric
+          label="Players online"
+          value={status.live ? String(status.players) : "—"}
+          detail={status.live ? `of ${status.max} slots` : "status unavailable"}
+          live={status.live}
+        />
+        <Metric
+          label="Discord members"
+          value={discord.live ? discord.members.toLocaleString() : "—"}
+          detail={discord.live ? `${discord.online.toLocaleString()} online now` : "widget unavailable"}
+          live={discord.live}
+        />
+        <Metric
+          label="Java"
+          value={status.live && status.java.online ? "Up" : "—"}
+          detail={status.java.address}
+          live={status.live && status.java.online}
+        />
+        <Metric
+          label="Bedrock"
+          value={status.live && status.bedrock.online ? "Up" : "—"}
+          detail={`${status.bedrock.address} : ${status.bedrock.port}`}
+          live={status.live && status.bedrock.online}
+        />
       </div>
 
-      <section className="panel mt-6 p-6">
-        <h2 className="font-display text-lg font-bold">Latest activity</h2>
-        <ul className="mt-4 divide-y divide-line">
-          {activity.map((a, i) => (
-            <li key={i} className="flex items-center justify-between py-3 text-sm">
-              <span>
-                <span className="font-semibold">{a.who}</span> <span className="text-muted">{a.what}</span>
-              </span>
-              <span className="telemetry text-xs text-muted">{fmtDate(a.when)}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-4 text-xs text-muted">
-          Content management (create/edit/delete, role changes, moderation actions) is scaffolded read-only in this phase and
-          activates with the database and audit logging.
-        </p>
-      </section>
-    </>
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        {/* Every staff rank sees their queues. Helpers see only this board, so it
+            takes the full width rather than leaving an empty column beside it. */}
+        <Board
+          title="Your queues"
+          icon={<Ticket size={13} />}
+          tag="Standby"
+          className={!canModerate ? "xl:col-span-2" : undefined}
+        >
+          <StandbyQueue items={QUEUES} />
+          <p className="border-t border-line px-4 py-3 text-xs text-muted">
+            Submissions are not stored yet. These open once the support tables are connected — until then the
+            queues are empty by design, not because there is nothing waiting.
+          </p>
+        </Board>
+
+        {canModerate && (
+          <Board
+            title="Player roster"
+            icon={<Radio size={13} />}
+            href="/admin/players"
+            linkLabel="All players"
+            tag={onlinePlayers.length > 0 ? undefined : "Standby"}
+          >
+            {onlinePlayers.length > 0 ? (
+              <div>
+                {onlinePlayers.map((p) => (
+                  <div key={p.username} className="cr-row">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[rgb(var(--ra)/0.12)] text-xs font-bold text-[rgb(var(--ra))]">
+                      {p.username.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{p.username}</span>
+                      <span className="block text-xs text-muted">
+                        {p.currentMode} · Level {p.level}
+                      </span>
+                    </span>
+                    <span className="telemetry shrink-0 text-xs text-muted">{p.playtimeHours.toLocaleString()}h</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <BoardNotice>
+                Player profiles and statistics arrive with the Minecraft server integration.
+              </BoardNotice>
+            )}
+          </Board>
+        )}
+
+        {canSeeAccounts && (
+          <Board
+            title="Accounts"
+            icon={<UsersRound size={13} />}
+            href="/admin/users"
+            linkLabel="Manage"
+            tag="Live"
+            /* The audit board sits beside this one; without it, take the row. */
+            className={!canSeeAudit ? "xl:col-span-2" : undefined}
+          >
+            {accounts ? (
+              <>
+                <div className="grid grid-cols-3 gap-3 p-3">
+                  <Metric label="Registered" value={accounts.total.toLocaleString()} live />
+                  <Metric label="New · 7d" value={accounts.newThisWeek.toLocaleString()} live />
+                  <Metric label="Staff" value={accounts.staffCount.toLocaleString()} live />
+                </div>
+                <div className="border-t border-line">
+                  {accounts.recent.map((u) => (
+                    <div key={u.email} className="cr-row">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{u.username}</span>
+                        <span className="block truncate text-xs text-muted">{u.email}</span>
+                      </span>
+                      <span className="cr-tag shrink-0">{roleLabel(u.role)}</span>
+                      <span className="telemetry w-9 shrink-0 text-right text-xs text-muted">{ago(u.createdAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <BoardNotice>
+                Account data needs <code className="text-ink">SUPABASE_SERVICE_ROLE_KEY</code> on the server.
+              </BoardNotice>
+            )}
+          </Board>
+        )}
+
+        {canSeeAudit && (
+          <Board title="Audit trail" icon={<ScrollText size={13} />} href="/admin/audit-logs" tag="Live">
+            {audit === null ? (
+              <BoardNotice>Not recording — no database connection.</BoardNotice>
+            ) : audit.length === 0 ? (
+              <BoardNotice>No privileged actions recorded yet.</BoardNotice>
+            ) : (
+              <div>
+                {audit.map((row) => (
+                  <div key={row.id} className="cr-row">
+                    <span className="cr-tag shrink-0">{row.action}</span>
+                    <span className="min-w-0 flex-1 text-sm">
+                      <span className="font-semibold">{row.actor}</span>
+                      <span className="text-muted"> → {row.target}</span>
+                      {row.detail && <span className="block text-xs text-muted">{row.detail}</span>}
+                    </span>
+                    <span className="telemetry w-9 shrink-0 text-right text-xs text-muted">{ago(row.createdAt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Board>
+        )}
+
+        {canManageContent && (
+          <Board
+            title="Content & commerce"
+            icon={<ShoppingBag size={13} />}
+            href="/admin/store"
+            linkLabel="Manage"
+            className="xl:col-span-2"
+          >
+            <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3">
+              <Metric
+                label="Store products"
+                value={String(products.length)}
+                detail="live in the database"
+                live={products.length > 0}
+              />
+              <Metric
+                label="Published news"
+                value={news.length > 0 ? String(news.length) : "—"}
+                detail={news.length > 0 ? "articles live" : "nothing published"}
+                tag={news.length > 0 ? undefined : "Standby"}
+              />
+              <Metric
+                label="Active events"
+                value={liveEvents > 0 ? String(liveEvents) : "—"}
+                detail={events.length > 0 ? `${events.length} total` : "none scheduled"}
+                tag={events.length > 0 ? undefined : "Standby"}
+              />
+            </div>
+          </Board>
+        )}
+      </div>
+
+      <p className="mt-4 flex items-center gap-2 text-xs text-muted">
+        <Activity size={13} /> Bracketed figures are live. Anything marked “Standby” has no data source connected
+        yet — it is blank because nothing is being recorded, not because the count is zero.
+      </p>
+    </div>
   );
 }

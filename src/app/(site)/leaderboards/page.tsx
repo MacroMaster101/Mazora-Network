@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { Trophy } from "lucide-react";
 import { getLeaderboard, leaderboardTabs, type LeaderboardEntry, type LeaderboardKey } from "@/lib/data/players";
-import { PageHero, Reveal } from "@/components/shared";
+import { EmptyState, PageHero, Reveal } from "@/components/shared";
 import { LeaderboardExplorer } from "@/components/shared/leaderboard-explorer";
 
 export const metadata: Metadata = {
@@ -26,11 +27,20 @@ export default async function LeaderboardsPage() {
       />
       <section className="section shell">
         <Reveal>
-          <LeaderboardExplorer
-            tabs={leaderboardTabs as { key: LeaderboardKey; label: string }[]}
-            data={data}
-            labels={labels}
-          />
+          {entries.some((list) => list.length > 0) ? (
+            <LeaderboardExplorer
+              tabs={leaderboardTabs as { key: LeaderboardKey; label: string }[]}
+              data={data}
+              labels={labels}
+            />
+          ) : (
+            <EmptyState
+              icon={<Trophy size={24} />}
+              title="No rankings yet"
+              message="Leaderboards fill in once the Minecraft server starts reporting player statistics. No standings are shown until those numbers are real."
+              cta={{ label: "How to play", href: "/play" }}
+            />
+          )}
         </Reveal>
       </section>
     </>

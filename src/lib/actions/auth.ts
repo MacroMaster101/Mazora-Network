@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { createSession } from "@/lib/auth";
+import type { Role } from "@/lib/types";
+import { createSession, getSession, isStaff, landingPathFor, ROLES } from "@/lib/auth";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { site } from "@/lib/site";
 import { getSupabaseConfig, isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
@@ -88,13 +89,18 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
       }
       return { ok: false, message: "The email or password is incorrect." };
     }
-    redirect(safeNext(parsed.data.next));
+    // Honour an explicit destination; otherwise route by role (staff → their
+    // dashboard, everyone else → home).
+    if (parsed.data.next && parsed.data.next !== "/") redirect(safeNext(parsed.data.next));
+    const session = await getSession();
+    redirect(session ? landingPathFor(session.role) : "/");
   }
 
   if (!isDemoAuthEnabled()) return { ok: false, message: "Authentication has not been configured yet." };
   const username = usernameFromIdentifier(parsed.data.identifier) || "player";
-  await createSession(username);
-  redirect(safeNext(parsed.data.next));
+  const session = await createSession(username);
+  if (parsed.data.next && parsed.data.next !== "/") redirect(safeNext(parsed.data.next));
+  redirect(landingPathFor(session.role));
 }
 
 export async function registerAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
@@ -333,6 +339,47 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
   return { ok: true, message: "Your password has been updated." };
 }
 
+export async function switchDiscordAction(_previous: AuthResult): Promise<AuthResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, message: "Authentication has not been configured yet." };
+  }
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
+
+  const { data, error: userError } = await supabase.auth.getUser();
+  if (userError || !data.user) return { ok: false, message: "You must be signed in to switch accounts." };
+
+  const discordIdentity = data.user.identities?.find((identity) => identity.provider === "discord");
+  if (!discordIdentity) return { ok: false, message: "No Discord account is linked." };
+
+  const remaining = (data.user.identities?.length ?? 0) - 1;
+  if (remaining < 1) {
+    return { ok: false, message: "Add Google or a password before switching your only sign-in method." };
+  }
+
+  const { error: unlinkError } = await supabase.auth.unlinkIdentity(discordIdentity);
+  if (unlinkError) return { ok: false, message: "Discord could not be prepared for switching. Please try again." };
+
+  // Return to whichever settings page this user actually uses: staff are
+  // redirected out of /dashboard, so they must come back to /admin/account.
+  const roleRaw = data.user.app_metadata?.role;
+  const role: Role = typeof roleRaw === "string" && ROLES.includes(roleRaw as Role) ? (roleRaw as Role) : "member";
+  const settingsPath = isStaff(role) ? "/admin/account" : "/dashboard/settings";
+
+  const { data: linkData, error: linkError } = await supabase.auth.linkIdentity({
+    provider: "discord",
+    options: {
+      redirectTo: `${site.url}/auth/callback?next=${encodeURIComponent(settingsPath)}`,
+      skipBrowserRedirect: true,
+    },
+  });
+
+  if (linkError || !linkData.url) {
+    return { ok: false, message: "Discord was disconnected, but the account switch could not start. Use Connect Discord to try again." };
+  }
+
+  redirect(linkData.url);
+}
 export async function unlinkDiscordAction(_previous: AuthResult): Promise<AuthResult> {
   if (!isSupabaseConfigured()) {
     return { ok: false, message: "Authentication has not been configured yet." };

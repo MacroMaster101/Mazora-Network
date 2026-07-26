@@ -121,15 +121,6 @@ export function storeArtFor(
 }
 
 /** Map weapon bundle display names to processed artwork */
-export function bundleArtFor(name: string): string {
-  const n = name.toLowerCase();
-  if (n.includes("frost")) return "/images/store/bundle-frost.png";
-  if (n.includes("abominable")) return "/images/store/bundle-abominable.png";
-  if (n.includes("demon lord")) return "/images/store/bundle-demon-lord.png";
-  if (n.includes("soul")) return "/images/store/bundle-soul.png";
-  return "/images/store/bundle-frost.png";
-}
-
 export const storeCategoryDetails: Record<
   Product["category"],
   { eyebrow: string; description: string }

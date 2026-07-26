@@ -2,13 +2,20 @@
 
 import { useState, useTransition } from "react";
 import type { Role } from "@/lib/types";
+import { roleLabel } from "@/lib/auth/roles";
 import { changeUserRole } from "@/lib/actions/roles";
 
-const ASSIGNABLE_ORDER: Role[] = ["member", "vip", "helper", "moderator", "administrator", "owner", "it"];
-const LABELS: Record<Role, string> = {
-  guest: "Guest", member: "Member", vip: "VIP", helper: "Helper",
-  moderator: "Moderator", administrator: "Admin", owner: "Owner", it: "IT",
-};
+const ASSIGNABLE_ORDER: Role[] = [
+  "member",
+  "sponsor",
+  "vip",
+  "helper",
+  "moderator",
+  "senior_moderator",
+  "administrator",
+  "owner",
+  "it",
+];
 
 export function RoleManager({
   userId,
@@ -41,7 +48,7 @@ export function RoleManager({
         className="rounded-md border border-line bg-surface px-2 py-1 text-sm"
       >
         {options.map((r) => (
-          <option key={r} value={r}>{LABELS[r]}</option>
+          <option key={r} value={r}>{roleLabel(r)}</option>
         ))}
       </select>
       <button
