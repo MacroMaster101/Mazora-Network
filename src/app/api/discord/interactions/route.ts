@@ -45,17 +45,30 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, { status }
 const ephemeral = (content: string) => json({ type: 4, data: { content, flags: 64 } });
 
 /**
- * Whether the interacting member holds the configured store-staff role. When
- * DISCORD_STORE_STAFF_ROLE_ID is set, only members carrying that role may act
- * on order buttons; without it configured, we fall back to Discord's own
- * channel permissions (the orders channel should be staff-only) and allow the
- * action. `member.roles` is only present for in-guild interactions.
+ * Whether the interacting member holds the configured store-staff role.
+ *
+ * Fails closed: a valid signature only proves the request came from Discord,
+ * not that the person who clicked is staff. Without a configured role we cannot
+ * tell the two apart, so the action is refused rather than trusting that the
+ * message never left a staff-only channel — components can be actioned by
+ * anyone who can see them. `member.roles` is only present for in-guild
+ * interactions, so DM clicks are refused too.
  */
-function isStaffMember(interaction: Interaction): boolean {
+function staffCheck(interaction: Interaction): { allowed: boolean; reason?: string } {
   const staffRoleId = process.env.DISCORD_STORE_STAFF_ROLE_ID?.trim();
-  if (!staffRoleId || !/^\d{17,20}$/.test(staffRoleId)) return true;
+  if (!staffRoleId || !/^\d{17,20}$/.test(staffRoleId)) {
+    console.error("DISCORD_STORE_STAFF_ROLE_ID is not configured — order actions refused.");
+    return {
+      allowed: false,
+      reason:
+        "Order actions are disabled until a staff role is configured. Ask an administrator to set DISCORD_STORE_STAFF_ROLE_ID.",
+    };
+  }
   const roles = interaction.member?.roles;
-  return Array.isArray(roles) && roles.includes(staffRoleId);
+  if (!Array.isArray(roles) || !roles.includes(staffRoleId)) {
+    return { allowed: false, reason: "You don't have permission to action Mazora orders." };
+  }
+  return { allowed: true };
 }
 
 function fieldValue(embed: Embed | undefined, name: string): string {
@@ -94,8 +107,9 @@ export async function POST(request: Request) {
     // Only staff may confirm or reject an order. This is enforced here rather
     // than relying solely on who can see the channel, so a leaked or forwarded
     // message component cannot be actioned by a non-staff user.
-    if (!isStaffMember(interaction)) {
-      return ephemeral("You don't have permission to action Mazora orders.");
+    const staff = staffCheck(interaction);
+    if (!staff.allowed) {
+      return ephemeral(staff.reason ?? "You don't have permission to action Mazora orders.");
     }
 
     const bot = getDiscordBotConfig();

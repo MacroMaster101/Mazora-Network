@@ -4,7 +4,16 @@ import type { DiscordIdentity, Role } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
-import { hasAtLeast, isAdmin, isStaff, roleLabel, STAFF_ROLES } from "@/lib/auth/roles";
+import {
+  hasAtLeast,
+  isAdmin,
+  isStaff,
+  landingPathFor,
+  roleDashboardPath,
+  roleLabel,
+  ROLES,
+  STAFF_ROLES,
+} from "@/lib/auth/roles";
 
 export const SESSION_COOKIE = "mz_session";
 
@@ -12,6 +21,7 @@ export interface Session {
   username: string;
   displayName: string;
   bio?: string;
+  avatarUrl?: string;
   role: Role;
 }
 
@@ -19,7 +29,7 @@ export interface Session {
 // "@/lib/auth" keep working unchanged. Client Components must import
 // these directly from "@/lib/auth/roles" to avoid pulling in
 // "next/headers" via this file.
-export { hasAtLeast, isAdmin, isStaff, roleLabel, STAFF_ROLES };
+export { hasAtLeast, isAdmin, isStaff, landingPathFor, roleDashboardPath, roleLabel, ROLES, STAFF_ROLES };
 
 /** Demo-only role mapping so the scaffolds can be explored by username. */
 export function demoRoleFor(username: string): Role {
@@ -46,10 +56,8 @@ function decode(raw: string): Session | null {
   }
 }
 
-const roles: Role[] = ["guest", "member", "vip", "helper", "moderator", "administrator", "owner", "it"];
-
 function safeRole(value: unknown): Role {
-  return typeof value === "string" && roles.includes(value as Role) ? (value as Role) : "member";
+  return typeof value === "string" && ROLES.includes(value as Role) ? (value as Role) : "member";
 }
 
 function cleanUsername(value: string): string {
@@ -86,6 +94,7 @@ export async function getSession(): Promise<Session | null> {
       username,
       displayName,
       bio: typeof profile?.bio === "string" ? profile.bio : "",
+      avatarUrl: typeof profile?.avatar_url === "string" ? profile.avatar_url : undefined,
       role: safeRole(data.user.app_metadata?.role),
     };
   }
@@ -150,7 +159,9 @@ export async function requireSession(next = "/dashboard"): Promise<Session> {
 /** Returns the session or redirects unless the user meets the minimum role. */
 export async function requireRole(min: Role, next = "/dashboard"): Promise<Session> {
   const session = await requireSession(next);
-  if (!hasAtLeast(session.role, min)) redirect("/dashboard");
+  // Bounced from a page above their rank: staff land on their own dashboard,
+  // everyone else goes home.
+  if (!hasAtLeast(session.role, min)) redirect(landingPathFor(session.role));
   return session;
 }
 

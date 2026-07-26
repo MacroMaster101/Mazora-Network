@@ -11,9 +11,11 @@ export type OnlineStatus = "online" | "offline";
 export type Role =
   | "guest"
   | "member"
+  | "sponsor"
   | "vip"
   | "helper"
   | "moderator"
+  | "senior_moderator"
   | "administrator"
   | "owner"
   | "it";

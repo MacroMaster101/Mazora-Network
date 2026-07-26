@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole, roleLabel, hasAtLeast, STAFF_ROLES } from "@/lib/auth";
+import { requireRole, roleLabel, hasAtLeast, ROLES, STAFF_ROLES } from "@/lib/auth";
 import type { Role } from "@/lib/types";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { DashHeader } from "@/components/dashboard/dash-ui";
@@ -17,8 +17,7 @@ interface Row {
 }
 
 function roleOf(value: unknown): Role {
-  const roles: Role[] = ["guest", "member", "vip", "helper", "moderator", "administrator", "owner", "it"];
-  return typeof value === "string" && roles.includes(value as Role) ? (value as Role) : "member";
+  return typeof value === "string" && ROLES.includes(value as Role) ? (value as Role) : "member";
 }
 
 export default async function AdminUsersPage() {
@@ -37,7 +36,7 @@ export default async function AdminUsersPage() {
   }
 
   // Roles the current actor may assign: strictly below their own rank.
-  const assignable: Role[] = (["member", "vip", ...STAFF_ROLES] as Role[]).filter(
+  const assignable: Role[] = (["member", "sponsor", "vip", ...STAFF_ROLES] as Role[]).filter(
     (r) => !hasAtLeast(r, session.role),
   );
 

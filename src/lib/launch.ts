@@ -76,7 +76,7 @@ export function isLaunchModeEnabled(): boolean {
 }
 
 /** Paths that are ready even when the dashboard children gate is active. */
-const dashboardExclusions = new Set(["/dashboard/settings"]);
+const dashboardExclusions = new Set(["/dashboard/settings", "/dashboard/minecraft", "/dashboard/statistics"]);
 
 export function getLaunchGate(pathname: string): LaunchGate | undefined {
   if (dashboardExclusions.has(pathname)) return undefined;

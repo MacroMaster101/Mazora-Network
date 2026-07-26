@@ -106,6 +106,17 @@ export async function disconnectMinecraftAction(
     .eq("user_id", auth.user.id);
   if (codeError) return { ok: false, message: "The account was disconnected, but an old link code could not be cleared." };
 
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("avatar_url")
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  if (String(profile?.avatar_url ?? "").startsWith("https://mc-heads.net/")) {
+    await admin.from("profiles").update({ avatar_url: null }).eq("user_id", auth.user.id);
+    await auth.supabase.auth.updateUser({ data: { avatar_url: null } });
+  }
+
+  revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/minecraft");
   return { ok: true, message: "Minecraft has been disconnected." };
@@ -135,6 +146,14 @@ export async function deleteAccountAction(
 
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false, message: "Account deletion is temporarily unavailable." };
+
+  // Storage objects are not database rows and do not cascade when auth.users is deleted.
+  const { data: avatarObjects } = await admin.storage.from("profile-avatars").list(auth.user.id, { limit: 100 });
+  if (avatarObjects?.length) {
+    await admin.storage
+      .from("profile-avatars")
+      .remove(avatarObjects.map((item) => `${auth.user.id}/${item.name}`));
+  }
 
   let { error: deleteError } = await admin.auth.admin.deleteUser(auth.user.id);
   if (deleteError && !/database error deleting user/i.test(deleteError.message)) {

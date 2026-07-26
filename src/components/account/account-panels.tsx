@@ -1,0 +1,162 @@
+/**
+ * Personal-account panels, shared by the member area (/dashboard/*) and the
+ * staff area (/admin/account/*). Both render the exact same UI — a staff member
+ * manages their own account here just like a regular member does.
+ */
+import type { ReactNode } from "react";
+import { Bell, Monitor, Receipt } from "lucide-react";
+import { requireSession, getDiscordIdentity } from "@/lib/auth";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { DashHeader, DashEmpty } from "@/components/dashboard/dash-ui";
+import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
+import { AccountSecurity } from "@/components/dashboard/account-security";
+import { ProfileForm } from "@/components/dashboard/profile-form";
+import { ProfileAvatarEditor } from "@/components/dashboard/profile-avatar-editor";
+import { DangerZone } from "@/components/dashboard/danger-zone";
+import { FormRow, Input } from "@/components/ui";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+
+function Card({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="panel p-6">
+      <h2 className="font-display text-lg font-bold">{title}</h2>
+      <div className="mt-4 space-y-4">{children}</div>
+    </section>
+  );
+}
+
+/** Full account settings: profile, password, connected accounts, delete account. */
+export async function AccountSettings({ loginNext = "/dashboard/settings" }: { loginNext?: string } = {}) {
+  const session = await requireSession(loginNext);
+
+  // Fetch user email & linked providers for the Connected Accounts card.
+  let email = "";
+  let hasGoogle = false;
+  let hasPassword = false;
+  let hasMinecraft = false;
+  let minecraftIdentity: { username: string; uuid: string; linkedAt: string } | null = null;
+  const discord = await getDiscordIdentity();
+  if (isSupabaseConfigured()) {
+    const supabase = await createSupabaseServerClient();
+    if (supabase) {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        email = data.user.email ?? "";
+        hasGoogle = data.user.identities?.some((i) => i.provider === "google") ?? false;
+        // Supabase's updateUser({ password }) sets the password but does not add
+        // an "email" identity for accounts that originated from OAuth, so the
+        // identities list alone can't detect a password set this way. The
+        // has_password metadata flag (set in updatePasswordAction) is the
+        // reliable signal for that case.
+        hasPassword =
+          (data.user.identities?.some((i) => i.provider === "email") ?? false) ||
+          Boolean(data.user.user_metadata?.has_password);
+        const accountStore = getSupabaseAdmin() ?? supabase;
+        const { data: minecraftAccount } = await accountStore
+          .from("minecraft_accounts")
+          .select("id,minecraft_uuid,minecraft_username,linked_at")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+        hasMinecraft = Boolean(minecraftAccount);
+        if (minecraftAccount) {
+          minecraftIdentity = {
+            username: String(minecraftAccount.minecraft_username),
+            uuid: String(minecraftAccount.minecraft_uuid),
+            linkedAt: String(minecraftAccount.linked_at),
+          };
+        }
+      }
+    }
+  }
+
+  return (
+    <>
+      <DashHeader title="Settings" subtitle="Manage your profile, account and preferences." />
+      <div className="grid gap-5">
+        <Card title="Profile">
+          <ProfileAvatarEditor
+            displayName={session.displayName}
+            username={session.username}
+            email={email}
+            avatarUrl={session.avatarUrl}
+            enabled={isSupabaseConfigured()}
+          />
+          <div className="profile-avatar-divider" />
+          <ProfileForm username={session.username} displayName={session.displayName} bio={session.bio ?? ""} />
+        </Card>
+
+        <Card title="Account">
+          <FormRow label="Email" htmlFor="email">
+            <Input id="email" type="email" value={email} disabled />
+          </FormRow>
+          <AccountSecurity hasPassword={hasPassword} />
+        </Card>
+
+        <Card title="Connected accounts">
+          <p className="-mt-2 text-xs text-muted">
+            Manage sign-in providers. Discord supports login and orders; Minecraft account linking is coming soon.
+          </p>
+          <ConnectedAccounts
+            email={email}
+            hasGoogle={hasGoogle}
+            initialDiscord={discord}
+            initialMinecraft={minecraftIdentity}
+          />
+        </Card>
+
+        <Card title="Preferences">
+          <div className="flex items-center justify-between">
+            <span className="text-sm">Theme</span>
+            <ThemeToggle />
+          </div>
+          {["Email notifications", "Event notifications", "Support notifications"].map((label) => (
+            <label key={label} className="flex items-center justify-between">
+              <span className="text-sm">{label}</span>
+              <input type="checkbox" defaultChecked className="h-4 w-4 accent-[#8b5cf6]" />
+            </label>
+          ))}
+        </Card>
+
+        <Card title="Security">
+          <div className="flex items-center gap-3 text-sm text-muted">
+            <Monitor size={16} /> Active sessions and login history appear here once accounts are backed by Supabase Auth.
+          </div>
+          <span className="chip">Two-factor authentication · coming soon</span>
+        </Card>
+
+        <DangerZone username={session.username} initiallyLinked={hasMinecraft} enabled={isSupabaseConfigured()} />
+      </div>
+    </>
+  );
+}
+
+/** The signed-in user's own notifications feed. */
+export function AccountNotifications() {
+  return (
+    <>
+      <DashHeader title="Notifications" subtitle="Ticket replies, appeal decisions, rewards and more." />
+      <DashEmpty
+        icon={<Bell size={24} />}
+        title="You're all caught up"
+        message="Notifications about your tickets, appeals, purchases and rewards will show up here."
+      />
+    </>
+  );
+}
+
+/** The signed-in user's own purchase history. */
+export function AccountPurchases() {
+  return (
+    <>
+      <DashHeader title="Purchase history" subtitle="Your orders and receipts." />
+      <DashEmpty
+        icon={<Receipt size={24} />}
+        title="No purchases yet"
+        message="When payments go live, your orders, receipts and delivered items will appear here."
+        cta={{ label: "Visit the store", href: "/store" }}
+      />
+    </>
+  );
+}

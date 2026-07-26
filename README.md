@@ -18,7 +18,10 @@ The official community platform for the Mazora Minecraft network.
 
 Mazora Network is a responsive Minecraft community website built with the Next.js App Router. It combines a cinematic Minecraft presentation with practical community features: server connection details, live Minecraft and Discord counts, news, events, forums, player profiles, game modes, support forms, store pages, account areas, and administration scaffolds.
 
-The public site works without a database by using typed demo content. When `DATABASE_URL` is configured, repository functions can read and write Postgres data through Drizzle ORM.
+The site reads its content from PostgreSQL through Drizzle ORM. Without `DATABASE_URL`,
+repositories return nothing and each page shows an explicit empty state rather than
+placeholder content — the store, rulebook and live counts are the parts backed by real
+data today.
 
 ### ✨ Current experience
 
@@ -39,7 +42,7 @@ The public site works without a database by using typed demo content. When `DATA
 | Language | TypeScript with strict checking |
 | Styling | Tailwind CSS 3 plus theme tokens in `src/styles/globals.css` |
 | UI | Lucide icons and Framer Motion |
-| Data | Drizzle ORM with PostgreSQL and typed demo fallbacks |
+| Data | Drizzle ORM with PostgreSQL; empty states when unconfigured |
 | Database driver | postgres-js driver against Supabase PostgreSQL |
 | Validation | Zod |
 | Authentication | Supabase SSR cookies, PKCE callbacks, email/password, Google, and Discord OAuth; local demo fallback |
@@ -70,7 +73,10 @@ Open [http://localhost:3000](http://localhost:3000). Environment variables and a
 | `npm run start` | Serve a completed production build |
 | `npm run db:generate` | Generate SQL migrations from the Drizzle schema |
 | `npm run db:push` | Push the current schema to the configured Postgres database |
-| `npm run db:seed` | Seed the configured database using `.env` |
+| `npm run db:apply -- <file.sql>` | Apply a single SQL file using `DATABASE_URL` |
+| `npm run db:seed:store` | Load the storefront catalogue into `products` |
+| `npm run db:seed:rules` | Load the baseline community rulebook |
+| `npm run role:set -- <email> <role>` | Grant the first owner/IT account |
 
 Before handing off a change, run:
 
@@ -128,8 +134,42 @@ Forums contains staff applications, ban appeals, suggestions, and the discussion
 ### 👤 Account areas
 
 - Login, registration, and account recovery open in one accessible dialog over the current public page. Every internal auth link is intercepted globally, while direct auth URLs return to the homepage and automatically open the same dialog for refreshes, shared links, protected-route redirects, and OAuth errors.
-- `/dashboard` plus Minecraft linking, statistics, tickets, appeals, reports, events, votes, purchases, notifications, and settings
-- `/admin` plus users, players, content, moderation, orders, voting, configuration, and audit views
+- `/dashboard` — the member area: Minecraft linking, statistics, tickets, appeals, reports, events, votes, purchases, notifications, and settings
+- `/admin` — the staff control room, plus users, players, content, moderation, orders, voting, configuration, and audit views
+
+Members and staff land in different places. After signing in, a non-staff member goes to
+the homepage and a staff member goes to `/admin`. Staff do not use `/dashboard` — visiting
+it redirects them to the control room — so their own account screens (settings, connected
+accounts, notifications, purchases) live under `/admin/account`.
+
+### Roles
+
+The ladder, lowest to highest:
+
+| Role | Staff | Notes |
+|---|---|---|
+| `guest` | no | Signed out |
+| `member` | no | Default for a new account |
+| `sponsor` | no | Donor rank |
+| `vip` | no | Donor rank |
+| `helper` | yes | Entry staff rank; support queues |
+| `moderator` | yes | Player moderation |
+| `senior_moderator` | yes | Moderation oversight |
+| `administrator` | yes | Content and commerce (`is_admin`) |
+| `owner` | yes | Users, staff and role management |
+| `it` | yes | Highest rank; settings and audit |
+
+`ROLES`, `hasAtLeast`, `isStaff`, `isAdmin` and `roleLabel` in `src/lib/auth/roles.ts` are
+the single source of truth — validate against `ROLES` rather than re-listing roles.
+
+The session role is read from Supabase `app_metadata.role` (server-controlled), never from
+client-writable `user_metadata`. `profiles.role` mirrors it for RLS. Change roles only
+through `changeUserRole`, which enforces rank rules and writes an audit entry. Bootstrap
+the first privileged account with `npm run role:set -- <email> it`, then sign out and in.
+
+The control room at `/admin` is one adaptive screen: boards appear according to the
+viewer's rank. It marks where each figure comes from — live values are bracketed, and
+anything without a data source behind it is shown as "Standby" rather than as a zero.
 
 Authentication uses Supabase SSR cookies and the PKCE authorization-code flow when Supabase is configured. Google and Discord buttons initiate real provider login, `/auth/callback` exchanges the returned code, and middleware refreshes authenticated sessions. Without Supabase, development uses the local demo session only outside production.
 
@@ -143,20 +183,67 @@ To enable production social login:
 
 ## 🗄️ Data and database setup
 
-Pages read through the repositories in `src/lib/data`. Repositories use PostgreSQL when a database is configured and typed fixtures when it is not.
+Pages read through the repositories in `src/lib/data`. There are no demo fixtures: a
+repository either returns real rows or an empty list, and the page renders an explicit
+empty state. Nothing on the site invents content it does not have.
 
-To use a database:
+To set up a database:
 
 1. Add a valid PostgreSQL connection string to `DATABASE_URL`.
-2. Push or generate the schema.
-3. Seed the initial content if desired.
+2. Create the schema.
+3. Load the content that ships with the project.
 
 ```bash
 npm run db:push
-npm run db:seed
 ```
 
-The Drizzle schema lives in `src/lib/db/schema.ts`. Generated migrations are written to `supabase/migrations` and run against the Supabase PostgreSQL database.
+```bash
+npm run db:seed:store && npm run db:seed:rules
+```
+
+The Drizzle schema lives in `src/lib/db/schema.ts`. Hand-written SQL migrations live in
+`supabase/migrations` using the Supabase CLI's `<timestamp>_name.sql` format.
+
+### Migrations
+
+Create and apply migrations through the Supabase CLI:
+
+```bash
+supabase migration new <name>
+```
+
+```bash
+supabase db push
+```
+
+`npm run db:apply -- <file>` runs a single SQL file directly against `DATABASE_URL`. It is
+useful when the CLI is unavailable, but it does **not** record the migration in Supabase's
+history — prefer `supabase db push` so local and remote stay in sync.
+
+> **Note on migration history.** Migrations `001`–`005` are recorded as applied but were
+> never executed against the current database: its tables came from `db:push`, and the
+> history was baselined afterwards. Their policies and functions are re-created by
+> `008_restore_rls_policies.sql`. Treat a fresh database as the only reliable way to
+> replay the full migration chain.
+
+Migrations are numbered sequentially (`001_…`, `002_…`). The Supabase CLI accepts this and
+orders by the numeric prefix. Note that `supabase migration new` generates a 14-digit
+timestamp name instead; either is valid, and timestamps sort after the numbered files, so
+new migrations still land last. Rename a generated file if you want the sequence kept
+consistent — and if you do, update its `version` in
+`supabase_migrations.schema_migrations` to match, or the CLI will treat it as unapplied.
+
+### Row level security
+
+Every table in `public` has RLS enabled. Public content (products, rules, profiles,
+gallery) is world-readable; user-owned data (orders, tickets, appeals, notifications,
+Minecraft links, vote history) is restricted to its owner and staff, and `audit_logs` and
+`site_settings` are admin-only. Role checks use the `is_staff()` / `is_admin()` helpers,
+which read `profiles.role`.
+
+The application itself connects with a role that bypasses RLS, so these policies protect
+direct PostgREST/anon-key access rather than the app's own queries. Authorization for
+app traffic is enforced in server actions and route guards.
 
 ## 🗂️ Project structure
 
@@ -164,7 +251,8 @@ The Drizzle schema lives in `src/lib/db/schema.ts`. Generated migrations are wri
 src/
   app/                 Route groups, pages, API routes, metadata, and layouts
   components/
-    admin/             Administration UI
+    account/           Personal account panels shared by member and staff areas
+    admin/             Administration UI, control room, and rules editor
     dashboard/         Member dashboard UI
     layout/            Header, navigation, footer, and mobile drawer
     shared/            Reusable cards, forms, live status, and content blocks
@@ -172,9 +260,9 @@ src/
     ui/                UI primitives
   lib/
     actions/           Validated server actions
-    auth/              Swappable session abstraction
+    auth/              Session abstraction and the role ladder
     data/              Data repositories and live integrations
-    db/                Database client, schema, demo fixtures, and seed logic
+    db/                Database client and Drizzle schema
     site.ts            Server identity, navigation, social, and footer configuration
   styles/globals.css   Design tokens, themes, layout, and responsive styling
 public/images/         Logo, Minecraft artwork, avatars, and content imagery

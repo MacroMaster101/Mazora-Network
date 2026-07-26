@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import type { Role } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/auth/profile";
+import { landingPathFor, ROLES } from "@/lib/auth/roles";
 
 /**
  * Restricts the post-login redirect target to a same-origin path. Checking
@@ -52,7 +54,12 @@ export async function GET(request: NextRequest) {
     if (!error) {
       const { data } = await supabase.auth.getUser();
       if (data.user) await ensureUserProfile(data.user);
-      return NextResponse.redirect(new URL(next, origin));
+      // No explicit destination → route by role (staff → their dashboard,
+      // everyone else → home). An explicit `next` (e.g. account linking) wins.
+      const raw = data.user?.app_metadata?.role;
+      const role: Role = typeof raw === "string" && ROLES.includes(raw as Role) ? (raw as Role) : "member";
+      const dest = next && next !== "/" ? next : landingPathFor(role);
+      return NextResponse.redirect(new URL(dest, origin));
     }
   }
 

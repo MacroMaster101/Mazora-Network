@@ -21,7 +21,7 @@ export function DangerZone({
   initiallyLinked: boolean;
   enabled: boolean;
 }) {
-  const [linked, setLinked] = useState(initiallyLinked);
+  const [, setLinked] = useState(initiallyLinked);
   const [dialog, setDialog] = useState<"disconnect" | "delete" | null>(null);
   const [confirmation, setConfirmation] = useState("");
   const [disconnectState, disconnectAction, disconnectPending] = useActionState(
@@ -66,12 +66,11 @@ export function DangerZone({
         <div className="mt-4 flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => setDialog("disconnect")}
             className="btn btn-ghost btn-sm border-danger/40 text-danger"
-            disabled={!enabled || !linked}
-            title={!enabled ? "Requires full authentication" : !linked ? "No Minecraft account is connected" : undefined}
+            disabled
+            title="Minecraft linking is coming soon"
           >
-            <Unlink size={14} /> {linked ? "Disconnect Minecraft" : "Minecraft not connected"}
+            <Unlink size={14} /> Minecraft linking · Coming soon
           </button>
           <button
             type="button"
