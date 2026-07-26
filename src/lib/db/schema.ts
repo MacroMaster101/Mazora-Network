@@ -52,14 +52,21 @@ export const minecraftAccounts = pgTable(
   }),
 );
 
-export const minecraftLinkCodes = pgTable("minecraft_link_codes", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  code: text("code").notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  usedAt: timestamp("used_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const minecraftLinkCodes = pgTable(
+  "minecraft_link_codes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    codeHash: text("code_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    codeHashIdx: uniqueIndex("minecraft_link_codes_hash_idx").on(t.codeHash),
+    userIdx: index("minecraft_link_codes_user_idx").on(t.userId),
+  }),
+);
 
 export const playerStatistics = pgTable("player_statistics", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -145,7 +152,11 @@ export const ruleCategories = pgTable("rule_categories", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull(),
+  /** Lucide icon key rendered by the public rulebook. */
+  icon: text("icon"),
   sortOrder: integer("sort_order").default(0).notNull(),
+  /** Bumped by a trigger whenever a rule in this category changes. */
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const rules = pgTable("rules", {
@@ -261,6 +272,15 @@ export const products = pgTable(
     price: numeric("price").notNull(),
     salePrice: numeric("sale_price"),
     imageUrl: text("image_url"),
+    /** Bullet points shown on the product card, as a JSON string array. */
+    features: jsonb("features").default([]).notNull(),
+    accent: text("accent"),
+    badge: text("badge"),
+    /** Rank family (Hero, VIP…) used to group the ladder on the storefront. */
+    family: text("family"),
+    billing: text("billing"),
+    subcategory: text("subcategory"),
+    sortOrder: integer("sort_order").default(0).notNull(),
     enabled: boolean("enabled").default(true).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

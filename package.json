@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx --env-file=.env src/lib/db/seed.ts",
+    "db:apply": "tsx --env-file=.env scripts/apply-sql.ts",
+    "db:seed:store": "tsx --env-file=.env scripts/seed-store.ts",
+    "db:seed:rules": "tsx --env-file=.env scripts/seed-rules.ts",
     "role:set": "tsx --env-file=.env scripts/set-role.ts"
   },
   "dependencies": {

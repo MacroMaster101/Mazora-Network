@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  BellRing,
   Blocks,
   Bug,
   CalendarDays,
@@ -18,6 +19,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Ticket,
+  UserCog,
   Users,
   UsersRound,
   Vote,
@@ -28,10 +30,13 @@ import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/types";
 import { hasAtLeast } from "@/lib/auth/roles";
 
-const groups: { heading: string; items: { label: string; href: string; icon: typeof Users; minRole: Role }[] }[] = [
+const groups: {
+  heading: string;
+  items: { label: string; href: string; icon: typeof Users; minRole: Role; exact?: boolean }[];
+}[] = [
   {
     heading: "Overview",
-    items: [{ label: "Dashboard", href: "/admin", icon: Gauge, minRole: "helper" }],
+    items: [{ label: "Control room", href: "/admin", icon: Gauge, minRole: "helper", exact: true }],
   },
   {
     heading: "Community",
@@ -77,6 +82,15 @@ const groups: { heading: string; items: { label: string; href: string; icon: typ
       { label: "Audit Logs", href: "/admin/audit-logs", icon: UsersRound, minRole: "it" },
     ],
   },
+  {
+    // The staffer's OWN account — distinct from the community-wide tools above.
+    heading: "My Account",
+    items: [
+      { label: "My Settings", href: "/admin/account", icon: UserCog, minRole: "helper", exact: true },
+      { label: "My Notifications", href: "/admin/account/notifications", icon: BellRing, minRole: "helper" },
+      { label: "My Purchases", href: "/admin/account/purchases", icon: Receipt, minRole: "helper" },
+    ],
+  },
 ];
 
 export function AdminSidebar({ role }: { role: Role }) {
@@ -92,7 +106,7 @@ export function AdminSidebar({ role }: { role: Role }) {
             <p className="mb-1.5 hidden px-3 text-[10px] uppercase tracking-widest text-muted lg:block">{group.heading}</p>
             <div className="flex gap-1 lg:flex-col">
               {group.items.map((item) => {
-                const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+                const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
                 return (
                   <Link
                     key={item.href}

@@ -16,15 +16,14 @@ import {
   CalendarDays,
   ChevronDown,
   LogOut,
-  ShieldCheck,
 } from "lucide-react";
 import type { Session } from "@/lib/auth";
-import { isStaff, roleLabel } from "@/lib/auth/roles";
+import { roleLabel } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
 
 const items = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Minecraft", href: "/dashboard/minecraft", icon: Blocks },
+  { label: "Minecraft · Soon", href: "/dashboard/minecraft", icon: Blocks },
   { label: "Statistics", href: "/dashboard/statistics", icon: Trophy },
   { label: "Voting", href: "/dashboard/votes", icon: Vote },
   { label: "Tickets", href: "/dashboard/tickets", icon: Ticket },
@@ -62,8 +61,17 @@ export function DashboardSidebar({ session }: { session: Session }) {
   return (
     <aside className="dashboard-sidebar lg:sticky lg:top-24 lg:h-fit">
       <div className="dashboard-profile-card glass mb-4 flex items-center gap-3 p-4">
-        <span className="dashboard-profile-avatar grid h-11 w-11 place-items-center rounded-xl bg-accent/15 font-bold text-accent-bright">
+        <span className="dashboard-profile-avatar relative grid h-11 w-11 place-items-center rounded-xl bg-accent/15 font-bold text-accent-bright">
           {session.displayName.slice(0, 2).toUpperCase()}
+          {session.avatarUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- user avatars can be Supabase or Minecraft URLs.
+            <img
+              src={session.avatarUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full rounded-xl object-cover"
+              onError={(event) => { event.currentTarget.hidden = true; }}
+            />
+          )}
         </span>
         <div className="min-w-0">
           <p className="truncate font-semibold">{session.displayName}</p>
@@ -84,14 +92,6 @@ export function DashboardSidebar({ session }: { session: Session }) {
           <ChevronDown className="dashboard-mobile-nav-chevron shrink-0 text-muted transition-transform" size={18} />
         </summary>
         <nav className="grid grid-cols-2 gap-1 border-t border-line/70 p-2">
-          {isStaff(session.role) && (
-            <Link
-              href="/admin"
-              className="col-span-2 flex items-center gap-2.5 rounded-lg border border-gold/30 bg-gold/10 px-3 py-2.5 text-sm font-semibold text-gold transition-colors hover:bg-gold/15"
-            >
-              <ShieldCheck size={16} /> Admin Panel
-            </Link>
-          )}
           {accountLinks}
           <form action="/logout" method="post" className="col-span-2 mt-1 border-t border-line/70 pt-2">
             <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-muted hover:bg-ink/5 hover:text-danger">
@@ -101,14 +101,6 @@ export function DashboardSidebar({ session }: { session: Session }) {
         </nav>
       </details>
       <nav className="hidden gap-1 lg:flex lg:flex-col">
-        {isStaff(session.role) && (
-          <Link
-            href="/admin"
-            className="mb-1 flex shrink-0 items-center gap-2.5 rounded-lg border border-gold/30 bg-gold/10 px-3 py-2 text-sm font-semibold text-gold transition-colors hover:bg-gold/15"
-          >
-            <ShieldCheck size={16} /> Admin Panel
-          </Link>
-        )}
         {accountLinks}
         <form action="/logout" method="post" className="lg:mt-2">
           <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-ink/5 hover:text-danger">

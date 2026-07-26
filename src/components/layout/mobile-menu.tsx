@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, ChevronDown, LayoutDashboard, LogOut, Menu, ShieldCheck, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, LayoutDashboard, LogOut, Menu, X } from "lucide-react";
+import { isStaff, roleDashboardPath } from "@/lib/auth/roles";
 import { primaryNav, site } from "@/lib/site";
 import type { Session } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -33,7 +34,7 @@ export function MobileMenu({ session }: { session: Session | null }) {
     .filter((href) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/")))
     .sort((a, b) => b.length - a.length)[0];
   const active = (href: string) => href === bestMatch;
-  const isAdmin = session && ["administrator", "owner"].includes(session.role);
+  const staff = session ? isStaff(session.role) : false;
 
   return (
     <>
@@ -123,14 +124,15 @@ export function MobileMenu({ session }: { session: Session | null }) {
                 {session && (
                   <div className="mt-5 border-t border-line pt-4">
                     <p className="mb-2 px-3 text-[10px] uppercase tracking-[0.2em] text-muted">Account</p>
-                    <Link href="/dashboard" className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-muted hover:bg-ink/5 hover:text-ink">
+                    <Link
+                      href={staff ? roleDashboardPath(session.role) : "/dashboard"}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold",
+                        staff ? "text-gold hover:bg-gold/10" : "text-muted hover:bg-ink/5 hover:text-ink",
+                      )}
+                    >
                       <LayoutDashboard size={16} /> Dashboard
                     </Link>
-                    {isAdmin && (
-                      <Link href="/admin" className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-gold hover:bg-gold/10">
-                        <ShieldCheck size={16} /> Admin dashboard
-                      </Link>
-                    )}
                   </div>
                 )}
               </nav>

@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, MessagesSquare, MonitorSmartphone, Play, ShieldCheck, UsersRound } from "lucide-react";
-import { CopyIpButton, Reveal, SectionHeader } from "@/components/shared";
+import { ArrowRight, MessagesSquare, MonitorSmartphone, Newspaper, Play, ShieldCheck, UsersRound } from "lucide-react";
+import { CopyIpButton, EmptyState, Reveal, SectionHeader } from "@/components/shared";
 import { NewsBoard } from "@/components/shared/news-board";
 import { getNews } from "@/lib/data/content";
 import { getDiscordStats } from "@/lib/data/discord";
@@ -111,7 +111,16 @@ async function HomeContent() {
             <SectionHeader eyebrow="From the network" title="Latest news & updates." href="/news" action="All news" />
           </Reveal>
           <Reveal className="mt-8">
-            <NewsBoard articles={news} />
+            {news.length > 0 ? (
+              <NewsBoard articles={news} />
+            ) : (
+              <EmptyState
+                icon={<Newspaper size={24} />}
+                title="No articles published yet"
+                message="Updates, patch notes and announcements from the team will show up here."
+                cta={{ label: "Join the Discord", href: "/discord" }}
+              />
+            )}
           </Reveal>
         </section>
 

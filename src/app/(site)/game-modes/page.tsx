@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { Blocks } from "lucide-react";
 import { getGameModes } from "@/lib/data/content";
-import { PageHero, GameModeCard, Reveal } from "@/components/shared";
+import { EmptyState, PageHero, GameModeCard, Reveal } from "@/components/shared";
 
 export const metadata: Metadata = {
   title: "Game Modes",
@@ -14,18 +15,29 @@ export default async function GameModesPage() {
   return (
     <>
       <PageHero
-        eyebrow={`${modes.length} worlds · ${totalPlayers} playing now`}
+        eyebrow={modes.length > 0 ? `${modes.length} worlds · ${totalPlayers} playing now` : "Game modes"}
         title="Pick a world. Make it yours."
-        lead="Six carefully tuned game modes, one shared account. Jump between them freely and carry your rank everywhere."
+        lead="One shared account across every mode. Jump between them freely and carry your rank everywhere."
       />
       <section className="section shell">
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {modes.map((mode, i) => (
-            <Reveal key={mode.slug} delay={i * 0.05}>
-              <GameModeCard mode={mode} />
-            </Reveal>
-          ))}
-        </div>
+        {modes.length > 0 ? (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {modes.map((mode, i) => (
+              <Reveal key={mode.slug} delay={i * 0.05}>
+                <GameModeCard mode={mode} />
+              </Reveal>
+            ))}
+          </div>
+        ) : (
+          <Reveal>
+            <EmptyState
+              icon={<Blocks size={24} />}
+              title="Game modes are being set up"
+              message="Each world will be listed here with its rules, commands and live player count once it is configured."
+              cta={{ label: "How to play", href: "/play" }}
+            />
+          </Reveal>
+        )}
       </section>
     </>
   );
