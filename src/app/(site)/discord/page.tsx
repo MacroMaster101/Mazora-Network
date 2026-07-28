@@ -4,6 +4,7 @@ import { site } from "@/lib/site";
 import { getDiscordStats } from "@/lib/data/discord";
 import { withCommas } from "@/lib/utils";
 import { PageHero, Reveal } from "@/components/shared";
+import { DiscordIcon } from "@/components/shared/icon";
 
 export const metadata: Metadata = {
   title: "Discord",
@@ -33,12 +34,12 @@ export default async function DiscordPage() {
           <div className="pointer-events-none absolute inset-0 opacity-70 [background:radial-gradient(40rem_20rem_at_50%_0%,rgba(88,101,242,0.18),transparent_60%)]" />
           <div className="relative">
             <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#5865F2]/15 text-[#8b94f5]">
-              <MessagesSquare size={30} />
+              <DiscordIcon size={30} />
             </span>
             <h2 className="mx-auto mt-4 max-w-xl text-3xl font-bold">Join {site.name} on Discord</h2>
             <p className="mx-auto mt-2 max-w-md text-muted">Free, instant, and the fastest way to plug into everything happening on the network.</p>
             <a href={site.discord} target="_blank" rel="noreferrer" className="btn btn-primary mt-6">
-              <MessagesSquare size={16} /> Join the Discord
+              <DiscordIcon size={16} /> Join the Discord
             </a>
           </div>
         </Reveal>
