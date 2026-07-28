@@ -1,0 +1,46 @@
+/* Keep the generated world visible through the archive in both theme settings. */
+:root[data-theme="light"] .newsroom-page .newsroom-explorer,
+:root[data-theme="dark"] .newsroom-page .newsroom-explorer {
+  color: rgb(249 247 252);
+  border-color: rgb(216 180 254 / 0.24);
+  background:
+    radial-gradient(48rem 24rem at 50% -8%, rgb(139 92 246 / 0.13), transparent 70%),
+    linear-gradient(155deg, rgb(18 12 30 / 0.9), rgb(8 6 15 / 0.92));
+  box-shadow: 0 38px 100px -44px rgb(0 0 0 / 0.96), inset 0 1px rgb(255 255 255 / 0.06);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-controls .text-muted,
+:root[data-theme="dark"] .newsroom-page .newsroom-controls .text-muted {
+  color: rgb(216 207 229 / 0.72);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-filter,
+:root[data-theme="dark"] .newsroom-page .newsroom-filter {
+  border-color: rgb(216 180 254 / 0.13);
+  color: rgb(216 207 229 / 0.78);
+  background: rgb(255 255 255 / 0.035);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-filter-active,
+:root[data-theme="dark"] .newsroom-page .newsroom-filter-active {
+  border-color: rgb(216 180 254 / 0.52);
+  color: white;
+  background: linear-gradient(180deg, rgb(139 92 246 / 0.34), rgb(91 33 182 / 0.2));
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-search,
+:root[data-theme="dark"] .newsroom-page .newsroom-search {
+  border-color: rgb(216 180 254 / 0.2);
+  color: rgb(216 207 229 / 0.72);
+  background: rgb(5 3 11 / 0.54);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-search input,
+:root[data-theme="dark"] .newsroom-page .newsroom-search input {
+  color: white;
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-search input::placeholder,
+:root[data-theme="dark"] .newsroom-page .newsroom-search input::placeholder {
+  color: rgb(216 207 229 / 0.56);
+}

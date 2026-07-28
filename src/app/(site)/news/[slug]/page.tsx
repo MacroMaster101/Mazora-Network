@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, CalendarDays, Clock3, Radio } from "lucide-react";
 import { getArticle, getNews, getRelatedArticles } from "@/lib/data/content";
+import { getNewsArticleReadCount } from "@/lib/data/news-visitors";
 import { fmtDate } from "@/lib/utils";
-import { CoverArt, NewsCard, Reveal } from "@/components/shared";
-import { TonePill } from "@/components/ui";
+import { ArticleArt, NewsAuthor, NewsCard, Reveal } from "@/components/shared";
+import { NewsVisitorStat } from "@/components/shared/news-visitor-stat";
 import { ShareButtons } from "@/components/shared/share-buttons";
+import "@/styles/news-article-redesign.css";
 
 export async function generateStaticParams() {
   const news = await getNews();
-  return news.map((n) => ({ slug: n.slug }));
+  return news.map((article) => ({ slug: article.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -20,7 +23,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: article.title,
     description: article.excerpt,
-    openGraph: { title: article.title, description: article.excerpt, type: "article", authors: [article.author] },
+    openGraph: {
+      title: article.title,
+      description: article.excerpt,
+      type: "article",
+      authors: [article.author],
+      publishedTime: article.date,
+      ...(article.featuredImage ? { images: [{ url: article.featuredImage }] } : {}),
+    },
   };
 }
 
@@ -28,50 +38,130 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const { slug } = await params;
   const article = await getArticle(slug);
   if (!article) notFound();
-  const related = await getRelatedArticles(article.slug, article.category);
+
+  const [related, articleReadCount] = await Promise.all([
+    getRelatedArticles(article.slug, article.category),
+    getNewsArticleReadCount(article.slug),
+  ]);
 
   return (
-    <article>
-      <CoverArt accent={article.accent} icon="Sparkles" height="h-[14.75rem] sm:h-[17.75rem]" className="article-cover" />
-      <div className="shell -mt-12 max-w-3xl">
-        <div className="glass p-7 sm:p-10">
-          <Link href="/news" className="mb-5 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
-            <ArrowLeft size={15} /> Back to news
-          </Link>
-          <TonePill tone={article.accent}>{article.category}</TonePill>
-          <h1 className="mt-4 text-balance text-3xl font-extrabold sm:text-4xl">{article.title}</h1>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
-            <div className="flex items-center gap-3 text-sm text-muted">
-              <span className="font-semibold text-ink">{article.author}</span>
-              <span className="telemetry">
-                {fmtDate(article.date)} · {article.readMinutes} min read
-              </span>
-            </div>
-            <ShareButtons title={article.title} />
+    <article className="news-article-page">
+      <header className="news-detail-hero">
+        <div className="news-detail-hero-backdrop" aria-hidden="true" />
+        <div className="shell news-detail-hero-shell">
+          <div className="news-detail-topline">
+            <Link href="/news" className="news-detail-back">
+              <ArrowLeft size={15} /> Back to news
+            </Link>
+            <div className="news-detail-live"><Radio size={13} /> Mazora dispatch</div>
           </div>
 
-          <div className="prose-invert mt-6 space-y-5">
-            {article.body.map((para, i) => (
-              <p key={i} className="text-pretty leading-relaxed text-muted">
-                {para}
-              </p>
-            ))}
+          <div className="news-detail-mast">
+            <div className="newsroom-mast-stat newsroom-mast-stat-left news-detail-read-stat">
+              <span className="newsroom-stat-label">
+                <Clock3 size={16} aria-hidden="true" />
+                <small>Reading time</small>
+              </span>
+              <strong>{article.readMinutes}</strong>
+              <em>min</em>
+            </div>
+
+            <div className="news-detail-brand">
+              <span className="news-detail-brand-aura" aria-hidden="true" />
+              <Image
+                src="/images/mazora-logo.webp"
+                alt="Mazora Network"
+                width={300}
+                height={200}
+                priority
+                className="news-detail-logo animate-float"
+              />
+            </div>
+
+            <NewsVisitorStat initialCount={articleReadCount} articleSlug={article.slug} />
+          </div>
+
+          <div className="news-detail-intro">
+            <div className="news-detail-kicker-row">
+              <span className="news-detail-kicker">{article.category}</span>
+              <span>{fmtDate(article.date)}</span>
+            </div>
+            <h1>{article.title}</h1>
+            {article.excerpt && <p>{article.excerpt}</p>}
+            <div className="news-detail-meta">
+              <NewsAuthor article={article} compact />
+              <span><CalendarDays size={15} /> {fmtDate(article.date)}</span>
+              <ShareButtons />
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {related.length > 0 && (
-        <section className="section shell">
-          <Reveal>
-            <h2 className="text-2xl font-bold">Related reading</h2>
-            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {related.map((r) => (
-                <NewsCard key={r.slug} article={r} />
+      <div className="news-detail-world">
+        <div className="shell news-detail-feature-wrap">
+          <ArticleArt
+            article={article}
+            height="aspect-[16/9] min-h-[13rem] sm:min-h-[20rem]"
+            sizes="(max-width: 1200px) 100vw, 1152px"
+            priority
+            fit="cover"
+            className="news-detail-feature-art"
+          />
+        </div>
+
+        <div className="shell news-detail-content">
+          <main className="news-detail-reading">
+            <div className="news-detail-reading-label">From the newsroom</div>
+            <div className="news-article-body">
+              {article.body.map((paragraph, index) => (
+                <p key={index} className={index === 0 ? "news-article-lead" : undefined}>{paragraph}</p>
               ))}
             </div>
-          </Reveal>
-        </section>
-      )}
+          </main>
+
+          <aside className="news-detail-aside">
+            <div className="news-detail-aside-card">
+              <span className="news-detail-aside-eyebrow">Story details</span>
+              <div className="news-detail-publisher-card">
+                <span className="news-detail-publisher-label"><BadgeCheck size={13} /> Publisher</span>
+                <NewsAuthor article={article} />
+                <p>
+                  {article.publisherMode === "team"
+                    ? "Official news published by the Mazora Network newsroom."
+                    : "Published by an authenticated member of the Mazora team."}
+                </p>
+              </div>
+              <dl>
+                <div><dt>Published</dt><dd>{fmtDate(article.date)}</dd></div>
+                <div><dt>Category</dt><dd>{article.category}</dd></div>
+                <div><dt>Reading time</dt><dd>{article.readMinutes} min</dd></div>
+              </dl>
+              <Link href="/news" className="news-detail-archive-link">
+                Explore all news <ArrowRight size={15} />
+              </Link>
+            </div>
+          </aside>
+        </div>
+
+        {related.length > 0 && (
+          <section className="shell news-detail-related">
+            <Reveal>
+              <div className="news-detail-related-head">
+                <div>
+                  <div className="news-detail-reading-label">Continue exploring</div>
+                  <h2>More from the newsroom</h2>
+                </div>
+                <Link href="/news" className="news-detail-archive-link">
+                  All news <ArrowRight size={15} />
+                </Link>
+              </div>
+              <div className="news-detail-related-grid">
+                {related.map((story) => <NewsCard key={story.slug} article={story} />)}
+              </div>
+            </Reveal>
+          </section>
+        )}
+      </div>
     </article>
   );
 }

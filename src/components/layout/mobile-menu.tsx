@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, ChevronDown, LayoutDashboard, LogOut, Menu, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Home, LayoutDashboard, LogOut, Menu, X } from "lucide-react";
 import { isStaff, roleDashboardPath } from "@/lib/auth/roles";
 import { primaryNav, site } from "@/lib/site";
 import type { Session } from "@/lib/auth";
@@ -13,10 +13,26 @@ import { cn } from "@/lib/utils";
 import { NavIcon } from "./nav-icon";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
 
-export function MobileMenu({ session }: { session: Session | null }) {
+export interface DrawerNavGroup {
+  heading: string;
+  items: { label: string; href: string; exact: boolean }[];
+}
+
+export function MobileMenu({
+  session,
+  adminNav = null,
+}: {
+  session: Session | null;
+  adminNav?: DrawerNavGroup[] | null;
+}) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const pathname = usePathname();
+
+  // Inside the staff area the drawer becomes the admin menu: on small screens
+  // this replaces the horizontally-scrolling sidebar rather than sitting beside it.
+  const inAdmin = pathname.startsWith("/admin");
+  const showAdminNav = inAdmin && Boolean(adminNav?.length);
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
@@ -57,8 +73,10 @@ export function MobileMenu({ session }: { session: Session | null }) {
             <aside className="mobile-menu-panel absolute right-0 top-0 flex h-dvh w-[min(88vw,390px)] flex-col border-l border-line-strong bg-surface shadow-2xl">
               <div className="flex items-center justify-between border-b border-line px-5 py-4">
                 <div>
-                  <p className="eyebrow">Mazora Network</p>
-                  <p className="mt-1 font-display text-lg font-extrabold">Explore the world</p>
+                  <p className="eyebrow">{showAdminNav ? "Staff area" : "Mazora Network"}</p>
+                  <p className="mt-1 font-display text-lg font-extrabold">
+                    {showAdminNav ? "Control room" : "Explore the world"}
+                  </p>
                 </div>
                 <button onClick={() => setOpen(false)} aria-label="Close menu" className="grid h-10 w-10 place-items-center rounded-xl border border-line-strong text-muted hover:text-ink">
                   <X size={19} />
@@ -66,6 +84,47 @@ export function MobileMenu({ session }: { session: Session | null }) {
               </div>
 
               <nav className="flex-1 overflow-y-auto p-4" aria-label="Mobile primary">
+                {showAdminNav ? (
+                  <div className="grid gap-4">
+                    {/* One way back to the public site, so the staff menu does not
+                        need to carry a second copy of the site navigation. */}
+                    <Link
+                      href="/"
+                      className="flex items-center gap-3 rounded-xl border border-line-strong bg-ink/5 px-4 py-3 text-sm font-semibold text-muted transition-colors hover:border-accent/45 hover:text-ink"
+                    >
+                      <span className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-ink/5 text-accent-bright">
+                        <Home size={15} />
+                      </span>
+                      Back to site
+                    </Link>
+
+                    {adminNav!.map((group) => (
+                      <div key={group.heading}>
+                        <p className="mb-1.5 px-3 text-[10px] uppercase tracking-[0.2em] text-muted">{group.heading}</p>
+                        <div className="grid gap-1">
+                          {group.items.map((item) => {
+                            const current = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+                            return (
+                              <Link
+                                key={item.href}
+                                href={item.href}
+                                aria-current={current ? "page" : undefined}
+                                className={cn(
+                                  "rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
+                                  current
+                                    ? "bg-gold/10 text-gold"
+                                    : "text-muted hover:bg-ink/5 hover:text-ink",
+                                )}
+                              >
+                                {item.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
                 <div className="grid gap-1.5">
                   {primaryNav.map((item) =>
                     item.children ? (
@@ -120,8 +179,9 @@ export function MobileMenu({ session }: { session: Session | null }) {
                     ),
                   )}
                 </div>
+                )}
 
-                {session && (
+                {session && !showAdminNav && (
                   <div className="mt-5 border-t border-line pt-4">
                     <p className="mb-2 px-3 text-[10px] uppercase tracking-[0.2em] text-muted">Account</p>
                     <Link

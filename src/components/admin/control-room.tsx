@@ -168,7 +168,13 @@ export function Board({
  * A queue that has no database behind it yet. Deliberately not a "0" — it says
  * what is true: the page exists, the data pipe does not.
  */
-export function StandbyQueue({ items }: { items: { label: string; href: string; icon: ReactNode }[] }) {
+export function StandbyQueue({
+  items,
+  showDiagnostics = false,
+}: {
+  items: { label: string; href: string; icon: ReactNode }[];
+  showDiagnostics?: boolean;
+}) {
   return (
     <div className="grid gap-2 p-3 sm:grid-cols-2">
       {items.map((item) => (
@@ -178,7 +184,9 @@ export function StandbyQueue({ items }: { items: { label: string; href: string; 
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold">{item.label}</span>
-            <span className="block text-[0.68rem] text-muted">Awaiting database</span>
+            <span className="block text-[0.68rem] text-muted">
+              {showDiagnostics ? "Awaiting database" : "Coming soon"}
+            </span>
           </span>
           <ArrowUpRight size={14} className="shrink-0 text-muted" />
         </Link>

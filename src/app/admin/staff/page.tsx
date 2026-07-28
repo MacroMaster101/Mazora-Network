@@ -24,7 +24,7 @@ export default async function AdminStaffPage() {
         title="Staff"
         subtitle={`${staff.length} team members`}
         action={
-          <button className="btn btn-primary btn-sm opacity-60" disabled title="Enabled with the database">
+          <button className="btn btn-primary btn-sm opacity-60" disabled title="Coming soon">
             <Plus size={15} /> Add staff
           </button>
         }

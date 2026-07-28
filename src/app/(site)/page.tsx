@@ -10,13 +10,15 @@ import { getServerStatus } from "@/lib/data/status";
 import { site } from "@/lib/site";
 import { withCommas } from "@/lib/utils";
 import { RouteLoading } from "@/components/shared/route-loading";
+import { getPreviewNews } from "@/lib/news/preview-fixtures";
 
-async function HomeContent() {
-  const [status, discord, news] = await Promise.all([
+async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean; previewEmpty: boolean }) {
+  const [status, discord, publishedNews] = await Promise.all([
     getServerStatus(),
     getDiscordStats(),
     getNews(),
   ]);
+  const news = previewEmpty ? [] : previewNews ? getPreviewNews() : publishedNews;
 
   return (
     <>
@@ -108,13 +110,14 @@ async function HomeContent() {
       <div className="home-world">
         <section className="home-section home-section-base home-news-band section shell pt-14 sm:pt-16">
           <Reveal className="home-section-heading">
-            <SectionHeader eyebrow="From the network" title="Latest news & updates." href="/news" action="All news" />
+            <SectionHeader eyebrow="From the network" title="Latest news & updates." />
           </Reveal>
           <Reveal className="mt-8">
             {news.length > 0 ? (
               <NewsBoard articles={news} />
             ) : (
               <EmptyState
+                className="news-empty-state"
                 icon={<Newspaper size={24} />}
                 title="No articles published yet"
                 message="Updates, patch notes and announcements from the team will show up here."
@@ -177,10 +180,17 @@ async function HomeContent() {
     </>
   );
 }
-export default function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ previewNews?: string }>;
+}) {
+  const previewValue = (await searchParams).previewNews;
+  const previewNews = process.env.NODE_ENV === "development" && previewValue === "15";
+  const previewEmpty = process.env.NODE_ENV === "development" && previewValue === "0";
   return (
     <Suspense fallback={<RouteLoading />}>
-      <HomeContent />
+      <HomeContent previewNews={previewNews} previewEmpty={previewEmpty} />
     </Suspense>
   );
 }
