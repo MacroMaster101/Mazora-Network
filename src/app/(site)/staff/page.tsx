@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, Crown, Gavel, Handshake, Shield, UsersRound } from "lucide-react";
-import { MinecraftAvatar, PageHero, Reveal } from "@/components/shared";
+import { BadgeCheck, Crown, Gavel, Handshake, Shield, Sparkles, UsersRound } from "lucide-react";
+import { MinecraftAvatar, Reveal } from "@/components/shared";
 
 export const metadata: Metadata = {
   title: "Our Team",
@@ -32,7 +32,6 @@ const moderators: TeamMember[] = [
 const helpers: TeamMember[] = [
   { username: "NimA391", role: "Helper", tier: "helper" },
   { username: "RASTHA125", role: "Helper", tier: "helper" },
-  { username: "SHASHIYA", role: "Helper", tier: "helper" },
   { username: "Chandiya", role: "Helper", tier: "helper" },
   { username: "RUSHER", role: "Helper", tier: "helper" },
 ];
@@ -78,13 +77,50 @@ function FlowConnector({ className = "" }: { className?: string }) {
 export default function StaffPage() {
   return (
     <>
-      <PageHero
-        eyebrow="Our Team"
-        title="The people behind Mazora."
-        lead="One connected team building the worlds, systems, and community that keep the network moving forward."
-      />
+      <section className="page-hero pb-6 pt-10 sm:pb-8 sm:pt-14">
+        <div className="page-hero-atmosphere" aria-hidden="true" />
+        <div className="page-hero-inner shell max-w-5xl">
+          <p className="eyebrow mb-2">Our Team</p>
+          <h1 className="text-3xl font-extrabold sm:text-4xl lg:text-5xl">Meet the Mazora Team</h1>
+          
+          <div className="mt-6 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-border/60 bg-card/60 p-5 backdrop-blur-md shadow-sm transition-all hover:border-accent/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent/15 text-accent-bright">
+                    <Sparkles size={16} />
+                  </span>
+                  <h3 className="font-display text-sm font-bold text-ink">Our Mission</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-ink/80">
+                  Behind every adventure, update, and experience on Mazora is a dedicated team working to keep the network alive. From managing the server and creating content to supporting players and maintaining a friendly community, our staff team is here to make your journey the best it can be.
+                </p>
+              </div>
 
-      <section className="team-org-section section shell">
+              <div className="rounded-2xl border border-border/60 bg-card/60 p-5 backdrop-blur-md shadow-sm transition-all hover:border-accent/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent/15 text-accent-bright">
+                    <Shield size={16} />
+                  </span>
+                  <h3 className="font-display text-sm font-bold text-ink">Structured Hierarchy</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-ink/80">
+                  Our team follows a structured hierarchy, with each role carrying unique responsibilities and helping Mazora grow. Whether it&apos;s developing new features, organizing events, assisting players, or keeping the server safe and fair, every member plays an important part.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4 text-center backdrop-blur-md shadow-sm">
+              <p className="font-display text-sm font-bold text-accent-bright flex items-center justify-center gap-2">
+                <UsersRound size={16} />
+                Meet the people who bring Mazora to life and help shape the future of our community!
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="team-org-section shell pb-20 pt-4">
         <Reveal>
           <div className="team-org-heading">
             <div>
@@ -145,14 +181,13 @@ export default function StaffPage() {
               <span className="team-merge-stem" />
             </div>
 
-            <div className="team-branch team-branch-five" aria-hidden>
+            <div className="team-branch team-branch-four" aria-hidden>
               <span className="team-branch-stem" />
               <span className="team-branch-rail" />
               <span className="team-branch-drop team-branch-drop-1" />
               <span className="team-branch-drop team-branch-drop-2" />
               <span className="team-branch-drop team-branch-drop-3" />
               <span className="team-branch-drop team-branch-drop-4" />
-              <span className="team-branch-drop team-branch-drop-5" />
             </div>
 
             <div className="team-tier team-tier-helpers">
