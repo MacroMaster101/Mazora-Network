@@ -15,10 +15,8 @@ export const site = {
   discord: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt",
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://mazora.us",
   socials: [
-    { label: "Discord", href: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt", icon: "MessagesSquare" },
-    { label: "YouTube", href: "https://youtube.com", icon: "Youtube" },
-    { label: "X / Twitter", href: "https://x.com", icon: "Twitter" },
-    { label: "TikTok", href: "https://tiktok.com", icon: "Music2" },
+    { label: "Discord", href: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt", icon: "Discord" },
+    { label: "TikTok", href: "https://www.tiktok.com/@mazoramc?_r=1&_t=ZS-98Q2DRMhZZa", icon: "TikTok" },
   ],
 } as const;
 
