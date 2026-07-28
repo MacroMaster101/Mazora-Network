@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import type { ZodTypeAny } from "zod";
 import {
@@ -8,13 +9,17 @@ import {
   AtSign,
   BadgeCheck,
   Check,
+  ExternalLink,
   Eye,
   EyeOff,
+  FileText,
   KeyRound,
   Loader2,
   LockKeyhole,
   Send,
+  ShieldCheck,
   UserRound,
+  X,
 } from "lucide-react";
 import {
   confirmEmailAction,
@@ -313,10 +318,145 @@ export function LoginForm({ next }: { next?: string }) {
   );
 }
 
+function LegalPreviewModal({
+  type,
+  onClose,
+}: {
+  type: "rules" | "terms";
+  onClose: () => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+  const isRules = type === "rules";
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-xl max-h-[85vh] flex flex-col rounded-2xl border border-white/15 bg-[#120a21] text-white shadow-2xl overflow-hidden animate-scale-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 bg-white/5">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent/20 text-accent-bright">
+              {isRules ? <ShieldCheck size={18} /> : <FileText size={18} />}
+            </span>
+            <h3 className="font-display text-lg font-bold">
+              {isRules ? "Community Rules Preview" : "Terms of Service Preview"}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-8 w-8 place-items-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+            aria-label="Close preview"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 text-sm leading-relaxed text-white/80">
+          {isRules ? (
+            <>
+              <p className="text-white/60 text-xs">
+                Our rules keep the network fair, friendly, and fun for everyone.
+              </p>
+              <div className="space-y-3">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <h4 className="font-bold text-white mb-1">1. Respect & Courtesy</h4>
+                  <p className="text-xs text-white/70">
+                    No harassment, hate speech, toxicity, or personal attacks across server chat, Discord, or forums.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <h4 className="font-bold text-white mb-1">2. Fair Play & Anti-Cheat</h4>
+                  <p className="text-xs text-white/70">
+                    Hacked clients, X-Ray, macros, auto-clickers, and bug exploitation are strictly prohibited.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <h4 className="font-bold text-white mb-1">3. Chat & Advertising</h4>
+                  <p className="text-xs text-white/70">
+                    No spamming, advertising external servers, or sharing unsafe/malicious links.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <h4 className="font-bold text-white mb-1">4. Account & Trading</h4>
+                  <p className="text-xs text-white/70">
+                    Real-money trading (RMT) outside the official Mazora store is forbidden. Keep account details secure.
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-white/60 text-xs">
+                By using Mazora Network, you agree to these fundamental terms.
+              </p>
+              <div className="space-y-3">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <h4 className="font-bold text-white mb-1">1. Acceptance of Terms</h4>
+                  <p className="text-xs text-white/70">
+                    By registering or accessing Mazora services, you agree to comply with our Terms & Community Rules.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <h4 className="font-bold text-white mb-1">2. Account Responsibility</h4>
+                  <p className="text-xs text-white/70">
+                    You are solely responsible for activities on your account. Keep passwords and tokens confidential.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <h4 className="font-bold text-white mb-1">3. Virtual Items & Purchases</h4>
+                  <p className="text-xs text-white/70">
+                    All store purchases are final digital licenses. Chargebacks or fraud lead to permanent account suspension.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <h4 className="font-bold text-white mb-1">4. Service Availability & Resets</h4>
+                  <p className="text-xs text-white/70">
+                    Mazora reserves the right to perform network maintenance, seasonal resets, or updates as necessary.
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-white/10 px-6 py-4 bg-white/5">
+          <Link
+            href={isRules ? "/rules" : "/terms"}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-accent-bright hover:underline flex items-center gap-1"
+          >
+            Open full {isRules ? "Rulebook" : "Terms"} in new tab <ExternalLink size={12} />
+          </Link>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-primary text-xs py-1.5 px-4"
+          >
+            Understand & Close
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function RegisterForm({ onRegistered }: { onRegistered: (email: string) => void }) {
   const [state, action, pending] = useActionState(registerAction, initial);
   const [passwordValue, setPasswordValue] = useState("");
   const [email, setEmail] = useState("");
+  const [previewType, setPreviewType] = useState<"rules" | "terms" | null>(null);
   const validation = useClientValidation(registerSchema, state);
   const usernameError = validation.errorFor("username");
   const emailError = validation.errorFor("email");
@@ -329,6 +469,12 @@ export function RegisterForm({ onRegistered }: { onRegistered: (email: string) =
     // Only fire once the server confirms success — not on every keystroke.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.ok]);
+
+  const handleOpenPreview = (e: React.MouseEvent, type: "rules" | "terms") => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPreviewType(type);
+  };
 
   return (
     <div className="auth-form-stack auth-register-stack">
@@ -359,7 +505,26 @@ export function RegisterForm({ onRegistered }: { onRegistered: (email: string) =
         <label className="auth-terms auth-register-terms">
           <input type="checkbox" name="terms" required aria-invalid={Boolean(termsError)} aria-describedby={termsError ? "terms-error" : undefined} />
           <span>
-            I agree to the <Link href="/rules">community rules</Link> and <Link href="/terms">terms of service</Link>.
+            I agree to the{" "}
+            <a
+              href="/rules"
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => handleOpenPreview(e, "rules")}
+              className="text-accent-bright hover:underline cursor-pointer"
+            >
+              community rules
+            </a>{" "}
+            and{" "}
+            <a
+              href="/terms"
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => handleOpenPreview(e, "terms")}
+              className="text-accent-bright hover:underline cursor-pointer"
+            >
+              terms of service
+            </a>.
             {termsError && <small id="terms-error" role="alert">{termsError}</small>}
           </span>
         </label>
@@ -379,6 +544,10 @@ export function RegisterForm({ onRegistered }: { onRegistered: (email: string) =
         <span>Already have an account?</span>
         <AuthFlowLink view="login" href="/login">Log in</AuthFlowLink>
       </p>
+
+      {previewType && (
+        <LegalPreviewModal type={previewType} onClose={() => setPreviewType(null)} />
+      )}
     </div>
   );
 }
