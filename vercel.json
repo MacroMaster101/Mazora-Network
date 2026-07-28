@@ -2,7 +2,8 @@
   "crons": [
     {
       "path": "/api/cron/discord-news",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
+
