@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Clock3, Home, MessagesSquare, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Clock3, Home, ShieldCheck } from "lucide-react";
 import { getLaunchGate } from "@/lib/launch";
 import { site } from "@/lib/site";
+import { DiscordIcon } from "@/components/shared/icon";
 
 export const metadata: Metadata = {
   title: "Coming Soon",
@@ -15,18 +16,19 @@ export default async function LaunchStatusPage({
 }: {
   searchParams: Promise<{ from?: string }>;
 }) {
-  const { from = "/" } = await searchParams;
+  const from = (await searchParams).from ?? "/";
   const gate = getLaunchGate(from);
-  const accountRoute = from.startsWith("/dashboard");
+  const accountRoute = from.startsWith("/dashboard") || from.startsWith("/admin");
 
   return (
-    <section className="launch-status-page shell">
+    <div className="launch-status-page">
       <div className="launch-status-card">
-        <div className="launch-status-glow" aria-hidden="true" />
+        <div className="launch-status-icon-wrap" aria-hidden="true">
+          <Clock3 size={28} />
+        </div>
         <div className="launch-status-content">
-          <span className="launch-status-icon"><Clock3 size={28} /></span>
-          <p className="eyebrow">{gate?.eyebrow ?? "Mazora launch"}</p>
-          <h1>{gate?.title ?? "This feature is coming soon."}</h1>
+          <p className="launch-status-eyebrow">{gate?.eyebrow ?? "Feature update in progress"}</p>
+          <h1 className="launch-status-title">{gate?.title ?? "This page is temporarily reserved."}</h1>
           <p className="launch-status-message">
             {gate?.message ?? "We are completing final checks before making this available to everyone."}
           </p>
@@ -37,12 +39,12 @@ export default async function LaunchStatusPage({
               {accountRoute ? "Back to dashboard" : "Back home"}
             </Link>
             <a href={site.discord} target="_blank" rel="noreferrer" className="btn btn-ghost">
-              <MessagesSquare size={16} /> Get updates on Discord
+              <DiscordIcon size={16} /> Get updates on Discord
             </a>
           </div>
           <p className="launch-status-note">No action is required. Existing accounts and progress are not affected.</p>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

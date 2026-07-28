@@ -1,8 +1,9 @@
 import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, MessagesSquare, MonitorSmartphone, Newspaper, Play, ShieldCheck, UsersRound } from "lucide-react";
+import { ArrowRight, MonitorSmartphone, Newspaper, Play, ShieldCheck, UsersRound } from "lucide-react";
 import { CopyIpButton, EmptyState, Reveal, SectionHeader } from "@/components/shared";
+import { DiscordIcon } from "@/components/shared/icon";
 import { NewsBoard } from "@/components/shared/news-board";
 import { getNews } from "@/lib/data/content";
 import { getDiscordStats } from "@/lib/data/discord";
@@ -74,7 +75,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
             <div className="order-3 animate-fade-up" style={{ animationDelay: "120ms" }}>
               <a href={site.discord} target="_blank" rel="noreferrer" className="hero-stat hero-stat-right group mx-auto max-w-[360px] lg:ml-0 lg:mr-auto">
                 <div className="hero-stat-icon">
-                  <MessagesSquare size={18} />
+                  <DiscordIcon size={18} />
                 </div>
                 <div className="min-w-0 text-left">
                   <p className="font-display text-base font-extrabold sm:text-lg xl:text-xl">
@@ -98,7 +99,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
               </Link>
               <CopyIpButton ip={site.javaIp} label="Copy IP" className="hero-action-secondary" />
               <a href={site.discord} target="_blank" rel="noreferrer" className="hero-cta hero-cta-quiet">
-                <MessagesSquare size={16} /> Discord
+                <DiscordIcon size={16} /> Discord
               </a>
             </div>
           </div>
@@ -146,7 +147,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                   <CopyIpButton ip={site.javaIp} label="Copy server IP" />
                   <Link href="/game-modes" className="btn btn-ghost">Explore worlds</Link>
                   <a href={site.discord} target="_blank" rel="noreferrer" className="btn btn-ghost col-span-2 sm:col-auto">
-                    <MessagesSquare size={16} /> Discord
+                    <DiscordIcon size={16} /> Discord
                   </a>
                 </div>
               </div>
