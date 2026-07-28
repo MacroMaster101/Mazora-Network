@@ -1,4 +1,6 @@
-import { getSession } from "@/lib/auth";
+import { getSession, getSessionUserId, isStaff } from "@/lib/auth";
+import { canManageNews } from "@/lib/auth/permissions";
+import { visibleAdminNav } from "@/lib/admin-nav";
 import { Logo } from "./logo";
 import { NavLinks } from "./nav-links";
 import { HeaderActions } from "./header-actions";
@@ -9,6 +11,19 @@ import { CartTrigger } from "@/components/shared/cart-trigger";
 
 export async function SiteHeader({ world = false }: { world?: boolean }) {
   const session = await getSession();
+
+  // Staff get their admin sections inside the drawer, so small screens have one
+  // menu instead of a site menu plus a scrolling strip of admin links.
+  const adminNav =
+    session && isStaff(session.role)
+      ? visibleAdminNav(session.role, { canManageNews: await canManageNews(session, await getSessionUserId()) }).map(
+          (group) => ({
+            heading: group.heading,
+            items: group.items.map((item) => ({ label: item.label, href: item.href, exact: item.exact ?? false })),
+          }),
+        )
+      : null;
+
   return (
     <ScrollHeader world={world}>
       <div className="header-shell shell grid h-[4.75rem] grid-cols-[1fr_auto] items-center gap-3 min-[1280px]:grid-cols-[1fr_auto_1fr]">
@@ -31,7 +46,7 @@ export async function SiteHeader({ world = false }: { world?: boolean }) {
         </div>
         <div className="col-start-2 row-start-1 flex items-center gap-2 justify-self-end min-[1280px]:hidden">
           <CartTrigger compact className="header-cart-trigger" />
-          <MobileMenu session={session} />
+          <MobileMenu session={session} adminNav={adminNav} />
         </div>
       </div>
     </ScrollHeader>

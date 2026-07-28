@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 /**
  * Public-facing empty state. Used wherever a section has no real content yet —
@@ -10,14 +11,16 @@ export function EmptyState({
   title,
   message,
   cta,
+  className,
 }: {
   icon?: ReactNode;
   title: string;
   message: string;
   cta?: { label: string; href: string };
+  className?: string;
 }) {
   return (
-    <div className="glass flex flex-col items-center px-6 py-16 text-center">
+    <div className={cn("glass flex flex-col items-center px-6 py-16 text-center", className)}>
       {icon && (
         <span className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-line-strong bg-ink/5 text-muted">
           {icon}

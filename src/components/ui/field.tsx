@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import type { ComponentPropsWithRef, ComponentPropsWithoutRef, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function Label({ htmlFor, children, hint }: { htmlFor?: string; children: ReactNode; hint?: string }) {
@@ -18,7 +18,9 @@ export function Textarea({ className, ...props }: ComponentPropsWithoutRef<"text
   return <textarea className={cn("field", className)} {...props} />;
 }
 
-export function Select({ className, children, ...props }: ComponentPropsWithoutRef<"select">) {
+/** Takes a ref (React 19 passes it as a plain prop) so callers can read or
+ *  re-assert the DOM value — a form action reset otherwise leaves it stale. */
+export function Select({ className, children, ...props }: ComponentPropsWithRef<"select">) {
   return (
     <select className={cn("field appearance-none pr-9", className)} {...props}>
       {children}
