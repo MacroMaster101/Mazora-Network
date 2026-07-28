@@ -45,6 +45,7 @@ export default async function ControlRoom() {
   if (!isStaff(session.role)) redirect("/");
 
   const role = session.role;
+  const showDiagnostics = role === "it";
   const canModerate = hasAtLeast(role, "moderator");
   const canManageContent = hasAtLeast(role, "administrator");
   const canSeeAccounts = hasAtLeast(role, "owner");
@@ -109,13 +110,14 @@ export default async function ControlRoom() {
         <Board
           title="Your queues"
           icon={<Ticket size={13} />}
-          tag="Standby"
+          tag={showDiagnostics ? "Standby" : "Coming soon"}
           className={!canModerate ? "xl:col-span-2" : undefined}
         >
-          <StandbyQueue items={QUEUES} />
+          <StandbyQueue items={QUEUES} showDiagnostics={showDiagnostics} />
           <p className="border-t border-line px-4 py-3 text-xs text-muted">
-            Submissions are not stored yet. These open once the support tables are connected — until then the
-            queues are empty by design, not because there is nothing waiting.
+            {showDiagnostics
+              ? "Submissions are not stored yet. These open once the support tables are connected — until then the queues are empty by design, not because there is nothing waiting."
+              : "These staff queues are coming soon. They will appear here as each workflow becomes available."}
           </p>
         </Board>
 
@@ -125,7 +127,7 @@ export default async function ControlRoom() {
             icon={<Radio size={13} />}
             href="/admin/players"
             linkLabel="All players"
-            tag={onlinePlayers.length > 0 ? undefined : "Standby"}
+            tag={onlinePlayers.length > 0 ? undefined : showDiagnostics ? "Standby" : "Coming soon"}
           >
             {onlinePlayers.length > 0 ? (
               <div>
@@ -146,7 +148,9 @@ export default async function ControlRoom() {
               </div>
             ) : (
               <BoardNotice>
-                Player profiles and statistics arrive with the Minecraft server integration.
+                {showDiagnostics
+                  ? "Player profiles and statistics arrive with the Minecraft server integration."
+                  : "The live player roster is coming soon."}
               </BoardNotice>
             )}
           </Board>
@@ -184,7 +188,11 @@ export default async function ControlRoom() {
               </>
             ) : (
               <BoardNotice>
-                Account data needs <code className="text-ink">SUPABASE_SERVICE_ROLE_KEY</code> on the server.
+                {showDiagnostics ? (
+                  <>Account data needs <code className="text-ink">SUPABASE_SERVICE_ROLE_KEY</code> on the server.</>
+                ) : (
+                  "Account insights are temporarily unavailable."
+                )}
               </BoardNotice>
             )}
           </Board>
@@ -226,20 +234,20 @@ export default async function ControlRoom() {
               <Metric
                 label="Store products"
                 value={String(products.length)}
-                detail="live in the database"
+                detail={showDiagnostics ? "live in the database" : "available products"}
                 live={products.length > 0}
               />
               <Metric
                 label="Published news"
                 value={news.length > 0 ? String(news.length) : "—"}
                 detail={news.length > 0 ? "articles live" : "nothing published"}
-                tag={news.length > 0 ? undefined : "Standby"}
+                tag={news.length > 0 ? undefined : showDiagnostics ? "Standby" : "Coming soon"}
               />
               <Metric
                 label="Active events"
                 value={liveEvents > 0 ? String(liveEvents) : "—"}
                 detail={events.length > 0 ? `${events.length} total` : "none scheduled"}
-                tag={events.length > 0 ? undefined : "Standby"}
+                tag={events.length > 0 ? undefined : showDiagnostics ? "Standby" : "Coming soon"}
               />
             </div>
           </Board>
@@ -247,8 +255,9 @@ export default async function ControlRoom() {
       </div>
 
       <p className="mt-4 flex items-center gap-2 text-xs text-muted">
-        <Activity size={13} /> Bracketed figures are live. Anything marked “Standby” has no data source connected
-        yet — it is blank because nothing is being recorded, not because the count is zero.
+        <Activity size={13} /> {showDiagnostics
+          ? "Bracketed figures are live. Anything marked “Standby” has no data source connected yet — it is blank because nothing is being recorded, not because the count is zero."
+          : "Live figures update automatically. Tools marked “Coming soon” will appear as they become ready for staff."}
       </p>
     </div>
   );
