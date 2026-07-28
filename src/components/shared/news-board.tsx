@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Clock } from "lucide-react";
+import { ArrowRight, Clock } from "lucide-react";
 import type { NewsArticle } from "@/lib/types";
+import { ArticleArt } from "./article-art";
 import { CoverArt } from "./cover-art";
-import { MinecraftAvatar } from "./minecraft-avatar";
+import { NewsAuthor } from "./news-author";
 import { TonePill } from "@/components/ui";
-import { cn, fmtDate } from "@/lib/utils";
+import { fmtDate } from "@/lib/utils";
 
 const categoryIcon: Record<string, string> = {
   "Server Updates": "Sparkles",
@@ -19,12 +19,6 @@ const categoryIcon: Record<string, string> = {
   "Development Updates": "Cpu",
 };
 
-/** Derive a short avatar handle from a free-form author name. */
-function handle(author: string) {
-  const cleaned = author.replace(/\(.*?\)/g, "").replace(/^the\s+/i, "").trim();
-  return cleaned.split(/\s+/)[0] || author;
-}
-
 function ReadPill({ minutes }: { minutes: number }) {
   return (
     <span className="chip shrink-0 gap-1.5">
@@ -35,28 +29,33 @@ function ReadPill({ minutes }: { minutes: number }) {
 
 function AuthorRow({ article }: { article: NewsArticle }) {
   return (
-    <div className="flex min-w-0 items-center gap-2.5">
-      <MinecraftAvatar username={handle(article.author)} size={34} rounded="rounded-md" />
-      <div className="min-w-0 leading-tight">
-        <p className="truncate text-sm font-semibold text-accent-bright">{article.author}</p>
-        <p className="telemetry text-xs text-muted">{fmtDate(article.date)}</p>
-      </div>
+    <div className="flex min-w-0 items-center gap-3">
+      <NewsAuthor article={article} compact />
+      <span className="telemetry shrink-0 text-xs text-muted">{fmtDate(article.date)}</span>
     </div>
   );
 }
 
+/** The article's artwork, falling back to the category's generated cover. */
+function CardArt({ article, height, sizes }: { article: NewsArticle; height: string; sizes: string }) {
+  if (!article.featuredImage) {
+    return <CoverArt accent={article.accent} icon={categoryIcon[article.category] ?? "Sparkles"} height={height} />;
+  }
+  return <ArticleArt article={article} height={height} sizes={sizes} hoverZoom />;
+}
+
 function FeaturedCard({ article }: { article: NewsArticle }) {
   return (
-    <Link href={`/news/${article.slug}`} className="panel panel-hover group grid overflow-hidden md:grid-cols-2">
-      <CoverArt accent={article.accent} icon={categoryIcon[article.category] ?? "Sparkles"} height="h-56 md:h-full md:min-h-[19rem]" />
-      <div className="flex flex-col p-6 sm:p-8">
+    <Link href={`/news/${article.slug}`} className="news-home-feature group grid overflow-hidden lg:grid-cols-[1.2fr_0.8fr]">
+      <CardArt article={article} height="h-64 lg:h-full lg:min-h-[25rem]" sizes="(max-width: 1024px) 100vw, 56vw" />
+      <div className="flex flex-col p-6 sm:p-8 lg:p-10">
         <TonePill tone={article.accent} className="self-start">
           {article.category}
         </TonePill>
-        <h3 className="mt-4 font-display text-2xl font-bold leading-tight group-hover:text-accent-bright sm:text-3xl">
+        <h3 className="mt-5 text-balance font-display text-3xl font-black leading-[1.05] transition-colors group-hover:text-accent-bright">
           {article.title}
         </h3>
-        <p className="mt-3 line-clamp-3 flex-1 text-muted">{article.excerpt}</p>
+        <p className="mt-4 line-clamp-4 flex-1 leading-relaxed text-muted">{article.excerpt}</p>
         <div className="mt-6 flex items-center justify-between gap-4 border-t border-line pt-5">
           <AuthorRow article={article} />
           <ReadPill minutes={article.readMinutes} />
@@ -68,9 +67,9 @@ function FeaturedCard({ article }: { article: NewsArticle }) {
 
 function GridCard({ article }: { article: NewsArticle }) {
   return (
-    <Link href={`/news/${article.slug}`} className="panel panel-hover group flex flex-col overflow-hidden">
-      <CoverArt accent={article.accent} icon={categoryIcon[article.category] ?? "Sparkles"} height="h-40" />
-      <div className="flex flex-1 flex-col p-5">
+    <Link href={`/news/${article.slug}`} className="news-home-card group grid overflow-hidden sm:grid-cols-[10rem_1fr]">
+      <CardArt article={article} height="h-44 sm:h-full sm:min-h-[13rem]" sizes="(max-width: 640px) 100vw, 160px" />
+      <div className="flex flex-1 flex-col p-5 sm:p-6">
         <TonePill tone={article.accent} className="self-start">
           {article.category}
         </TonePill>
@@ -86,64 +85,33 @@ function GridCard({ article }: { article: NewsArticle }) {
 }
 
 /**
- * Homepage news board: one large featured story, a paginated card grid of the
- * rest, and pagination controls — modelled on a classic MC-network news layout.
+ * Homepage news board: the five newest stories, followed by one clear route to
+ * the complete, paginated archive.
  */
-export function NewsBoard({ articles, pageSize = 4 }: { articles: NewsArticle[]; pageSize?: number }) {
-  const [page, setPage] = useState(0);
+export function NewsBoard({ articles, limit = 5 }: { articles: NewsArticle[]; limit?: number }) {
   if (articles.length === 0) return null;
 
-  const featured = articles[0];
-  const rest = articles.slice(1);
-  const pages = Math.max(1, Math.ceil(rest.length / pageSize));
-  const current = Math.min(page, pages - 1);
-  const slice = rest.slice(current * pageSize, current * pageSize + pageSize);
+  const latest = articles.slice(0, limit);
+  const featured = latest[0];
+  const rest = latest.slice(1);
 
   return (
     <div className="space-y-6">
       <FeaturedCard article={featured} />
 
-      {slice.length > 0 && (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {slice.map((a) => (
-            <GridCard key={a.slug} article={a} />
+      {rest.length > 0 && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {rest.map((article) => (
+            <GridCard key={article.slug} article={article} />
           ))}
         </div>
       )}
 
-      {pages > 1 && (
-        <div className="flex items-center justify-center gap-1.5 pt-2">
-          <button
-            onClick={() => setPage(Math.max(0, current - 1))}
-            disabled={current === 0}
-            aria-label="Previous page"
-            className="grid h-9 w-9 place-items-center rounded-lg border border-line text-muted transition-colors hover:text-ink disabled:opacity-40"
-          >
-            «
-          </button>
-          {Array.from({ length: pages }).map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i)}
-              aria-current={i === current ? "page" : undefined}
-              className={cn(
-                "h-9 min-w-9 rounded-lg border px-3 text-sm font-semibold transition-colors",
-                i === current ? "border-accent bg-accent text-white" : "border-line text-muted hover:text-ink",
-              )}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            onClick={() => setPage(Math.min(pages - 1, current + 1))}
-            disabled={current === pages - 1}
-            aria-label="Next page"
-            className="grid h-9 w-9 place-items-center rounded-lg border border-line text-muted transition-colors hover:text-ink disabled:opacity-40"
-          >
-            »
-          </button>
-        </div>
-      )}
+      <div className="flex justify-center pt-2">
+        <Link href="/news" className="home-news-more group inline-flex items-center gap-1.5 text-sm font-semibold text-accent-bright">
+          View all news <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      </div>
     </div>
   );
 }

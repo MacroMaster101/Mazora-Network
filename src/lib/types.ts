@@ -52,7 +52,12 @@ export interface NewsArticle {
   accent: Accent;
   date: string; // ISO
   author: string;
+  authorRole?: string;
+  authorAvatar?: string;
+  publisherMode?: "team" | "author";
   readMinutes: number;
+  /** Discord CDN image from the imported announcement. Falls back to CoverArt when absent. */
+  featuredImage?: string;
 }
 
 export type EventStatus = "upcoming" | "live" | "completed";

@@ -67,7 +67,7 @@ export default async function AdminSettingsPage() {
           </div>
         </section>
 
-        <button className="btn btn-primary btn-sm w-fit opacity-60" disabled title="Enabled with the database">
+        <button className="btn btn-primary btn-sm w-fit opacity-60" disabled title="Coming soon">
           Save settings
         </button>
       </div>

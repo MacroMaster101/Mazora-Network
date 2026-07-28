@@ -9,6 +9,7 @@ export { MinecraftMark } from "./minecraft-mark";
 export { RoleBadge } from "./role-badge";
 export { Countdown } from "./countdown";
 export { CoverArt } from "./cover-art";
+export { ArticleArt } from "./article-art";
 export { GameModeCard } from "./game-mode-card";
 export { NewsCard } from "./news-card";
 export { EventCard } from "./event-card";
@@ -19,3 +20,5 @@ export { LeaderboardTable } from "./leaderboard-table";
 export { accentStyles, coverGradient } from "./accent";
 export { LegalToc, LegalMobileToc } from "./legal-toc";
 
+
+export { NewsAuthor } from "./news-author";

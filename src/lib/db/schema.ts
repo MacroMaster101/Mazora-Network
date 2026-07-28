@@ -99,6 +99,20 @@ export const newsArticles = pgTable(
     status: text("status").notNull().default("published"),
     authorId: uuid("author_id"),
     authorName: text("author_name"),
+    authorRole: text("author_role"),
+    authorAvatarUrl: text("author_avatar_url"),
+    /** Optional per-story image for the fixed Mazora Team identity. */
+    teamAvatarUrl: text("team_avatar_url"),
+    /** Manual override; null keeps the automatic word-count estimate. */
+    readTimeMinutes: integer("read_time_minutes"),
+    /** Public byline: the named author or the shared Mazora Team identity. */
+    publisherMode: text("publisher_mode").notNull().default("team"),
+    /** 'manual' when written on the site, 'discord' when imported. */
+    source: text("source").notNull().default("manual"),
+    discordMessageId: text("discord_message_id"),
+    discordAuthor: text("discord_author"),
+    discordAuthorRole: text("discord_author_role"),
+    discordAuthorAvatarUrl: text("discord_author_avatar_url"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

@@ -25,7 +25,7 @@ export default async function AdminEventsPage() {
         title="Events"
         subtitle={`${events.length} events`}
         action={
-          <button className="btn btn-primary btn-sm opacity-60" disabled title="Enabled with the database">
+          <button className="btn btn-primary btn-sm opacity-60" disabled title="Coming soon">
             <Plus size={15} /> New event
           </button>
         }

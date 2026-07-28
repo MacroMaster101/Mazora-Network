@@ -38,6 +38,7 @@ export default async function AdminRulesPage() {
           icon={<ScrollText size={24} />}
           title="The rulebook is empty"
           message="Create a category to start writing rules, or run the rules seed to load the baseline set."
+          technical={false}
         />
       ) : (
         <RulesEditor categories={categories} />
