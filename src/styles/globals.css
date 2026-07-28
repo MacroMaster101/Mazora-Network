@@ -4674,8 +4674,8 @@ body.initial-load-active {
 }
 
 .team-tier-helpers {
-  width: min(100%, 68.75rem);
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: min(100%, 58rem);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .team-member-card {
@@ -4936,6 +4936,31 @@ body.initial-load-active {
   left: 90%;
 }
 
+.team-branch-four {
+  width: min(100%, 58rem);
+}
+
+.team-branch-four .team-branch-rail {
+  right: 12.5%;
+  left: 12.5%;
+}
+
+.team-branch-four .team-branch-drop-1 {
+  left: 12.5%;
+}
+
+.team-branch-four .team-branch-drop-2 {
+  left: 37.5%;
+}
+
+.team-branch-four .team-branch-drop-3 {
+  left: 62.5%;
+}
+
+.team-branch-four .team-branch-drop-4 {
+  left: 87.5%;
+}
+
 .team-merge-two {
   width: min(100%, 36rem);
   height: 3.5rem;
@@ -5022,21 +5047,27 @@ body.initial-load-active {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .team-branch-four,
   .team-branch-five {
     width: min(100%, 38rem);
   }
 
+  .team-branch-four .team-branch-rail,
   .team-branch-five .team-branch-rail {
     right: 25%;
     left: 25%;
   }
 
+  .team-branch-four .team-branch-drop-1,
+  .team-branch-four .team-branch-drop-3,
   .team-branch-five .team-branch-drop-1,
   .team-branch-five .team-branch-drop-3,
   .team-branch-five .team-branch-drop-5 {
     left: 25%;
   }
 
+  .team-branch-four .team-branch-drop-2,
+  .team-branch-four .team-branch-drop-4,
   .team-branch-five .team-branch-drop-2,
   .team-branch-five .team-branch-drop-4 {
     left: 75%;
