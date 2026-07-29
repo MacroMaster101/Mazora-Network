@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { cleanAndUnwrapImageUrl } from "@/lib/utils";
 
 /**
  * Permanent hosting for news images.
@@ -107,11 +108,23 @@ export async function rehostImageFromUrl(url: string, keyBase: string): Promise<
   }
   if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
 
+  // Unwrap Google Images / Imgur page links before fetching
+  const cleaned = cleanAndUnwrapImageUrl(parsed.toString());
+  let fetchUrl: URL;
   try {
-    const res = await fetch(parsed.toString(), {
+    fetchUrl = new URL(cleaned);
+  } catch {
+    fetchUrl = parsed;
+  }
+
+  try {
+    const res = await fetch(fetchUrl.toString(), {
       cache: "no-store",
       signal: AbortSignal.timeout(15_000),
-      headers: { "User-Agent": "MazoraNetworkWebsite/1.0" },
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      },
     });
     if (!res.ok) return null;
 

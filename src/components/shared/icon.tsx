@@ -1,9 +1,11 @@
 import {
   Activity,
+  BookOpen,
   Bug,
   Coins,
   Cpu,
   Crown,
+  FileText,
   Gamepad2,
   Gavel,
   Gem,
@@ -12,9 +14,11 @@ import {
   Handshake,
   Heart,
   Layers,
+  Lock,
   MessagesSquare,
   Music2,
   Pickaxe,
+  Scale,
   Shield,
   Sparkles,
   Swords,
@@ -57,10 +61,12 @@ export function TikTokIcon({ size = 20, className }: { size?: number; className?
 
 const map: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   Activity,
+  BookOpen,
   Bug,
   Coins,
   Cpu,
   Crown,
+  FileText,
   Gamepad2,
   Gavel,
   Gem,
@@ -69,9 +75,11 @@ const map: Record<string, React.ComponentType<{ size?: number; className?: strin
   Handshake,
   Heart,
   Layers,
+  Lock,
   MessagesSquare,
   Music2,
   Pickaxe,
+  Scale,
   Shield,
   Sparkles,
   Swords,
@@ -80,7 +88,9 @@ const map: Record<string, React.ComponentType<{ size?: number; className?: strin
   Users,
   Youtube,
   Discord: DiscordIcon,
+  DiscordIcon,
   TikTok: TikTokIcon,
+  TikTokIcon,
 };
 
 /** Renders a stored icon by name or fallback icon. */

@@ -23,10 +23,10 @@ export default async function LaunchStatusPage({
   return (
     <div className="launch-status-page">
       <div className="launch-status-card">
-        <div className="launch-status-icon-wrap" aria-hidden="true">
-          <Clock3 size={28} />
-        </div>
         <div className="launch-status-content">
+          <div className="launch-status-icon-wrap" aria-hidden="true">
+            <Clock3 size={28} />
+          </div>
           <p className="launch-status-eyebrow">{gate?.eyebrow ?? "Feature update in progress"}</p>
           <h1 className="launch-status-title">{gate?.title ?? "This page is temporarily reserved."}</h1>
           <p className="launch-status-message">

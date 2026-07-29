@@ -42,7 +42,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {mounted &&
         createPortal(
-          <div className="pointer-events-none fixed top-5 right-5 z-[300] flex w-[min(24rem,calc(100vw-2.5rem))] flex-col gap-2">
+          <div className="pointer-events-none fixed top-5 right-5 z-[999999] flex w-[min(24rem,calc(100vw-2.5rem))] flex-col gap-2">
             {toasts.map((t) => {
               const Icon = icons[t.tone];
               return (

@@ -20,6 +20,7 @@ import {
   rehostImageFromUrl,
   storeImageBytes,
 } from "@/lib/news/image-store";
+import { cleanAndUnwrapImageUrl } from "@/lib/utils";
 
 /** Our own Supabase storage origin, or null when Supabase is not configured. */
 function ownStorageOrigin(): string | null {
@@ -162,7 +163,7 @@ async function attachImage(
   formData: FormData,
 ): Promise<NewsActionResult | null> {
   const file = formData.get("imageFile");
-  const link = clean(formData.get("featuredImage"), 1000);
+  const link = cleanAndUnwrapImageUrl(clean(formData.get("featuredImage"), 5000000));
 
   let url: string | null = null;
   if (file instanceof File && file.size > 0) {
@@ -238,7 +239,7 @@ async function publish(
     patch.excerpt = clean(formData.get("excerpt"), 320) || ((patch.content ?? "") || patch.title || "").slice(0, 200);
   } else if (patch.title !== undefined) patch.excerpt = ((patch.content ?? "") || patch.title).slice(0, 200);
   if (formData.has("featuredImage")) {
-    const raw = clean(formData.get("featuredImage"), 1000);
+    const raw = clean(formData.get("featuredImage"), 5000000);
     if (!raw) {
       patch.featuredImage = null;
     } else if (isOwnStorageUrl(raw)) {
@@ -350,7 +351,7 @@ export async function saveArticleAction(formData: FormData): Promise<NewsActionR
     // callers that submit just a status change cannot blank it by omission.
     let imagePatch: { featuredImage: string | null } | Record<string, never> = {};
     if (formData.has("featuredImage")) {
-      const raw = clean(formData.get("featuredImage"), 1000);
+      const raw = clean(formData.get("featuredImage"), 5000000);
       if (!raw) {
         imagePatch = { featuredImage: null }; // cleared deliberately
       } else if (isOwnStorageUrl(raw)) {

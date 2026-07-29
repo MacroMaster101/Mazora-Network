@@ -1,5 +1,5 @@
 import { getSession, getSessionUserId, isStaff } from "@/lib/auth";
-import { canManageNews } from "@/lib/auth/permissions";
+import { canManageGallery, canManageNews } from "@/lib/auth/permissions";
 import { visibleAdminNav } from "@/lib/admin-nav";
 import { Logo } from "./logo";
 import { NavLinks } from "./nav-links";
@@ -11,17 +11,19 @@ import { CartTrigger } from "@/components/shared/cart-trigger";
 
 export async function SiteHeader({ world = false }: { world?: boolean }) {
   const session = await getSession();
+  const userId = session ? await getSessionUserId() : null;
 
   // Staff get their admin sections inside the drawer, so small screens have one
   // menu instead of a site menu plus a scrolling strip of admin links.
   const adminNav =
     session && isStaff(session.role)
-      ? visibleAdminNav(session.role, { canManageNews: await canManageNews(session, await getSessionUserId()) }).map(
-          (group) => ({
-            heading: group.heading,
-            items: group.items.map((item) => ({ label: item.label, href: item.href, exact: item.exact ?? false })),
-          }),
-        )
+      ? visibleAdminNav(session.role, {
+          canManageNews: await canManageNews(session, userId),
+          canManageGallery: await canManageGallery(session, userId),
+        }).map((group) => ({
+          heading: group.heading,
+          items: group.items.map((item) => ({ label: item.label, href: item.href, exact: item.exact ?? false })),
+        }))
       : null;
 
   return (

@@ -54,3 +54,41 @@ export function accentFor(seed: string): string {
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return palette[h % palette.length];
 }
+
+/**
+ * Automatically cleans and unwraps direct image links from pasted URLs
+ * (e.g. Google Image search page redirects across any domain, Imgur page links, raw quotes/spaces).
+ */
+export function cleanAndUnwrapImageUrl(raw: string): string {
+  if (!raw) return "";
+  let url = raw.trim().replace(/^["']|["']$/g, "");
+  if (!url) return "";
+
+  // Data URLs return directly
+  if (url.startsWith("data:image/")) return url;
+
+  try {
+    // 1. Google Images Search Result redirect parameter extraction (imgurl= / url= / imgrefurl=)
+    // Matches google.com, google.co.uk, google.ca, images.google.com, etc.
+    const googleImgUrlMatch = url.match(/[?&](?:imgurl|url)=([^&]+)/i);
+    if (googleImgUrlMatch && googleImgUrlMatch[1]) {
+      const decoded = decodeURIComponent(googleImgUrlMatch[1]);
+      if (decoded.startsWith("http://") || decoded.startsWith("https://")) {
+        url = decoded;
+      }
+    }
+
+    // 2. Imgur page URL unwrap (e.g. https://imgur.com/a/abcxyz or https://imgur.com/abcxyz)
+    const imgurMatch = url.match(/https?:\/\/(?:www\.)?imgur\.com\/(?:a\/|gallery\/)?([a-zA-Z0-9]{5,12})$/i);
+    if (imgurMatch && imgurMatch[1]) {
+      url = `https://i.imgur.com/${imgurMatch[1]}.png`;
+    }
+
+    // 3. Strip trailing URL anchors/hash if present
+    url = url.replace(/#.*$/, "");
+  } catch {
+    // Fall back to trimmed raw string
+  }
+
+  return url;
+}

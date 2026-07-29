@@ -12,9 +12,17 @@ import { isAdminNavItemActive, visibleAdminNav } from "@/lib/admin-nav";
  * live in the header's drawer instead, so small screens get one menu rather than
  * a site menu plus a horizontally-scrolling strip of admin links.
  */
-export function AdminSidebar({ role, canManageNews }: { role: Role; canManageNews: boolean }) {
+export function AdminSidebar({
+  role,
+  canManageNews,
+  canManageGallery,
+}: {
+  role: Role;
+  canManageNews: boolean;
+  canManageGallery?: boolean;
+}) {
   const pathname = usePathname();
-  const groups = visibleAdminNav(role, { canManageNews });
+  const groups = visibleAdminNav(role, { canManageNews, canManageGallery });
 
   return (
     <aside className="admin-sidebar hidden lg:sticky lg:top-24 lg:block lg:h-fit lg:self-start">
