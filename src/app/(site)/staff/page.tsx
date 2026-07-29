@@ -85,33 +85,33 @@ export default function StaffPage() {
           
           <div className="mt-6 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-border/60 bg-card/60 p-5 backdrop-blur-md shadow-sm transition-all hover:border-accent/30">
+              <div className="panel rounded-2xl border border-line bg-card/95 p-5 backdrop-blur-xl shadow-lg transition-all hover:border-accent/40">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent/15 text-accent-bright">
+                  <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent/20 text-accent-bright border border-accent/30">
                     <Sparkles size={16} />
                   </span>
                   <h3 className="font-display text-sm font-bold text-ink">Our Mission</h3>
                 </div>
-                <p className="text-sm leading-relaxed text-ink/80">
+                <p className="text-sm leading-relaxed text-muted font-medium">
                   Behind every adventure, update, and experience on Mazora is a dedicated team working to keep the network alive. From managing the server and creating content to supporting players and maintaining a friendly community, our staff team is here to make your journey the best it can be.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-border/60 bg-card/60 p-5 backdrop-blur-md shadow-sm transition-all hover:border-accent/30">
+              <div className="panel rounded-2xl border border-line bg-card/95 p-5 backdrop-blur-xl shadow-lg transition-all hover:border-accent/40">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent/15 text-accent-bright">
+                  <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent/20 text-accent-bright border border-accent/30">
                     <Shield size={16} />
                   </span>
                   <h3 className="font-display text-sm font-bold text-ink">Structured Hierarchy</h3>
                 </div>
-                <p className="text-sm leading-relaxed text-ink/80">
+                <p className="text-sm leading-relaxed text-muted font-medium">
                   Our team follows a structured hierarchy, with each role carrying unique responsibilities and helping Mazora grow. Whether it&apos;s developing new features, organizing events, assisting players, or keeping the server safe and fair, every member plays an important part.
                 </p>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4 text-center backdrop-blur-md shadow-sm">
-              <p className="font-display text-sm font-bold text-accent-bright flex items-center justify-center gap-2">
+            <div className="panel rounded-2xl border border-accent/35 bg-card/95 p-4 text-center backdrop-blur-xl shadow-lg">
+              <p className="font-display text-sm font-extrabold text-accent-bright flex items-center justify-center gap-2">
                 <UsersRound size={16} />
                 Meet the people who bring Mazora to life and help shape the future of our community!
               </p>

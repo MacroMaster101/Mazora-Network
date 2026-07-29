@@ -6,11 +6,17 @@ import { hasAtLeast, ROLES } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 
 export const NEWS_PERMISSION_KEY = "news.permissions";
+export const GALLERY_PERMISSION_KEY = "gallery.permissions";
 
 /** Owner and IT can never be removed, so the owner cannot lock themselves out. */
 export const ALWAYS_ALLOWED: Role[] = ["owner", "it"];
 
 export interface NewsPermissions {
+  roles: Role[];
+  userIds: string[];
+}
+
+export interface GalleryPermissions {
   roles: Role[];
   userIds: string[];
 }
@@ -56,6 +62,32 @@ export async function canManageNews(session: Session | null, userId?: string | n
   if (!session) return false;
   if (hasAtLeast(session.role, "owner")) return true;
   const perms = await getNewsPermissions();
+  if (perms.roles.includes(session.role)) return true;
+  return Boolean(userId && perms.userIds.includes(userId));
+}
+
+export async function getGalleryPermissions(): Promise<GalleryPermissions> {
+  const db = getDb();
+  if (!db) return defaults();
+  try {
+    const [row] = await db
+      .select()
+      .from(schema.siteSettings)
+      .where(eq(schema.siteSettings.settingKey, GALLERY_PERMISSION_KEY))
+      .limit(1);
+    return normalise(row?.settingValue);
+  } catch {
+    return defaults();
+  }
+}
+
+/**
+ * Whether this session may manage, edit, approve, or delete gallery screenshots.
+ */
+export async function canManageGallery(session: Session | null, userId?: string | null): Promise<boolean> {
+  if (!session) return false;
+  if (hasAtLeast(session.role, "owner")) return true;
+  const perms = await getGalleryPermissions();
   if (perms.roles.includes(session.role)) return true;
   return Boolean(userId && perms.userIds.includes(userId));
 }

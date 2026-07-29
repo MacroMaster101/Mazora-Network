@@ -126,9 +126,17 @@ export interface StaffMember {
 export interface GalleryImage {
   id: string;
   title: string;
+  description?: string | null;
+  imageUrl: string;
+  thumbnailUrl?: string | null;
   category: string;
-  accent: Accent;
+  accent?: Accent;
   author: string;
+  authorAvatar?: string | null;
+  featured: boolean;
+  likesCount: number;
+  hasLiked?: boolean;
+  createdAt: string;
 }
 
 export interface Product {

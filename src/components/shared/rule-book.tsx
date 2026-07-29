@@ -66,15 +66,18 @@ export function RuleBook({ categories }: { categories: RuleCategory[] }) {
               <span className="text-xs text-muted">Updated {fmtDate(cat.updated)}</span>
             </div>
             <div className="mt-4 space-y-3">
-              {cat.items.map((item, i) => (
-                <div key={item.title} className="panel p-5">
-                  <h3 className="flex items-center gap-2 font-semibold">
-                    <span className="telemetry text-sm text-muted">{String(i + 1).padStart(2, "0")}</span>
-                    {item.title}
-                  </h3>
-                  <p className="mt-1.5 text-sm text-muted">{item.body}</p>
-                </div>
-              ))}
+              {cat.items.map((item, i) => {
+                const cleanTitle = item.title.replace(/^(\d+\.\s*)+/, "");
+                return (
+                  <div key={item.title} className="panel p-5">
+                    <h3 className="flex items-center gap-2 font-semibold">
+                      <span className="telemetry text-sm text-muted">{String(i + 1).padStart(2, "0")}</span>
+                      {cleanTitle}
+                    </h3>
+                    <p className="mt-1.5 text-sm text-muted">{item.body}</p>
+                  </div>
+                );
+              })}
             </div>
           </section>
         ))}
