@@ -45,7 +45,13 @@ export interface AdminNavGroup {
   items: AdminNavItem[];
 }
 
-export function buildAdminNav({ canManageNews }: { canManageNews: boolean }): AdminNavGroup[] {
+export function buildAdminNav({
+  canManageNews,
+  canManageGallery,
+}: {
+  canManageNews: boolean;
+  canManageGallery?: boolean;
+}): AdminNavGroup[] {
   return [
     {
       heading: "Overview",
@@ -66,7 +72,7 @@ export function buildAdminNav({ canManageNews }: { canManageNews: boolean }): Ad
         { label: "Events", href: "/admin/events", icon: CalendarDays, minRole: "administrator" },
         { label: "Game Modes", href: "/admin/game-modes", icon: Blocks, minRole: "administrator" },
         { label: "Rules", href: "/admin/rules", icon: ScrollText, minRole: "administrator" },
-        { label: "Gallery", href: "/admin/gallery", icon: Image, minRole: "administrator" },
+        { label: "Gallery", href: "/admin/gallery", icon: Image, minRole: "administrator", visible: canManageGallery },
       ],
     },
     {
@@ -111,7 +117,7 @@ export function buildAdminNav({ canManageNews }: { canManageNews: boolean }): Ad
 /** Groups the given role may actually see, with empty groups dropped. */
 export function visibleAdminNav(
   role: Role,
-  options: { canManageNews: boolean },
+  options: { canManageNews: boolean; canManageGallery?: boolean },
 ): AdminNavGroup[] {
   return buildAdminNav(options)
     .map((group) => ({

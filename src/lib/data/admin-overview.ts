@@ -8,7 +8,7 @@
  * because a fake 0 reads like a real, reassuring answer.
  */
 import "server-only";
-import { asc, desc } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import type { Role } from "@/lib/types";
 import { ROLES } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
@@ -164,6 +164,62 @@ export async function getRecentAudit(limit = 6): Promise<AuditRow[] | null> {
       };
     });
   } catch {
+    return null;
+  }
+}
+
+export interface AdminGalleryImage {
+  id: string;
+  title: string;
+  description: string | null;
+  imageUrl: string;
+  thumbnailUrl: string | null;
+  category: string;
+  authorName: string;
+  status: "published" | "pending" | "rejected";
+  featured: boolean;
+  likesCount: number;
+  createdAt: string;
+}
+
+export async function getAdminGallery(): Promise<AdminGalleryImage[] | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const rows = await db
+      .select({
+        id: schema.galleryImages.id,
+        title: schema.galleryImages.title,
+        description: schema.galleryImages.description,
+        imageUrl: schema.galleryImages.imageUrl,
+        thumbnailUrl: schema.galleryImages.thumbnailUrl,
+        category: schema.galleryImages.category,
+        authorName: schema.galleryImages.authorName,
+        status: schema.galleryImages.status,
+        featured: schema.galleryImages.featured,
+        likesCount: schema.galleryImages.likesCount,
+        createdAt: schema.galleryImages.createdAt,
+        userMinecraft: schema.profiles.username,
+      })
+      .from(schema.galleryImages)
+      .leftJoin(schema.profiles, eq(schema.galleryImages.authorId, schema.profiles.userId))
+      .orderBy(desc(schema.galleryImages.createdAt));
+
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      imageUrl: r.imageUrl,
+      thumbnailUrl: r.thumbnailUrl || r.imageUrl,
+      category: r.category,
+      authorName: r.userMinecraft || r.authorName || "Anonymous Player",
+      status: (r.status as "published" | "pending" | "rejected") || "pending",
+      featured: r.featured ?? false,
+      likesCount: r.likesCount ?? 0,
+      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+    }));
+  } catch (error) {
+    console.error("Failed to load admin gallery:", error);
     return null;
   }
 }

@@ -7,7 +7,7 @@
  * does not have. Today the store and vote sites read from the database; the
  * remaining sections fill in as their tables are populated.
  */
-import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type {
   Accent,
   EventItem,
@@ -162,7 +162,7 @@ function toArticle(row: NewsRow): NewsArticle {
     date: published instanceof Date ? published.toISOString() : String(published),
     author: teamByline ? "Mazora Team" : (row.authorName ?? row.discordAuthor ?? "Mazora Team"),
     authorRole: teamByline ? "Official Newsroom" : (row.authorRole ?? row.discordAuthorRole ?? "News Publisher"),
-    authorAvatar: teamByline ? (row.teamAvatarUrl ?? "/images/mazora-logo.webp") : (row.authorAvatarUrl ?? undefined),
+    authorAvatar: teamByline ? (row.teamAvatarUrl ?? "/images/mazora-icon.png") : (row.authorAvatarUrl ?? undefined),
     publisherMode,
     readMinutes: row.readTimeMinutes ?? Math.max(1, Math.round(words / 200)),
     featuredImage: row.featuredImage ?? undefined,
@@ -257,6 +257,53 @@ export async function getStaff(): Promise<StaffMember[]> {
   return [];
 }
 
-export async function getGallery(): Promise<GalleryImage[]> {
-  return [];
+export async function getGallery(userId?: string | null): Promise<GalleryImage[]> {
+  const db = getDb();
+  if (!db) return [];
+  try {
+    const rows = await db
+      .select({
+        id: schema.galleryImages.id,
+        title: schema.galleryImages.title,
+        description: schema.galleryImages.description,
+        imageUrl: schema.galleryImages.imageUrl,
+        thumbnailUrl: schema.galleryImages.thumbnailUrl,
+        category: schema.galleryImages.category,
+        authorName: schema.galleryImages.authorName,
+        featured: schema.galleryImages.featured,
+        likesCount: schema.galleryImages.likesCount,
+        createdAt: schema.galleryImages.createdAt,
+        userMinecraft: schema.profiles.username,
+      })
+      .from(schema.galleryImages)
+      .leftJoin(schema.profiles, eq(schema.galleryImages.authorId, schema.profiles.userId))
+      .where(eq(schema.galleryImages.status, "published"))
+      .orderBy(desc(schema.galleryImages.featured), desc(schema.galleryImages.createdAt));
+
+    let likedSet = new Set<string>();
+    if (userId) {
+      const likes = await db
+        .select({ imageId: schema.galleryLikes.imageId })
+        .from(schema.galleryLikes)
+        .where(eq(schema.galleryLikes.userId, userId));
+      likedSet = new Set(likes.map((l) => l.imageId));
+    }
+
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      imageUrl: r.imageUrl,
+      thumbnailUrl: r.thumbnailUrl || r.imageUrl,
+      category: r.category,
+      author: r.userMinecraft || r.authorName || "Mazora Member",
+      featured: r.featured,
+      likesCount: r.likesCount ?? 0,
+      hasLiked: likedSet.has(r.id),
+      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+    }));
+  } catch (error) {
+    console.error("Failed to load gallery:", error);
+    return [];
+  }
 }
