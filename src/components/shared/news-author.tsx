@@ -9,7 +9,7 @@ export function NewsAuthor({
   compact?: boolean;
 }) {
   const isTeam = article.publisherMode === "team" || /^(the )?mazora team$/i.test(article.author);
-  const avatar = article.authorAvatar || (isTeam ? "/images/mazora-logo.webp" : undefined);
+  const avatar = article.authorAvatar || (isTeam ? "/images/mazora-icon.png" : undefined);
   const role = article.authorRole || (isTeam ? "Official Newsroom" : "News Publisher");
   const fallback = article.author.trim().slice(0, 1).toUpperCase() || "M";
 

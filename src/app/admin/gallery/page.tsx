@@ -1,34 +1,58 @@
 import type { Metadata } from "next";
-import { Plus } from "lucide-react";
-import { requireRole } from "@/lib/auth";
-import { getGallery } from "@/lib/data/content";
+import { redirect } from "next/navigation";
+import { Image as ImageIcon } from "lucide-react";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManageGallery } from "@/lib/auth/permissions";
+import { getAdminGallery } from "@/lib/data/admin-overview";
 import { DashHeader } from "@/components/dashboard/dash-ui";
-import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
-import type { GalleryImage } from "@/lib/types";
+import { AdminPlaceholder } from "@/components/admin/admin-ui";
+import { AdminGalleryEditor } from "@/components/admin/admin-gallery-editor";
+
+import { roleLabel } from "@/lib/auth/roles";
 
 export const metadata: Metadata = { title: "Gallery · Admin" };
 
 export default async function AdminGalleryPage() {
-  await requireRole("administrator", "/admin/gallery");
-  const images = await getGallery();
-  const columns: Column<GalleryImage>[] = [
-    { header: "Title", cell: (g) => <span className="font-semibold">{g.title}</span> },
-    { header: "Category", cell: (g) => <span className="text-muted">{g.category}</span> },
-    { header: "Author", align: "right", cell: (g) => <span className="text-muted">{g.author}</span> },
-  ];
+  const session = await getSession();
+  const userId = await getSessionUserId();
+  if (!session || !(await canManageGallery(session, userId))) {
+    redirect("/admin");
+  }
+  const images = await getAdminGallery();
+
+  if (!images) {
+    return (
+      <>
+        <DashHeader title="Gallery Management" subtitle="Manage community screenshots and moderation queue." />
+        <AdminPlaceholder
+          icon={<ImageIcon size={24} />}
+          title="No database connection"
+          message="Gallery screenshots are stored in the database. Set DATABASE_URL to load and edit them."
+        />
+      </>
+    );
+  }
+
+  const pendingCount = images.filter((img) => img.status === "pending").length;
+  const publishedCount = images.filter((img) => img.status === "published").length;
+  const totalLikes = images.reduce((acc, img) => acc + (img.likesCount || 0), 0);
+
+  const accountName = session.displayName || session.username || "Mazora Staff";
+  const userRole = roleLabel(session.role);
+  const userAvatar = session.avatarUrl;
+
   return (
     <>
       <DashHeader
-        title="Gallery"
-        subtitle={`${images.length} images`}
-        action={
-          <button className="btn btn-primary btn-sm opacity-60" disabled title="Enabled with storage">
-            <Plus size={15} /> Upload
-          </button>
-        }
+        title="Gallery Management"
+        subtitle={`${images.length} total artworks · ${pendingCount} pending review · ${publishedCount} published · ${totalLikes} total likes`}
       />
-      <ReadOnlyBanner note="Image uploads require Supabase Storage with MIME and size validation — enabled in a later phase." />
-      <AdminTable columns={columns} rows={images} />
+      <AdminGalleryEditor
+        images={images}
+        accountName={accountName}
+        userRole={userRole}
+        userAvatar={userAvatar}
+      />
     </>
   );
 }

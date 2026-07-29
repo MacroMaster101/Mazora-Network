@@ -3,10 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import {
+  AlertTriangle,
   Archive,
   BookOpen,
   Check,
+  CheckCircle2,
   Clock3,
   ChevronDown,
   ExternalLink,
@@ -39,7 +42,7 @@ import {
 } from "@/lib/actions/news";
 import { Input, Select, Textarea, useToast } from "@/components/ui";
 import { DEFAULT_NEWS_CATEGORY, NEWS_CATEGORIES, normalizeCategory } from "@/lib/news/categories";
-import { cn } from "@/lib/utils";
+import { cleanAndUnwrapImageUrl, cn } from "@/lib/utils";
 
 type Runner = (action: (fd: FormData) => Promise<NewsActionResult>, formData: FormData) => void;
 type ImageUploader = (id: string, file: File) => Promise<NewsActionResult>;
@@ -115,7 +118,7 @@ function PublisherAvatar({ src, name, team = false }: { src?: string | null; nam
         <img src={src} alt="" />
       ) : team ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src="/images/mazora-logo.webp" alt="" />
+        <img src="/images/mazora-icon.png" alt="" />
       ) : (
         <span>{fallback}</span>
       )}
@@ -252,7 +255,7 @@ function ArticleRow({
           <span className="news-row-publisher">
             <PublisherAvatar
               src={article.publisherMode === "team"
-                ? (article.teamAvatarUrl || "/images/mazora-logo.webp")
+                ? (article.teamAvatarUrl || "/images/mazora-icon.png")
                 : (isPending ? defaultPublisher.avatarUrl : article.authorAvatarUrl)}
               name={article.publisherMode === "team"
                 ? "Mazora Team"
@@ -340,7 +343,7 @@ function ArticleRow({
               </div>
               <div className="news-publisher-preview">
                 <PublisherAvatar
-                  src={publisherMode === "team" ? (teamAvatarUrl || "/images/mazora-logo.webp") : defaultPublisher.avatarUrl}
+                  src={publisherMode === "team" ? (teamAvatarUrl || "/images/mazora-icon.png") : defaultPublisher.avatarUrl}
                   name={publisherMode === "team" ? "Mazora Team" : defaultPublisher.name}
                   team={publisherMode === "team"}
                 />
@@ -392,7 +395,7 @@ function ArticleRow({
 
             {publisherMode === "team" ? (
               <div className="news-publisher-identity-lock">
-                <PublisherAvatar src={teamAvatarUrl || "/images/mazora-logo.webp"} name="Mazora Team" team />
+                <PublisherAvatar src={teamAvatarUrl || "/images/mazora-icon.png"} name="Mazora Team" team />
                 <div className="min-w-0 flex-1">
                   <strong>Mazora Team</strong>
                   <small>Official Newsroom · name and role locked</small>
@@ -599,6 +602,7 @@ export function NewsEditor({
   channelId?: string;
   defaultPublisher: { name: string; role: string; avatarUrl?: string };
 }) {
+  const [mounted, setMounted] = useState(false);
   const [busy, start] = useTransition();
   const [tab, setTab] = useState<"review" | "published" | "hidden">(
     pendingArticles.length > 0 ? "review" : "published",
@@ -608,13 +612,30 @@ export function NewsEditor({
   const [newPublisherMode, setNewPublisherMode] = useState<"team" | "author">("team");
   const [newTeamAvatarUrl, setNewTeamAvatarUrl] = useState("");
   const [newImage, setNewImage] = useState<string | null>(null);
+  const [pastedUrl, setPastedUrl] = useState("");
+  const [imageError, setImageError] = useState(false);
   const [query, setQuery] = useState("");
   const { toast } = useToast();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  /* Lock body scroll when composing modal is open */
+  useEffect(() => {
+    if (composing) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [composing]);
 
   // The article does not exist yet, so the file rides along with the form and is
   // stored after the insert. Preview it locally in the meantime.
   function onPickNewImage(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0] ?? null;
+    setPastedUrl("");
     setNewImage((current) => {
       if (current) URL.revokeObjectURL(current);
       return file ? URL.createObjectURL(file) : null;
@@ -739,173 +760,268 @@ export function NewsEditor({
         </p>
       )}
 
-      {composing && (
-        <form
-          action={(fd) =>
-            start(async () => {
-              const res = await createArticleAction(normalizePublicationTime(fd));
-              toast(res.message, res.ok ? "success" : "error");
-              // Only tear the composer down once the article really exists, so a
-              // rejected image or a missing title does not lose what was typed.
-              if (res.ok) closeComposer();
-            })
-          }
-          className="news-composer space-y-4 p-5 sm:p-6"
+      {mounted && composing && createPortal(
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-xl animate-fade-in"
+          onClick={closeComposer}
         >
-          <label className="block">
-            <span className="news-label">Title</span>
-            <Input name="title" placeholder="Announcement title" required aria-label="New article title" />
-          </label>
-          <label className="block">
-            <span className="news-label">Summary</span>
-            <Textarea name="excerpt" placeholder="A short, useful preview for cards and search results" rows={2} maxLength={320} aria-label="New article summary" />
-          </label>
-
-          <label className="block">
-            <span className="news-label">Body</span>
-            <Textarea name="content" placeholder="Write the announcement…" rows={6} aria-label="New article body" />
-          </label>
-          <label className="block">
-            <span className="news-label">Category</span>
-            <Select
-              name="category"
-              value={newCategory}
-              onChange={(event) => setNewCategory(normalizeCategory(event.target.value))}
-              aria-label="New article category"
-              className="news-select"
-            >
-              {NEWS_CATEGORIES.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <div className="news-publisher-panel">
-            <div className="news-publisher-panel-head">
-              <div>
-                <span className="news-label">Public byline</span>
-                <p>Publish as the fixed Mazora identity or your authenticated staff profile.</p>
-              </div>
-              <div className="news-publisher-preview">
-                <PublisherAvatar
-                  src={newPublisherMode === "team" ? (newTeamAvatarUrl || "/images/mazora-logo.webp") : defaultPublisher.avatarUrl}
-                  name={newPublisherMode === "team" ? "Mazora Team" : defaultPublisher.name}
-                  team={newPublisherMode === "team"}
-                />
-                <span>
-                  <strong>{newPublisherMode === "team" ? "Mazora Team" : defaultPublisher.name}</strong>
-                  <small>{newPublisherMode === "team" ? "Official Newsroom" : defaultPublisher.role}</small>
-                </span>
-              </div>
-            </div>
-            <div className="grid gap-3 lg:grid-cols-3">
-              <label className="block">
-                <span className="news-label">Show publicly as</span>
-                <Select
-                  name="publisherMode"
-                  value={newPublisherMode}
-                  onChange={(event) => setNewPublisherMode(event.target.value === "author" ? "author" : "team")}
-                  aria-label="New article publisher identity"
-                  className="news-select"
-                >
-                  <option value="team">Mazora Team</option>
-                  <option value="author">My staff profile</option>
-                </Select>
-              </label>
-              <label className="block">
-                <span className="news-label"><Clock3 size={12} /> Publication time</span>
-                <Input
-                  type="datetime-local"
-                  name="publishedAtLocal"
-                  aria-label="New article publication date and time"
-                />
-                <span className="mt-1 block text-[11px] text-muted">Blank publishes immediately. A future time schedules it.</span>
-              </label>
-              <label className="block">
-                <span className="news-label"><BookOpen size={12} /> Read time</span>
-                <Input name="readTimeMinutes" type="number" min={1} max={60} placeholder="Auto" aria-label="New article read time in minutes" />
-                <span className="mt-1 block text-[11px] text-muted">Leave blank to calculate from the article body.</span>
-              </label>
-            </div>
-
-            {newPublisherMode === "team" ? (
-              <div className="news-publisher-identity-lock">
-                <PublisherAvatar src={newTeamAvatarUrl || "/images/mazora-logo.webp"} name="Mazora Team" team />
-                <div className="min-w-0 flex-1">
-                  <strong>Mazora Team</strong>
-                  <small>Official Newsroom · name and role locked</small>
+          <div
+            className="relative w-full max-w-[800px] max-h-[88vh] flex flex-col rounded-2xl border border-line-strong bg-card text-ink shadow-[0_32px_90px_-20px_rgba(0,0,0,0.85)] overflow-hidden animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="shrink-0 flex items-center justify-between gap-4 border-b border-line px-5 sm:px-6 py-4 bg-card">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-10 w-10 shrink-0 rounded-xl bg-accent/15 text-accent-bright grid place-items-center border border-accent/30 shadow-sm">
+                  <Plus size={20} />
                 </div>
-                <label className="news-team-avatar-field">
-                  <span className="news-label">Team image link</span>
-                  <Input
-                    name="teamAvatarUrl"
-                    value={newTeamAvatarUrl}
-                    onChange={(event) => setNewTeamAvatarUrl(event.target.value)}
-                    placeholder="Default Mazora logo"
-                    aria-label="New Mazora Team image link"
-                  />
-                </label>
+                <div className="min-w-0">
+                  <h3 className="font-display text-base font-bold text-ink leading-tight">
+                    Create New Article
+                  </h3>
+                  <p className="text-xs text-muted mt-0.5 truncate">
+                    Publish a new announcement or news story to the Mazora Network site.
+                  </p>
+                </div>
               </div>
-            ) : (
-              <div className="news-publisher-lock-note">
-                <input type="hidden" name="teamAvatarUrl" value={newTeamAvatarUrl} />
-                <strong>Signed-in profile locked</strong>
-                <span>Name, role and profile image come from your account automatically.</span>
-              </div>
-            )}
-          </div>
-
-          <div className="news-image-panel">
-            <span className="relative block aspect-video w-full max-w-[16rem] shrink-0 overflow-hidden rounded-lg border border-line bg-base/60">
-              {newImage ? (
-                // Local object URL — next/image cannot optimise a blob:.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={newImage} alt="" className="h-full w-full object-contain" />
-              ) : (
-                <span className="grid h-full w-full place-items-center text-xs text-muted">No image</span>
-              )}
-            </span>
-
-            <div className="min-w-[12rem] flex-1 space-y-2">
-              <label className="block">
-                <span className="news-label">Image</span>
-                <input
-                  type="file"
-                  name="imageFile"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  aria-label="New article image"
-                  onChange={onPickNewImage}
-                  className="block w-full text-xs text-muted file:mr-3 file:rounded-md file:border file:border-line-strong file:bg-ink/5 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink hover:file:bg-ink/10"
-                />
-              </label>
-              <label className="block">
-                <span className="news-label">…or paste a link</span>
-                <Input
-                  name="featuredImage"
-                  placeholder="https://example.com/banner.png"
-                  aria-label="New article image link"
-                />
-              </label>
-              <p className="text-xs text-muted">
-                Optional. A chosen file wins over a link. Either way the image is copied to Mazora storage.
-              </p>
+              <button
+                type="button"
+                onClick={closeComposer}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line bg-ink/5 text-muted hover:bg-ink/10 hover:text-ink transition-colors"
+                title="Close composer"
+              >
+                <X size={18} />
+              </button>
             </div>
-          </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-line pt-4">
-            <button type="submit" name="intent" value="publish" disabled={busy} className="btn btn-primary btn-sm">
-              <Plus size={14} /> Publish
-            </button>
-            <button type="submit" name="intent" value="draft" disabled={busy} className="btn btn-ghost btn-sm">
-              <Archive size={14} /> Save draft
-            </button>
-            <button type="button" onClick={closeComposer} className="btn btn-ghost btn-sm">
-              Cancel
-            </button>
+            {/* Form */}
+            <form
+              action={(fd) =>
+                start(async () => {
+                  const res = await createArticleAction(normalizePublicationTime(fd));
+                  toast(res.message, res.ok ? "success" : "error");
+                  if (res.ok) closeComposer();
+                })
+              }
+              className="flex-1 flex flex-col min-h-0 overflow-hidden"
+            >
+              {/* Scrollable Form Body */}
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-sm custom-scrollbar">
+                <label className="block space-y-1.5">
+                  <span className="news-label">Title <span className="text-accent-bright">*</span></span>
+                  <Input name="title" placeholder="Announcement title" required aria-label="New article title" className="h-10 text-xs" />
+                </label>
+                <label className="block space-y-1.5">
+                  <span className="news-label">Summary</span>
+                  <Textarea name="excerpt" placeholder="A short, useful preview for cards and search results" rows={2} maxLength={320} aria-label="New article summary" className="text-xs" />
+                </label>
+
+                <label className="block space-y-1.5">
+                  <span className="news-label">Body</span>
+                  <Textarea name="content" placeholder="Write the announcement…" rows={6} aria-label="New article body" className="text-xs" />
+                </label>
+
+                <label className="block space-y-1.5">
+                  <span className="news-label">Category</span>
+                  <Select
+                    name="category"
+                    value={newCategory}
+                    onChange={(event) => setNewCategory(normalizeCategory(event.target.value))}
+                    aria-label="New article category"
+                    className="news-select"
+                  >
+                    {NEWS_CATEGORIES.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+
+                {/* Publisher Panel */}
+                <div className="news-publisher-panel">
+                  <div className="news-publisher-panel-head">
+                    <div>
+                      <span className="news-label">Public byline</span>
+                      <p>Publish as the fixed Mazora identity or your authenticated staff profile.</p>
+                    </div>
+                    <div className="news-publisher-preview">
+                      <PublisherAvatar
+                        src={newPublisherMode === "team" ? (newTeamAvatarUrl || "/images/mazora-icon.png") : defaultPublisher.avatarUrl}
+                        name={newPublisherMode === "team" ? "Mazora Team" : defaultPublisher.name}
+                        team={newPublisherMode === "team"}
+                      />
+                      <span>
+                        <strong>{newPublisherMode === "team" ? "Mazora Team" : defaultPublisher.name}</strong>
+                        <small>{newPublisherMode === "team" ? "Official Newsroom" : defaultPublisher.role}</small>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <label className="block space-y-1">
+                      <span className="news-label">Show publicly as</span>
+                      <Select
+                        name="publisherMode"
+                        value={newPublisherMode}
+                        onChange={(event) => setNewPublisherMode(event.target.value === "author" ? "author" : "team")}
+                        aria-label="New article publisher identity"
+                        className="news-select"
+                      >
+                        <option value="team">Mazora Team</option>
+                        <option value="author">My staff profile</option>
+                      </Select>
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="news-label"><Clock3 size={12} /> Publication time</span>
+                      <Input
+                        type="datetime-local"
+                        name="publishedAtLocal"
+                        aria-label="New article publication date and time"
+                        className="h-10 text-xs"
+                      />
+                      <span className="mt-1 block text-[11px] text-muted">Blank publishes immediately. A future time schedules it.</span>
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="news-label"><BookOpen size={12} /> Read time</span>
+                      <Input name="readTimeMinutes" type="number" min={1} max={60} placeholder="Auto" aria-label="New article read time in minutes" className="h-10 text-xs" />
+                      <span className="mt-1 block text-[11px] text-muted">Leave blank to calculate from article body.</span>
+                    </label>
+                  </div>
+
+                  {newPublisherMode === "team" ? (
+                    <div className="news-publisher-identity-lock">
+                      <PublisherAvatar src={newTeamAvatarUrl || "/images/mazora-icon.png"} name="Mazora Team" team />
+                      <div className="min-w-0 flex-1">
+                        <strong>Mazora Team</strong>
+                        <small>Official Newsroom · name and role locked</small>
+                      </div>
+                      <label className="news-team-avatar-field">
+                        <span className="news-label">Team image link</span>
+                        <Input
+                          name="teamAvatarUrl"
+                          value={newTeamAvatarUrl}
+                          onChange={(event) => setNewTeamAvatarUrl(event.target.value)}
+                          placeholder="Default Mazora logo"
+                          aria-label="New Mazora Team image link"
+                          className="h-9 text-xs"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="news-publisher-lock-note">
+                      <input type="hidden" name="teamAvatarUrl" value={newTeamAvatarUrl} />
+                      <strong>Signed-in profile locked</strong>
+                      <span>Name, role and profile image come from your account automatically.</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Featured Image Panel */}
+                <div className="news-image-panel">
+                  <span className="relative block aspect-video w-full max-w-[16rem] shrink-0 overflow-hidden rounded-lg border border-line bg-base/60 flex items-center justify-center group">
+                    {newImage || pastedUrl ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (newImage) URL.revokeObjectURL(newImage);
+                            setNewImage(null);
+                            setPastedUrl("");
+                            setImageError(false);
+                            const fileInput = document.getElementById("new-article-file-input") as HTMLInputElement;
+                            if (fileInput) fileInput.value = "";
+                          }}
+                          className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-full bg-rose-600/90 hover:bg-rose-500 text-white backdrop-blur-md text-[0.62rem] font-bold px-2 py-0.5 shadow-md border border-rose-400/40 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                          title="Remove image"
+                        >
+                          <Trash2 size={11} /> Remove
+                        </button>
+                        {imageError ? (
+                          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-center space-y-1 flex flex-col items-center justify-center h-full w-full">
+                            <AlertTriangle size={18} className="text-amber-400 shrink-0" />
+                            <h5 className="font-bold text-[0.7rem] text-amber-300">Preview Unavailable</h5>
+                            <p className="text-[0.62rem] text-amber-300/80 leading-tight">
+                              Some links block browser preview but <strong>will still work</strong> when saved.
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={newImage || pastedUrl}
+                              alt="Preview"
+                              className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                              onError={() => setImageError(true)}
+                              onLoad={() => setImageError(false)}
+                            />
+                            <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500/90 text-white backdrop-blur-md text-[0.6rem] font-bold px-2 py-0.5 rounded-full shadow-md border border-emerald-400/40">
+                              <CheckCircle2 size={10} /> Live Preview
+                            </div>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <span className="grid h-full w-full place-items-center text-xs text-muted">No image</span>
+                    )}
+                  </span>
+
+                  <div className="min-w-[12rem] flex-1 space-y-2">
+                    <label className="block space-y-1">
+                      <span className="news-label">Image file</span>
+                      <input
+                        type="file"
+                        name="imageFile"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        aria-label="New article image"
+                        onChange={(e) => {
+                          setImageError(false);
+                          onPickNewImage(e);
+                        }}
+                        className="block w-full text-xs text-muted file:mr-3 file:rounded-md file:border file:border-line-strong file:bg-ink/5 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink hover:file:bg-ink/10"
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="news-label">…or paste a link</span>
+                      <Input
+                        name="featuredImage"
+                        value={pastedUrl}
+                        onChange={(e) => {
+                          setImageError(false);
+                          setPastedUrl(cleanAndUnwrapImageUrl(e.target.value));
+                        }}
+                        placeholder="https://example.com/banner.png"
+                        aria-label="New article image link"
+                        className="h-9 text-xs"
+                      />
+                    </label>
+                    <p className="text-xs text-muted">
+                      Optional. Direct image links, Google Images, or Imgur URLs are unwrapped automatically.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sticky Footer */}
+              <div className="shrink-0 flex items-center justify-end gap-3 border-t border-line px-5 sm:px-6 py-3.5 bg-card/95 backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={closeComposer}
+                  className="btn btn-ghost text-xs py-2 px-4 text-muted hover:text-ink"
+                >
+                  Cancel
+                </button>
+                <button type="submit" name="intent" value="draft" disabled={busy} className="btn btn-ghost text-xs py-2 px-4 flex items-center gap-1.5">
+                  <Archive size={14} /> Save draft
+                </button>
+                <button type="submit" name="intent" value="publish" disabled={busy} className="btn btn-primary text-xs py-2.5 px-6 flex items-center gap-2 shadow-lg shadow-accent/15">
+                  <Plus size={15} /> Publish
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>,
+        document.body
       )}
 
       {filteredShown.length === 0 ? (

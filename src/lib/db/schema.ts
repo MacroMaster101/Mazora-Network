@@ -350,11 +350,29 @@ export const notifications = pgTable("notifications", {
 export const galleryImages = pgTable("gallery_images", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: text("title").notNull(),
-  imageUrl: text("image_url"),
-  category: text("category").notNull().default("Community"),
-  uploadedBy: uuid("uploaded_by"),
+  description: text("description"),
+  imageUrl: text("image_url").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  category: text("category").notNull().default("community"),
+  authorId: uuid("author_id"),
+  authorName: text("author_name"),
+  status: text("status").notNull().default("pending"),
+  featured: boolean("featured").default(false).notNull(),
+  likesCount: integer("likes_count").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const galleryLikes = pgTable(
+  "gallery_likes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    imageId: uuid("image_id").notNull().references(() => galleryImages.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({ userImageIdx: uniqueIndex("gallery_likes_user_image_idx").on(t.userId, t.imageId) })
+);
 
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
