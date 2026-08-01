@@ -26,7 +26,7 @@ export function DashEmpty({
   cta?: { label: string; href: string };
 }) {
   return (
-    <div className="glass flex flex-col items-center px-6 py-16 text-center">
+    <div className="dash-empty-state glass flex flex-col items-center justify-center px-6 py-16 text-center">
       <span className="grid h-14 w-14 place-items-center rounded-xl border border-line-strong bg-ink/5 text-muted">{icon}</span>
       <h2 className="mt-4 font-display text-lg font-semibold">{title}</h2>
       <p className="mt-1.5 max-w-sm text-sm text-muted">{message}</p>

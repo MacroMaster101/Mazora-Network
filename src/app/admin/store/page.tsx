@@ -1,36 +1,38 @@
 import type { Metadata } from "next";
-import { Plus } from "lucide-react";
 import { requireRole } from "@/lib/auth";
-import { getProducts } from "@/lib/data/content";
+import { getAdminGameModes, getAdminProducts } from "@/lib/data/content";
+import { getStoreFeaturedSlugs } from "@/lib/data/store-settings";
+import { getStoreCategoryConfigs } from "@/lib/data/store-categories";
+import { saveStoreFeaturedPicksAction } from "@/lib/actions/store-settings";
 import { DashHeader } from "@/components/dashboard/dash-ui";
-import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
-import { usd } from "@/lib/utils";
-import type { Product } from "@/lib/types";
+import { StoreFeaturedPicksEditor } from "@/components/admin/store-featured-picks-editor";
+import { StoreCatalogManager } from "@/components/admin/store-catalog-manager";
+import "@/styles/admin-store.css";
 
 export const metadata: Metadata = { title: "Store · Admin" };
 
 export default async function AdminStorePage() {
   await requireRole("administrator", "/admin/store");
-  const products = await getProducts();
-  const columns: Column<Product>[] = [
-    { header: "Product", cell: (p) => <span className="font-semibold">{p.name}</span> },
-    { header: "Category", cell: (p) => <span className="text-muted">{p.category}</span> },
-    { header: "Price", cell: (p) => <span className="telemetry">{usd(p.salePrice ?? p.price)}</span> },
-    { header: "Enabled", align: "right", cell: () => <span className="inline-flex items-center gap-1.5 text-muted"><span className="dot" /> yes</span> },
-  ];
+  const [products, modes, featuredSlugs] = await Promise.all([
+    getAdminProducts(),
+    getAdminGameModes(),
+    getStoreFeaturedSlugs(),
+  ]);
+  const categoryConfigs = await getStoreCategoryConfigs(modes);
+  const enabledProducts = products.filter((product) => product.enabled);
+
   return (
-    <>
+    <div className="admin-store-page">
       <DashHeader
-        title="Store products"
-        subtitle={`${products.length} products`}
-        action={
-          <button className="btn btn-primary btn-sm opacity-60" disabled title="Coming soon">
-            <Plus size={15} /> New product
-          </button>
-        }
+        title="Store dashboard"
+        subtitle={`${products.length} products · ${modes.length} game modes · database managed`}
       />
-      <ReadOnlyBanner />
-      <AdminTable columns={columns} rows={products} />
-    </>
+      <StoreFeaturedPicksEditor
+        products={enabledProducts}
+        selectedSlugs={featuredSlugs}
+        saveAction={saveStoreFeaturedPicksAction}
+      />
+      <StoreCatalogManager products={products} modes={modes} categoryConfigs={categoryConfigs} view="modes" />
+    </div>
   );
 }

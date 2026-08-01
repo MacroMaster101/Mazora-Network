@@ -76,7 +76,14 @@ export function isLaunchModeEnabled(): boolean {
 }
 
 /** Paths that are ready even when the dashboard children gate is active. */
-const dashboardExclusions = new Set(["/dashboard/settings", "/dashboard/minecraft", "/dashboard/statistics"]);
+const dashboardExclusions = new Set([
+  "/dashboard/settings",
+  "/dashboard/minecraft",
+  "/dashboard/statistics",
+  // Store orders are recorded and their status is kept current from Discord,
+  // so purchase history shows real data rather than a placeholder.
+  "/dashboard/purchases",
+]);
 
 export function getLaunchGate(pathname: string): LaunchGate | undefined {
   if (dashboardExclusions.has(pathname)) return undefined;

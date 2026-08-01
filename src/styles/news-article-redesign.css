@@ -59,7 +59,7 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   background-image:
     linear-gradient(90deg, rgb(5 3 11 / 0.52), transparent 25%, transparent 75%, rgb(5 3 11 / 0.54)),
     linear-gradient(180deg, rgb(5 3 11 / 0.28), rgb(7 4 13 / 0.14) 50%, rgb(7 5 13 / 0.76) 88%, rgb(7 5 13)),
-    url("/images/newsroom-signal-realm-v1.png");
+    url("/images/newsroom-signal-realm-v1.webp");
   background-position: center, center, center 46%;
   background-repeat: no-repeat;
   background-size: cover;
@@ -337,7 +337,7 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   z-index: -2;
   background:
     linear-gradient(180deg, rgb(7 5 13 / 0.06), rgb(7 5 13 / 0.22) 38%, rgb(4 3 9 / 0.62) 100%),
-    url("/images/newsroom-header-continuation-v3.png") center top / cover no-repeat;
+    url("/images/newsroom-header-continuation-v3.webp") center top / cover no-repeat;
   -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.2) 7rem, #000 16rem);
   mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.2) 7rem, #000 16rem);
 }
@@ -717,7 +717,7 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   pointer-events: none;
   background:
     linear-gradient(180deg, rgb(4 3 9 / 0.04), rgb(4 3 9 / 0.52) 44%, rgb(4 3 9 / 0.84) 100%),
-    url("/images/newsroom-header-continuation-v3.png") center bottom / cover no-repeat;
+    url("/images/newsroom-header-continuation-v3.webp") center bottom / cover no-repeat;
   -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 4rem, #000 12rem);
   mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 4rem, #000 12rem);
 }

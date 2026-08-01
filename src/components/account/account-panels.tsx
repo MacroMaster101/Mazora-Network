@@ -5,7 +5,9 @@
  */
 import type { ReactNode } from "react";
 import { Bell, Monitor, Receipt } from "lucide-react";
-import { requireSession, getDiscordIdentity } from "@/lib/auth";
+import { requireSession, getDiscordIdentity, getSessionUserId } from "@/lib/auth";
+import { getOrdersForUser } from "@/lib/data/orders";
+import { OrderCard } from "@/components/shared/order-card";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -147,16 +149,34 @@ export function AccountNotifications() {
 }
 
 /** The signed-in user's own purchase history. */
-export function AccountPurchases() {
+export async function AccountPurchases() {
+  const userId = await getSessionUserId();
+  const orders = userId ? await getOrdersForUser(userId) : [];
+
   return (
     <>
-      <DashHeader title="Purchase history" subtitle="Your orders and receipts." />
-      <DashEmpty
-        icon={<Receipt size={24} />}
-        title="No purchases yet"
-        message="When payments go live, your orders, receipts and delivered items will appear here."
-        cta={{ label: "Visit the store", href: "/store" }}
+      <DashHeader
+        title="Purchase history"
+        subtitle={
+          orders.length
+            ? `${orders.length} order${orders.length === 1 ? "" : "s"} placed with the Mazora store.`
+            : "Your store order requests."
+        }
       />
+      {orders.length === 0 ? (
+        <DashEmpty
+          icon={<Receipt size={24} />}
+          title="No orders yet"
+          message="Order requests you send from the store appear here, along with the status staff set in Discord."
+          cta={{ label: "Visit the store", href: "/store" }}
+        />
+      ) : (
+        <div className="space-y-4">
+          {orders.map((order) => (
+            <OrderCard key={order.id} order={order} />
+          ))}
+        </div>
+      )}
     </>
   );
 }

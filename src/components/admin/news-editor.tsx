@@ -115,10 +115,10 @@ function PublisherAvatar({ src, name, team = false }: { src?: string | null; nam
       {src ? (
         // Publisher avatars can come from Discord or profile storage.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" />
+        <img src={src} alt="" loading="lazy" decoding="async" />
       ) : team ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src="/images/mazora-icon.png" alt="" />
+        <img src="/images/mazora-icon.png" alt="" loading="lazy" decoding="async" />
       ) : (
         <span>{fallback}</span>
       )}

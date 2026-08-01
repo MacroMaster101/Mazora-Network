@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Camera, Link as LinkIcon, Lock, LogIn, Send, Sparkles, Trash2, UploadCloud, UserCheck, UserPlus, X } from "lucide-react";
+import { Link as LinkIcon, Lock, LogIn, Send, Sparkles, Trash2, UploadCloud, UserCheck, UserPlus, X } from "lucide-react";
 import { submitGalleryAction } from "@/lib/actions/gallery";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
 import { Input, Textarea, useToast } from "@/components/ui";

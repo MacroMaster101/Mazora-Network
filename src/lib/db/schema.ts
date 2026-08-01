@@ -157,7 +157,18 @@ export const gameModes = pgTable(
     imageUrl: text("image_url"),
     serverAddress: text("server_address"),
     playerCount: integer("player_count").default(0).notNull(),
+    icon: text("icon").default("gamepad-2").notNull(),
+    accent: text("accent").default("violet").notNull(),
+    tagline: text("tagline"),
+    version: text("version").default("1.21.11").notNull(),
+    features: jsonb("features").default([]).notNull(),
+    commands: jsonb("commands").default([]).notNull(),
+    rules: jsonb("rules").default([]).notNull(),
+    storeStatus: text("store_status").default("coming_soon").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
     enabled: boolean("enabled").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({ slugIdx: uniqueIndex("game_modes_slug_idx").on(t.slug) }),
 );
@@ -294,6 +305,7 @@ export const products = pgTable(
     family: text("family"),
     billing: text("billing"),
     subcategory: text("subcategory"),
+    gameModeSlug: text("game_mode_slug").default("survival-smp").notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     enabled: boolean("enabled").default(true).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -306,16 +318,33 @@ export const orders = pgTable("orders", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull(),
   totalAmount: numeric("total_amount").notNull(),
+  // Reserved for a future card provider. The manual Discord flow uses `status`.
   paymentStatus: text("payment_status").notNull().default("pending"),
   paymentProvider: text("payment_provider"),
   externalPaymentId: text("external_payment_id"),
+  // --- manual Discord order flow (013) ---
+  /** Public MZ-YYYYMMDD-XXXXXX code the buyer quotes to staff. */
+  reference: text("reference"),
+  minecraftUsername: text("minecraft_username"),
+  discordId: text("discord_id"),
+  discordUsername: text("discord_username"),
+  notes: text("notes"),
+  /** pending | confirmed | rejected | awaiting_discord_join */
+  status: text("status").notNull().default("pending"),
+  /** Display name of the staff member who actioned it in Discord. */
+  handledBy: text("handled_by"),
+  handledAt: timestamp("handled_at", { withTimezone: true }),
+  ticketChannelId: text("ticket_channel_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const orderItems = pgTable("order_items", {
   id: uuid("id").defaultRandom().primaryKey(),
   orderId: uuid("order_id").notNull(),
-  productId: uuid("product_id").notNull(),
+  // Nullable in SQL: a deleted product sets this null but keeps the line item.
+  productId: uuid("product_id"),
+  /** Snapshot of the name at purchase time, so history survives a rename. */
+  productName: text("product_name").notNull(),
   quantity: integer("quantity").default(1).notNull(),
   price: numeric("price").notNull(),
 });

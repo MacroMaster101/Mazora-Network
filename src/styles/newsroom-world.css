@@ -19,7 +19,7 @@
   pointer-events: none;
   background:
     linear-gradient(180deg, rgb(8 6 14 / 0.18), rgb(8 5 14 / 0.42) 28%, rgb(6 4 11 / 0.72) 100%),
-    url("/images/newsroom-signal-depths-v1.png");
+    url("/images/newsroom-signal-depths-v1.webp");
   background-position: center top;
   background-repeat: no-repeat;
   background-size: 100% 100%;
@@ -42,7 +42,7 @@
 }
 
 .newsroom-hero-backdrop {
-  background-image: url("/images/newsroom-signal-realm-v1.png");
+  background-image: url("/images/newsroom-signal-realm-v1.webp");
   background-position: 50% center;
   filter: saturate(0.96) contrast(1.04);
 }

@@ -34,7 +34,7 @@ async function botRequest(
   token: string,
   path: string,
   body?: unknown,
-  method: "GET" | "POST" = "POST",
+  method: "GET" | "POST" | "PATCH" = "POST",
 ): Promise<{ ok: boolean; status: number; json: unknown }> {
   const response = await fetch(`${DISCORD_API}${path}`, {
     method,
@@ -78,6 +78,155 @@ export async function sendBotDirectMessage(
   const message = await botRequest(token, `/channels/${channelId}/messages`, payload);
   if (!message.ok) console.error("Discord DM send failed", message.status, message.json);
   return message.ok;
+}
+
+/**
+ * Private category the bot creates one ticket channel per confirmed order in.
+ * When unset, confirmations fall back to the DM-only flow.
+ */
+export function getStoreTicketsCategoryId(): string | null {
+  const id = process.env.DISCORD_STORE_TICKETS_CATEGORY_ID?.trim();
+  return id && /^\d{17,20}$/.test(id) ? id : null;
+}
+
+export function getStoreStaffRoleId(): string | null {
+  const id = process.env.DISCORD_STORE_STAFF_ROLE_ID?.trim();
+  return id && /^\d{17,20}$/.test(id) ? id : null;
+}
+
+/** Public invite shown to buyers who have not joined the server yet. */
+export function getDiscordInviteUrl(): string {
+  return process.env.NEXT_PUBLIC_DISCORD_INVITE_URL?.trim() || "https://discord.gg/ZPrzyGpMyt";
+}
+
+/** Deep link to a channel, used to send buyers straight into their order ticket. */
+export function channelUrl(guildId: string, channelId: string): string {
+  return `https://discord.com/channels/${guildId}/${channelId}`;
+}
+
+/**
+ * Short-lived positive cache for membership lookups.
+ *
+ * Only "yes" is cached, and only for a couple of minutes: a buyer who just
+ * joined must not be told to join again, but someone who leaves or is banned
+ * has to lose access quickly. Membership is deliberately never remembered on
+ * the account — a stale "they joined once" flag would let an order be confirmed
+ * for someone who is no longer reachable, which is the exact failure the check
+ * exists to prevent.
+ */
+const memberCache = new Map<string, number>();
+const MEMBER_CACHE_MS = 2 * 60 * 1000;
+
+/**
+ * Whether a Discord user is a member of the guild.
+ * Returns null when Discord could not answer, so callers can tell "not joined"
+ * apart from "we don't know" and avoid blocking an order on a transient error.
+ */
+export async function isGuildMember(
+  token: string,
+  guildId: string,
+  userId: string,
+  options?: { fresh?: boolean },
+): Promise<boolean | null> {
+  const cacheKey = `${guildId}:${userId}`;
+  const cachedUntil = memberCache.get(cacheKey);
+  // `fresh` skips the cache for decisions that actually grant something — a
+  // stale "yes" there would open a ticket for someone who has already left.
+  if (!options?.fresh && cachedUntil && cachedUntil > Date.now()) return true;
+
+  try {
+    const res = await botRequest(token, `/guilds/${guildId}/members/${userId}`, undefined, "GET");
+    if (res.ok) {
+      memberCache.set(cacheKey, Date.now() + MEMBER_CACHE_MS);
+      return true;
+    }
+    if (res.status === 404) {
+      memberCache.delete(cacheKey);
+      return false;
+    }
+    console.error("Discord guild member lookup failed", res.status, res.json);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// VIEW_CHANNEL | SEND_MESSAGES | EMBED_LINKS | ATTACH_FILES | READ_MESSAGE_HISTORY | ADD_REACTIONS
+const TICKET_MEMBER_PERMISSIONS = String(
+  (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 6),
+);
+const VIEW_CHANNEL = String(1 << 10);
+
+/** Discord channel names are lowercase kebab-case and capped at 100 characters. */
+function ticketChannelName(reference: string, username: string): string {
+  const slug = `order-${reference}-${username}`
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return (slug || "order-ticket").slice(0, 100);
+}
+
+export interface StoreTicketOptions {
+  token: string;
+  guildId: string;
+  categoryId: string;
+  reference: string;
+  /** Buyer's Discord id — granted access to the new channel. */
+  customerId: string;
+  customerName: string;
+  /** Optional staff role granted access alongside the buyer. */
+  staffRoleId?: string | null;
+  /** The bot's own application id, so it keeps access to a private channel. */
+  botApplicationId?: string | null;
+}
+
+/**
+ * Creates the private per-order ticket channel: hidden from @everyone, visible
+ * to the buyer, the store-staff role and the bot. Returns null when Discord
+ * refuses (missing Manage Channels, wrong category id, category full…).
+ */
+export async function createStoreTicketChannel(
+  options: StoreTicketOptions,
+): Promise<{ id: string } | null> {
+  const overwrites: { id: string; type: number; allow: string; deny: string }[] = [
+    // type 0 = role. The @everyone role always shares the guild's id.
+    { id: options.guildId, type: 0, allow: "0", deny: VIEW_CHANNEL },
+    // type 1 = member.
+    { id: options.customerId, type: 1, allow: TICKET_MEMBER_PERMISSIONS, deny: "0" },
+  ];
+  if (options.staffRoleId) {
+    overwrites.push({ id: options.staffRoleId, type: 0, allow: TICKET_MEMBER_PERMISSIONS, deny: "0" });
+  }
+  if (options.botApplicationId) {
+    overwrites.push({ id: options.botApplicationId, type: 1, allow: TICKET_MEMBER_PERMISSIONS, deny: "0" });
+  }
+
+  const res = await botRequest(options.token, `/guilds/${options.guildId}/channels`, {
+    name: ticketChannelName(options.reference, options.customerName),
+    type: 0,
+    parent_id: options.categoryId,
+    topic: `Mazora store order ${options.reference} · buyer ${options.customerName}`.slice(0, 1024),
+    permission_overwrites: overwrites,
+  });
+
+  const id = (res.json as { id?: string } | null)?.id;
+  if (!res.ok || !id) {
+    console.error("Discord ticket channel could not be created", res.status, res.json);
+    return null;
+  }
+  return { id };
+}
+
+/** Posts to an arbitrary channel as the bot (ticket channels, not just orders). */
+export async function postChannelMessage(
+  token: string,
+  channelId: string,
+  payload: Record<string, unknown>,
+): Promise<boolean> {
+  const res = await botRequest(token, `/channels/${channelId}/messages`, payload);
+  if (!res.ok) console.error("Discord channel message failed", res.status, res.json);
+  return res.ok;
 }
 
 /** Bot token on its own — news sync must not require the orders channel to be set. */
