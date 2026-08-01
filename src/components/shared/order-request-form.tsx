@@ -3,9 +3,9 @@
 import { useActionState, useEffect, useState, startTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { BadgeCheck, CheckCircle2, Loader2, MessageCircle, Send } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Loader2, MessageCircle, RefreshCw, Send } from "lucide-react";
 import { submitStoreRequest, type StoreRequestResult } from "@/lib/actions/store";
-import { oauthAction, type AuthResult } from "@/lib/actions/auth";
+import { oauthAction, switchDiscordAccountAction, type AuthResult } from "@/lib/actions/auth";
 import type { DiscordIdentity } from "@/lib/types";
 import { DiscordIcon } from "@/components/auth/provider-icons";
 import { FormRow, Input, Textarea, useToast } from "@/components/ui";
@@ -34,7 +34,14 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
   const { items, clear } = useCart();
   const [state, formAction, pending] = useActionState(submitStoreRequest, initialState);
   const [oauthState, oauthFormAction, oauthPending] = useActionState(oauthAction, initialOauthState);
+  const [switchState, switchFormAction, switchPending] = useActionState(switchDiscordAccountAction, initialOauthState);
   const [discord, setDiscord] = useState<DiscordIdentity | null | undefined>(undefined);
+  // Signing in with Discord does not put anyone in the Mazora server, and the
+  // order ticket + DM both need membership — so checkout tracks it separately.
+  const [inGuild, setInGuild] = useState(true);
+  const [inviteUrl, setInviteUrl] = useState("/discord");
+  const [checkingGuild, setCheckingGuild] = useState(false);
+  const [confirmingSwitch, setConfirmingSwitch] = useState(false);
   // Values typed before a "Connect Discord" hop survive the OAuth redirect.
   const [draft] = useState<OrderDraft>(readDraft);
   const { toast } = useToast();
@@ -62,7 +69,10 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
     fetch("/api/me/discord", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : { discord: null }))
       .then((body) => {
-        if (!cancelled) setDiscord(body.discord ?? null);
+        if (cancelled) return;
+        setDiscord(body.discord ?? null);
+        setInGuild(body.inGuild !== false);
+        if (body.inviteUrl) setInviteUrl(body.inviteUrl);
       })
       .catch(() => {
         if (!cancelled) setDiscord(null);
@@ -71,6 +81,25 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
       cancelled = true;
     };
   }, []);
+
+  /** "I joined — check again": re-asks the server whether they are in now. */
+  const recheckGuild = async () => {
+    setCheckingGuild(true);
+    try {
+      const response = await fetch("/api/me/discord", { cache: "no-store" });
+      const body = response.ok ? await response.json() : null;
+      const joined = body?.inGuild !== false;
+      setInGuild(joined);
+      toast(
+        joined ? "You're in the Mazora Discord — you can send your request." : "We still can't see you in the server. Join, then try again.",
+        joined ? "success" : "error",
+      );
+    } catch {
+      toast("We couldn't check your Discord membership. Try again in a moment.", "error");
+    } finally {
+      setCheckingGuild(false);
+    }
+  };
 
   useEffect(() => {
     if (state.ok && state.message) toast(state.message, "success");
@@ -82,16 +111,41 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
   }, [oauthState, toast]);
 
   useEffect(() => {
+    if (!switchState.ok && switchState.message) toast(switchState.message, "error");
+  }, [switchState, toast]);
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("error") === "oauth_failed") {
-        toast("Discord connection failed. That account might already be linked to someone else.", "error");
+        toast(
+          "Discord connection failed — that account is already tied to a different Mazora account. Use Switch to sign out and log in with it directly.",
+          "error",
+        );
         const cleanUrl = new URL(window.location.href);
         cleanUrl.searchParams.delete("error");
         window.history.replaceState({}, "", cleanUrl.toString());
       }
     }
   }, [toast]);
+
+  /**
+   * Switching Discord means signing out: the session owns the Discord identity,
+   * so clearing it client-side only made the next login try to *link* a second
+   * Discord to the same account, which Discord/Supabase reject.
+   *
+   * The confirmation is rendered in the page rather than via window.confirm —
+   * embedded webviews and sandboxed iframes suppress the native dialog and hand
+   * back `false` without showing anything, which silently ate the click.
+   */
+  const switchDiscord = () => {
+    saveDraft();
+    const formData = new FormData();
+    formData.append("next", "/store?cart=request");
+    startTransition(() => {
+      switchFormAction(formData);
+    });
+  };
 
   const connectDiscord = () => {
     saveDraft();
@@ -110,7 +164,23 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
         <h3 className="mt-3 font-display text-lg font-bold">Request sent</h3>
         <p className="telemetry mt-1 text-sm font-semibold text-accent-bright">{state.reference}</p>
         <p className="mt-2 text-sm text-muted">{state.message}</p>
-        <p className="mt-2 text-xs text-muted">Save the reference above. No payment has been taken.</p>
+        {/* Stated here as well as in the DM: a buyer with DMs closed would
+            otherwise never learn that the ticket is where to look. */}
+        <p className="mt-3 text-xs leading-relaxed text-muted">
+          Once staff confirm it, a <strong className="text-fg">private ticket channel</strong> opens for you in the
+          Mazora Discord — that is where payment is arranged. You will also get a DM, but if your DMs are closed just
+          check the server.
+        </p>
+        <a
+          href={inviteUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="cart-discord-connect-btn mt-3 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition"
+        >
+          <DiscordIcon className="h-4 w-4" />
+          Open Mazora Discord
+        </a>
+        <p className="mt-3 text-xs text-muted">Save the reference above. No payment has been taken.</p>
         <button type="button" onClick={clear} className="btn btn-ghost btn-sm mt-4">
           Start a new order
         </button>
@@ -133,7 +203,8 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
             <MessageCircle size={17} className="text-accent-bright" /> Request this order
           </h3>
           <p className="mt-1 text-xs leading-relaxed text-muted">
-            Staff will receive the request in Discord, confirm payment with you, and deliver the items manually.
+            Staff receive the request in Discord and open a private ticket channel with you to arrange payment, then
+            deliver the items in-game. A Discord account and Mazora server membership are required.
           </p>
         </div>
 
@@ -176,21 +247,31 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
                   <span className="truncate">@{discord.username}</span>
                   <BadgeCheck size={15} className="cart-assurance-ico shrink-0" aria-label="Verified" />
                 </strong>
-                <span className="cart-muted mt-0.5 block text-xs">Verified · order updates arrive by Discord DM</span>
+                {inGuild ? (
+                  <span className="cart-muted mt-0.5 block text-xs">
+                    Verified · in the Mazora Discord · updates arrive by DM
+                  </span>
+                ) : (
+                  <span className="mt-0.5 block text-xs font-semibold text-warning">
+                    Verified · not in the Mazora Discord yet
+                  </span>
+                )}
               </span>
               <button
                 type="button"
-                onClick={() => setDiscord(null)}
-                className="cart-link-muted shrink-0 text-xs font-semibold underline-offset-2 transition hover:underline"
+                onClick={() => setConfirmingSwitch((open) => !open)}
+                disabled={switchPending}
+                aria-expanded={confirmingSwitch}
+                className="cart-link-muted shrink-0 text-xs font-semibold underline-offset-2 transition hover:underline disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Switch
+                {switchPending ? "Switching…" : "Switch"}
               </button>
             </div>
           ) : (
             <div className="cart-discord-card rounded-xl p-4">
               <p className="cart-muted text-xs leading-relaxed">
-                Connect your Discord to place the order — it fills in your username and lets us send order updates
-                straight to your DMs.
+                Connect your Discord to place the order. It fills in your username and is how staff reach you — your
+                order gets its own private ticket channel in the Mazora server.
               </p>
               <button
                 type="button"
@@ -201,8 +282,102 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
                 {oauthPending ? <Loader2 size={16} className="animate-spin" /> : <DiscordIcon className="h-5 w-5" />}
                 {oauthPending ? "Opening Discord…" : "Connect Discord"}
               </button>
+              {/* Never assume the buyer already has Discord — a Minecraft store
+                  gets plenty of first-timers, and a dead end here is a lost order. */}
+              <p className="cart-muted mt-3 text-center text-[0.7rem] leading-relaxed">
+                No Discord account?{" "}
+                <a
+                  href="https://discord.com/register"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold underline underline-offset-2 hover:text-accent-bright"
+                >
+                  Create one free
+                </a>
+                , then{" "}
+                <a
+                  href={inviteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold underline underline-offset-2 hover:text-accent-bright"
+                >
+                  join the Mazora server
+                </a>{" "}
+                and come back here.
+              </p>
             </div>
           )}
+
+          {discord && confirmingSwitch && (
+            <div className="mt-2 rounded-xl border border-accent/30 bg-accent/5 p-4">
+              <p className="text-xs font-semibold">Use a different Discord account?</p>
+              <p className="cart-muted mt-1 text-xs leading-relaxed">
+                Your Mazora account is signed in as <strong className="text-fg">@{discord.username}</strong>. To order
+                as someone else you have to be signed out first — we&apos;ll send you straight to Discord to log in
+                again. Your cart and everything typed here is kept.
+              </p>
+              {/* Discord's OAuth has no "choose an account" prompt (only
+                  prompt=consent), so it authorises as whoever is already logged
+                  in on that device — including the desktop app, if it grabs the
+                  handoff. Without this warning people authorise as the same
+                  account twice and assume the switch is broken. */}
+              <p className="cart-muted mt-2 text-xs leading-relaxed">
+                <strong className="text-warning">Before you continue:</strong> make sure Discord itself is logged in as
+                the account you want. Discord authorises whoever is already signed in — it never asks you to pick. Log
+                out of Discord first, or use <em>Switch Accounts</em> in the Discord app.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={switchDiscord}
+                  disabled={switchPending}
+                  className="cart-discord-connect-btn inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {switchPending ? <Loader2 size={16} className="animate-spin" /> : <DiscordIcon className="h-4 w-4" />}
+                  {switchPending ? "Signing out…" : "Sign out & switch"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingSwitch(false)}
+                  disabled={switchPending}
+                  className="btn btn-ghost btn-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {discord && !inGuild && (
+            <div className="mt-2 rounded-xl border border-warning/30 bg-warning/5 p-4">
+              <p className="text-xs font-semibold">Join the Mazora Discord to continue</p>
+              <p className="cart-muted mt-1 text-xs leading-relaxed">
+                Staff arrange payment and deliver your items in a private ticket inside our server, so we need you in
+                there before the request can be sent.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a
+                  href={inviteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="cart-discord-connect-btn inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition"
+                >
+                  <DiscordIcon className="h-4 w-4" />
+                  Join Mazora Discord
+                </a>
+                <button
+                  type="button"
+                  onClick={recheckGuild}
+                  disabled={checkingGuild}
+                  className="btn btn-ghost btn-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {checkingGuild ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  {checkingGuild ? "Checking…" : "I joined — check again"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {(state.errors?.discordId || state.errors?.discordUsername) && (
             <p className="mt-1.5 text-xs text-danger">{state.errors?.discordId ?? state.errors?.discordUsername}</p>
           )}
@@ -231,7 +406,7 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
 
         <button
           type="submit"
-          disabled={pending || !configured || !discord}
+          disabled={pending || !configured || !discord || !inGuild}
           className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} />}

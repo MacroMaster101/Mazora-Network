@@ -16,7 +16,6 @@ import type {
   NewsArticle,
   Product,
   RuleCategory,
-  StaffMember,
   VoteSite,
   TopVoter,
 } from "@/lib/types";
@@ -30,6 +29,7 @@ type ProductRow = typeof schema.products.$inferSelect;
 
 function toProduct(row: ProductRow): Product {
   return {
+    id: row.id,
     slug: row.slug,
     name: row.name,
     imageUrl: row.imageUrl ?? undefined,
@@ -43,6 +43,9 @@ function toProduct(row: ProductRow): Product {
     family: row.family ?? undefined,
     billing: (row.billing ?? undefined) as Product["billing"],
     subcategory: (row.subcategory ?? undefined) as Product["subcategory"],
+    gameModeSlug: row.gameModeSlug,
+    sortOrder: row.sortOrder,
+    enabled: row.enabled,
   };
 }
 
@@ -71,6 +74,17 @@ export async function getProduct(slug: string): Promise<Product | null> {
   } catch (error) {
     console.error("Failed to load product:", error);
     return null;
+  }
+}
+export async function getAdminProducts(): Promise<Product[]> {
+  const db = getDb();
+  if (!db) return [];
+  try {
+    const rows = await db.select().from(schema.products).orderBy(asc(schema.products.sortOrder));
+    return rows.map(toProduct);
+  } catch (error) {
+    console.error("Failed to load admin products:", error);
+    return [];
   }
 }
 
@@ -127,11 +141,62 @@ export async function getTopVoters(): Promise<TopVoter[]> {
  * pages render an explicit empty state rather than placeholder copy.
  * ------------------------------------------------------------------ */
 
-export async function getGameModes(): Promise<GameMode[]> {
-  return [];
+type GameModeRow = typeof schema.gameModes.$inferSelect;
+
+function toGameMode(row: GameModeRow): GameMode {
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    icon: row.icon,
+    accent: row.accent as Accent,
+    tagline: row.tagline ?? "",
+    description: row.description ?? "",
+    players: row.playerCount,
+    version: row.version,
+    features: Array.isArray(row.features) ? row.features as string[] : [],
+    commands: Array.isArray(row.commands) ? row.commands as GameMode["commands"] : [],
+    rules: Array.isArray(row.rules) ? row.rules as string[] : [],
+    storeStatus: row.storeStatus === "live" ? "live" : "coming_soon",
+    sortOrder: row.sortOrder,
+    enabled: row.enabled,
+  };
 }
-export async function getGameMode(_slug: string): Promise<GameMode | null> {
-  return null;
+
+export async function getGameModes(): Promise<GameMode[]> {
+  const db = getDb();
+  if (!db) return [];
+  try {
+    const rows = await db.select().from(schema.gameModes).where(eq(schema.gameModes.enabled, true)).orderBy(asc(schema.gameModes.sortOrder));
+    return rows.map(toGameMode);
+  } catch (error) {
+    console.error("Failed to load game modes:", error);
+    return [];
+  }
+}
+
+export async function getAdminGameModes(): Promise<GameMode[]> {
+  const db = getDb();
+  if (!db) return [];
+  try {
+    const rows = await db.select().from(schema.gameModes).orderBy(asc(schema.gameModes.sortOrder));
+    return rows.map(toGameMode);
+  } catch (error) {
+    console.error("Failed to load admin game modes:", error);
+    return [];
+  }
+}
+
+export async function getGameMode(slug: string): Promise<GameMode | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const [row] = await db.select().from(schema.gameModes).where(eq(schema.gameModes.slug, slug)).limit(1);
+    return row && row.enabled ? toGameMode(row) : null;
+  } catch (error) {
+    console.error("Failed to load game mode:", error);
+    return null;
+  }
 }
 
 type NewsRow = typeof schema.newsArticles.$inferSelect;
@@ -253,9 +318,11 @@ export async function getRules(): Promise<RuleCategory[]> {
   }
 }
 
-export async function getStaff(): Promise<StaffMember[]> {
-  return [];
-}
+// getStaff() lived here as a stub that always returned an empty array. Its only
+// caller was the admin Staff board, which therefore reported "0 team members"
+// while six people held staff ranks. The board now derives the team from
+// account ranks (see @/lib/data/accounts), so the stub has no callers and has
+// been removed rather than left to mislead the next reader.
 
 export async function getGallery(userId?: string | null): Promise<GalleryImage[]> {
   const db = getDb();

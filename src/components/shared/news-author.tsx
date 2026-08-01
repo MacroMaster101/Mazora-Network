@@ -19,7 +19,7 @@ export function NewsAuthor({
         {avatar ? (
           // Byline avatars may be stored profile images or Discord CDN images.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatar} alt="" />
+          <img src={avatar} alt="" loading="lazy" decoding="async" />
         ) : (
           <span>{fallback}</span>
         )}

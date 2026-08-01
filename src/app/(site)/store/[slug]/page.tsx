@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Check, Clock3, ShieldCheck, Sparkles } from "lucide-react";
-import { getProduct, getProducts } from "@/lib/data/content";
+import { getProduct } from "@/lib/data/content";
 import { storeArtFor } from "@/lib/store-art";
 import { usd } from "@/lib/utils";
 import { Reveal } from "@/components/shared";
@@ -10,10 +10,16 @@ import { AddToCartButton } from "@/components/shared/add-to-cart";
 import { StoreBackButton } from "@/components/shared/store-back-button";
 import { StoreArtwork } from "@/components/shared/store-artwork";
 
-export async function generateStaticParams() {
-  const products = await getProducts();
-  return products.map((product) => ({ slug: product.slug }));
-}
+/**
+ * Rendered per request rather than prerendered from generateStaticParams.
+ *
+ * Prerendering made `notFound()` return HTTP 200 with the 404 body — a soft 404
+ * that search engines index as a real page — and it also meant a product added
+ * in the admin only appeared after a rebuild. The catalogue lives in the
+ * database, so per-request rendering is both correct and current; server TTFB
+ * for these pages is a few tens of milliseconds.
+ */
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

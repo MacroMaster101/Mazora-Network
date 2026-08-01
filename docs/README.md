@@ -8,6 +8,8 @@ The site uses the Next.js App Router. Public pages are primarily Server Componen
 
 Development output uses `.next-dev`; optimized builds use `.next`. Keeping the directories separate prevents an active development server from losing its manifests when a production build runs. Both generated directories are excluded from Git and ESLint.
 
+Detail routes (`store/[slug]`, `news/[slug]`, `game-modes/[slug]`, `players/[username]`, `events/[slug]`) declare `export const dynamic = "force-dynamic"` and no longer use `generateStaticParams`. Prerendering them was actively wrong here: their content lives in the database, so a product or article added through the admin only appeared after a rebuild, and `notFound()` returned HTTP 200 with the 404 body — a soft 404 that search engines index as a real page. Because these pages already render in tens of milliseconds, per-request rendering costs little and keeps them correct and current.
+
 The homepage is intentionally compact:
 
 1. Full-height Minecraft hero with Java and Discord live status
@@ -144,4 +146,6 @@ Next.js may print an Edge-runtime compatibility warning from `@supabase/supabase
 6. Confirm the Java status endpoint and Discord invite from the deployed server.
 7. Replace placeholder social links.
 8. Test both themes and mobile/desktop layouts on the deployed URL.
-9. Keep payment actions disabled until a real provider and server-side verification are implemented.
+9. Set the Discord order variables in the host environment and point the Interactions Endpoint URL at the deployed domain. Discord verifies the endpoint when you save it, and button clicks never reach a local dev server, so order tickets only work once this is done from production.
+10. Grant the bot role View Channels, Manage Channels, Send Messages and Read Message History on the ticket category. Without Manage Channels a confirmed order still DMs the buyer but no ticket channel is created.
+11. Keep card payment actions disabled until a real provider and server-side verification are implemented. The manual Discord order flow is live and takes no payment on the site.

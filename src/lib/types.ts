@@ -30,6 +30,7 @@ export interface DiscordIdentity {
 }
 
 export interface GameMode {
+  id?: string;
   slug: string;
   name: string;
   icon: string;
@@ -41,6 +42,9 @@ export interface GameMode {
   features: string[];
   commands: { cmd: string; desc: string }[];
   rules: string[];
+  storeStatus?: "live" | "coming_soon";
+  sortOrder?: number;
+  enabled?: boolean;
 }
 
 export interface NewsArticle {
@@ -78,6 +82,7 @@ export interface EventItem {
   requirements: string[];
   rewards: string[];
   rules: string[];
+
   winners?: { place: number; username: string; prize: string }[];
 }
 
@@ -140,10 +145,11 @@ export interface GalleryImage {
 }
 
 export interface Product {
+  id?: string;
   slug: string;
   name: string;
   imageUrl?: string;
-  category: "Ranks" | "Crate Keys" | "Battlepass" | "Add-ons";
+  category: string;
   description: string;
   price: number;
   salePrice?: number;
@@ -152,7 +158,31 @@ export interface Product {
   badge?: string;
   family?: string;
   billing?: "Monthly" | "Permanent";
-  subcategory?: "XP Boosts" | "Claim Blocks" | "Player Points";
+  subcategory?: string;
+  gameModeSlug?: string;
+  sortOrder?: number;
+  enabled?: boolean;
+}
+
+export interface StoreSubcategoryConfig {
+  key: string;
+  label: string;
+  description: string;
+  sortOrder: number;
+  enabled: boolean;
+}
+
+export interface StoreCategoryConfig {
+  gameModeSlug: string;
+  key: Product["category"];
+  label: string;
+  eyebrow: string;
+  description: string;
+  accent: Accent;
+  sortOrder: number;
+  enabled: boolean;
+  useSubcategories: boolean;
+  subcategories: StoreSubcategoryConfig[];
 }
 
 export interface VoteSite {

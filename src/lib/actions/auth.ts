@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Role } from "@/lib/types";
-import { createSession, getSession, isStaff, landingPathFor, ROLES } from "@/lib/auth";
+import { createSession, getSession, isStaff, landingPathFor, pickDiscordIdentity, ROLES } from "@/lib/auth";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { site } from "@/lib/site";
 import { getSupabaseConfig, isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
@@ -162,6 +162,11 @@ export async function oauthAction(_previous: AuthResult, formData: FormData): Pr
   const oauthOptions = {
     redirectTo: `${site.url}/auth/callback?next=${encodeURIComponent(next)}`,
     skipBrowserRedirect: true,
+    // Discord silently re-approves the account already authorised in this
+    // browser, so someone trying to use a second account is handed the first
+    // one back without ever being asked. `prompt=consent` forces the authorise
+    // screen, which carries Discord's own "not you?" account switcher.
+    ...(provider === "discord" ? { queryParams: { prompt: "consent" } } : {}),
   };
 
   // A signed-in visitor is LINKING the provider to their current account, not
@@ -170,6 +175,20 @@ export async function oauthAction(_previous: AuthResult, formData: FormData): Pr
   // "Manual Linking" toggle in Supabase Authentication settings.
   const { data: existingUser } = await supabase.auth.getUser();
   if (existingUser?.user) {
+    // Refuse to attach a second identity for a provider the account already
+    // has. Supabase happily allows it, and the result is an account holding two
+    // Discord logins where nothing can say which one owns an order — the state
+    // that made the store show a buyer their previous username.
+    if (existingUser.user.identities?.some((identity) => identity.provider === provider)) {
+      return {
+        ok: false,
+        message:
+          provider === "discord"
+            ? "This account already has a Discord connected. Use Switch to sign out and log in with the other account."
+            : "This account already has Google connected.",
+      };
+    }
+
     const { data, error } = await supabase.auth.linkIdentity({ provider, options: oauthOptions });
     if (error || !data.url) {
       const reason = error?.message?.toLowerCase() ?? "";
@@ -349,7 +368,7 @@ export async function switchDiscordAction(_previous: AuthResult): Promise<AuthRe
   const { data, error: userError } = await supabase.auth.getUser();
   if (userError || !data.user) return { ok: false, message: "You must be signed in to switch accounts." };
 
-  const discordIdentity = data.user.identities?.find((identity) => identity.provider === "discord");
+  const discordIdentity = pickDiscordIdentity(data.user.identities);
   if (!discordIdentity) return { ok: false, message: "No Discord account is linked." };
 
   const remaining = (data.user.identities?.length ?? 0) - 1;
@@ -380,6 +399,51 @@ export async function switchDiscordAction(_previous: AuthResult): Promise<AuthRe
 
   redirect(linkData.url);
 }
+/**
+ * Checkout's "Switch": signs the visitor out, then starts a fresh Discord login.
+ *
+ * Deliberately not the unlink-and-relink dance switchDiscordAction performs.
+ * Store buyers have almost always signed in *with* Discord, so it is their only
+ * identity, and Supabase refuses to unlink the last identity on an account —
+ * relinking can never succeed for them. Clearing the session first is also what
+ * makes oauthAction take the signInWithOAuth path instead of linkIdentity,
+ * which is the only branch that accepts a different Discord account.
+ */
+export async function switchDiscordAccountAction(
+  _previous: AuthResult,
+  formData: FormData,
+): Promise<AuthResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, message: "Authentication has not been configured yet." };
+  }
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
+
+  const nextValue = formData.get("next");
+  const next = safeNext(typeof nextValue === "string" ? nextValue : undefined);
+
+  await supabase.auth.signOut();
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "discord",
+    options: {
+      redirectTo: `${site.url}/auth/callback?next=${encodeURIComponent(next)}`,
+      skipBrowserRedirect: true,
+      queryParams: { prompt: "consent" },
+    },
+  });
+
+  // Already signed out at this point, so say so — otherwise the visitor is left
+  // looking at a checkout that silently stopped knowing who they are.
+  if (error || !data.url) {
+    return {
+      ok: false,
+      message: "You have been signed out, but Discord login could not start. Use Connect Discord to continue.",
+    };
+  }
+  redirect(data.url);
+}
+
 export async function unlinkDiscordAction(_previous: AuthResult): Promise<AuthResult> {
   if (!isSupabaseConfigured()) {
     return { ok: false, message: "Authentication has not been configured yet." };
@@ -390,17 +454,22 @@ export async function unlinkDiscordAction(_previous: AuthResult): Promise<AuthRe
   const { data, error: userError } = await supabase.auth.getUser();
   if (userError || !data.user) return { ok: false, message: "You must be signed in to unlink an account." };
 
-  const discordIdentity = data.user.identities?.find((i) => i.provider === "discord");
-  if (!discordIdentity) return { ok: false, message: "No Discord account is linked." };
+  // Every Discord identity goes, not just the first one found: an account that
+  // picked up a duplicate before duplicates were blocked would otherwise keep a
+  // stray login that still counts as "Discord connected".
+  const discordIdentities = (data.user.identities ?? []).filter((i) => i.provider === "discord");
+  if (discordIdentities.length === 0) return { ok: false, message: "No Discord account is linked." };
 
   // Supabase requires at least one identity to remain on the account.
-  const remaining = (data.user.identities?.length ?? 0) - 1;
+  const remaining = (data.user.identities?.length ?? 0) - discordIdentities.length;
   if (remaining < 1) {
     return { ok: false, message: "You cannot unlink Discord because it is your only sign-in method. Link Google or set a password first." };
   }
 
-  const { error } = await supabase.auth.unlinkIdentity(discordIdentity);
-  if (error) return { ok: false, message: "Discord could not be unlinked. Please try again." };
+  for (const identity of discordIdentities) {
+    const { error } = await supabase.auth.unlinkIdentity(identity);
+    if (error) return { ok: false, message: "Discord could not be unlinked. Please try again." };
+  }
 
   return { ok: true, message: "Discord has been disconnected from your account." };
 }

@@ -72,24 +72,36 @@ async function resolveGalleryImage(
     // Already on our storage — use as-is
     if (isOwnStorageUrl(rawLink)) return { url: rawLink };
 
-    // Data URI — store it
+    // Data URI — decode and store it. `\w` does not match "+", so a
+    // "data:image/svg+xml;base64," payload never matched and used to be stored
+    // verbatim; the MIME type is now checked explicitly and anything that fails
+    // to decode into a real image is rejected rather than persisted raw.
     if (rawLink.startsWith("data:image/")) {
-      const match = rawLink.match(/^data:image\/\w+;base64,(.+)$/);
+      const match = rawLink.match(/^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/i);
       if (match) {
-        const bytes = Uint8Array.from(atob(match[1]), (c) => c.charCodeAt(0));
-        const stored = await storeImageBytes(bytes, `gallery/${keyBase}`);
-        if (stored) return { url: stored.url };
+        try {
+          const bytes = Uint8Array.from(atob(match[2]), (c) => c.charCodeAt(0));
+          const stored = await storeImageBytes(bytes, `gallery/${keyBase}`);
+          if (stored) return { url: stored.url };
+        } catch {
+          /* malformed base64 — fall through to the error below */
+        }
       }
-      return { url: rawLink };
+      return { url: null, error: "Please use a JPEG, PNG, WebP or GIF image under 8 MB." };
     }
 
     // External URL — download & re-host so it never expires
     const hosted = await rehostImageFromUrl(rawLink, `gallery/${keyBase}`);
     if (hosted) return { url: hosted.url };
 
-    // Rehosting failed — still save the raw URL so user sees something,
-    // but warn that it might not render
-    return { url: rawLink };
+    // Re-hosting failed. Previously the raw link was stored anyway, which meant
+    // an unfetchable or deliberately malformed string (the submitter controls up
+    // to 5 MB of it) was persisted and later rendered as an image source.
+    // Refusing is both safer and more honest — the link would not have loaded.
+    return {
+      url: null,
+      error: "That image link could not be downloaded. Use a direct image URL, or upload the file instead.",
+    };
   }
 
   return { url: null };
