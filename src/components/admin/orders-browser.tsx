@@ -18,8 +18,9 @@ type Filter = "all" | OrderStatus;
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "pending", label: "Awaiting review" },
-  { key: "confirmed", label: "Confirmed" },
+  { key: "confirmed", label: "In progress" },
   { key: "awaiting_discord_join", label: "Awaiting join" },
+  { key: "completed", label: "Completed" },
   { key: "rejected", label: "Declined" },
 ];
 

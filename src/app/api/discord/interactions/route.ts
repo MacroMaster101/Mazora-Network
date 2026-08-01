@@ -1,7 +1,14 @@
 import { after, NextResponse } from "next/server";
 import {
   channelUrl,
+  closedChannelName,
   createStoreTicketChannel,
+  fetchChannel,
+  getBuyersChannelId,
+  getPurchaseBannerUrl,
+  renameChannel,
+  reopenedChannelName,
+  setTicketMemberAccess,
   getDiscordAppPublicKey,
   getDiscordBotConfig,
   getDiscordGuildId,
@@ -52,6 +59,8 @@ interface Interaction {
   type: number;
   application_id?: string;
   token?: string;
+  /** Present on component clicks — the channel the button lives in. */
+  channel_id?: string;
   data?: { custom_id?: string; component_type?: number };
   member?: { user?: { id?: string; username?: string; global_name?: string | null }; roles?: string[] };
   user?: { id?: string; username?: string; global_name?: string | null };
@@ -221,6 +230,23 @@ async function runConfirm(context: DecisionContext): Promise<void> {
           timestamp: new Date().toISOString(),
         },
       ],
+      // Staff close the ticket from here once the items are delivered. The
+      // buyer sees the button but cannot use it — the handler re-checks the
+      // staff role, because anyone who can see a component can click it.
+      components: [
+        {
+          type: 1,
+          components: [
+            {
+              type: 2,
+              style: 2,
+              label: "Close ticket",
+              emoji: { name: "🔒" },
+              custom_id: `mzt:close:${context.customerId}:${context.reference}`,
+            },
+          ],
+        },
+      ],
     });
   }
 
@@ -264,6 +290,149 @@ async function runConfirm(context: DecisionContext): Promise<void> {
       ticketId ? "Manual store request · Ticket open" : "Manual store request · Confirmed",
     ),
   );
+}
+
+interface TicketLifecycleContext {
+  applicationId: string;
+  interactionToken: string;
+  botToken: string;
+  channelId: string;
+  customerId: string;
+  reference: string;
+  actorName: string;
+  closing: boolean;
+  originalEmbed: Embed | undefined;
+}
+
+/**
+ * Announces a completed purchase in the public buyers channel.
+ *
+ * Fired on close rather than on confirm: confirming only means staff accepted
+ * the request, while closing the ticket is the point at which the items have
+ * actually been delivered. Announcing earlier would advertise orders that might
+ * still fall through.
+ */
+async function announcePurchase(
+  botToken: string,
+  order: { reference: string; minecraftUsername: string; items: string; total: string; customerId: string },
+): Promise<boolean> {
+  const channelId = getBuyersChannelId();
+  if (!channelId) return false;
+
+  const banner = getPurchaseBannerUrl();
+  const rule = "━".repeat(22);
+  const date = new Date().toISOString().slice(0, 10);
+
+  const details = [
+    rule,
+    "🛒 **New Purchase**",
+    "",
+    `👤 **Customer**: <@${order.customerId}>`,
+    order.minecraftUsername ? `🎮 **Minecraft**: ${order.minecraftUsername}` : null,
+    order.items ? `📦 **Items**: ${order.items}` : null,
+    order.total ? `💰 **Total**: ${order.total}` : null,
+    `📅 **Date**: ${date}`,
+    rule,
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
+
+  return postChannelMessage(botToken, channelId, {
+    // The buyer is named but not pinged: this is a shop-window post, and
+    // notifying someone every time their purchase is shown off is noise.
+    allowed_mentions: { parse: [] },
+    // Two embeds so the banner sits above the details. Discord always renders
+    // message content above embeds and attachments below them, so a single
+    // embed would put the artwork underneath the text.
+    embeds: [
+      ...(banner ? [{ color: 0x9b5cff, image: { url: banner } }] : []),
+      {
+        color: 0x9b5cff,
+        description: details,
+        footer: { text: `Mazora store · ${order.reference}` },
+      },
+    ],
+  });
+}
+
+/**
+ * Closes or reopens a ticket.
+ *
+ * Closing locks the buyer out and renames the channel; nothing is deleted, so
+ * the transcript stays readable to staff and reopening is a single click.
+ */
+async function runTicketLifecycle(context: TicketLifecycleContext): Promise<void> {
+  const channel = await fetchChannel(context.botToken, context.channelId);
+  const notes: string[] = [];
+
+  const accessChanged = await setTicketMemberAccess(
+    context.botToken,
+    context.channelId,
+    context.customerId,
+    !context.closing,
+  );
+  if (!accessChanged) notes.push("⚠️ buyer access could not be changed");
+
+  if (channel) {
+    const nextName = context.closing
+      ? closedChannelName(channel.name)
+      : reopenedChannelName(channel.name);
+    if (nextName !== channel.name) {
+      // Discord rate-limits channel renames hard (twice per ten minutes), so a
+      // failure here is reported rather than retried — the access change is
+      // what actually secures the ticket.
+      const renamed = await renameChannel(context.botToken, context.channelId, nextName);
+      if (!renamed) notes.push("⚠️ channel could not be renamed (rename rate limit)");
+    }
+  }
+
+  if (context.closing) {
+    await markOrderDecision(context.reference, "completed", context.actorName, context.channelId);
+
+    const announced = await announcePurchase(context.botToken, {
+      reference: context.reference,
+      minecraftUsername: fieldValue(context.originalEmbed, "Minecraft username"),
+      items: fieldValue(context.originalEmbed, "Items"),
+      total: fieldValue(context.originalEmbed, "Order total"),
+      customerId: context.customerId,
+    });
+    if (!announced && getBuyersChannelId()) notes.push("⚠️ purchase announcement failed");
+
+    await postChannelMessage(context.botToken, context.channelId, {
+      allowed_mentions: { parse: [] },
+      embeds: [
+        {
+          author: MAZORA_AUTHOR,
+          title: "🔒 Ticket closed",
+          description:
+            `Closed by **${context.actorName}**. The buyer no longer has access to this channel.\n` +
+            "Staff can reopen it at any time with the button on the order message above." +
+            (notes.length ? `\n\n${notes.join("\n")}` : ""),
+          color: 0x64748b,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+  } else {
+    // Reopening puts the order back to confirmed: it is live again, not done.
+    await markOrderDecision(context.reference, "confirmed", context.actorName, context.channelId);
+
+    await postChannelMessage(context.botToken, context.channelId, {
+      content: `<@${context.customerId}>`,
+      allowed_mentions: { users: [context.customerId] },
+      embeds: [
+        {
+          author: MAZORA_AUTHOR,
+          title: "🔓 Ticket reopened",
+          description:
+            `Reopened by **${context.actorName}**. You have access again — reply here if anything is still outstanding.` +
+            (notes.length ? `\n\n${notes.join("\n")}` : ""),
+          color: 0x34d399,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+  }
 }
 
 /** Reject: DM the buyer, no ticket is created. */
@@ -320,6 +489,67 @@ export async function POST(request: Request) {
   if (interaction.type === 3) {
     const customId = interaction.data?.custom_id ?? "";
     const [prefix, action, discordUserId, reference] = customId.split(":");
+
+    // Ticket lifecycle buttons live inside the ticket channel itself, so they
+    // carry their own prefix and are handled before the order-decision buttons.
+    if (prefix === "mzt" && ["close", "open"].includes(action) && /^\d{17,20}$/.test(discordUserId ?? "")) {
+      const staff = staffCheck(interaction);
+      if (!staff.allowed) {
+        return ephemeral(staff.reason ?? "You don't have permission to action Mazora tickets.");
+      }
+
+      const bot = getDiscordBotConfig();
+      const channelId = interaction.channel_id;
+      if (!bot || !channelId || !interaction.application_id || !interaction.token) {
+        return ephemeral("Ticket actions are not configured on the server.");
+      }
+
+      const actor = interaction.member?.user ?? interaction.user;
+      const actorName = actor?.global_name || actor?.username || "staff";
+      const closing = action === "close";
+
+      after(async () => {
+        try {
+          await runTicketLifecycle({
+            applicationId: interaction.application_id!,
+            interactionToken: interaction.token!,
+            botToken: bot.token,
+            channelId,
+            customerId: discordUserId!,
+            reference: reference ?? "",
+            actorName,
+            closing,
+            originalEmbed: interaction.message?.embeds?.[0],
+          });
+        } catch (error) {
+          console.error("Discord ticket lifecycle failed", error);
+        }
+      });
+
+      // Swap the button immediately so the ticket cannot be closed twice while
+      // the Discord API work is still running.
+      return json({
+        type: 7,
+        data: {
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  style: closing ? 3 : 2,
+                  label: closing ? "Reopen ticket" : "Close ticket",
+                  emoji: { name: closing ? "🔓" : "🔒" },
+                  custom_id: `mzt:${closing ? "open" : "close"}:${discordUserId}:${reference ?? ""}`,
+                },
+              ],
+            },
+          ],
+          allowed_mentions: { parse: [] },
+        },
+      });
+    }
+
     if (prefix !== "mzo" || !["confirm", "reject"].includes(action) || !/^\d{17,20}$/.test(discordUserId ?? "")) {
       return json({ type: 6 }); // unknown component: acknowledge silently
     }
