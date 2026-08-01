@@ -2,16 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, Gift, Trophy, Users } from "lucide-react";
-import { getEvent, getEvents } from "@/lib/data/content";
+import { getEvent } from "@/lib/data/content";
 import { fmtDate } from "@/lib/utils";
 import { Countdown, Icon, MinecraftAvatar, Reveal } from "@/components/shared";
 import { accentStyles } from "@/components/shared/accent";
 import { cn } from "@/lib/utils";
 
-export async function generateStaticParams() {
-  const events = await getEvents();
-  return events.map((e) => ({ slug: e.slug }));
-}
+/**
+ * Per-request rendering. While prerendered this route returned HTTP 500
+ * (DYNAMIC_SERVER_USAGE) for every slug: getEvents() is still empty, so
+ * generateStaticParams produced no params and the on-demand render collided
+ * with the cookie-reading layout above it. Rendering per request makes unknown
+ * slugs a clean 404.
+ */
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

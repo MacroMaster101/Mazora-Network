@@ -1,22 +1,23 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Check, Loader2, Undo2 } from "lucide-react";
 import type { Role } from "@/lib/types";
-import { roleLabel } from "@/lib/auth/roles";
+import { roleLabel, ROLES } from "@/lib/auth/roles";
 import { changeUserRole } from "@/lib/actions/roles";
+import { useToast } from "@/components/ui";
+import { cn } from "@/lib/utils";
 
-const ASSIGNABLE_ORDER: Role[] = [
-  "member",
-  "sponsor",
-  "vip",
-  "helper",
-  "moderator",
-  "senior_moderator",
-  "administrator",
-  "owner",
-  "it",
-];
-
+/**
+ * Inline rank editor.
+ *
+ * Confirm only appears once the selection actually differs from the saved rank,
+ * so the control is quiet until there is something to do. On success the router
+ * is refreshed rather than only updating local state: the rank chip, the tier
+ * counts and the Staff board all read the same value, and leaving them stale
+ * after a change is how a list starts lying about itself.
+ */
 export function RoleManager({
   userId,
   currentRole,
@@ -26,39 +27,78 @@ export function RoleManager({
   currentRole: Role;
   assignable: Role[];
 }) {
-  const [role, setRole] = useState<Role>(currentRole);
-  const [msg, setMsg] = useState<string>("");
+  // The saved rank is tracked locally as well as in props, because the props
+  // only catch up after the refresh completes.
+  const [saved, setSaved] = useState<Role>(currentRole);
+  const [choice, setChoice] = useState<Role>(currentRole);
   const [pending, start] = useTransition();
+  const { toast } = useToast();
+  const router = useRouter();
 
-  const options = ASSIGNABLE_ORDER.filter((r) => assignable.includes(r) || r === currentRole);
+  const options = ROLES.filter(
+    (role) => assignable.includes(role) || role === saved,
+  );
+  const dirty = choice !== saved;
 
-  function onSave() {
+  function save() {
     start(async () => {
-      const res = await changeUserRole({ userId, newRole: role });
-      setMsg(res.message);
+      const result = await changeUserRole({ userId, newRole: choice });
+      toast(result.message, result.ok ? "success" : "error");
+      if (result.ok) {
+        setSaved(choice);
+        router.refresh();
+      } else {
+        setChoice(saved);
+      }
     });
   }
 
   return (
-    <span className="flex items-center gap-2">
+    <span className="flex flex-wrap items-center gap-2">
       <select
-        value={role}
-        onChange={(e) => setRole(e.target.value as Role)}
+        value={choice}
+        onChange={(event) => setChoice(event.target.value as Role)}
         disabled={pending}
-        className="rounded-md border border-line bg-surface px-2 py-1 text-sm"
+        aria-label="Rank"
+        className={cn(
+          "rounded-lg border bg-surface px-2.5 py-1.5 text-sm transition",
+          dirty ? "border-accent/60" : "border-line",
+          pending && "opacity-60",
+        )}
       >
-        {options.map((r) => (
-          <option key={r} value={r}>{roleLabel(r)}</option>
+        {options.map((role) => (
+          <option key={role} value={role}>
+            {roleLabel(role)}
+          </option>
         ))}
       </select>
-      <button
-        onClick={onSave}
-        disabled={pending || role === currentRole}
-        className="rounded-md border border-line px-2 py-1 text-xs font-semibold text-muted hover:text-ink disabled:opacity-40"
-      >
-        {pending ? "Saving…" : "Save"}
-      </button>
-      {msg && <span className="text-xs text-muted">{msg}</span>}
+
+      {dirty && (
+        <>
+          <button
+            type="button"
+            onClick={save}
+            disabled={pending}
+            className="btn btn-primary btn-sm disabled:opacity-60"
+          >
+            {pending ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Check size={13} />
+            )}
+            {pending ? "Saving…" : "Confirm"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setChoice(saved)}
+            disabled={pending}
+            aria-label="Discard rank change"
+            className="cart-link-muted rounded-lg p-1.5 hover:text-ink disabled:opacity-60"
+          >
+            <Undo2 size={14} />
+          </button>
+        </>
+      )}
     </span>
   );
 }

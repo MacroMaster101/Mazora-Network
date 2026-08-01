@@ -11,7 +11,7 @@
       rgb(7 5 13 / 0.22) 58%,
       rgb(4 3 9 / 0.52) 100%
     ),
-    url("/images/newsroom-vertical-continuation-v2.png") center top / auto 100%
+    url("/images/newsroom-vertical-continuation-v2.webp") center top / auto 100%
       no-repeat;
 }
 
@@ -35,7 +35,7 @@
   color: rgb(255 255 255 / 0.74);
   background:
     linear-gradient(180deg, rgb(4 3 9 / 0.18), rgb(4 3 9 / 0.68)),
-    url("/images/newsroom-vertical-continuation-v2.png") center bottom / cover
+    url("/images/newsroom-vertical-continuation-v2.webp") center bottom / cover
       no-repeat;
   box-shadow: none;
 }
@@ -73,7 +73,7 @@
   color: rgb(255 255 255 / 0.74);
   background:
     linear-gradient(180deg, rgb(4 3 9 / 0.18), rgb(4 3 9 / 0.68)),
-    url("/images/newsroom-vertical-continuation-v2.png") center bottom / cover
+    url("/images/newsroom-vertical-continuation-v2.webp") center bottom / cover
       no-repeat;
 }
 

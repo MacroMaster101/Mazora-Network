@@ -50,6 +50,10 @@ function GalleryCardImage({ img }: { img: GalleryImage }) {
       src={img.imageUrl}
       alt={img.title}
       onError={() => setError(true)}
+      // A gallery renders far more tiles than fit on screen; without this the
+      // browser fetches every screenshot in the grid on first paint.
+      loading="lazy"
+      decoding="async"
       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
     />
   );
@@ -65,6 +69,8 @@ function AuthorAvatarThumb({ author, size = 20 }: { author: string; size?: numbe
       <img
         src="/images/mazora-icon.png"
         alt={author}
+        loading="lazy"
+        decoding="async"
         className={cn(
           "rounded-sm object-contain bg-accent/20 border border-accent/40",
           size > 24 ? "h-full w-full p-1" : "h-4 w-4"
@@ -80,6 +86,8 @@ function AuthorAvatarThumb({ author, size = 20 }: { author: string; size?: numbe
     <img
       src={`https://mc-heads.net/avatar/${author}/${size}`}
       alt={author}
+      loading="lazy"
+      decoding="async"
       className={cn(
         "rounded-sm object-cover",
         size > 24 ? "h-full w-full" : "h-4 w-4"

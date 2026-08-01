@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Award, Trophy } from "lucide-react";
-import { getPlayer, getPlayers } from "@/lib/data/players";
+import { getPlayer } from "@/lib/data/players";
 import { MinecraftAvatar, RoleBadge, Reveal } from "@/components/shared";
 import { fmtDate, kd, playtime, relative, withCommas } from "@/lib/utils";
 
-export async function generateStaticParams() {
-  const players = await getPlayers();
-  return players.map((p) => ({ username: p.username }));
-}
+// Per-request so an unknown player returns a real 404 instead of a soft 200,
+// and so profiles reflect current data. See the store detail page for the full
+// reasoning.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;

@@ -2,7 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import type { Role } from "@/lib/types";
-import { getSession, hasAtLeast, roleLabel } from "@/lib/auth";
+import { canGrantRank, canManageRank, getSession, hasAtLeast, roleLabel } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getDb, schema } from "@/lib/db/client";
 
@@ -49,12 +49,13 @@ export async function changeUserRole(input: {
 
   const currentRole = safeRole(target.user.app_metadata?.role) ?? "member";
 
-  // Cannot touch a user who outranks or equals you.
-  if (hasAtLeast(currentRole, session.role)) {
+  // Rank rules live in canManageRank/canGrantRank so the Users board, the Staff
+  // board and the invite flow cannot drift apart. The top rank may act on its
+  // peers; everyone else is limited to ranks strictly below their own.
+  if (!canManageRank(session.role, currentRole)) {
     return { ok: false, message: "You cannot change a user at or above your rank." };
   }
-  // Cannot grant a role at or above your own rank.
-  if (hasAtLeast(newRole, session.role)) {
+  if (!canGrantRank(session.role, newRole)) {
     return { ok: false, message: "You cannot assign a role at or above your own rank." };
   }
   // Cannot change your own role here.
@@ -76,7 +77,13 @@ export async function changeUserRole(input: {
       targetType: "user",
       targetId: input.userId,
       metadata: {
-        username: target.user.user_metadata?.username ?? null,
+        // Falls back to the email local part: accounts created through OAuth
+        // often carry no username in user_metadata, and the audit entries for
+        // those were logging "username: null", which makes the record far less
+        // useful when reading back who was actually changed.
+        username:
+          target.user.user_metadata?.username ?? target.user.email?.split("@")[0] ?? null,
+        email: target.user.email ?? null,
         from: currentRole,
         to: newRole,
         by: session.username,

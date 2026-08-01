@@ -18,7 +18,7 @@ const DEMO_GALLERY = [
   {
     title: "End Dragon Nether-Core Boss Raid",
     description: "Screen capture from last Saturday's community boss event! Over 45 players joined the raid to defeat the Nether-Core Titan.",
-    imageUrl: "/images/newsroom-signal-depths-v1.png",
+    imageUrl: "/images/newsroom-signal-depths-v1.webp",
     category: "events",
     authorName: "Vortex_Craft",
     status: "published",
@@ -28,7 +28,7 @@ const DEMO_GALLERY = [
   {
     title: "Celestial Nexus Main Lobby",
     description: "Our newly revamped spawn hub featuring interactive NPC portals, leaderboard pedestals, and dynamic seasonal lighting.",
-    imageUrl: "/images/vote-rewards-sanctuary-v5.png",
+    imageUrl: "/images/vote-rewards-sanctuary-v5.webp",
     category: "spawns",
     authorName: "Mazora Network",
     status: "published",
@@ -48,7 +48,7 @@ const DEMO_GALLERY = [
   {
     title: "Obsidian Fortress & Lava Moat",
     description: "Faction base built on the Survival realm with deep obsidian vaults and automated potion defense systems.",
-    imageUrl: "/images/vote-reward-vault-v4.png",
+    imageUrl: "/images/vote-reward-vault-v4.webp",
     category: "builds",
     authorName: "ShadowBuilder",
     status: "published",
@@ -58,7 +58,7 @@ const DEMO_GALLERY = [
   {
     title: "Wither Monarch Realm Battle",
     description: "Epic screenshot from the tier-5 Wither Boss encounter in the Nether Arena.",
-    imageUrl: "/images/newsroom-signal-realm-v1.png",
+    imageUrl: "/images/newsroom-signal-realm-v1.webp",
     category: "events",
     authorName: "EnderKnight",
     status: "published",
@@ -88,7 +88,7 @@ const DEMO_GALLERY = [
   {
     title: "Gothic Cathedral of the Void",
     description: "Detailed Gothic architecture featuring stained glass quartz windows and towering spires.",
-    imageUrl: "/images/vote-sanctuary-continuation-v7.png",
+    imageUrl: "/images/vote-sanctuary-continuation-v7.webp",
     category: "builds",
     authorName: "ArchitechtX",
     status: "published",
@@ -98,7 +98,7 @@ const DEMO_GALLERY = [
   {
     title: "Tournament Finals 1v1 PvP Arena",
     description: "Action shot from the monthly PvP championship match between EnderKnight and BladeMaster.",
-    imageUrl: "/images/vote-mission-hero-v3.png",
+    imageUrl: "/images/vote-mission-hero-v3.webp",
     category: "events",
     authorName: "Mazora Network",
     status: "published",
@@ -108,7 +108,7 @@ const DEMO_GALLERY = [
   {
     title: "Mystic Woodland Treehouse Village",
     description: "Interconnected giant jungle treehouses built entirely in Survival mode without flying commands.",
-    imageUrl: "/images/vote-world-bg-v2.png",
+    imageUrl: "/images/vote-world-bg-v2.webp",
     category: "builds",
     authorName: "ForestElf",
     status: "published",
@@ -118,7 +118,7 @@ const DEMO_GALLERY = [
   {
     title: "Undersea Atlantis Portal Temple",
     description: "Glass dome subaquatic spawn temple with guardian monuments and prismarine pillars.",
-    imageUrl: "/images/vote-reward-realm-v6.png",
+    imageUrl: "/images/vote-reward-realm-v6.webp",
     category: "spawns",
     authorName: "AquaCrafter",
     status: "published",
@@ -128,7 +128,7 @@ const DEMO_GALLERY = [
   {
     title: "Ancient Ruin Portal Monument",
     description: "Explorer build featuring mossy stone bricks, custom skull decorations, and hidden loot vaults.",
-    imageUrl: "/images/newsroom-header-continuation-v3.png",
+    imageUrl: "/images/newsroom-header-continuation-v3.webp",
     category: "builds",
     authorName: "RuinHunter",
     status: "published",
@@ -138,7 +138,7 @@ const DEMO_GALLERY = [
   {
     title: "Pending Build Submission Demo",
     description: "A community player submission awaiting staff review in the admin panel queue.",
-    imageUrl: "/images/vote-hero-bg-v2.png",
+    imageUrl: "/images/vote-hero-bg-v2.webp",
     category: "builds",
     authorName: "NewbieBuilder",
     status: "pending",

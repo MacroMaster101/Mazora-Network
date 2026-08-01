@@ -1,4 +1,11 @@
-import "dotenv/config";
+/**
+ * Usage: npx tsx --env-file=.env scripts/seed-news-preview.ts
+ *
+ * Environment comes from tsx's --env-file, matching every other db script.
+ * This previously did `import "dotenv/config"`, but dotenv is not a declared
+ * dependency — it only resolved transitively through drizzle-kit, so the script
+ * would break the moment that tree shifted.
+ */
 import postgres from "postgres";
 import { getPreviewNews } from "../src/lib/news/preview-fixtures";
 

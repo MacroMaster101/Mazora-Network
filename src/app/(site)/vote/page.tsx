@@ -28,7 +28,7 @@ export default async function VotePage() {
     <>
       <section className="vote-mission-hero">
         <Image
-          src="/images/vote-rewards-sanctuary-v5.png"
+          src="/images/vote-rewards-sanctuary-v5.webp"
           alt=""
           fill
           priority

@@ -10,13 +10,11 @@ export default function AdminError({ error, reset }: { error: Error & { digest?:
     <ErrorScreen
       error={showDiagnostics ? error : undefined}
       reset={reset}
-      code={showDiagnostics ? "CONSOLE ERROR" : "STAFF TOOL"}
-      title={showDiagnostics ? "The network console stalled." : "This staff tool is coming soon."}
-      copy={
-        showDiagnostics
-          ? error.message || "An unexpected console error stopped this dashboard."
-          : "This area is not available for your staff role yet. You can safely return to the control room."
-      }
+      code="ADMIN CONSOLE ERROR"
+      title="This admin page could not load."
+      copy={showDiagnostics ? error.message || "An unexpected console error stopped this dashboard." : "A temporary site error interrupted this staff page. Try again, or return to the control room without losing your work."}
+      returnHref="/admin"
+      returnLabel="Control room"
       compact
     />
   );

@@ -73,7 +73,7 @@
       rgb(7 5 13 / 0.1) 28%,
       rgb(4 3 9 / 0.48) 100%
     ),
-    url("/images/newsroom-header-continuation-v3.png") center top / cover
+    url("/images/newsroom-header-continuation-v3.webp") center top / cover
       no-repeat;
 }
 
@@ -95,7 +95,7 @@
   border-top: 0;
   background:
     linear-gradient(180deg, rgb(4 3 9 / 0.2), rgb(4 3 9 / 0.66)),
-    url("/images/newsroom-header-continuation-v3.png") center bottom / cover
+    url("/images/newsroom-header-continuation-v3.webp") center bottom / cover
       no-repeat;
 }
 
@@ -657,7 +657,7 @@
   inset: -12rem 0 0;
   background:
     linear-gradient(180deg, rgb(4 3 9 / 0.04), rgb(4 3 9 / 0.52) 44%, rgb(4 3 9 / 0.82) 100%),
-    url("/images/newsroom-header-continuation-v3.png") center bottom / cover no-repeat;
+    url("/images/newsroom-header-continuation-v3.webp") center bottom / cover no-repeat;
   -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 4rem, #000 12rem);
   mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 4rem, #000 12rem);
 }
