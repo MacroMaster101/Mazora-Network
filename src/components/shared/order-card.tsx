@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock3, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, PackageCheck, UserPlus, XCircle } from "lucide-react";
 import { orderStatusLabel, type OrderStatus, type StoreOrder } from "@/lib/order-status";
 import { cn, fmtDate, usd } from "@/lib/utils";
 
@@ -11,11 +11,15 @@ import { cn, fmtDate, usd } from "@/lib/utils";
 const STATUS_TONE: Record<OrderStatus, string> = {
   pending: "border-warning/35 bg-warning/10 text-warning",
   confirmed: "border-success/35 bg-success/10 text-success",
+  // Completed is deliberately calmer than confirmed: a finished order is
+  // settled, not something still needing attention.
+  completed: "border-accent/35 bg-accent/12 text-accent-bright",
   rejected: "border-danger/35 bg-danger/10 text-danger",
   awaiting_discord_join: "border-warning/35 bg-warning/10 text-warning",
 };
 
 function StatusIcon({ status }: { status: OrderStatus }) {
+  if (status === "completed") return <PackageCheck size={13} aria-hidden="true" />;
   if (status === "confirmed") return <CheckCircle2 size={13} aria-hidden="true" />;
   if (status === "rejected") return <XCircle size={13} aria-hidden="true" />;
   if (status === "awaiting_discord_join") return <UserPlus size={13} aria-hidden="true" />;

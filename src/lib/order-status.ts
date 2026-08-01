@@ -5,7 +5,13 @@
  * "@/lib/data/orders", which must never be imported from client code.
  */
 
-export type OrderStatus = "pending" | "confirmed" | "rejected" | "awaiting_discord_join";
+export type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "rejected"
+  | "awaiting_discord_join"
+  /** Ticket closed by staff: the order was delivered, not merely accepted. */
+  | "completed";
 
 export interface OrderLine {
   name: string;
@@ -29,7 +35,13 @@ export interface StoreOrder {
   items: OrderLine[];
 }
 
-export const ORDER_STATUSES: OrderStatus[] = ["pending", "confirmed", "rejected", "awaiting_discord_join"];
+export const ORDER_STATUSES: OrderStatus[] = [
+  "pending",
+  "confirmed",
+  "rejected",
+  "awaiting_discord_join",
+  "completed",
+];
 
 export function toOrderStatus(value: string | null): OrderStatus {
   return ORDER_STATUSES.includes(value as OrderStatus) ? (value as OrderStatus) : "pending";
@@ -37,6 +49,7 @@ export function toOrderStatus(value: string | null): OrderStatus {
 
 /** Human label for a status, shared by the member and admin views. */
 export function orderStatusLabel(status: OrderStatus): string {
+  if (status === "completed") return "Completed";
   if (status === "confirmed") return "Confirmed";
   if (status === "rejected") return "Declined";
   if (status === "awaiting_discord_join") return "Awaiting Discord join";

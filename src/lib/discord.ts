@@ -34,7 +34,7 @@ async function botRequest(
   token: string,
   path: string,
   body?: unknown,
-  method: "GET" | "POST" | "PATCH" = "POST",
+  method: "GET" | "POST" | "PATCH" | "PUT" = "POST",
 ): Promise<{ ok: boolean; status: number; json: unknown }> {
   const response = await fetch(`${DISCORD_API}${path}`, {
     method,
@@ -226,6 +226,98 @@ export async function postChannelMessage(
 ): Promise<boolean> {
   const res = await botRequest(token, `/channels/${channelId}/messages`, payload);
   if (!res.ok) console.error("Discord channel message failed", res.status, res.json);
+  return res.ok;
+}
+
+/** Public channel where completed purchases are announced. Optional. */
+export function getBuyersChannelId(): string | null {
+  const id = process.env.DISCORD_BUYERS_CHANNEL_ID?.trim();
+  return id && /^\d{17,20}$/.test(id) ? id : null;
+}
+
+/**
+ * Banner shown on purchase announcements.
+ *
+ * Served from the site's own assets rather than a configured URL: the artwork
+ * ships with the repo, so there is nothing to set up and nothing to break when
+ * an external host expires. Discord fetches it over HTTP, which means it only
+ * resolves once the site is deployed — but the announcement is triggered by a
+ * Discord button, and those never reach a localhost dev server either, so the
+ * whole flow is deployed-only regardless.
+ */
+export function getPurchaseBannerUrl(): string | null {
+  const base = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!base) return null;
+  try {
+    const url = new URL("/images/mazora-purchase.webp", base);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+const CLOSED_PREFIX = "closed-";
+
+/** The closed counterpart of a ticket name, within Discord's 100-char limit. */
+export function closedChannelName(name: string): string {
+  if (name.startsWith(CLOSED_PREFIX)) return name;
+  return `${CLOSED_PREFIX}${name}`.slice(0, 100);
+}
+
+/** The live name for a closed ticket, so reopening restores the original. */
+export function reopenedChannelName(name: string): string {
+  return name.startsWith(CLOSED_PREFIX) ? name.slice(CLOSED_PREFIX.length) : name;
+}
+
+/** A single channel, used to read a ticket's current name before renaming it. */
+export async function fetchChannel(
+  token: string,
+  channelId: string,
+): Promise<{ id: string; name: string } | null> {
+  const res = await botRequest(token, `/channels/${channelId}`, undefined, "GET");
+  const data = res.json as { id?: string; name?: string } | null;
+  if (!res.ok || !data?.id || !data.name) {
+    console.error("Discord channel fetch failed", res.status, res.json);
+    return null;
+  }
+  return { id: data.id, name: data.name };
+}
+
+/** Renames a channel. */
+export async function renameChannel(
+  token: string,
+  channelId: string,
+  name: string,
+): Promise<boolean> {
+  const res = await botRequest(token, `/channels/${channelId}`, { name }, "PATCH");
+  if (!res.ok) console.error("Discord channel rename failed", res.status, res.json);
+  return res.ok;
+}
+
+/**
+ * Grants or revokes a single member's access to a ticket.
+ *
+ * Edits only that member's overwrite rather than rewriting the channel's whole
+ * permission set, so closing a ticket cannot accidentally drop the staff role's
+ * or the bot's access along with the buyer's.
+ */
+export async function setTicketMemberAccess(
+  token: string,
+  channelId: string,
+  userId: string,
+  allowed: boolean,
+): Promise<boolean> {
+  const res = await botRequest(
+    token,
+    `/channels/${channelId}/permissions/${userId}`,
+    {
+      type: 1, // member
+      allow: allowed ? TICKET_MEMBER_PERMISSIONS : "0",
+      deny: allowed ? "0" : VIEW_CHANNEL,
+    },
+    "PUT",
+  );
+  if (!res.ok) console.error("Discord ticket access change failed", res.status, res.json);
   return res.ok;
 }
 

@@ -124,6 +124,7 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `DISCORD_ORDERS_CHANNEL_ID` | Order buttons | Staff channel the bot posts order requests into. |
 | `DISCORD_GUILD_ID` | Order tickets | Your Discord server ID. Used to verify a buyer has joined before checkout and to create their ticket. Also links imported news back to the original message. |
 | `DISCORD_STORE_TICKETS_CATEGORY_ID` | Order tickets | Private category the bot creates one ticket channel per confirmed order in. When unset, confirming an order only DMs the buyer. |
+| `DISCORD_BUYERS_CHANNEL_ID` | Purchase announcements | Public channel posted to when staff close a ticket. Leave empty to skip announcements. The banner artwork ships with the repo and is served from `NEXT_PUBLIC_SITE_URL`, so nothing else needs configuring. |
 | `DISCORD_ANNOUNCEMENTS_CHANNEL_ID` | News sync | Channel the announcement importer reads from. |
 | `CRON_SECRET` | News sync | Shared secret for the scheduled announcement sync (minimum 16 characters). |
 | `NEXT_PUBLIC_BEDROCK_PORT` | No | Bedrock port shown on the Play and Status pages. Defaults to `8876`. |
@@ -145,6 +146,9 @@ No payment is ever taken on the website. Orders are requests that staff fulfil m
 2. **Staff review.** The order is posted to `DISCORD_ORDERS_CHANNEL_ID` with Confirm and Reject buttons. Only holders of `DISCORD_STORE_STAFF_ROLE_ID` may action them — a valid Discord signature proves the request came from Discord, not that the clicker is staff, so the role is verified separately and the action is refused outright when the role is unconfigured.
 3. **Confirm.** The bot creates a private channel under `DISCORD_STORE_TICKETS_CATEGORY_ID`, visible only to the buyer, the staff role and the bot. It posts the order summary there and DMs the buyer a link. Payment is arranged in that channel.
 4. **Reject.** The buyer is DM'd; no ticket is created.
+5. **Close.** Once the items are delivered, staff press Close ticket in the channel. The buyer loses access, the channel is renamed `closed-…` but kept, the order is marked completed, and a purchase announcement is posted to `DISCORD_BUYERS_CHANNEL_ID`. Reopen restores the buyer and sets the order back to confirmed.
+
+Closing announces rather than confirming does, because confirming only means staff accepted the request — closing is the point at which the items actually changed hands. Only the staff role can close or reopen; the buyer sees the button but the handler refuses them.
 
 The click is acknowledged immediately and the Discord API work runs afterwards, because Discord discards any interaction not answered within three seconds. The buttons are removed up front, which also stops two staff members creating duplicate tickets.
 
