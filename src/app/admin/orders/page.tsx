@@ -1,21 +1,22 @@
 import type { Metadata } from "next";
-import { Receipt } from "lucide-react";
 import { requireRole } from "@/lib/auth";
+import { getAllOrders } from "@/lib/data/orders";
 import { DashHeader } from "@/components/dashboard/dash-ui";
-import { AdminPlaceholder } from "@/components/admin/admin-ui";
+import { OrdersBrowser } from "@/components/admin/orders-browser";
 
 export const metadata: Metadata = { title: "Orders · Admin" };
 
 export default async function AdminOrdersPage() {
   await requireRole("administrator", "/admin/orders");
+  const orders = await getAllOrders();
+
   return (
     <>
-      <DashHeader title="Orders" subtitle="Store orders and payment status." />
-      <AdminPlaceholder
-        icon={<Receipt size={24} />}
-        title="No orders yet"
-        message="Orders appear here once a payment provider is connected. No payments are processed in this preview build."
+      <DashHeader
+        title="Orders"
+        subtitle="Store order requests. Confirm or decline them from the Discord order channel."
       />
+      <OrdersBrowser orders={orders} />
     </>
   );
 }

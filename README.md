@@ -76,7 +76,15 @@ Open [http://localhost:3000](http://localhost:3000). Environment variables and a
 | `npm run db:apply -- <file.sql>` | Apply a single SQL file using `DATABASE_URL` |
 | `npm run db:seed:store` | Load the storefront catalogue into `products` |
 | `npm run db:seed:rules` | Load the baseline community rulebook |
+| `npm run db:rehost:news-images` | Re-host expiring Discord CDN artwork into Supabase storage |
 | `npm run role:set -- <email> <role>` | Grant the first owner/IT account |
+
+A few one-off scripts have no npm alias and are run directly. They read `.env` through `tsx`, not `dotenv`:
+
+```bash
+npx tsx --env-file=.env scripts/seed-gallery.ts
+npx tsx --env-file=.env scripts/seed-news-preview.ts
+```
 
 Before handing off a change, run:
 
@@ -87,6 +95,14 @@ npm run build
 ```
 
 Development output is stored in `.next-dev`, separately from the production `.next` directory. This allows a production build to run without corrupting an active development server's manifests.
+
+If files under `public/` are bulk-renamed, converted or deleted while `next dev` is running, the image optimiser's in-memory cache keeps pointing at files that no longer exist and every `/_next/image` request starts failing with `LRUCache: calculateSize returned 0`. Images then silently stop rendering until the cache is cleared:
+
+```bash
+rm -rf .next-dev
+```
+
+This affects development only — each production deploy builds a fresh cache.
 
 ## 🔐 Environment configuration
 
@@ -102,7 +118,16 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `NEXT_PUBLIC_SUPABASE_URL` | Production auth | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production auth | Browser-safe Supabase publishable key for new projects. |
 | `DISCORD_STORE_WEBHOOK_URL` | Manual store orders | Private webhook URL for the staff order channel. Never expose it as a public variable. |
-| `DISCORD_STORE_STAFF_ROLE_ID` | Optional store alerts | Discord role ID to mention for new order requests. |
+| `DISCORD_STORE_STAFF_ROLE_ID` | Store orders | Discord role ID mentioned on new orders. Also the role permitted to press Confirm/Reject — order actions are refused entirely while this is unset. |
+| `DISCORD_BOT_TOKEN` | Order buttons, news sync | Bot token. Enables Confirm/Reject buttons, order tickets, buyer DMs, and the announcement importer. |
+| `DISCORD_APP_PUBLIC_KEY` | Order buttons | Developer Portal → General Information → Public Key. Verifies that button clicks genuinely came from Discord. |
+| `DISCORD_ORDERS_CHANNEL_ID` | Order buttons | Staff channel the bot posts order requests into. |
+| `DISCORD_GUILD_ID` | Order tickets | Your Discord server ID. Used to verify a buyer has joined before checkout and to create their ticket. Also links imported news back to the original message. |
+| `DISCORD_STORE_TICKETS_CATEGORY_ID` | Order tickets | Private category the bot creates one ticket channel per confirmed order in. When unset, confirming an order only DMs the buyer. |
+| `DISCORD_ANNOUNCEMENTS_CHANNEL_ID` | News sync | Channel the announcement importer reads from. |
+| `CRON_SECRET` | News sync | Shared secret for the scheduled announcement sync (minimum 16 characters). |
+| `NEXT_PUBLIC_BEDROCK_PORT` | No | Bedrock port shown on the Play and Status pages. Defaults to `8876`. |
+| `MAZORA_LAUNCH_MODE` | No | Keep `on` while unfinished routes should show the launch-status page. Set to `off` to restore every implementation. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Legacy auth | Legacy browser-safe anonymous key; used only when no publishable key is set. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Future server use | Server-only Supabase service key. Never expose it publicly. |
 | `AUTH_DEMO_MODE` | Local only | Set to `true` only for local UI previews without Supabase. Never enable in production. |
@@ -111,6 +136,23 @@ The live integrations fail safely:
 
 - Minecraft status is fetched server-side and cached for five minutes. Failed requests return an unavailable state instead of invented player counts.
 - Discord counts are fetched from Discord's invite API and cached for five minutes. A failed or invalid invite returns a join prompt instead of a fabricated count.
+
+## 🛒 Store orders and Discord tickets
+
+No payment is ever taken on the website. Orders are requests that staff fulfil manually.
+
+1. **Checkout.** The buyer connects Discord and is checked for Mazora server membership. Signing in with Discord does not put anyone in the server, and a non-member can be neither DM'd nor added to a ticket, so the join is required before the request can be sent. The check is enforced in the server action, not only in the form.
+2. **Staff review.** The order is posted to `DISCORD_ORDERS_CHANNEL_ID` with Confirm and Reject buttons. Only holders of `DISCORD_STORE_STAFF_ROLE_ID` may action them — a valid Discord signature proves the request came from Discord, not that the clicker is staff, so the role is verified separately and the action is refused outright when the role is unconfigured.
+3. **Confirm.** The bot creates a private channel under `DISCORD_STORE_TICKETS_CATEGORY_ID`, visible only to the buyer, the staff role and the bot. It posts the order summary there and DMs the buyer a link. Payment is arranged in that channel.
+4. **Reject.** The buyer is DM'd; no ticket is created.
+
+The click is acknowledged immediately and the Discord API work runs afterwards, because Discord discards any interaction not answered within three seconds. The buttons are removed up front, which also stops two staff members creating duplicate tickets.
+
+Degraded states are surfaced rather than hidden. If the buyer left the server since ordering, the message becomes **Awaiting Discord join** instead of opening a ticket. If DMs are closed the ticket still works — the buyer is mentioned in it — and the staff message says the DM failed. Missing configuration is named explicitly on the message.
+
+**Bot permissions.** The bot role needs View Channels, Manage Channels, Send Messages and Read Message History on the tickets category. Without Manage Channels the confirm succeeds but no channel is created.
+
+**Interactions endpoint.** Set Developer Portal → General Information → Interactions Endpoint URL to `https://<your-domain>/api/discord/interactions`. Discord sends a verification ping when you save it, so the site must already be deployed and reachable — button clicks never reach a localhost dev server. To test locally, expose the dev server with a tunnel and point the endpoint at it temporarily.
 
 ## 🧭 Main navigation and routes
 
@@ -276,7 +318,9 @@ For architecture, live integrations, theme behavior, and deployment notes, see [
 
 - Do not commit `.next`, `.next-dev`, `node_modules`, log files, TypeScript build metadata, or local environment files.
 - Keep shared components only when they have a real consumer; lint and strict TypeScript checks run with zero warnings.
-- Treat `public/images` as production assets: remove an image only after confirming it has no source, CSS, metadata, or documentation references.
+- Treat `public/images` as production assets: remove an image only after confirming it has no source, CSS, metadata, or documentation references — and, for store artwork, no `products.image_url` row pointing at it.
+- Ship large background art as WebP. A CSS `background-image` bypasses `next/image` entirely, so no resizing, format conversion or lazy loading is applied and the raw file is what every visitor downloads. The same artwork went from 2.1 MB as PNG to 143 KB as WebP.
+- Give repeated list and grid thumbnails `loading="lazy"`, but leave above-the-fold imagery eager — lazy-loading a hero or header logo delays Largest Contentful Paint instead of improving it.
 - Use `npm ci` after lockfile changes and run the full quality gate before handing work off.
 
 ## 🚢 Production notes
@@ -287,7 +331,8 @@ For architecture, live integrations, theme behavior, and deployment notes, see [
 - Set a strong `MINECRAFT_PLUGIN_SECRET` before enabling Minecraft account linking callbacks.
 - Replace placeholder social destinations in `src/lib/site.ts` with official Mazora accounts.
 - Store all server-only secrets in the deployment platform, never in public environment variables or source control.
-- Payments are not implemented; store and cart pages are presentation and architecture only.
+- Set the Discord order variables in the deployment platform, not just locally — order tickets need `DISCORD_GUILD_ID`, `DISCORD_STORE_TICKETS_CATEGORY_ID` and `DISCORD_STORE_STAFF_ROLE_ID` present in the deployed environment. Discord delivers button clicks to the deployed Interactions Endpoint URL, so a locally-configured bot has no effect in production.
+- No card payments are taken. The storefront places manual order requests that staff confirm and fulfil through Discord tickets; there is no payment processor integration.
 
 ## 📌 Status
 

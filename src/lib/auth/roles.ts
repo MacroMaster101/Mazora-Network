@@ -33,6 +33,29 @@ export const ROLES: Role[] = [
   "it",
 ];
 
+/** The highest rung. Holders of it have no one above them to appeal to. */
+export const TOP_ROLE: Role = "it";
+
+/**
+ * Whether `actor` may change or remove an account currently holding `target`.
+ *
+ * Everyone may act strictly below their own rank. The top rank may also act on
+ * its peers, because otherwise the ladder has a dead end: an IT could never
+ * appoint or remove another IT, and the only route in or out of the rank would
+ * be the `role:set` CLI script. Acting on yourself is always refused, so the
+ * last holder cannot lock themselves out.
+ */
+export function canManageRank(actor: Role, target: Role): boolean {
+  if (actor === TOP_ROLE) return true;
+  return !hasAtLeast(target, actor);
+}
+
+/** Whether `actor` may grant `role` to someone. Mirrors canManageRank. */
+export function canGrantRank(actor: Role, role: Role): boolean {
+  if (actor === TOP_ROLE) return true;
+  return !hasAtLeast(role, actor);
+}
+
 export function hasAtLeast(role: Role, min: Role): boolean {
   return ROLE_RANK[role] >= ROLE_RANK[min];
 }

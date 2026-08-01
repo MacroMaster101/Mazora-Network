@@ -78,6 +78,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   experimental: {
     optimizePackageImports: ["lucide-react"],
+    serverActions: { bodySizeLimit: "9mb" },
   },
   images: {
     qualities: [75, 90],

@@ -3,9 +3,17 @@
 import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { getDiscordIdentity } from "@/lib/auth";
+import { getDiscordIdentity, getSessionUserId } from "@/lib/auth";
 import { getProducts } from "@/lib/data/content";
-import { getDiscordBotConfig, sendBotChannelMessage } from "@/lib/discord";
+import { getDb, schema } from "@/lib/db/client";
+import {
+  getDiscordBotConfig,
+  getDiscordBotToken,
+  getDiscordGuildId,
+  getDiscordInviteUrl,
+  isGuildMember,
+  sendBotChannelMessage,
+} from "@/lib/discord";
 import { usd } from "@/lib/utils";
 
 export interface StoreRequestResult {
@@ -105,6 +113,22 @@ export async function submitStoreRequest(
     return { ok: false, errors: { discordId: "Connect your Discord account to place the order." } };
   }
 
+  // Being signed in with Discord is not the same as being in the Mazora server.
+  // Confirmed orders open a private ticket channel and send a DM, and neither
+  // works for a non-member, so the join is required up front instead of the
+  // order silently stalling after staff confirms it. A lookup failure (null)
+  // is allowed through: a Discord outage must not close the store.
+  const botToken = getDiscordBotToken();
+  const guildId = getDiscordGuildId();
+  if (botToken && guildId && (await isGuildMember(botToken, guildId, discord.id)) === false) {
+    return {
+      ok: false,
+      errors: {
+        discordId: `Join the Mazora Discord server first — staff deliver this order in a private ticket there. ${getDiscordInviteUrl()}`,
+      },
+    };
+  }
+
   let rawItems: unknown;
   try {
     rawItems = JSON.parse(String(formData.get("items") ?? "[]"));
@@ -135,7 +159,13 @@ export async function submitStoreRequest(
     const product = productBySlug.get(submitted.slug);
     if (!product) return { ok: false, message: "One of the products in your cart is no longer available." };
     const price = product.salePrice ?? product.price;
-    orderItems.push({ name: product.name, quantity: submitted.qty, price, lineTotal: price * submitted.qty });
+    orderItems.push({
+      productId: product.id,
+      name: product.name,
+      quantity: submitted.qty,
+      price,
+      lineTotal: price * submitted.qty,
+    });
   }
 
   const total = orderItems.reduce((sum, item) => sum + item.lineTotal, 0);
@@ -223,9 +253,72 @@ export async function submitStoreRequest(
     return { ok: false, message: "Discord could not receive your request. Nothing was charged; please try again shortly." };
   }
 
+  // Recorded only after Discord accepted it, so the buyer never sees an order
+  // in their history that staff were never told about. The write is best-effort
+  // on purpose: the request HAS reached staff at this point, and failing the
+  // whole submission over a database hiccup would send the buyer back to
+  // re-order something that is already in the staff channel.
+  await persistOrder({
+    reference,
+    total,
+    minecraftUsername: contact.data.minecraftUsername,
+    notes: contact.data.notes,
+    discordId: discord.id,
+    discordUsername: discord.username,
+    items: orderItems,
+  });
+
   return {
     ok: true,
     reference,
     message: "Your request is with the Mazora team. A staff member will contact you using your preferred method.",
   };
+}
+
+interface PersistOrderInput {
+  reference: string;
+  total: number;
+  minecraftUsername: string;
+  notes?: string;
+  discordId: string;
+  discordUsername: string;
+  items: { productId?: string; name: string; quantity: number; price: number }[];
+}
+
+async function persistOrder(input: PersistOrderInput): Promise<void> {
+  try {
+    const db = getDb();
+    const userId = await getSessionUserId();
+    if (!db || !userId) return;
+
+    const [order] = await db
+      .insert(schema.orders)
+      .values({
+        userId,
+        reference: input.reference,
+        totalAmount: input.total.toFixed(2),
+        status: "pending",
+        minecraftUsername: input.minecraftUsername,
+        discordId: input.discordId,
+        discordUsername: input.discordUsername,
+        notes: input.notes || null,
+      })
+      .returning({ id: schema.orders.id });
+
+    if (!order) return;
+
+    await db.insert(schema.orderItems).values(
+      input.items.map((item) => ({
+        orderId: order.id,
+        // A product deleted later nulls this column but keeps the line item,
+        // so the name snapshot is what history actually renders.
+        productId: item.productId ?? null,
+        productName: item.name,
+        quantity: item.quantity,
+        price: item.price.toFixed(2),
+      })),
+    );
+  } catch (error) {
+    console.error("Failed to record store order", error);
+  }
 }

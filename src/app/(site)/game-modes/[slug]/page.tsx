@@ -2,15 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, Terminal, Users } from "lucide-react";
-import { getGameMode, getGameModes } from "@/lib/data/content";
+import { getGameMode } from "@/lib/data/content";
 import { site } from "@/lib/site";
 import { CopyIpButton, Icon, Reveal } from "@/components/shared";
 import { accentStyles } from "@/components/shared/accent";
 
-export async function generateStaticParams() {
-  const modes = await getGameModes();
-  return modes.map((m) => ({ slug: m.slug }));
-}
+// Per-request so an unknown slug returns a real 404 instead of a soft 200. See
+// the store detail page for the full reasoning.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

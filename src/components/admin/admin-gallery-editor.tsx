@@ -39,7 +39,14 @@ function SafeImageThumb({ src, alt, className = "" }: { src: string; alt: string
   }
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} onError={() => setError(true)} className={cn("h-full w-full object-cover", className)} />
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      onError={() => setError(true)}
+      className={cn("h-full w-full object-cover", className)}
+    />
   );
 }
 
@@ -49,10 +56,16 @@ function PublisherAvatar({ src, name, team = false }: { src?: string | null; nam
     <span className={cn("relative grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/20 bg-black/60 text-xs font-bold text-white shadow-inner", team && "bg-accent/20 border-accent/40 text-accent-bright")}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="h-full w-full object-cover" />
+        <img src={src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
       ) : team ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src="/images/mazora-icon.png" alt="" className="h-full w-full object-contain p-1" />
+        <img
+          src="/images/mazora-icon.png"
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-contain p-1"
+        />
       ) : (
         <span>{fallback}</span>
       )}

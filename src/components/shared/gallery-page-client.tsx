@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Camera, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import type { GalleryImage } from "@/lib/types";
 import { PageHero, Reveal } from "@/components/shared";
 import { GalleryGrid } from "./gallery-grid";

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, BadgeCheck, CalendarDays, Clock3, Radio } from "lucide-react";
-import { getArticle, getNews, getRelatedArticles } from "@/lib/data/content";
+import { getArticle, getRelatedArticles } from "@/lib/data/content";
 import { getNewsArticleReadCount } from "@/lib/data/news-visitors";
 import { fmtDate } from "@/lib/utils";
 import { ArticleArt, NewsAuthor, NewsCard, Reveal } from "@/components/shared";
@@ -11,10 +11,10 @@ import { NewsVisitorStat } from "@/components/shared/news-visitor-stat";
 import { ShareButtons } from "@/components/shared/share-buttons";
 import "@/styles/news-article-redesign.css";
 
-export async function generateStaticParams() {
-  const news = await getNews();
-  return news.map((article) => ({ slug: article.slug }));
-}
+// Per-request so an unknown slug returns a real 404 instead of a soft 200, and
+// so newly published articles are live immediately. See the store detail page
+// for the full reasoning.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

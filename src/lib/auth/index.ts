@@ -5,6 +5,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import {
+  canGrantRank,
+  canManageRank,
   hasAtLeast,
   isAdmin,
   isStaff,
@@ -13,6 +15,7 @@ import {
   roleLabel,
   ROLES,
   STAFF_ROLES,
+  TOP_ROLE,
 } from "@/lib/auth/roles";
 
 export const SESSION_COOKIE = "mz_session";
@@ -29,7 +32,19 @@ export interface Session {
 // "@/lib/auth" keep working unchanged. Client Components must import
 // these directly from "@/lib/auth/roles" to avoid pulling in
 // "next/headers" via this file.
-export { hasAtLeast, isAdmin, isStaff, landingPathFor, roleDashboardPath, roleLabel, ROLES, STAFF_ROLES };
+export {
+  canGrantRank,
+  canManageRank,
+  hasAtLeast,
+  isAdmin,
+  isStaff,
+  landingPathFor,
+  roleDashboardPath,
+  roleLabel,
+  ROLES,
+  STAFF_ROLES,
+  TOP_ROLE,
+};
 
 /** Demo-only role mapping so the scaffolds can be explored by username. */
 export function demoRoleFor(username: string): Role {
@@ -120,6 +135,26 @@ export async function getSessionUserId(): Promise<string | null> {
   return data.user.id;
 }
 
+/**
+ * The Discord identity that should represent the account right now.
+ *
+ * An account can end up holding more than one Discord identity (linking a
+ * second account succeeds server-side even though nothing in the UI offers it),
+ * and `Array.find` would then return whichever happens to sit first — in
+ * practice the oldest, so a user who switched accounts kept seeing their
+ * previous username. Ordering by recency picks the one they actually last used,
+ * which is also the one Supabase signs them in as.
+ */
+export function pickDiscordIdentity<
+  T extends { provider: string; updated_at?: string; last_sign_in_at?: string; created_at?: string },
+>(identities: T[] | undefined | null): T | undefined {
+  const discord = (identities ?? []).filter((entry) => entry.provider === "discord");
+  if (discord.length <= 1) return discord[0];
+  const freshness = (entry: T) =>
+    Date.parse(entry.updated_at ?? entry.last_sign_in_at ?? entry.created_at ?? "") || 0;
+  return [...discord].sort((a, b) => freshness(b) - freshness(a))[0];
+}
+
 /** Discord identity of the signed-in user, when they authenticated with Discord. */
 export async function getDiscordIdentity(): Promise<DiscordIdentity | null> {
   if (!isSupabaseConfigured()) return null;
@@ -128,7 +163,7 @@ export async function getDiscordIdentity(): Promise<DiscordIdentity | null> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
 
-  const identity = data.user.identities?.find((entry) => entry.provider === "discord");
+  const identity = pickDiscordIdentity(data.user.identities);
   const fromDiscord = Boolean(identity) || data.user.app_metadata?.provider === "discord";
   if (!fromDiscord) return null;
 
@@ -156,12 +191,24 @@ export async function requireSession(next = "/dashboard"): Promise<Session> {
   return session;
 }
 
-/** Returns the session or redirects unless the user meets the minimum role. */
+/**
+ * Returns the session, or sends the visitor somewhere that explains why not.
+ *
+ * Staff hitting an admin board above their rank previously landed silently back
+ * on the control room, which read as a broken link rather than a permission
+ * rule. They now get /admin/no-access, which names the board, the rank it
+ * needs, and their own. Everyone else still just goes home — a member poking at
+ * an admin URL does not need the staff ladder explained to them.
+ */
 export async function requireRole(min: Role, next = "/dashboard"): Promise<Session> {
   const session = await requireSession(next);
-  // Bounced from a page above their rank: staff land on their own dashboard,
-  // everyone else goes home.
-  if (!hasAtLeast(session.role, min)) redirect(landingPathFor(session.role));
+  if (!hasAtLeast(session.role, min)) {
+    if (next.startsWith("/admin") && isStaff(session.role)) {
+      const params = new URLSearchParams({ from: next, need: min });
+      redirect(`/admin/no-access?${params}`);
+    }
+    redirect(landingPathFor(session.role));
+  }
   return session;
 }
 

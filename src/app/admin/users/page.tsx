@@ -1,78 +1,60 @@
 import type { Metadata } from "next";
-import { requireRole, roleLabel, hasAtLeast, ROLES, STAFF_ROLES } from "@/lib/auth";
+import { requireRole, canGrantRank, canManageRank, hasAtLeast, STAFF_ROLES } from "@/lib/auth";
 import type { Role } from "@/lib/types";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { listAccounts } from "@/lib/data/accounts";
 import { DashHeader } from "@/components/dashboard/dash-ui";
-import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
-import { MinecraftAvatar } from "@/components/shared";
-import { RoleManager } from "@/components/admin/role-manager";
+import { ReadOnlyBanner } from "@/components/admin/admin-ui";
+import { UsersDirectory, type DirectoryRow } from "@/components/admin/users-directory";
+import { InviteUserButton } from "@/components/admin/user-invites";
 
 export const metadata: Metadata = { title: "Users · Admin" };
 
-interface Row {
-  userId: string;
-  username: string;
-  role: Role;
-  email: string;
-}
-
-function roleOf(value: unknown): Role {
-  return typeof value === "string" && ROLES.includes(value as Role) ? (value as Role) : "member";
-}
-
 export default async function AdminUsersPage() {
   const session = await requireRole("owner", "/admin/users");
-  const admin = getSupabaseAdmin();
+  const accounts = await listAccounts();
 
-  let rows: Row[] = [];
-  if (admin) {
-    const { data } = await admin.auth.admin.listUsers({ perPage: 200 });
-    rows = (data?.users ?? []).map((u) => ({
-      userId: u.id,
-      username: String(u.user_metadata?.username ?? u.email?.split("@")[0] ?? "player"),
-      role: roleOf(u.app_metadata?.role),
-      email: u.email ?? "",
-    }));
-  }
-
-  // Roles the current actor may assign: strictly below their own rank.
+  // Ranks this actor may hand out. The top rank may also grant its own, so a
+  // second IT can be appointed without dropping to the CLI.
   const assignable: Role[] = (["member", "sponsor", "vip", ...STAFF_ROLES] as Role[]).filter(
-    (r) => !hasAtLeast(r, session.role),
+    (role) => canGrantRank(session.role, role),
   );
 
-  const columns: Column<Row>[] = [
-    {
-      header: "User",
-      cell: (r) => (
-        <span className="flex items-center gap-2.5">
-          <MinecraftAvatar username={r.username} size={30} />
-          <span className="font-semibold">{r.username}</span>
-        </span>
-      ),
-    },
-    { header: "Email", cell: (r) => <span className="text-muted">{r.email}</span> },
-    { header: "Current role", cell: (r) => <span className="text-muted">{roleLabel(r.role)}</span> },
-    {
-      header: "Change role",
-      cell: (r) => {
-        // Cannot manage self or anyone at/above the actor's rank.
-        const editable = !hasAtLeast(r.role, session.role) && r.username !== session.username;
-        return editable ? (
-          <RoleManager userId={r.userId} currentRole={r.role} assignable={assignable} />
-        ) : (
-          <span className="text-xs text-muted">—</span>
-        );
-      },
-    },
-  ];
+  const rows: DirectoryRow[] = (accounts ?? []).map((account) => {
+    // Say why a row is locked. The rule is real — you cannot change your own
+    // rank, nor anyone at or above it — but the old UI showed a bare em dash,
+    // which read as something having failed rather than as a deliberate rule.
+    let lockedReason: string | null = null;
+    if (account.username === session.username) lockedReason = "Your account";
+    else if (!canManageRank(session.role, account.role)) lockedReason = "Equal or higher rank";
+
+    return {
+      userId: account.userId,
+      username: account.username,
+      displayName: account.displayName,
+      email: account.email,
+      role: account.role,
+      lockedReason,
+      pendingInvite: account.pendingInvite,
+    };
+  });
+
+  const staffCount = rows.filter((row) => hasAtLeast(row.role, "helper")).length;
 
   return (
     <>
-      <DashHeader title="Users" subtitle={`${rows.length} accounts`} />
-      {!admin && (
+      <DashHeader
+        title="Users"
+        subtitle={
+          accounts
+            ? `${rows.length} account${rows.length === 1 ? "" : "s"} · ${staffCount} on the team`
+            : "Account directory"
+        }
+        action={<InviteUserButton assignable={assignable} label="Invite person" />}
+      />
+      {!accounts && (
         <ReadOnlyBanner note="User management requires SUPABASE_SERVICE_ROLE_KEY to be configured on the server." />
       )}
-      <AdminTable columns={columns} rows={rows} />
+      <UsersDirectory rows={rows} assignable={assignable} />
     </>
   );
 }
