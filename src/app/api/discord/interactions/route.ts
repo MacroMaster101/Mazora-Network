@@ -123,12 +123,17 @@ function withStatus(embed: Embed | undefined, status: string, color: number, foo
  * Rewrites the staff order message once the background work is done. Uses the
  * interaction webhook (no bot token needed) and is valid for 15 minutes.
  */
-async function editOriginalMessage(applicationId: string, token: string, embed: Embed): Promise<void> {
+async function editOriginalMessage(
+  applicationId: string,
+  token: string,
+  embed: Embed,
+  components: unknown[] = [],
+): Promise<void> {
   try {
     const response = await fetch(`${DISCORD_API}/webhooks/${applicationId}/${token}/messages/@original`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ embeds: [embed], components: [], allowed_mentions: { parse: [] } }),
+      body: JSON.stringify({ embeds: [embed], components, allowed_mentions: { parse: [] } }),
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),
     });
@@ -138,6 +143,49 @@ async function editOriginalMessage(applicationId: string, token: string, embed: 
   } catch (error) {
     console.error("Discord original message edit failed", error);
   }
+}
+
+/**
+ * Staff controls for a confirmed order.
+ *
+ * These live on the order message in the staff-only channel, never in the
+ * ticket: Discord shows components to everyone who can read the message, and
+ * the buyer can read their own ticket.
+ *
+ * Close and Announce are deliberately separate. Closing only means the
+ * conversation is finished — an order can end without a sale, and announcing
+ * "X bought Y" for someone who never paid is worse than not announcing at all.
+ */
+function orderControls(options: {
+  customerId: string;
+  reference: string;
+  ticketChannelId: string | null;
+  closed: boolean;
+  announced: boolean;
+}): unknown[] {
+  const buttons: unknown[] = [];
+
+  if (options.ticketChannelId) {
+    buttons.push({
+      type: 2,
+      style: options.closed ? 3 : 2,
+      label: options.closed ? "Reopen ticket" : "Close ticket",
+      emoji: { name: options.closed ? "🔓" : "🔒" },
+      custom_id: `mzt:${options.closed ? "open" : "close"}:${options.customerId}:${options.reference}:${options.ticketChannelId}`,
+    });
+  }
+
+  buttons.push({
+    type: 2,
+    style: 1,
+    label: options.announced ? "Announced" : "Announce purchase",
+    emoji: { name: options.announced ? "✅" : "📣" },
+    // Disabled after use so a second click cannot double-post the same sale.
+    disabled: options.announced,
+    custom_id: `mzt:announce:${options.customerId}:${options.reference}`,
+  });
+
+  return buttons.length ? [{ type: 1, components: buttons }] : [];
 }
 
 interface DecisionContext {
@@ -230,23 +278,10 @@ async function runConfirm(context: DecisionContext): Promise<void> {
           timestamp: new Date().toISOString(),
         },
       ],
-      // Staff close the ticket from here once the items are delivered. The
-      // buyer sees the button but cannot use it — the handler re-checks the
-      // staff role, because anyone who can see a component can click it.
-      components: [
-        {
-          type: 1,
-          components: [
-            {
-              type: 2,
-              style: 2,
-              label: "Close ticket",
-              emoji: { name: "🔒" },
-              custom_id: `mzt:close:${context.customerId}:${context.reference}`,
-            },
-          ],
-        },
-      ],
+      // No buttons here on purpose. Discord components are visible to everyone
+      // who can read the message, and the buyer can read this channel — a
+      // "Close ticket" button they could see but not use was confusing. Staff
+      // control the ticket from the order message in the staff-only channel.
     });
   }
 
@@ -289,6 +324,13 @@ async function runConfirm(context: DecisionContext): Promise<void> {
       0x34d399,
       ticketId ? "Manual store request · Ticket open" : "Manual store request · Confirmed",
     ),
+    orderControls({
+      customerId: context.customerId,
+      reference: context.reference,
+      ticketChannelId: ticketId,
+      closed: false,
+      announced: false,
+    }),
   );
 }
 
@@ -387,16 +429,12 @@ async function runTicketLifecycle(context: TicketLifecycleContext): Promise<void
   }
 
   if (context.closing) {
+    // Closing does NOT announce. A ticket can end without a sale — the buyer
+    // changed their mind, never paid, or it was a mistake — and posting
+    // "X bought Y" for someone who never bought is worse than staying quiet.
+    // Announcing is its own button, pressed only when money actually changed
+    // hands.
     await markOrderDecision(context.reference, "completed", context.actorName, context.channelId);
-
-    const announced = await announcePurchase(context.botToken, {
-      reference: context.reference,
-      minecraftUsername: fieldValue(context.originalEmbed, "Minecraft username"),
-      items: fieldValue(context.originalEmbed, "Items"),
-      total: fieldValue(context.originalEmbed, "Order total"),
-      customerId: context.customerId,
-    });
-    if (!announced && getBuyersChannelId()) notes.push("⚠️ purchase announcement failed");
 
     await postChannelMessage(context.botToken, context.channelId, {
       allowed_mentions: { parse: [] },
@@ -406,7 +444,7 @@ async function runTicketLifecycle(context: TicketLifecycleContext): Promise<void
           title: "🔒 Ticket closed",
           description:
             `Closed by **${context.actorName}**. The buyer no longer has access to this channel.\n` +
-            "Staff can reopen it at any time with the button on the order message above." +
+            "Staff can reopen it from the order message in the staff channel." +
             (notes.length ? `\n\n${notes.join("\n")}` : ""),
           color: 0x64748b,
           timestamp: new Date().toISOString(),
@@ -433,6 +471,34 @@ async function runTicketLifecycle(context: TicketLifecycleContext): Promise<void
       ],
     });
   }
+
+  // Reflect the new state on the staff order message, so the record is readable
+  // without opening the ticket and the buttons can tell which state they are in.
+  const statusLines = [
+    context.closing
+      ? `🔒 Ticket closed by **${context.actorName}**`
+      : `🔓 Ticket reopened by **${context.actorName}**`,
+    `🎟️ Ticket: <#${context.channelId}>`,
+    ...notes,
+  ];
+
+  await editOriginalMessage(
+    context.applicationId,
+    context.interactionToken,
+    withStatus(
+      context.originalEmbed,
+      statusLines.join("\n"),
+      context.closing ? 0x64748b : 0x34d399,
+      context.closing ? "Manual store request · Ticket closed" : "Manual store request · Ticket open",
+    ),
+    orderControls({
+      customerId: context.customerId,
+      reference: context.reference,
+      ticketChannelId: context.channelId,
+      closed: context.closing,
+      announced: false,
+    }),
+  );
 }
 
 /** Reject: DM the buyer, no ticket is created. */
@@ -488,24 +554,67 @@ export async function POST(request: Request) {
   // MESSAGE_COMPONENT — a staff member clicked a button.
   if (interaction.type === 3) {
     const customId = interaction.data?.custom_id ?? "";
-    const [prefix, action, discordUserId, reference] = customId.split(":");
+    // Ticket controls carry the ticket channel id, because they live on the
+    // order message in the staff channel — interaction.channel_id would point
+    // at that channel, not at the ticket being acted on.
+    const [prefix, action, discordUserId, reference, ticketChannelId] = customId.split(":");
 
-    // Ticket lifecycle buttons live inside the ticket channel itself, so they
-    // carry their own prefix and are handled before the order-decision buttons.
-    if (prefix === "mzt" && ["close", "open"].includes(action) && /^\d{17,20}$/.test(discordUserId ?? "")) {
+    if (prefix === "mzt" && /^\d{17,20}$/.test(discordUserId ?? "")) {
       const staff = staffCheck(interaction);
       if (!staff.allowed) {
         return ephemeral(staff.reason ?? "You don't have permission to action Mazora tickets.");
       }
 
       const bot = getDiscordBotConfig();
-      const channelId = interaction.channel_id;
-      if (!bot || !channelId || !interaction.application_id || !interaction.token) {
+      if (!bot || !interaction.application_id || !interaction.token) {
         return ephemeral("Ticket actions are not configured on the server.");
       }
 
       const actor = interaction.member?.user ?? interaction.user;
       const actorName = actor?.global_name || actor?.username || "staff";
+      const orderEmbed = interaction.message?.embeds?.[0];
+      const alreadyClosed = /Ticket closed/i.test(fieldValue(orderEmbed, "Status"));
+
+      // --- Announce: a separate, deliberate act ---------------------------
+      if (action === "announce") {
+        if (!getBuyersChannelId()) {
+          return ephemeral("No buyers channel is configured, so there is nowhere to announce.");
+        }
+
+        after(async () => {
+          const posted = await announcePurchase(bot.token, {
+            reference: reference ?? "",
+            minecraftUsername: fieldValue(orderEmbed, "Minecraft username"),
+            items: fieldValue(orderEmbed, "Items"),
+            total: fieldValue(orderEmbed, "Order total"),
+            customerId: discordUserId!,
+          }).catch(() => false);
+          if (!posted) console.error("Purchase announcement failed", reference);
+        });
+
+        // Announce collapses into a disabled "Announced" so the same sale
+        // cannot be posted twice by a double click.
+        return json({
+          type: 7,
+          data: {
+            components: orderControls({
+              customerId: discordUserId!,
+              reference: reference ?? "",
+              ticketChannelId: ticketChannelId || null,
+              closed: alreadyClosed,
+              announced: true,
+            }),
+            allowed_mentions: { parse: [] },
+          },
+        });
+      }
+
+      // --- Close / reopen --------------------------------------------------
+      if (!["close", "open"].includes(action)) return json({ type: 6 });
+      if (!ticketChannelId || !/^\d{17,20}$/.test(ticketChannelId)) {
+        return ephemeral("This order has no ticket channel to act on.");
+      }
+
       const closing = action === "close";
 
       after(async () => {
@@ -514,12 +623,12 @@ export async function POST(request: Request) {
             applicationId: interaction.application_id!,
             interactionToken: interaction.token!,
             botToken: bot.token,
-            channelId,
+            channelId: ticketChannelId,
             customerId: discordUserId!,
             reference: reference ?? "",
             actorName,
             closing,
-            originalEmbed: interaction.message?.embeds?.[0],
+            originalEmbed: orderEmbed,
           });
         } catch (error) {
           console.error("Discord ticket lifecycle failed", error);
@@ -531,20 +640,16 @@ export async function POST(request: Request) {
       return json({
         type: 7,
         data: {
-          components: [
-            {
-              type: 1,
-              components: [
-                {
-                  type: 2,
-                  style: closing ? 3 : 2,
-                  label: closing ? "Reopen ticket" : "Close ticket",
-                  emoji: { name: closing ? "🔓" : "🔒" },
-                  custom_id: `mzt:${closing ? "open" : "close"}:${discordUserId}:${reference ?? ""}`,
-                },
-              ],
-            },
-          ],
+          components: orderControls({
+            customerId: discordUserId!,
+            reference: reference ?? "",
+            ticketChannelId,
+            closed: closing,
+            // Whether it was announced is not encoded in the button, so the
+            // announce control returns to its live state here. Double-posting
+            // is still guarded by the disabled swap on the announce click.
+            announced: false,
+          }),
           allowed_mentions: { parse: [] },
         },
       });
