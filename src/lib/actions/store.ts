@@ -11,6 +11,7 @@ import {
   getDiscordBotToken,
   getDiscordGuildId,
   getDiscordInviteUrl,
+  getStoreStaffRoleId,
   isGuildMember,
   sendBotChannelMessage,
 } from "@/lib/discord";
@@ -170,8 +171,11 @@ export async function submitStoreRequest(
 
   const total = orderItems.reduce((sum, item) => sum + item.lineTotal, 0);
   const reference = `MZ-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${randomUUID().slice(0, 6).toUpperCase()}`;
-  const staffRoleId = process.env.DISCORD_STORE_STAFF_ROLE_ID?.trim();
-  const mention = staffRoleId && /^\d{17,20}$/.test(staffRoleId) ? `<@&${staffRoleId}>` : undefined;
+  // Only the primary role is pinged. The variable may list several roles that
+  // are allowed to action orders; @mentioning all of them on every request
+  // would turn a permission grant into a notification storm.
+  const staffRoleId = getStoreStaffRoleId();
+  const mention = staffRoleId ? `<@&${staffRoleId}>` : undefined;
   const itemLines = orderItems
     .map((item) => `**${item.quantity}× ${item.name}** — ${usd(item.lineTotal)} (${usd(item.price)} each)`)
     .join("\n")
@@ -197,7 +201,7 @@ export async function submitStoreRequest(
 
   const basePayload = {
     content: mention,
-    allowed_mentions: mention ? { roles: [staffRoleId] } : { parse: [] },
+    allowed_mentions: staffRoleId ? { roles: [staffRoleId] } : { parse: [] },
     embeds: [embed],
   };
 

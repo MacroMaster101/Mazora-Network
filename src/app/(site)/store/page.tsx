@@ -13,7 +13,7 @@ import { Reveal } from "@/components/shared";
 import { CartTrigger } from "@/components/shared/cart-trigger";
 import { StoreExplorer } from "@/components/shared/store-explorer";
 import { CartPageLauncher } from "@/components/shared/cart-page-launcher";
-import "@/styles/store-header-redesign.css";
+import "@/styles/store-header.css";
 
 export const metadata: Metadata = {
   title: "Store",

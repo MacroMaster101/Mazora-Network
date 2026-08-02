@@ -630,7 +630,8 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   border-color: rgb(124 58 237 / 0.18);
   background:
     radial-gradient(28rem 18rem at 100% 0%, rgb(196 181 253 / 0.16), transparent 72%),
-    linear-gradient(150deg, rgb(255 255 255 / 0.98), rgb(246 242 252 / 0.98));
+    linear-gradient(150deg, rgb(255 255 255 / 0.78), rgb(246 242 252 / 0.68));
+  backdrop-filter: blur(16px) saturate(1.06);
   box-shadow: 0 28px 68px -44px rgb(67 38 109 / 0.46), inset 0 1px white;
 }
 
@@ -905,4 +906,63 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   .news-detail-related-head {
     display: grid;
   }
+}
+/* Light article canvas — visible realm artwork, readable translucent content. */
+:root[data-theme="light"]:has(.news-article-page) body,
+:root[data-theme="light"] .site-world-frame:has(.news-article-page),
+:root[data-theme="light"] .news-article-page {
+  background-color: rgb(247 245 251);
+}
+
+:root[data-theme="light"] .news-detail-hero-backdrop {
+  filter: saturate(1.02) contrast(1.02) brightness(1.03);
+}
+
+:root[data-theme="light"] .news-detail-world {
+  background: rgb(247 245 251);
+}
+
+:root[data-theme="light"] .news-detail-world::before {
+  background:
+    linear-gradient(180deg, rgb(247 245 251 / 0.06), rgb(247 245 251 / 0.12) 38%, rgb(247 245 251 / 0.3) 100%),
+    url("/images/newsroom-header-continuation-v3.webp") center top / cover no-repeat;
+}
+
+:root[data-theme="light"] .news-detail-world::after {
+  background:
+    linear-gradient(90deg, rgb(247 245 251 / 0.18), transparent 22%, transparent 78%, rgb(247 245 251 / 0.18)),
+    radial-gradient(48rem 30rem at 50% 16%, rgb(139 92 246 / 0.09), transparent 72%);
+}
+
+:root[data-theme="light"] .news-detail-feature-art {
+  border-color: rgb(124 58 237 / 0.25);
+  box-shadow: 0 34px 84px -48px rgb(43 25 70 / 0.55), inset 0 1px rgb(255 255 255 / 0.16);
+}
+
+:root[data-theme="light"] .news-detail-publisher-card {
+  background: rgb(255 255 255 / 0.46);
+}
+:root[data-theme="light"] .news-detail-hero :is(
+  .news-detail-back,
+  .news-detail-live,
+  .newsroom-mast-stat,
+  .news-detail-meta
+) {
+  border-color: rgb(94 61 133 / 0.28);
+  color: rgb(43 29 62);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.76), rgb(239 231 248 / 0.62));
+  box-shadow: 0 18px 42px -30px rgb(37 20 62 / 0.55), inset 0 1px rgb(255 255 255 / 0.82);
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+
+:root[data-theme="light"] .news-detail-hero .newsroom-mast-stat :is(small, strong, em),
+:root[data-theme="light"] .news-detail-hero .newsroom-stat-label,
+:root[data-theme="light"] .news-detail-meta .news-article-copy-link {
+  color: inherit;
+}
+
+:root[data-theme="light"] .news-detail-back:hover {
+  border-color: rgb(124 58 237 / 0.42);
+  color: rgb(91 33 182);
+  background: rgb(255 255 255 / 0.82);
 }

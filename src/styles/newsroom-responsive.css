@@ -668,3 +668,108 @@
     background-size: auto, auto 145%;
   }
 }
+/* Light News — keep the photographic world visible beneath daylight glass. */
+:root[data-theme="light"]:has(.newsroom-page) {
+  color-scheme: light;
+  --base: 247 245 251;
+  --surface: 246 242 252;
+  --card: 253 251 255;
+  --line: 218 207 232;
+  --line-strong: 194 178 215;
+  --ink: 30 23 43;
+  --muted: 101 88 119;
+  --accent: 124 58 237;
+  --accent-bright: 109 40 217;
+  --accent-rgb: 124 58 237;
+  --gold: 161 98 7;
+  --danger: 220 38 38;
+  --warning: 194 65 12;
+  --success: 5 150 105;
+}
+
+:root[data-theme="light"]:has(.newsroom-page) body,
+:root[data-theme="light"] .site-world-frame:has(.newsroom-page) {
+  color: rgb(30 23 43);
+  background-color: rgb(247 245 251);
+}
+
+:root[data-theme="light"] .newsroom-page {
+  color: rgb(30 23 43);
+  background-color: rgb(7 5 13);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-hero-backdrop {
+  filter: saturate(1.02) contrast(1.02) brightness(1.03);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-hero-backdrop::before {
+  background:
+    linear-gradient(90deg, rgb(5 3 11 / 0.44), transparent 25%, transparent 75%, rgb(5 3 11 / 0.44)),
+    linear-gradient(180deg, rgb(5 3 11 / 0.22), rgb(7 4 13 / 0.08) 52%, rgb(7 5 13 / 0.36) 88%, rgb(7 5 13 / 0.54) 100%);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-hero::after {
+  background: linear-gradient(180deg, transparent, rgb(7 5 13 / 0.08) 28%, rgb(7 5 13 / 0.28) 76%, rgb(7 5 13 / 0.5));
+}
+
+:root[data-theme="light"] .newsroom-page::before {
+  background:
+    linear-gradient(180deg, rgb(7 5 13 / 0.03), rgb(7 5 13 / 0.06) 35%, rgb(4 3 9 / 0.24)),
+    url("/images/newsroom-header-continuation-v3.webp") center top / cover no-repeat;
+}
+
+:root[data-theme="light"] .newsroom-page::after {
+  background:
+    radial-gradient(circle at 50% 25%, rgb(141 105 222 / 0.08), transparent 42%),
+    linear-gradient(180deg, transparent 76%, rgb(4 3 9 / 0.18));
+}
+
+:root[data-theme="light"] .newsroom-page :is(.newsroom-live-pill, .newsroom-mast-stat, .newsroom-hero-note) {
+  border-color: rgb(94 61 133 / 0.28);
+  color: rgb(43 29 62);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.76), rgb(239 231 248 / 0.62));
+  box-shadow: 0 18px 42px -30px rgb(37 20 62 / 0.55), inset 0 1px rgb(255 255 255 / 0.82);
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-mast-stat :is(small, strong, em),
+:root[data-theme="light"] .newsroom-page .newsroom-hero-note :is(span, strong) {
+  color: inherit;
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-explorer {
+  color: rgb(30 23 43);
+  border-color: rgb(124 58 237 / 0.22);
+  background:
+    radial-gradient(44rem 24rem at 0% 0%, rgb(196 181 253 / 0.2), transparent 68%),
+    linear-gradient(155deg, rgb(255 255 255 / 0.74), rgb(246 242 252 / 0.64));
+  box-shadow: 0 32px 76px -50px rgb(67 38 109 / 0.44), inset 0 1px rgb(255 255 255 / 0.82);
+  backdrop-filter: blur(16px) saturate(1.06);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-search {
+  background: rgb(255 255 255 / 0.64);
+  backdrop-filter: blur(10px);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-feature,
+:root[data-theme="light"] .newsroom-page .news-public-card {
+  color: rgb(30 23 43);
+  border-color: rgb(124 58 237 / 0.2);
+  background:
+    radial-gradient(24rem 18rem at 100% 0%, rgb(196 181 253 / 0.18), transparent 70%),
+    linear-gradient(150deg, rgb(255 255 255 / 0.74), rgb(247 243 252 / 0.66));
+  box-shadow: 0 24px 54px -38px rgb(67 38 109 / 0.4), inset 0 1px rgb(255 255 255 / 0.84);
+  backdrop-filter: blur(13px) saturate(1.05);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-page-button {
+  background: rgb(255 255 255 / 0.62);
+  backdrop-filter: blur(10px);
+}
+
+:root[data-theme="light"] .site-world-frame:has(.newsroom-page) .site-footer::before {
+  background:
+    linear-gradient(180deg, rgb(4 3 9 / 0.02), rgb(4 3 9 / 0.34) 48%, rgb(4 3 9 / 0.72)),
+    url("/images/newsroom-header-continuation-v3.webp") center bottom / cover no-repeat;
+}
