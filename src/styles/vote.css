@@ -1,0 +1,965 @@
+/* Vote page v11 — original sanctuary masthead and Home-style world crossfade. */
+
+.vote-redesign-hero {
+  position: relative;
+  min-height: max(46rem, 100svh) !important;
+  overflow: hidden;
+  isolation: isolate;
+  color: #fff;
+  background: #080617;
+}
+
+.vote-redesign-hero::after {
+  position: absolute;
+  inset: auto 0 -1px;
+  z-index: 4;
+  height: clamp(8rem, 18vh, 12rem);
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 0%, rgb(8 6 23 / 0.16) 20%, #080617 92%);
+}
+
+.vote-redesign-art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 72%, rgb(0 0 0 / 0.9) 82%, rgb(0 0 0 / 0.48) 92%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 72%, rgb(0 0 0 / 0.9) 82%, rgb(0 0 0 / 0.48) 92%, transparent 100%);
+}
+
+.vote-redesign-image {
+  object-fit: cover;
+  object-position: center center;
+  filter: saturate(0.9) contrast(1.04) brightness(0.74);
+  transform: scale(1.015);
+}
+
+:root[data-theme="light"] .vote-redesign-image {
+  filter: saturate(0.94) contrast(1.02) brightness(0.82);
+}
+
+.vote-redesign-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(44rem 30rem at 50% 38%, transparent 18%, rgb(5 3 14 / 0.18) 66%, rgb(5 3 14 / 0.52) 100%),
+    linear-gradient(180deg, rgb(5 3 14 / 0.56) 0%, transparent 25%, rgb(6 4 16 / 0.1) 60%, rgb(8 6 23 / 0.62) 100%),
+    linear-gradient(90deg, rgb(4 2 12 / 0.64), transparent 24%, transparent 76%, rgb(4 2 12 / 0.64));
+}
+
+.vote-redesign-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  background-image:
+    linear-gradient(rgb(216 180 254 / 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(216 180 254 / 0.28) 1px, transparent 1px);
+  background-size: 78px 78px;
+  -webkit-mask-image: linear-gradient(180deg, transparent 8%, #000 42%, transparent 86%);
+  mask-image: linear-gradient(180deg, transparent 8%, #000 42%, transparent 86%);
+}
+
+.vote-redesign-stage {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  min-height: max(46rem, 100svh);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: calc(4.75rem + clamp(1.25rem, 3vh, 2.25rem));
+  padding-bottom: clamp(8rem, 16vh, 10rem);
+  text-align: center;
+}
+
+.vote-redesign-status {
+  display: inline-flex;
+  min-height: 2.35rem;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.3rem 0.75rem 0.3rem 0.35rem;
+  border: 1px solid rgb(216 180 254 / 0.2);
+  border-radius: 999px;
+  color: rgb(238 232 248 / 0.68);
+  background: rgb(8 5 20 / 0.46);
+  box-shadow: 0 12px 32px -22px rgb(3 1 8 / 0.9), inset 0 1px rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(14px);
+  font-size: 0.72rem;
+}
+
+.vote-redesign-status > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.48rem 0.7rem;
+  border: 1px solid rgb(196 157 255 / 0.25);
+  border-radius: 999px;
+  color: #fff;
+  background: rgb(139 92 246 / 0.12);
+  font-family: var(--font-display), sans-serif;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.vote-redesign-status i {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: #86efac;
+  box-shadow: 0 0 0 4px rgb(134 239 172 / 0.08), 0 0 16px rgb(134 239 172 / 0.72);
+}
+
+.vote-redesign-mast {
+  display: grid;
+  width: min(100%, 59rem);
+  grid-template-columns: minmax(12rem, 14rem) minmax(15rem, 18rem) minmax(12rem, 14rem);
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1.25rem, 4vw, 3rem);
+  margin-top: clamp(1.2rem, 3vh, 2rem);
+}
+
+.vote-redesign-brand {
+  position: relative;
+  display: grid;
+  min-height: 9rem;
+  place-items: center;
+}
+
+.vote-redesign-brand > span {
+  position: absolute;
+  inset: 12% 3%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(168 85 247 / 0.2), transparent 68%);
+  filter: blur(22px);
+}
+
+.vote-redesign-brand img {
+  position: relative;
+  width: min(100%, 17rem);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 18px 42px rgb(3 1 8 / 0.82));
+}
+
+.vote-redesign-stat {
+  display: grid;
+  min-height: 4.6rem;
+  grid-template-columns: 2.55rem 1fr;
+  align-items: center;
+  gap: 0.78rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid rgb(216 180 254 / 0.18);
+  border-radius: 1.15rem;
+  text-align: left;
+  background: linear-gradient(135deg, rgb(14 9 30 / 0.58), rgb(8 5 20 / 0.34));
+  box-shadow: 0 20px 46px -34px rgb(139 92 246 / 0.8), inset 0 1px rgb(255 255 255 / 0.06);
+  backdrop-filter: blur(14px);
+}
+
+.vote-redesign-stat > span {
+  display: grid;
+  width: 2.55rem;
+  height: 2.55rem;
+  place-items: center;
+  border: 1px solid rgb(196 157 255 / 0.2);
+  border-radius: 0.8rem;
+  color: rgb(216 180 254);
+  background: rgb(139 92 246 / 0.1);
+}
+
+.vote-redesign-stat div {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.vote-redesign-stat strong {
+  color: #fff;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.vote-redesign-stat small {
+  color: rgb(238 232 248 / 0.62);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vote-redesign-copy {
+  display: grid;
+  max-width: 52rem;
+  justify-items: center;
+  margin-top: clamp(0.8rem, 2.5vh, 1.65rem);
+}
+
+.vote-redesign-copy > p {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+  color: rgb(216 180 254);
+  font-family: var(--font-display), sans-serif;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.vote-redesign-copy h1 {
+  max-width: 50rem;
+  margin-top: 0.65rem;
+  color: #fff;
+  font-size: clamp(3.2rem, 6.2vw, 5.8rem);
+  font-weight: 950;
+  letter-spacing: -0.065em;
+  line-height: 0.88;
+  text-wrap: balance;
+  text-shadow: 0 10px 42px rgb(3 1 8 / 0.84);
+}
+
+.vote-redesign-copy h1 span {
+  display: block;
+  color: rgb(216 180 254);
+}
+
+.vote-redesign-copy > div {
+  max-width: 42rem;
+  margin-top: 1rem;
+  color: rgb(238 232 248 / 0.7);
+  font-size: clamp(0.92rem, 1.6vw, 1.05rem);
+  line-height: 1.7;
+  text-wrap: balance;
+  text-shadow: 0 2px 18px rgb(3 1 8 / 0.94);
+}
+
+.vote-redesign-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  margin-top: clamp(1.2rem, 3vh, 1.8rem);
+}
+
+.vote-redesign-primary,
+.vote-redesign-secondary {
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border-radius: 0.9rem;
+  padding: 0.78rem 1.15rem;
+  font-family: var(--font-display), sans-serif;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.vote-redesign-primary {
+  border: 1px solid rgb(233 213 255 / 0.72);
+  color: #180b2a;
+  background: linear-gradient(135deg, #f4e8ff, #c89dff);
+  box-shadow: 0 18px 38px -22px rgb(168 85 247 / 0.92), inset 0 1px #fff;
+}
+
+.vote-redesign-secondary {
+  border: 1px solid rgb(216 180 254 / 0.22);
+  color: rgb(247 243 252 / 0.9);
+  background: rgb(9 6 21 / 0.5);
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(12px);
+}
+
+.vote-redesign-primary:hover,
+.vote-redesign-secondary:hover {
+  transform: translateY(-2px);
+}
+
+.vote-redesign-primary:hover {
+  box-shadow: 0 22px 44px -20px rgb(168 85 247 / 0.95), inset 0 1px #fff;
+}
+
+.vote-redesign-secondary:hover {
+  border-color: rgb(216 180 254 / 0.42);
+  background: rgb(16 10 32 / 0.68);
+}
+
+.vote-redesign-journey {
+  display: flex;
+  width: min(100%, 44rem);
+  min-height: 3.05rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  margin-top: clamp(1rem, 2.4vh, 1.55rem);
+  padding: 0.58rem 0.85rem;
+  border: 1px solid rgb(216 180 254 / 0.15);
+  border-radius: 1rem;
+  color: rgb(238 232 248 / 0.65);
+  background: rgb(6 4 16 / 0.44);
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.04);
+  backdrop-filter: blur(12px);
+  font-size: 0.7rem;
+}
+
+.vote-redesign-journey span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  white-space: nowrap;
+}
+
+.vote-redesign-journey b {
+  color: rgb(196 157 255);
+  font-family: var(--font-display), sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+}
+
+.vote-redesign-journey > i {
+  width: clamp(0.8rem, 3vw, 2rem);
+  height: 1px;
+  background: linear-gradient(90deg, rgb(216 180 254 / 0.08), rgb(216 180 254 / 0.42), rgb(216 180 254 / 0.08));
+}
+
+/* Match Home: overlap the lower world into the fading hero instead of starting a new image. */
+html:has(.vote-redesign-hero),
+body:has(.vote-redesign-hero) {
+  background: #05030a !important;
+}
+
+.site-world-frame:has(.vote-redesign-hero) {
+  background: linear-gradient(180deg, #080617 0%, #070512 46%, #05030a 100%) !important;
+}
+
+.site-world-frame:has(.vote-redesign-hero)::before {
+  background:
+    radial-gradient(52rem 30rem at 50% 24%, rgb(139 92 246 / 0.08), transparent 72%),
+    linear-gradient(90deg, rgb(5 3 10 / 0.16), transparent 24%, transparent 76%, rgb(5 3 10 / 0.16)) !important;
+}
+
+.site-world-frame:has(.vote-redesign-hero)::after {
+  position: absolute;
+  top: calc(max(46rem, 100svh) - 8rem);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -1;
+  display: block !important;
+  content: "" !important;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgb(8 6 23 / 0.96) 0%, rgb(8 6 23 / 0.78) 10rem, rgb(7 5 18 / 0.42) 24rem, rgb(5 3 10 / 0.72) 100%),
+    url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.12) 5rem, rgb(0 0 0 / 0.5) 12rem, #000 20rem, #000 100%);
+  mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.12) 5rem, rgb(0 0 0 / 0.5) 12rem, #000 20rem, #000 100%);
+}
+
+.vote-redesign-hero + .vote-realm-world {
+  position: relative;
+  z-index: 4;
+  margin-top: -8rem !important;
+  padding-top: 6rem !important;
+  background:
+    radial-gradient(48rem 22rem at 50% 4rem, rgb(139 92 246 / 0.07), transparent 72%),
+    linear-gradient(180deg, transparent 0%, rgb(8 6 23 / 0.24) 8rem, rgb(6 4 14 / 0.32) 52%, rgb(5 3 10 / 0.58) 100%) !important;
+}
+
+.vote-redesign-hero + .vote-realm-world::before {
+  display: block !important;
+  inset: 0 !important;
+  content: "" !important;
+  opacity: 0.32 !important;
+  background-image:
+    radial-gradient(circle at 16% 18%, rgb(216 180 254 / 0.25) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 72% 32%, rgb(110 231 242 / 0.18) 0 1px, transparent 1.5px) !important;
+  background-size: 68px 68px, 92px 92px !important;
+  -webkit-mask-image: linear-gradient(180deg, #000, transparent 56%) !important;
+  mask-image: linear-gradient(180deg, #000, transparent 56%) !important;
+}
+
+.site-world-frame:has(.vote-redesign-hero) .site-footer,
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer,
+:root[data-theme="dark"] .site-world-frame:has(.vote-redesign-hero) .site-footer {
+  border: 0 !important;
+  background: linear-gradient(180deg, transparent, rgb(5 3 10 / 0.36) 42%, rgb(4 2 8 / 0.72)) !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 899px) {
+  .vote-redesign-mast {
+    width: min(100%, 38rem);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .vote-redesign-brand {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-height: 7.5rem;
+  }
+
+  .vote-redesign-stat {
+    grid-row: 2;
+  }
+
+  .vote-redesign-copy {
+    margin-top: 1.15rem;
+  }
+
+  .vote-redesign-copy h1 {
+    font-size: clamp(3.4rem, 10vw, 5rem);
+  }
+}
+
+@media (max-width: 599px) {
+  .vote-redesign-hero {
+    min-height: max(49rem, 100svh) !important;
+  }
+
+  .vote-redesign-stage {
+    min-height: max(49rem, 100svh);
+    padding-inline: 1rem;
+    padding-top: 6rem;
+    padding-bottom: 7.5rem;
+  }
+
+  .vote-redesign-status {
+    gap: 0.55rem;
+    padding-right: 0.6rem;
+    font-size: 0.66rem;
+  }
+
+  .vote-redesign-status > span:first-child {
+    padding-inline: 0.55rem;
+    font-size: 0.58rem;
+  }
+
+  .vote-redesign-mast {
+    gap: 0.6rem;
+  }
+
+  .vote-redesign-brand {
+    min-height: 6.8rem;
+  }
+
+  .vote-redesign-brand img {
+    width: 12rem;
+  }
+
+  .vote-redesign-stat {
+    min-height: 4rem;
+    grid-template-columns: 2rem 1fr;
+    gap: 0.58rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 0.9rem;
+  }
+
+  .vote-redesign-stat > span {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.65rem;
+  }
+
+  .vote-redesign-stat strong {
+    font-size: 1.25rem;
+  }
+
+  .vote-redesign-stat small {
+    font-size: 0.58rem;
+  }
+
+  .vote-redesign-copy > p {
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+  }
+
+  .vote-redesign-copy h1 {
+    margin-top: 0.55rem;
+    font-size: clamp(2.5rem, 11.2vw, 3.25rem);
+    line-height: 0.94;
+  }
+
+  .vote-redesign-copy > div {
+    margin-top: 0.8rem;
+    font-size: 0.82rem;
+    line-height: 1.55;
+  }
+
+  .vote-redesign-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin-top: 1rem;
+  }
+
+  .vote-redesign-primary,
+  .vote-redesign-secondary {
+    min-height: 2.75rem;
+    padding-inline: 0.65rem;
+    font-size: 0.7rem;
+  }
+
+  .vote-redesign-journey {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.35rem;
+    margin-top: 0.8rem;
+    padding: 0.55rem;
+  }
+
+  .vote-redesign-journey span {
+    display: grid;
+    justify-items: center;
+    gap: 0.2rem;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .vote-redesign-journey > i {
+    display: none;
+  }
+
+  .site-world-frame:has(.vote-redesign-hero)::after {
+    top: calc(max(49rem, 100svh) - 6rem);
+    background-position: center top !important;
+    background-size: auto 100% !important;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 3rem, rgb(0 0 0 / 0.55) 8rem, #000 14rem, #000 100%);
+    mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 3rem, rgb(0 0 0 / 0.55) 8rem, #000 14rem, #000 100%);
+  }
+
+  .vote-redesign-hero + .vote-realm-world {
+    margin-top: -6rem !important;
+    padding-top: 4.5rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vote-redesign-brand img,
+  .vote-redesign-primary,
+  .vote-redesign-secondary {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Definitive Vote light theme — bright world, pale glass, and dark readable surfaces. */
+:root[data-theme="light"] html:has(.vote-redesign-hero),
+:root[data-theme="light"] body:has(.vote-redesign-hero) {
+  background: #f2edf7 !important;
+}
+
+:root[data-theme="light"] .vote-redesign-hero {
+  background: #ece6f4;
+}
+
+:root[data-theme="light"] .vote-redesign-hero::after {
+  background: linear-gradient(180deg, transparent 0%, rgb(236 230 244 / 0.2) 18%, #ece6f4 94%);
+}
+
+:root[data-theme="light"] .vote-redesign-art {
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 70%, rgb(0 0 0 / 0.82) 82%, rgb(0 0 0 / 0.36) 92%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 70%, rgb(0 0 0 / 0.82) 82%, rgb(0 0 0 / 0.36) 92%, transparent 100%);
+}
+
+:root[data-theme="light"] .vote-redesign-image {
+  filter: saturate(0.78) contrast(0.94) brightness(1.06);
+}
+
+:root[data-theme="light"] .vote-redesign-vignette {
+  background:
+    radial-gradient(46rem 32rem at 50% 38%, transparent 16%, rgb(15 9 34 / 0.08) 66%, rgb(15 9 34 / 0.32) 100%),
+    linear-gradient(180deg, rgb(11 7 28 / 0.42) 0%, transparent 27%, rgb(25 14 50 / 0.02) 62%, rgb(236 230 244 / 0.58) 100%),
+    linear-gradient(90deg, rgb(9 5 24 / 0.42), transparent 25%, transparent 75%, rgb(9 5 24 / 0.42));
+}
+
+:root[data-theme="light"] .vote-redesign-status {
+  border-color: rgb(92 63 132 / 0.18);
+  color: rgb(57 43 76 / 0.72);
+  background: rgb(252 250 255 / 0.78);
+  box-shadow: 0 16px 38px -25px rgb(38 19 66 / 0.5), inset 0 1px rgb(255 255 255 / 0.92);
+}
+
+:root[data-theme="light"] .vote-redesign-status > span:first-child {
+  border-color: rgb(124 58 237 / 0.2);
+  color: #43206f;
+  background: rgb(139 92 246 / 0.1);
+}
+
+:root[data-theme="light"] .vote-redesign-stat {
+  border-color: rgb(78 52 116 / 0.17);
+  color: #2b1c3e;
+  background:
+    radial-gradient(12rem 7rem at 100% 0%, rgb(139 92 246 / 0.1), transparent 74%),
+    rgb(252 250 255 / 0.82);
+  box-shadow: 0 22px 52px -34px rgb(43 22 74 / 0.48), inset 0 1px rgb(255 255 255 / 0.9);
+}
+
+:root[data-theme="light"] .vote-redesign-stat > span {
+  border-color: rgb(124 58 237 / 0.16);
+  color: rgb(109 40 217);
+  background: rgb(139 92 246 / 0.09);
+}
+
+:root[data-theme="light"] .vote-redesign-stat strong {
+  color: #251635;
+}
+
+:root[data-theme="light"] .vote-redesign-stat small {
+  color: rgb(67 49 88 / 0.68);
+}
+
+:root[data-theme="light"] .vote-redesign-secondary,
+:root[data-theme="light"] .vote-redesign-journey {
+  border-color: rgb(78 52 116 / 0.2);
+  color: #2f2042;
+  background: rgb(252 250 255 / 0.8);
+  box-shadow: 0 18px 42px -32px rgb(43 22 74 / 0.42), inset 0 1px rgb(255 255 255 / 0.9);
+}
+
+:root[data-theme="light"] .vote-redesign-secondary:hover {
+  border-color: rgb(124 58 237 / 0.3);
+  background: rgb(255 255 255 / 0.94);
+}
+
+:root[data-theme="light"] .vote-redesign-journey {
+  color: rgb(57 43 76 / 0.76);
+}
+
+:root[data-theme="light"] .vote-redesign-journey b {
+  color: rgb(109 40 217);
+}
+
+:root[data-theme="light"] .vote-redesign-journey > i {
+  background: linear-gradient(90deg, transparent, rgb(92 63 132 / 0.28), transparent);
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) {
+  background: linear-gradient(180deg, #ece6f4 0%, #f5f1f8 48%, #eee8f3 100%) !important;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::before {
+  background:
+    radial-gradient(52rem 30rem at 50% 24%, rgb(139 92 246 / 0.08), transparent 72%),
+    linear-gradient(90deg, rgb(88 61 125 / 0.05), transparent 24%, transparent 76%, rgb(88 61 125 / 0.05)) !important;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::after {
+  background:
+    linear-gradient(180deg, rgb(236 230 244 / 0.98) 0%, rgb(241 236 247 / 0.82) 10rem, rgb(245 241 249 / 0.7) 24rem, rgb(238 232 243 / 0.88) 100%),
+    url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
+}
+
+:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world {
+  color: #291b3b;
+  background:
+    radial-gradient(48rem 22rem at 50% 4rem, rgb(139 92 246 / 0.08), transparent 72%),
+    linear-gradient(180deg, transparent 0%, rgb(241 236 247 / 0.28) 8rem, rgb(245 241 249 / 0.45) 52%, rgb(238 232 243 / 0.68) 100%) !important;
+}
+
+:root[data-theme="light"] .vote-realm-atmosphere {
+  background:
+    radial-gradient(48rem 28rem at 12% 20%, rgb(14 165 173 / 0.05), transparent 72%),
+    radial-gradient(54rem 32rem at 86% 36%, rgb(139 92 246 / 0.08), transparent 72%),
+    linear-gradient(90deg, rgb(76 52 108 / 0.05), transparent 20%, transparent 80%, rgb(76 52 108 / 0.05));
+}
+
+:root[data-theme="light"] .vote-hub-heading .eyebrow {
+  color: rgb(109 40 217);
+  text-shadow: none;
+}
+
+:root[data-theme="light"] .vote-hub-heading h2 {
+  color: #261735;
+  text-shadow: 0 3px 20px rgb(255 255 255 / 0.72);
+}
+
+:root[data-theme="light"] .vote-hub-heading > p:last-child {
+  color: rgb(64 47 84 / 0.76);
+  text-shadow: 0 2px 14px rgb(255 255 255 / 0.7);
+}
+
+:root[data-theme="light"] .vote-hub-leaderboard-card,
+:root[data-theme="light"] .vote-hub-sites,
+:root[data-theme="light"] .vote-hub-guide {
+  border-color: rgb(77 53 113 / 0.18);
+  color: #261735;
+  background:
+    radial-gradient(32rem 18rem at 100% 0%, rgb(139 92 246 / 0.09), transparent 72%),
+    rgb(253 251 255 / 0.86);
+  box-shadow: 0 30px 72px -44px rgb(49 30 80 / 0.4), inset 0 1px rgb(255 255 255 / 0.92);
+  backdrop-filter: blur(24px) saturate(1.08);
+}
+
+:root[data-theme="light"] .vote-hub-leaderboard-card :is(h2, strong),
+:root[data-theme="light"] .vote-hub-sites :is(h2, strong),
+:root[data-theme="light"] .vote-hub-guide :is(h2, strong) {
+  color: #261735;
+}
+
+:root[data-theme="light"] .vote-hub-leaderboard-card :is(.vote-realm-leader-head, .vote-ref-pagination),
+:root[data-theme="light"] .vote-hub-sites-head,
+:root[data-theme="light"] .vote-hub-guide-head,
+:root[data-theme="light"] .vote-hub-guide-list > div {
+  border-color: rgb(77 53 113 / 0.13);
+}
+
+:root[data-theme="light"] .vote-hub-leaderboard-card :is(.vote-realm-leader-title > div > p:last-child, .vote-realm-ranked span),
+:root[data-theme="light"] .vote-hub-sites :is(small, .vote-hub-cooldown),
+:root[data-theme="light"] .vote-hub-guide-list small,
+:root[data-theme="light"] .vote-ref-pagination {
+  color: rgb(78 60 99 / 0.72);
+}
+
+:root[data-theme="light"] .vote-hub-site-link,
+:root[data-theme="light"] .vote-hub-site-link:hover {
+  border-color: rgb(77 53 113 / 0.14);
+  color: #261735;
+  background: rgb(255 255 255 / 0.7);
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.92);
+}
+
+:root[data-theme="light"] .vote-hub-site-link:hover {
+  border-color: rgb(124 58 237 / 0.3);
+  background: rgb(139 92 246 / 0.09);
+}
+
+:root[data-theme="light"] .vote-hub-site-action,
+:root[data-theme="light"] .vote-hub-site-link:hover .vote-hub-site-action {
+  color: rgb(109 40 217);
+}
+
+:root[data-theme="light"] .vote-realm-table .field,
+:root[data-theme="light"] .vote-table-search .field,
+:root[data-theme="light"] .vote-filter-menu > summary {
+  border-color: rgb(77 53 113 / 0.17);
+  color: #261735;
+  background: rgb(255 255 255 / 0.76);
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.92);
+}
+
+:root[data-theme="light"] .vote-realm-table .field::placeholder {
+  color: rgb(78 60 99 / 0.54);
+}
+
+:root[data-theme="light"] .vote-table-search svg,
+:root[data-theme="light"] .vote-filter-menu > summary > svg:last-child,
+:root[data-theme="light"] .vote-filter-current small {
+  color: rgb(78 60 99 / 0.62);
+}
+
+:root[data-theme="light"] .vote-filter-menu > summary > svg:first-child,
+:root[data-theme="light"] .vote-filter-current strong {
+  color: rgb(76 42 122);
+}
+
+:root[data-theme="light"] .vote-filter-menu > summary:hover,
+:root[data-theme="light"] .vote-filter-menu[open] > summary {
+  border-color: rgb(124 58 237 / 0.3);
+  background: rgb(139 92 246 / 0.08);
+}
+
+:root[data-theme="light"] .vote-filter-options {
+  border-color: rgb(77 53 113 / 0.16);
+  color: #261735;
+  background: rgb(252 249 255 / 0.98);
+  box-shadow: 0 22px 48px -28px rgb(49 30 80 / 0.42);
+}
+
+:root[data-theme="light"] .vote-filter-options button:hover,
+:root[data-theme="light"] .vote-filter-options button.is-selected {
+  color: rgb(76 29 149);
+  background: rgb(139 92 246 / 0.1);
+}
+
+:root[data-theme="light"] .vote-realm-table thead {
+  color: rgb(78 60 99 / 0.72);
+}
+
+:root[data-theme="light"] .vote-realm-table tbody tr {
+  background: rgb(255 255 255 / 0.55);
+}
+
+:root[data-theme="light"] .vote-realm-table tbody td {
+  border-color: rgb(77 53 113 / 0.1);
+  color: rgb(54 40 72);
+  background: rgb(255 255 255 / 0.38);
+}
+
+:root[data-theme="light"] .vote-realm-table tbody tr:hover td {
+  border-color: rgb(124 58 237 / 0.2);
+  background: rgb(139 92 246 / 0.06);
+}
+
+:root[data-theme="light"] .vote-mobile-row,
+:root[data-theme="light"] .vote-mobile-empty {
+  border-color: rgb(77 53 113 / 0.13);
+  color: #261735;
+  background: rgb(255 255 255 / 0.66);
+}
+
+:root[data-theme="light"] .vote-mobile-metric small {
+  color: rgb(78 60 99 / 0.62);
+}
+
+:root[data-theme="light"] .vote-ref-pagination .btn-ghost {
+  border-color: rgb(77 53 113 / 0.14);
+  color: rgb(54 40 72);
+  background: rgb(255 255 255 / 0.62);
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer {
+  color: #2c1d3d;
+  background: linear-gradient(180deg, transparent, rgb(239 233 245 / 0.68) 34%, rgb(232 225 240 / 0.92) 100%) !important;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer::before {
+  background: radial-gradient(42rem 18rem at 72% 10%, rgb(139 92 246 / 0.08), transparent 74%);
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer .text-muted {
+  color: rgb(74 56 94 / 0.7);
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer .hover\:text-ink:hover {
+  color: rgb(76 29 149);
+}
+
+/* Light transition and empty-table contrast polish. */
+:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world {
+  background:
+    linear-gradient(180deg, #ece6f4 0%, rgb(236 230 244 / 0.97) 9rem, rgb(242 237 247 / 0.78) 20rem, rgb(245 241 249 / 0.46) 52%, rgb(238 232 243 / 0.7) 100%) !important;
+}
+
+:root[data-theme="light"] .vote-realm-table thead,
+:root[data-theme="light"] .vote-realm-table thead tr,
+:root[data-theme="light"] .vote-realm-table thead th {
+  color: rgb(72 52 94 / 0.76) !important;
+}
+
+:root[data-theme="light"] .vote-realm-table tbody .text-muted,
+:root[data-theme="light"] .vote-mobile-empty {
+  color: rgb(76 58 96 / 0.7) !important;
+}
+
+/* Light mode keeps the generated continuation artwork visible. */
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::after {
+  background:
+    linear-gradient(180deg, rgb(244 240 248 / 0.18) 0%, rgb(244 240 248 / 0.28) 46%, rgb(236 230 242 / 0.4) 100%),
+    url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world {
+  background:
+    linear-gradient(180deg, transparent 0%, rgb(244 240 248 / 0.06) 14rem, rgb(240 234 245 / 0.16) 54%, rgb(233 226 240 / 0.3) 100%) !important;
+}
+
+/* Light hero shows the generated sanctuary directly, without a pale image mask. */
+:root[data-theme="light"] .vote-redesign-art {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+:root[data-theme="light"] .vote-redesign-image {
+  filter: saturate(0.9) contrast(1.01) brightness(0.94);
+}
+
+:root[data-theme="light"] .vote-redesign-vignette {
+  background:
+    radial-gradient(46rem 32rem at 50% 38%, transparent 18%, rgb(7 4 18 / 0.06) 68%, rgb(7 4 18 / 0.24) 100%),
+    linear-gradient(180deg, rgb(6 3 16 / 0.42) 0%, transparent 28%, transparent 72%, rgb(7 4 18 / 0.18) 100%),
+    linear-gradient(90deg, rgb(5 3 14 / 0.42), transparent 25%, transparent 75%, rgb(5 3 14 / 0.42));
+}
+
+:root[data-theme="light"] .vote-redesign-hero::after {
+  background: linear-gradient(180deg, transparent 0%, transparent 58%, rgb(7 4 18 / 0.16) 100%);
+}
+
+/* No light-theme veil over the generated hero artwork. */
+:root[data-theme="light"] .vote-redesign-vignette {
+  display: none;
+}
+
+:root[data-theme="light"] .vote-redesign-grid {
+  opacity: 0.035;
+}
+
+:root[data-theme="light"] .vote-redesign-image {
+  filter: saturate(1.02) contrast(1.03) brightness(0.9);
+}
+
+:root[data-theme="light"] .vote-redesign-hero::after {
+  background: none;
+}
+/* Keep the same generated image visible through the light footer. */
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer {
+  background: transparent !important;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer::before {
+  background: linear-gradient(180deg, rgb(247 244 250 / 0.06), rgb(238 232 243 / 0.18));
+}
+
+
+/* Light Vote world: show the continuation artwork directly, without a pale veil. */
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) {
+  background: #080617 !important;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::before {
+  background: none !important;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::after {
+  background: url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world,
+:root[data-theme="light"] .vote-realm-atmosphere,
+:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world::before,
+:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world::after {
+  background: none !important;
+}
+
+:root[data-theme="light"] .vote-hub-heading .eyebrow {
+  color: rgb(216 180 254);
+  text-shadow: 0 2px 14px rgb(3 1 8 / 0.8);
+}
+
+:root[data-theme="light"] .vote-hub-heading h2 {
+  color: white;
+  text-shadow: 0 4px 28px rgb(3 1 8 / 0.82);
+}
+
+:root[data-theme="light"] .vote-hub-heading > p:last-child {
+  color: rgb(245 239 251 / 0.78);
+  text-shadow: 0 2px 16px rgb(3 1 8 / 0.78);
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer {
+  color: white;
+  background: transparent !important;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer::before {
+  background: none !important;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer .text-muted {
+  color: rgb(238 232 248 / 0.68);
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer .hover\:text-ink:hover {
+  color: white;
+}

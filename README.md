@@ -118,13 +118,14 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `NEXT_PUBLIC_SUPABASE_URL` | Production auth | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production auth | Browser-safe Supabase publishable key for new projects. |
 | `DISCORD_STORE_WEBHOOK_URL` | Manual store orders | Private webhook URL for the staff order channel. Never expose it as a public variable. |
-| `DISCORD_STORE_STAFF_ROLE_ID` | Store orders | Discord role ID mentioned on new orders. Also the role permitted to press Confirm/Reject — order actions are refused entirely while this is unset. |
+| `DISCORD_STORE_STAFF_ROLE_ID` | Store orders | Role(s) permitted to action orders and read every ticket. Accepts one ID or several comma-separated (`<staff>,<management>,<owner>`); only the first is @mentioned on a new order. Order actions are refused entirely while this is unset. |
 | `DISCORD_BOT_TOKEN` | Order buttons, news sync | Bot token. Enables Confirm/Reject buttons, order tickets, buyer DMs, and the announcement importer. |
 | `DISCORD_APP_PUBLIC_KEY` | Order buttons | Developer Portal → General Information → Public Key. Verifies that button clicks genuinely came from Discord. |
 | `DISCORD_ORDERS_CHANNEL_ID` | Order buttons | Staff channel the bot posts order requests into. |
 | `DISCORD_GUILD_ID` | Order tickets | Your Discord server ID. Used to verify a buyer has joined before checkout and to create their ticket. Also links imported news back to the original message. |
 | `DISCORD_STORE_TICKETS_CATEGORY_ID` | Order tickets | Private category the bot creates one ticket channel per confirmed order in. When unset, confirming an order only DMs the buyer. |
-| `DISCORD_BUYERS_CHANNEL_ID` | Purchase announcements | Public channel posted to when staff close a ticket. Leave empty to skip announcements. The banner artwork ships with the repo and is served from `NEXT_PUBLIC_SITE_URL`, so nothing else needs configuring. |
+| `DISCORD_TICKET_LOGS_CHANNEL_ID` | Ticket logs | Staff channel receiving a summary embed and a `.txt` transcript each time a ticket is closed. Leave empty to skip logging. |
+| `DISCORD_BUYERS_CHANNEL_ID` | Purchase announcements | Public channel posted to by the Announce purchase button. Leave empty to skip announcements. The banner artwork ships with the repo and is served from `NEXT_PUBLIC_SITE_URL`, so nothing else needs configuring. |
 | `DISCORD_ANNOUNCEMENTS_CHANNEL_ID` | News sync | Channel the announcement importer reads from. |
 | `CRON_SECRET` | News sync | Shared secret for the scheduled announcement sync (minimum 16 characters). |
 | `NEXT_PUBLIC_BEDROCK_PORT` | No | Bedrock port shown on the Play and Status pages. Defaults to `8876`. |
@@ -143,12 +144,15 @@ The live integrations fail safely:
 No payment is ever taken on the website. Orders are requests that staff fulfil manually.
 
 1. **Checkout.** The buyer connects Discord and is checked for Mazora server membership. Signing in with Discord does not put anyone in the server, and a non-member can be neither DM'd nor added to a ticket, so the join is required before the request can be sent. The check is enforced in the server action, not only in the form.
-2. **Staff review.** The order is posted to `DISCORD_ORDERS_CHANNEL_ID` with Confirm and Reject buttons. Only holders of `DISCORD_STORE_STAFF_ROLE_ID` may action them — a valid Discord signature proves the request came from Discord, not that the clicker is staff, so the role is verified separately and the action is refused outright when the role is unconfigured.
+2. **Staff review.** The order is posted to `DISCORD_ORDERS_CHANNEL_ID` with Confirm and Reject buttons. Only holders of a role listed in `DISCORD_STORE_STAFF_ROLE_ID` may action them — a valid Discord signature proves the request came from Discord, not that the clicker is staff, so the roles are verified separately and the action is refused outright when none are configured. List several roles comma-separated when owners and management sit on different roles from general staff, otherwise they can see every button and use none of them.
 3. **Confirm.** The bot creates a private channel under `DISCORD_STORE_TICKETS_CATEGORY_ID`, visible only to the buyer, the staff role and the bot. It posts the order summary there and DMs the buyer a link. Payment is arranged in that channel.
 4. **Reject.** The buyer is DM'd; no ticket is created.
-5. **Close.** Once the items are delivered, staff press Close ticket in the channel. The buyer loses access, the channel is renamed `closed-…` but kept, the order is marked completed, and a purchase announcement is posted to `DISCORD_BUYERS_CHANNEL_ID`. Reopen restores the buyer and sets the order back to confirmed.
+5. **Close.** Staff press Close ticket. The buyer loses access, the channel is renamed `closed-…` but kept, the order is marked completed, and a transcript is logged to `DISCORD_TICKET_LOGS_CHANNEL_ID`. Reopen restores the buyer and sets the order back to confirmed.
+6. **Announce.** A separate button posts the purchase to `DISCORD_BUYERS_CHANNEL_ID`, then disables itself so the same sale cannot be posted twice.
 
-Closing announces rather than confirming does, because confirming only means staff accepted the request — closing is the point at which the items actually changed hands. Only the staff role can close or reopen; the buyer sees the button but the handler refuses them.
+Closing and announcing are deliberately separate. A ticket can end without a sale — the buyer changed their mind, never paid, or it was a mistake — and announcing "X bought Y" for someone who never bought is worse than not announcing at all.
+
+**All staff controls live on the order message in `DISCORD_ORDERS_CHANNEL_ID`, never in the ticket.** Discord shows a message's components to everyone who can read it, and the buyer can read their own ticket, so a Close button placed there would be visible to them. Every click is re-checked against the staff role regardless: a valid signature proves the click came from Discord, not that the clicker is staff.
 
 The click is acknowledged immediately and the Discord API work runs afterwards, because Discord discards any interaction not answered within three seconds. The buttons are removed up front, which also stops two staff members creating duplicate tickets.
 

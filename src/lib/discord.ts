@@ -89,9 +89,30 @@ export function getStoreTicketsCategoryId(): string | null {
   return id && /^\d{17,20}$/.test(id) ? id : null;
 }
 
+/**
+ * Every role permitted to action store orders, from a comma-separated list.
+ *
+ * A single id still works — the list exists because a server usually has more
+ * than one rank that should be able to run the shop. Owners and management
+ * could previously see the order buttons (their roles can read the staff
+ * channel) but every click was refused, because authorisation only ever matched
+ * one id. Administrator is deliberately NOT treated as a pass: on most servers
+ * several bot roles carry it.
+ */
+export function getStoreStaffRoleIds(): string[] {
+  const raw = process.env.DISCORD_STORE_STAFF_ROLE_ID?.trim();
+  if (!raw) return [];
+  return [...new Set(raw.split(",").map((id) => id.trim()).filter((id) => /^\d{17,20}$/.test(id)))];
+}
+
+/**
+ * The primary staff role: the first configured id.
+ *
+ * Used where exactly one role makes sense — the @mention on a new order. Extra
+ * roles gain access and permission without also being pinged on every order.
+ */
 export function getStoreStaffRoleId(): string | null {
-  const id = process.env.DISCORD_STORE_STAFF_ROLE_ID?.trim();
-  return id && /^\d{17,20}$/.test(id) ? id : null;
+  return getStoreStaffRoleIds()[0] ?? null;
 }
 
 /** Public invite shown to buyers who have not joined the server yet. */
@@ -175,8 +196,8 @@ export interface StoreTicketOptions {
   /** Buyer's Discord id — granted access to the new channel. */
   customerId: string;
   customerName: string;
-  /** Optional staff role granted access alongside the buyer. */
-  staffRoleId?: string | null;
+  /** Staff roles granted access alongside the buyer. */
+  staffRoleIds?: string[];
   /** The bot's own application id, so it keeps access to a private channel. */
   botApplicationId?: string | null;
 }
@@ -195,8 +216,10 @@ export async function createStoreTicketChannel(
     // type 1 = member.
     { id: options.customerId, type: 1, allow: TICKET_MEMBER_PERMISSIONS, deny: "0" },
   ];
-  if (options.staffRoleId) {
-    overwrites.push({ id: options.staffRoleId, type: 0, allow: TICKET_MEMBER_PERMISSIONS, deny: "0" });
+  // Every configured staff role, not just the primary: whoever may action an
+  // order must also be able to read the ticket it belongs to.
+  for (const roleId of options.staffRoleIds ?? []) {
+    overwrites.push({ id: roleId, type: 0, allow: TICKET_MEMBER_PERMISSIONS, deny: "0" });
   }
   if (options.botApplicationId) {
     overwrites.push({ id: options.botApplicationId, type: 1, allow: TICKET_MEMBER_PERMISSIONS, deny: "0" });
@@ -227,6 +250,12 @@ export async function postChannelMessage(
   const res = await botRequest(token, `/channels/${channelId}/messages`, payload);
   if (!res.ok) console.error("Discord channel message failed", res.status, res.json);
   return res.ok;
+}
+
+/** Channel receiving a transcript when an order ticket is closed. Optional. */
+export function getTicketLogsChannelId(): string | null {
+  const id = process.env.DISCORD_TICKET_LOGS_CHANNEL_ID?.trim();
+  return id && /^\d{17,20}$/.test(id) ? id : null;
 }
 
 /** Public channel where completed purchases are announced. Optional. */
@@ -383,6 +412,91 @@ export async function fetchChannelMessages(
     return res.json as DiscordMessage[];
   } catch {
     return null;
+  }
+}
+
+/**
+ * A channel's whole history, oldest first.
+ *
+ * Discord returns at most 100 messages newest-first, so this walks backwards
+ * with `before` until the channel runs out. `maxMessages` is a stop so a
+ * pathologically long ticket cannot spin the request forever — the transcript
+ * says when it was truncated rather than silently losing the start.
+ */
+export async function fetchAllChannelMessages(
+  token: string,
+  channelId: string,
+  maxMessages = 1000,
+): Promise<{ messages: DiscordMessage[]; truncated: boolean } | null> {
+  const collected: DiscordMessage[] = [];
+  let before: string | undefined;
+
+  try {
+    while (collected.length < maxMessages) {
+      const params = new URLSearchParams({ limit: "100" });
+      if (before) params.set("before", before);
+
+      const res = await botRequest(token, `/channels/${channelId}/messages?${params}`, undefined, "GET");
+      if (!res.ok || !Array.isArray(res.json)) return null;
+
+      const batch = res.json as DiscordMessage[];
+      if (batch.length === 0) break;
+
+      collected.push(...batch);
+      before = batch[batch.length - 1]?.id;
+      if (batch.length < 100) break;
+    }
+  } catch (error) {
+    console.error("Discord history fetch failed", error);
+    return null;
+  }
+
+  const truncated = collected.length >= maxMessages;
+  // Newest-first from the API; a transcript reads oldest-first.
+  return { messages: collected.slice(0, maxMessages).reverse(), truncated };
+}
+
+/**
+ * Posts a message with a file attached.
+ *
+ * Needs multipart rather than the JSON helper: Discord takes the message body
+ * as a `payload_json` part alongside the file itself. The Content-Type header
+ * is deliberately not set — fetch has to generate the multipart boundary.
+ */
+export async function postChannelMessageWithFile(
+  token: string,
+  channelId: string,
+  payload: Record<string, unknown>,
+  file: { name: string; contents: string; type?: string },
+): Promise<boolean> {
+  try {
+    const form = new FormData();
+    form.append("payload_json", JSON.stringify(payload));
+    form.append(
+      "files[0]",
+      new Blob([file.contents], { type: file.type ?? "text/plain; charset=utf-8" }),
+      file.name,
+    );
+
+    const response = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${token}` },
+      body: form,
+      cache: "no-store",
+      signal: AbortSignal.timeout(20_000),
+    });
+
+    if (!response.ok) {
+      console.error(
+        "Discord file message failed",
+        response.status,
+        await response.text().catch(() => ""),
+      );
+    }
+    return response.ok;
+  } catch (error) {
+    console.error("Discord file message failed", error);
+    return false;
   }
 }
 
