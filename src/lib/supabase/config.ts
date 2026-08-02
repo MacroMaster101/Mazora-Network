@@ -1,8 +1,7 @@
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-const key = (
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)?.trim();
+const key =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
 function isHttpUrl(value: string | undefined): value is string {
   if (!value) return false;

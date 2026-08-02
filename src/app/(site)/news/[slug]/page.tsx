@@ -9,7 +9,7 @@ import { fmtDate } from "@/lib/utils";
 import { ArticleArt, NewsAuthor, NewsCard, Reveal } from "@/components/shared";
 import { NewsVisitorStat } from "@/components/shared/news-visitor-stat";
 import { ShareButtons } from "@/components/shared/share-buttons";
-import "@/styles/news-article-redesign.css";
+import "@/styles/news-article.css";
 
 // Per-request so an unknown slug returns a real 404 instead of a soft 200, and
 // so newly published articles are live immediately. See the store detail page
