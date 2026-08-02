@@ -1,17 +1,14 @@
 import { after, NextResponse } from "next/server";
 import {
   channelUrl,
-  closedChannelName,
   createStoreTicketChannel,
+  deleteChannel,
   fetchAllChannelMessages,
   fetchChannel,
   getBuyersChannelId,
   getPurchaseBannerUrl,
   getTicketLogsChannelId,
   postChannelMessageWithFile,
-  renameChannel,
-  reopenedChannelName,
-  setTicketMemberAccess,
   getDiscordAppPublicKey,
   getDiscordBotConfig,
   getDiscordGuildId,
@@ -168,7 +165,6 @@ function orderControls(options: {
   customerId: string;
   reference: string;
   ticketChannelId: string | null;
-  closed: boolean;
   announced: boolean;
 }): unknown[] {
   const buttons: unknown[] = [];
@@ -176,10 +172,10 @@ function orderControls(options: {
   if (options.ticketChannelId) {
     buttons.push({
       type: 2,
-      style: options.closed ? 3 : 2,
-      label: options.closed ? "Reopen ticket" : "Close ticket",
-      emoji: { name: options.closed ? "🔓" : "🔒" },
-      custom_id: `mzt:${options.closed ? "open" : "close"}:${options.customerId}:${options.reference}:${options.ticketChannelId}`,
+      style: 2,
+      label: "Close ticket",
+      emoji: { name: "🔒" },
+      custom_id: `mzt:close:${options.customerId}:${options.reference}:${options.ticketChannelId}:${options.announced ? "1" : "0"}`,
     });
   }
 
@@ -190,7 +186,7 @@ function orderControls(options: {
     emoji: { name: options.announced ? "✅" : "📣" },
     // Disabled after use so a second click cannot double-post the same sale.
     disabled: options.announced,
-    custom_id: `mzt:announce:${options.customerId}:${options.reference}`,
+    custom_id: `mzt:announce:${options.customerId}:${options.reference}:${options.ticketChannelId ?? ""}`,
   });
 
   return buttons.length ? [{ type: 1, components: buttons }] : [];
@@ -336,7 +332,6 @@ async function runConfirm(context: DecisionContext): Promise<void> {
       customerId: context.customerId,
       reference: context.reference,
       ticketChannelId: ticketId,
-      closed: false,
       announced: false,
     }),
   );
@@ -350,16 +345,16 @@ interface TicketLifecycleContext {
   customerId: string;
   reference: string;
   actorName: string;
-  closing: boolean;
+  announced: boolean;
   originalEmbed: Embed | undefined;
 }
 
 /**
  * Announces a completed purchase in the public buyers channel.
  *
- * Fired on close rather than on confirm: confirming only means staff accepted
- * the request, while closing the ticket is the point at which the items have
- * actually been delivered. Announcing earlier would advertise orders that might
+ * Triggered only by the separate Announce purchase control. Confirming accepts
+ * the request and closing ends the conversation; neither proves that a sale
+ * should be published to the buyers channel.
  * still fall through.
  */
 async function announcePurchase(
@@ -441,21 +436,27 @@ function formatTranscriptMessage(message: {
 /**
  * Writes a closed ticket's conversation to the log channel.
  *
- * The ticket channel is archived rather than deleted, so this is not the only
- * copy — it exists so every closed order is searchable in one place without
- * hunting through the tickets category.
+ * This archive is written before the live ticket channel is deleted. A failed
+ * history fetch or upload fails the close operation so conversation history is
+ * never discarded without a durable copy in the closed-tickets log channel.
  */
 async function logClosedTicket(
   botToken: string,
   context: TicketLifecycleContext,
   channelName: string,
-): Promise<void> {
+): Promise<boolean> {
   const logsChannelId = getTicketLogsChannelId();
-  if (!logsChannelId) return;
+  if (!logsChannelId) return false;
 
-  const history = await fetchAllChannelMessages(botToken, context.channelId);
-  const messages = history?.messages ?? [];
-
+  const history = await fetchAllChannelMessages(botToken, context.channelId, 10_000);
+  if (!history || history.truncated) {
+    console.error(
+      history ? "Ticket history exceeded the safe transcript limit; refusing to delete channel" : "Ticket history could not be read; refusing to delete channel",
+      context.reference,
+    );
+    return false;
+  }
+  const messages = history.messages;
   const header = [
     "Mazora Network — order ticket transcript",
     "",
@@ -490,7 +491,7 @@ async function logClosedTicket(
             { name: "Buyer", value: `<@${context.customerId}>`, inline: true },
             { name: "Closed by", value: context.actorName, inline: true },
             { name: "Messages", value: String(messages.length), inline: true },
-            { name: "Channel", value: `<#${context.channelId}>`, inline: true },
+            { name: "Deleted channel ID", value: context.channelId, inline: true },
           ],
           footer: { text: "Mazora store · transcript attached" },
           timestamp: new Date().toISOString(),
@@ -504,120 +505,92 @@ async function logClosedTicket(
   );
 
   if (!posted) console.error("Ticket transcript could not be logged", context.reference);
+  return posted;
 }
 
 /**
- * Closes or reopens a ticket.
- *
- * Closing locks the buyer out and renames the channel; nothing is deleted, so
- * the transcript stays readable to staff and reopening is a single click.
+ * Closes a ticket by writing its complete transcript to the configured closed
+ * tickets channel and only then deleting the temporary conversation channel.
  */
 async function runTicketLifecycle(context: TicketLifecycleContext): Promise<void> {
   const channel = await fetchChannel(context.botToken, context.channelId);
-  const notes: string[] = [];
+  const channelName = channel?.name ?? `ticket-${context.channelId}`;
 
-  const accessChanged = await setTicketMemberAccess(
-    context.botToken,
-    context.channelId,
-    context.customerId,
-    !context.closing,
-  );
-  if (!accessChanged) notes.push("⚠️ buyer access could not be changed");
+  await postChannelMessage(context.botToken, context.channelId, {
+    allowed_mentions: { parse: [] },
+    embeds: [
+      {
+        author: MAZORA_AUTHOR,
+        title: "🔒 Ticket closed",
+        description: `Closed by **${context.actorName}**. This conversation is being archived for staff.`,
+        color: 0x64748b,
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  });
 
-  if (channel) {
-    const nextName = context.closing
-      ? closedChannelName(channel.name)
-      : reopenedChannelName(channel.name);
-    if (nextName !== channel.name) {
-      // Discord rate-limits channel renames hard (twice per ten minutes), so a
-      // failure here is reported rather than retried — the access change is
-      // what actually secures the ticket.
-      const renamed = await renameChannel(context.botToken, context.channelId, nextName);
-      if (!renamed) notes.push("⚠️ channel could not be renamed (rename rate limit)");
-    }
-  }
-
-  if (context.closing) {
-    // Closing does NOT announce. A ticket can end without a sale — the buyer
-    // changed their mind, never paid, or it was a mistake — and posting
-    // "X bought Y" for someone who never bought is worse than staying quiet.
-    // Announcing is its own button, pressed only when money actually changed
-    // hands.
-    await markOrderDecision(context.reference, "completed", context.actorName, context.channelId);
-
-    await postChannelMessage(context.botToken, context.channelId, {
-      allowed_mentions: { parse: [] },
-      embeds: [
-        {
-          author: MAZORA_AUTHOR,
-          title: "🔒 Ticket closed",
-          description:
-            `Closed by **${context.actorName}**. The buyer no longer has access to this channel.\n` +
-            "Staff can reopen it from the order message in the staff channel." +
-            (notes.length ? `\n\n${notes.join("\n")}` : ""),
-          color: 0x64748b,
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    });
-
-    // Logged after the closing notice so the transcript captures the closure
-    // itself, not just the conversation leading up to it.
-    await logClosedTicket(
-      context.botToken,
-      context,
-      channel?.name ?? `ticket-${context.channelId}`,
+  const archived = await logClosedTicket(context.botToken, context, channelName);
+  if (!archived) {
+    await editOriginalMessage(
+      context.applicationId,
+      context.interactionToken,
+      withStatus(
+        context.originalEmbed,
+        `⚠️ Close failed for **${context.actorName}** — the transcript could not be saved. The ticket channel was kept.`,
+        0xf87171,
+        "Manual store request · Close failed",
+      ),
+      orderControls({
+        customerId: context.customerId,
+        reference: context.reference,
+        ticketChannelId: context.channelId,
+        announced: context.announced,
+      }),
     );
-  } else {
-    // Reopening puts the order back to confirmed: it is live again, not done.
-    await markOrderDecision(context.reference, "confirmed", context.actorName, context.channelId);
-
-    await postChannelMessage(context.botToken, context.channelId, {
-      content: `<@${context.customerId}>`,
-      allowed_mentions: { users: [context.customerId] },
-      embeds: [
-        {
-          author: MAZORA_AUTHOR,
-          title: "🔓 Ticket reopened",
-          description:
-            `Reopened by **${context.actorName}**. You have access again — reply here if anything is still outstanding.` +
-            (notes.length ? `\n\n${notes.join("\n")}` : ""),
-          color: 0x34d399,
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    });
+    return;
   }
 
-  // Reflect the new state on the staff order message, so the record is readable
-  // without opening the ticket and the buttons can tell which state they are in.
-  const statusLines = [
-    context.closing
-      ? `🔒 Ticket closed by **${context.actorName}**`
-      : `🔓 Ticket reopened by **${context.actorName}**`,
-    `🎟️ Ticket: <#${context.channelId}>`,
-    ...notes,
-  ];
+  const deleted = await deleteChannel(context.botToken, context.channelId);
+  if (!deleted) {
+    await editOriginalMessage(
+      context.applicationId,
+      context.interactionToken,
+      withStatus(
+        context.originalEmbed,
+        `⚠️ Transcript saved, but Discord could not delete <#${context.channelId}>. Press Close ticket to retry.`,
+        0xfbbf24,
+        "Manual store request · Delete pending",
+      ),
+      orderControls({
+        customerId: context.customerId,
+        reference: context.reference,
+        ticketChannelId: context.channelId,
+        announced: context.announced,
+      }),
+    );
+    return;
+  }
+
+  // Closing does not announce: a ticket can end without a completed sale.
+  await markOrderDecision(context.reference, "completed", context.actorName, context.channelId);
 
   await editOriginalMessage(
     context.applicationId,
     context.interactionToken,
     withStatus(
       context.originalEmbed,
-      statusLines.join("\n"),
-      context.closing ? 0x64748b : 0x34d399,
-      context.closing ? "Manual store request · Ticket closed" : "Manual store request · Ticket open",
+      `🔒 Ticket closed by **${context.actorName}**\n🗂️ Transcript saved in <#${getTicketLogsChannelId()}>\n🗑️ Temporary channel deleted`,
+      0x64748b,
+      "Manual store request · Ticket closed",
     ),
     orderControls({
       customerId: context.customerId,
       reference: context.reference,
-      ticketChannelId: context.channelId,
-      closed: context.closing,
-      announced: false,
+      ticketChannelId: null,
+      announced: context.announced,
     }),
   );
 }
-
 /** Reject: DM the buyer, no ticket is created. */
 async function runReject(context: DecisionContext): Promise<void> {
   const dmSent = await sendBotDirectMessage(context.botToken, context.customerId, {
@@ -674,7 +647,7 @@ export async function POST(request: Request) {
     // Ticket controls carry the ticket channel id, because they live on the
     // order message in the staff channel — interaction.channel_id would point
     // at that channel, not at the ticket being acted on.
-    const [prefix, action, discordUserId, reference, ticketChannelId] = customId.split(":");
+    const [prefix, action, discordUserId, reference, ticketChannelId, announcedFlag] = customId.split(":");
 
     if (prefix === "mzt" && /^\d{17,20}$/.test(discordUserId ?? "")) {
       const staff = staffCheck(interaction);
@@ -690,7 +663,6 @@ export async function POST(request: Request) {
       const actor = interaction.member?.user ?? interaction.user;
       const actorName = actor?.global_name || actor?.username || "staff";
       const orderEmbed = interaction.message?.embeds?.[0];
-      const alreadyClosed = /Ticket closed/i.test(fieldValue(orderEmbed, "Status"));
 
       // --- Announce: a separate, deliberate act ---------------------------
       if (action === "announce") {
@@ -718,7 +690,6 @@ export async function POST(request: Request) {
               customerId: discordUserId!,
               reference: reference ?? "",
               ticketChannelId: ticketChannelId || null,
-              closed: alreadyClosed,
               announced: true,
             }),
             allowed_mentions: { parse: [] },
@@ -726,13 +697,18 @@ export async function POST(request: Request) {
         });
       }
 
-      // --- Close / reopen --------------------------------------------------
-      if (!["close", "open"].includes(action)) return json({ type: 6 });
+      // --- Close -----------------------------------------------------------
+      if (action !== "close") return json({ type: 6 });
       if (!ticketChannelId || !/^\d{17,20}$/.test(ticketChannelId)) {
-        return ephemeral("This order has no ticket channel to act on.");
+        return ephemeral("This order has no ticket channel to close.");
+      }
+      if (!getTicketLogsChannelId()) {
+        return ephemeral(
+          "Closing is disabled until DISCORD_TICKET_LOGS_CHANNEL_ID points to your closed-tickets channel.",
+        );
       }
 
-      const closing = action === "close";
+      const announced = announcedFlag === "1";
 
       after(async () => {
         try {
@@ -744,34 +720,30 @@ export async function POST(request: Request) {
             customerId: discordUserId!,
             reference: reference ?? "",
             actorName,
-            closing,
+            announced,
             originalEmbed: orderEmbed,
           });
         } catch (error) {
-          console.error("Discord ticket lifecycle failed", error);
+          console.error("Discord ticket close failed", error);
         }
       });
 
-      // Swap the button immediately so the ticket cannot be closed twice while
-      // the Discord API work is still running.
+      // Remove the close control while archive/delete work is running. A failed
+      // close restores it on the staff order message so the operation is safe
+      // to retry without allowing duplicate clicks in flight.
       return json({
         type: 7,
         data: {
           components: orderControls({
             customerId: discordUserId!,
             reference: reference ?? "",
-            ticketChannelId,
-            closed: closing,
-            // Whether it was announced is not encoded in the button, so the
-            // announce control returns to its live state here. Double-posting
-            // is still guarded by the disabled swap on the announce click.
-            announced: false,
+            ticketChannelId: null,
+            announced,
           }),
           allowed_mentions: { parse: [] },
         },
       });
     }
-
     if (prefix !== "mzo" || !["confirm", "reject"].includes(action) || !/^\d{17,20}$/.test(discordUserId ?? "")) {
       return json({ type: 6 }); // unknown component: acknowledge silently
     }
