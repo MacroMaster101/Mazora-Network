@@ -124,7 +124,7 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `DISCORD_ORDERS_CHANNEL_ID` | Order buttons | Staff channel the bot posts order requests into. |
 | `DISCORD_GUILD_ID` | Order tickets | Your Discord server ID. Used to verify a buyer has joined before checkout and to create their ticket. Also links imported news back to the original message. |
 | `DISCORD_STORE_TICKETS_CATEGORY_ID` | Order tickets | Private category the bot creates one ticket channel per confirmed order in. When unset, confirming an order only DMs the buyer. |
-| `DISCORD_TICKET_LOGS_CHANNEL_ID` | Ticket logs | Staff channel receiving a summary embed and a `.txt` transcript each time a ticket is closed. Leave empty to skip logging. |
+| `DISCORD_TICKET_LOGS_CHANNEL_ID` | Closed tickets | Required archive channel. Closing saves a summary embed and `.txt` transcript here before deleting the live ticket; if archival fails, the live ticket is kept. |
 | `DISCORD_BUYERS_CHANNEL_ID` | Purchase announcements | Public channel posted to by the Announce purchase button. Leave empty to skip announcements. The banner artwork ships with the repo and is served from `NEXT_PUBLIC_SITE_URL`, so nothing else needs configuring. |
 | `DISCORD_ANNOUNCEMENTS_CHANNEL_ID` | News sync | Channel the announcement importer reads from. |
 | `CRON_SECRET` | News sync | Shared secret for the scheduled announcement sync (minimum 16 characters). |
@@ -147,7 +147,7 @@ No payment is ever taken on the website. Orders are requests that staff fulfil m
 2. **Staff review.** The order is posted to `DISCORD_ORDERS_CHANNEL_ID` with Confirm and Reject buttons. Only holders of a role listed in `DISCORD_STORE_STAFF_ROLE_ID` may action them — a valid Discord signature proves the request came from Discord, not that the clicker is staff, so the roles are verified separately and the action is refused outright when none are configured. List several roles comma-separated when owners and management sit on different roles from general staff, otherwise they can see every button and use none of them.
 3. **Confirm.** The bot creates a private channel under `DISCORD_STORE_TICKETS_CATEGORY_ID`, visible only to the buyer, the staff role and the bot. It posts the order summary there and DMs the buyer a link. Payment is arranged in that channel.
 4. **Reject.** The buyer is DM'd; no ticket is created.
-5. **Close.** Staff press Close ticket. The buyer loses access, the channel is renamed `closed-…` but kept, the order is marked completed, and a transcript is logged to `DISCORD_TICKET_LOGS_CHANNEL_ID`. Reopen restores the buyer and sets the order back to confirmed.
+5. **Close.** Staff press Close ticket. The bot saves the conversation transcript to `DISCORD_TICKET_LOGS_CHANNEL_ID`, deletes the temporary ticket channel only after that archive succeeds, and marks the order completed. A failed archive or delete keeps the channel and restores the Close button for a safe retry.
 6. **Announce.** A separate button posts the purchase to `DISCORD_BUYERS_CHANNEL_ID`, then disables itself so the same sale cannot be posted twice.
 
 Closing and announcing are deliberately separate. A ticket can end without a sale — the buyer changed their mind, never paid, or it was a mistake — and announcing "X bought Y" for someone who never bought is worse than not announcing at all.
@@ -158,7 +158,7 @@ The click is acknowledged immediately and the Discord API work runs afterwards, 
 
 Degraded states are surfaced rather than hidden. If the buyer left the server since ordering, the message becomes **Awaiting Discord join** instead of opening a ticket. If DMs are closed the ticket still works — the buyer is mentioned in it — and the staff message says the DM failed. Missing configuration is named explicitly on the message.
 
-**Bot permissions.** The bot role needs View Channels, Manage Channels, Send Messages and Read Message History on the tickets category. Without Manage Channels the confirm succeeds but no channel is created.
+**Bot permissions.** The bot role needs View Channels, Manage Channels, Send Messages and Read Message History on the tickets category. In the closed-tickets archive channel it also needs View Channel, Send Messages, Embed Links and Attach Files. Without Manage Channels the confirm succeeds but no channel is created; without archive permissions the close is refused and the live ticket is retained.
 
 **Interactions endpoint.** Set Developer Portal → General Information → Interactions Endpoint URL to `https://<your-domain>/api/discord/interactions`. Discord sends a verification ping when you save it, so the site must already be deployed and reachable — button clicks never reach a localhost dev server. To test locally, expose the dev server with a tunnel and point the endpoint at it temporarily.
 

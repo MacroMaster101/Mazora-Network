@@ -34,7 +34,7 @@ async function botRequest(
   token: string,
   path: string,
   body?: unknown,
-  method: "GET" | "POST" | "PATCH" | "PUT" = "POST",
+  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE" = "POST",
 ): Promise<{ ok: boolean; status: number; json: unknown }> {
   const response = await fetch(`${DISCORD_API}${path}`, {
     method,
@@ -249,6 +249,13 @@ export async function postChannelMessage(
 ): Promise<boolean> {
   const res = await botRequest(token, `/channels/${channelId}/messages`, payload);
   if (!res.ok) console.error("Discord channel message failed", res.status, res.json);
+  return res.ok;
+}
+
+/** Permanently deletes a ticket channel after its transcript is archived. */
+export async function deleteChannel(token: string, channelId: string): Promise<boolean> {
+  const res = await botRequest(token, `/channels/${channelId}`, undefined, "DELETE");
+  if (!res.ok) console.error("Discord channel deletion failed", res.status, res.json);
   return res.ok;
 }
 

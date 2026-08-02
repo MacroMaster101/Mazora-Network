@@ -147,5 +147,5 @@ Next.js may print an Edge-runtime compatibility warning from `@supabase/supabase
 7. Replace placeholder social links.
 8. Test both themes and mobile/desktop layouts on the deployed URL.
 9. Set the Discord order variables in the host environment and point the Interactions Endpoint URL at the deployed domain. Discord verifies the endpoint when you save it, and button clicks never reach a local dev server, so order tickets only work once this is done from production.
-10. Grant the bot role View Channels, Manage Channels, Send Messages and Read Message History on the ticket category. Without Manage Channels a confirmed order still DMs the buyer but no ticket channel is created.
+10. Grant the bot role View Channels, Manage Channels, Send Messages and Read Message History on the ticket category, plus View Channel, Send Messages, Embed Links and Attach Files in the closed-tickets archive channel. Without archive access, closing safely keeps the live ticket.
 11. Keep card payment actions disabled until a real provider and server-side verification are implemented. The manual Discord order flow is live and takes no payment on the site.
