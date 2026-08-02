@@ -27,15 +27,14 @@ export function GallerySubmitModal({
   const [fileName, setFileName] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  if (!isOpen) return null;
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
 
   if (!isLoggedIn) {
     return createPortal(
@@ -44,6 +43,9 @@ export function GallerySubmitModal({
         onClick={onClose}
       >
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="gallery-auth-title"
           className="relative w-full max-w-md flex flex-col rounded-2xl border border-line/80 bg-card text-ink shadow-2xl overflow-hidden animate-scale-up p-6 text-center space-y-5"
           onClick={(e) => e.stopPropagation()}
         >
@@ -51,7 +53,7 @@ export function GallerySubmitModal({
             <Lock size={28} />
           </div>
           <div className="space-y-2">
-            <h3 className="font-display text-xl font-bold text-ink">Account Required</h3>
+            <h3 id="gallery-auth-title" className="font-display text-xl font-bold text-ink">Account Required</h3>
             <p className="text-muted text-xs leading-relaxed">
               You need a Mazora account to submit screenshots to the gallery. Please log in or create a new account to continue.
             </p>
@@ -143,6 +145,9 @@ export function GallerySubmitModal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gallery-submit-title"
         className="relative w-full sm:max-w-lg flex flex-col rounded-t-2xl sm:rounded-2xl border border-line/80 bg-card text-ink shadow-2xl overflow-hidden animate-scale-up max-h-[92vh] sm:max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -151,10 +156,11 @@ export function GallerySubmitModal({
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent/20 text-accent-bright">
               <Sparkles size={18} />
             </span>
-            <h3 className="font-display text-lg font-bold text-ink">Submit Community Artwork</h3>
+            <h3 id="gallery-submit-title" className="font-display text-lg font-bold text-ink">Submit Community Artwork</h3>
           </div>
           <button
             type="button"
+            aria-label="Close artwork submission"
             onClick={onClose}
             className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface hover:text-ink transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
@@ -206,7 +212,7 @@ export function GallerySubmitModal({
                   value={accountName}
                   readOnly
                   disabled
-                  className="bg-surface border-line/80 text-ink cursor-not-allowed font-medium pr-24 opacity-90"
+                  className="truncate bg-surface border-line/80 text-ink cursor-not-allowed font-medium pr-24 opacity-90"
                 />
                 <span className="absolute right-2.5 inline-flex items-center gap-1 text-[0.65rem] font-bold uppercase tracking-wider bg-accent/20 border border-accent/40 text-accent-bright px-2 py-0.5 rounded-md">
                   <UserCheck size={11} /> Account

@@ -3,9 +3,12 @@ import {
   channelUrl,
   closedChannelName,
   createStoreTicketChannel,
+  fetchAllChannelMessages,
   fetchChannel,
   getBuyersChannelId,
   getPurchaseBannerUrl,
+  getTicketLogsChannelId,
+  postChannelMessageWithFile,
   renameChannel,
   reopenedChannelName,
   setTicketMemberAccess,
@@ -14,6 +17,7 @@ import {
   getDiscordGuildId,
   getDiscordInviteUrl,
   getStoreStaffRoleId,
+  getStoreStaffRoleIds,
   getStoreTicketsCategoryId,
   isGuildMember,
   postChannelMessage,
@@ -78,7 +82,7 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, { status }
 const ephemeral = (content: string) => json({ type: 4, data: { content, flags: 64 } });
 
 /**
- * Whether the interacting member holds the configured store-staff role.
+ * Whether the interacting member holds any configured store-staff role.
  *
  * Fails closed: a valid signature only proves the request came from Discord,
  * not that the person who clicked is staff. Without a configured role we cannot
@@ -86,10 +90,14 @@ const ephemeral = (content: string) => json({ type: 4, data: { content, flags: 6
  * message never left a staff-only channel — components can be actioned by
  * anyone who can see them. `member.roles` is only present for in-guild
  * interactions, so DM clicks are refused too.
+ *
+ * Any one of the configured roles is enough. Matching a single id meant a
+ * server whose owners and management sit on separate roles had people who could
+ * see every button and use none of them.
  */
 function staffCheck(interaction: Interaction): { allowed: boolean; reason?: string } {
-  const staffRoleId = getStoreStaffRoleId();
-  if (!staffRoleId) {
+  const staffRoleIds = getStoreStaffRoleIds();
+  if (staffRoleIds.length === 0) {
     console.error("DISCORD_STORE_STAFF_ROLE_ID is not configured — order actions refused.");
     return {
       allowed: false,
@@ -98,7 +106,7 @@ function staffCheck(interaction: Interaction): { allowed: boolean; reason?: stri
     };
   }
   const roles = interaction.member?.roles;
-  if (!Array.isArray(roles) || !roles.includes(staffRoleId)) {
+  if (!Array.isArray(roles) || !roles.some((role) => staffRoleIds.includes(role))) {
     return { allowed: false, reason: "You don't have permission to action Mazora orders." };
   }
   return { allowed: true };
@@ -242,7 +250,7 @@ async function runConfirm(context: DecisionContext): Promise<void> {
       reference: context.reference,
       customerId: context.customerId,
       customerName: context.minecraftUsername,
-      staffRoleId,
+      staffRoleIds: getStoreStaffRoleIds(),
       botApplicationId: context.botApplicationId,
     });
     ticketId = ticket?.id ?? null;
@@ -397,6 +405,107 @@ async function announcePurchase(
   });
 }
 
+/** One transcript line per message, oldest first. */
+function formatTranscriptMessage(message: {
+  timestamp: string;
+  content: string;
+  author: { username: string; global_name?: string | null; bot?: boolean };
+  attachments: { url: string }[];
+  embeds?: { title?: string; description?: string }[];
+}): string {
+  const when = message.timestamp.replace("T", " ").slice(0, 19);
+  const name = message.author.global_name || message.author.username;
+  const tag = message.author.bot ? " [BOT]" : "";
+
+  const lines = [`[${when}] ${name}${tag}`];
+  if (message.content.trim()) {
+    for (const line of message.content.split("\n")) lines.push(`    ${line}`);
+  }
+
+  // Embeds carry the order details, so a transcript without them would omit
+  // exactly the information staff most often need to look back at.
+  for (const embed of message.embeds ?? []) {
+    if (embed.title) lines.push(`    [embed] ${embed.title}`);
+    if (embed.description) {
+      for (const line of embed.description.split("\n")) lines.push(`      ${line}`);
+    }
+  }
+
+  for (const attachment of message.attachments ?? []) {
+    lines.push(`    [attachment] ${attachment.url}`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Writes a closed ticket's conversation to the log channel.
+ *
+ * The ticket channel is archived rather than deleted, so this is not the only
+ * copy — it exists so every closed order is searchable in one place without
+ * hunting through the tickets category.
+ */
+async function logClosedTicket(
+  botToken: string,
+  context: TicketLifecycleContext,
+  channelName: string,
+): Promise<void> {
+  const logsChannelId = getTicketLogsChannelId();
+  if (!logsChannelId) return;
+
+  const history = await fetchAllChannelMessages(botToken, context.channelId);
+  const messages = history?.messages ?? [];
+
+  const header = [
+    "Mazora Network — order ticket transcript",
+    "",
+    `Channel:    #${channelName} (${context.channelId})`,
+    `Order:      ${context.reference || "—"}`,
+    `Buyer:      ${context.customerId}`,
+    `Closed by:  ${context.actorName}`,
+    `Closed at:  ${new Date().toISOString().replace("T", " ").slice(0, 19)} UTC`,
+    `Messages:   ${messages.length}${history?.truncated ? " (truncated — oldest messages omitted)" : ""}`,
+    "",
+    "─".repeat(60),
+    "",
+  ].join("\n");
+
+  const body = messages.length
+    ? messages.map(formatTranscriptMessage).join("\n\n")
+    : "(no messages)";
+
+  const posted = await postChannelMessageWithFile(
+    botToken,
+    logsChannelId,
+    {
+      allowed_mentions: { parse: [] },
+      embeds: [
+        {
+          author: MAZORA_AUTHOR,
+          title: "🔒 Ticket closed",
+          color: 0x64748b,
+          fields: [
+            { name: "Ticket", value: `#${channelName}`, inline: true },
+            { name: "Order", value: context.reference || "—", inline: true },
+            { name: "Buyer", value: `<@${context.customerId}>`, inline: true },
+            { name: "Closed by", value: context.actorName, inline: true },
+            { name: "Messages", value: String(messages.length), inline: true },
+            { name: "Channel", value: `<#${context.channelId}>`, inline: true },
+          ],
+          footer: { text: "Mazora store · transcript attached" },
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    },
+    {
+      name: `transcript-${channelName}.txt`.slice(0, 100),
+      contents: header + body + "\n",
+    },
+  );
+
+  if (!posted) console.error("Ticket transcript could not be logged", context.reference);
+}
+
 /**
  * Closes or reopens a ticket.
  *
@@ -451,6 +560,14 @@ async function runTicketLifecycle(context: TicketLifecycleContext): Promise<void
         },
       ],
     });
+
+    // Logged after the closing notice so the transcript captures the closure
+    // itself, not just the conversation leading up to it.
+    await logClosedTicket(
+      context.botToken,
+      context,
+      channel?.name ?? `ticket-${context.channelId}`,
+    );
   } else {
     // Reopening puts the order back to confirmed: it is live again, not done.
     await markOrderDecision(context.reference, "confirmed", context.actorName, context.channelId);

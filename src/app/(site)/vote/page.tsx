@@ -6,7 +6,6 @@ import {
   Check,
   Clock3,
   Gift,
-  RotateCcw,
   Sparkles,
   Trophy,
   Vote,
@@ -15,6 +14,7 @@ import { getVoteSites, getTopVoters } from "@/lib/data/content";
 import { site } from "@/lib/site";
 import { Reveal } from "@/components/shared";
 import { TopVotersTable } from "./top-voters-table";
+import "@/styles/vote.css";
 
 export const metadata: Metadata = {
   title: "Vote",
@@ -26,53 +26,72 @@ export default async function VotePage() {
 
   return (
     <>
-      <section className="vote-mission-hero">
-        <Image
-          src="/images/vote-rewards-sanctuary-v5.webp"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="vote-mission-image"
-        />
-        <div className="vote-mission-shade" aria-hidden="true" />
-        <div className="vote-mission-noise" aria-hidden="true" />
+      <section className="vote-mission-hero vote-redesign-hero">
+        <div className="vote-redesign-art" aria-hidden="true">
+          <Image
+            src="/images/vote-sanctuary-hero-v6.webp"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="vote-redesign-image"
+          />
+          <div className="vote-redesign-vignette" />
+          <div className="vote-redesign-grid" />
+        </div>
 
-        <div className="shell vote-mission-stage vote-mission-stage-simple vote-reward-stage">
-          <div className="vote-reward-status" aria-label="Vote reward status">
-            <span><i aria-hidden="true" /> Reward run</span>
-            <span>Available daily</span>
+        <div className="shell vote-redesign-stage">
+          <div className="vote-redesign-status" aria-label="Vote reward status">
+            <span><i aria-hidden="true" /> Voting open</span>
+            <span>Daily reward cycle</span>
           </div>
 
-          <div className="vote-mission-layout vote-mission-layout-simple vote-reward-layout">
-            <div className="vote-mission-copy vote-reward-copy">
-              <p className="vote-reward-kicker"><Sparkles size={14} /> Support the network</p>
-              <h1>
-                Vote for Mazora.
-                <span>Get rewarded.</span>
-              </h1>
-              <p className="vote-mission-lead">
-                Help new players discover Mazora and earn in-game rewards along the way. Choose any available vote site below to begin.
-              </p>
-
-              <div className="vote-mission-actions">
-                <a href="#vote-sites" className="btn vote-mission-primary h-12 px-6">
-                  Start voting <ArrowDown size={16} />
-                </a>
-              </div>
-
-              <div className="vote-reward-loop" aria-label="How voting works">
-                <span><Vote size={15} /><b>Vote</b></span>
-                <i aria-hidden="true" />
-                <span><Gift size={15} /><b>Earn rewards</b></span>
-                <i aria-hidden="true" />
-                <span><RotateCcw size={15} /><b>Return later</b></span>
-              </div>
-
-              <div className="vote-mission-quick-note">
-                <Clock3 size={14} /> Each vote site has its own cooldown.
-              </div>
+          <div className="vote-redesign-mast" aria-label="Mazora voting overview">
+            <div className="vote-redesign-stat">
+              <span><Vote size={17} aria-hidden="true" /></span>
+              <div><strong>{sites.length}</strong><small>live vote partners</small></div>
             </div>
+
+            <div className="vote-redesign-brand">
+              <span aria-hidden="true" />
+              <Image
+                src="/images/mazora-logo.webp"
+                alt="Mazora Network"
+                width={300}
+                height={200}
+                priority
+                sizes="(max-width: 640px) 190px, 270px"
+                className="animate-float"
+              />
+            </div>
+
+            <div className="vote-redesign-stat vote-redesign-stat-right">
+              <span><Trophy size={17} aria-hidden="true" /></span>
+              <div><strong>{voters.length}</strong><small>supporters ranked</small></div>
+            </div>
+          </div>
+
+          <div className="vote-redesign-copy">
+            <p><Sparkles size={14} aria-hidden="true" /> Support Mazora. Earn in game.</p>
+            <h1>Your vote shapes <span>what comes next.</span></h1>
+            <div>Help more players discover the network and collect a configured reward for every completed partner vote.</div>
+          </div>
+
+          <div className="vote-redesign-actions">
+            <a href="#vote-sites" className="vote-redesign-primary">
+              Vote now <ArrowDown size={17} />
+            </a>
+            <a href="#top-voters" className="vote-redesign-secondary">
+              <Trophy size={16} /> View rankings
+            </a>
+          </div>
+
+          <div className="vote-redesign-journey" aria-label="How voting works">
+            <span><b>01</b><Vote size={15} /> Choose a partner</span>
+            <i aria-hidden="true" />
+            <span><b>02</b><Check size={15} /> Enter your username</span>
+            <i aria-hidden="true" />
+            <span><b>03</b><Gift size={15} /> Return for rewards</span>
           </div>
         </div>
       </section>
