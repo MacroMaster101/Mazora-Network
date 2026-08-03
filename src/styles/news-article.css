@@ -911,7 +911,7 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
 :root[data-theme="light"]:has(.news-article-page) body,
 :root[data-theme="light"] .site-world-frame:has(.news-article-page),
 :root[data-theme="light"] .news-article-page {
-  background-color: rgb(247 245 251);
+  background-color: rgb(7 5 13);
 }
 
 :root[data-theme="light"] .news-detail-hero-backdrop {
@@ -919,18 +919,18 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
 }
 
 :root[data-theme="light"] .news-detail-world {
-  background: rgb(247 245 251);
+  background: rgb(7 5 13);
 }
 
 :root[data-theme="light"] .news-detail-world::before {
   background:
-    linear-gradient(180deg, rgb(247 245 251 / 0.06), rgb(247 245 251 / 0.12) 38%, rgb(247 245 251 / 0.3) 100%),
+    linear-gradient(180deg, rgb(7 5 13 / 0.04), rgb(7 5 13 / 0.22) 38%, rgb(4 3 9 / 0.66) 100%),
     url("/images/newsroom-header-continuation-v3.webp") center top / cover no-repeat;
 }
 
 :root[data-theme="light"] .news-detail-world::after {
   background:
-    linear-gradient(90deg, rgb(247 245 251 / 0.18), transparent 22%, transparent 78%, rgb(247 245 251 / 0.18)),
+    linear-gradient(90deg, rgb(5 3 10 / 0.32), transparent 22%, transparent 78%, rgb(5 3 10 / 0.32)),
     radial-gradient(48rem 30rem at 50% 16%, rgb(139 92 246 / 0.09), transparent 72%);
 }
 
