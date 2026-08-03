@@ -1,22 +1,6 @@
 import type { NextConfig } from "next";
 
-// Content Security Policy.
-//
-// script-src / style-src keep 'unsafe-inline' because the app ships an inline
-// theme-no-flash script (src/app/layout.tsx) and inline styles, and Next.js's
-// hydration bootstrap is inline; locking these down requires per-request
-// nonces threaded through middleware, which is a larger change. Everything
-// else is tightened: framing is denied, plugins/objects are blocked, and the
-// document base and form targets are pinned to same-origin.
-//
-// 'unsafe-eval' is added in development ONLY: `next dev` evaluates every client
-// module through eval() (webpack's eval-source-map devtool) and React Refresh
-// does the same. Without it the whole client bundle throws EvalError, nothing
-// hydrates, and the site is stuck on the first-load screen. Production bundles
-// never eval, so the deployed policy stays strict.
-const isDev = process.env.NODE_ENV === "development";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-let supabaseImageOrigin = "";
 let supabaseImagePattern: {
   protocol: "http" | "https";
   hostname: string;
@@ -28,37 +12,25 @@ if (supabaseUrl) {
   try {
     const parsed = new URL(supabaseUrl);
     const protocol = parsed.protocol === "http:" ? "http" : "https";
-    supabaseImageOrigin = parsed.origin;
     supabaseImagePattern = {
       protocol,
       hostname: parsed.hostname,
       port: parsed.port,
       pathname: "/storage/v1/object/**",
     };
-  } catch {
-    // Invalid environment values are handled by the existing Supabase config.
+  } catch (error) {
+    // A malformed NEXT_PUBLIC_SUPABASE_URL is handled by the Supabase config
+    // module, but this must not stay silent: swallowing everything here once hid
+    // a ReferenceError, which quietly dropped Supabase from remotePatterns and
+    // broke every stored image with no signal anywhere.
+    console.warn("Could not derive the Supabase image pattern:", error);
   }
 }
 
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: https://mc-heads.net https://api.dicebear.com https://cdn.discordapp.com${supabaseImageOrigin ? ` ${supabaseImageOrigin}` : ""}`,
-  "font-src 'self'",
-  // https: covers the env-configured Supabase host without hard-coding it.
-  // ws: is dev-only, for the hot-reload socket.
-  `connect-src 'self' https:${isDev ? " ws:" : ""}`,
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-src 'none'",
-  "upgrade-insecure-requests",
-].join("; ");
-
+// Content-Security-Policy is NOT here: it needs a per-request nonce, so it is
+// built and attached in src/middleware.ts (see src/lib/csp.ts). Everything below
+// is static and safe to serve from the config.
 const securityHeaders = [
-  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },

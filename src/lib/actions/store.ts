@@ -1,7 +1,6 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { headers } from "next/headers";
 import { z } from "zod";
 import { getDiscordIdentity, getSessionUserId } from "@/lib/auth";
 import { getProducts } from "@/lib/data/content";
@@ -15,6 +14,7 @@ import {
   isGuildMember,
   sendBotChannelMessage,
 } from "@/lib/discord";
+import { throttleAuthAction } from "@/lib/rate-limit";
 import { usd } from "@/lib/utils";
 
 export interface StoreRequestResult {
@@ -46,10 +46,6 @@ const itemsSchema = z
   .min(1, "Your cart is empty.")
   .max(20, "Your cart contains too many different products.");
 
-const attempts = new Map<string, { count: number; resetAt: number }>();
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_REQUESTS = 5;
-
 /** Neutralises Discord markdown so player-supplied text cannot restyle the embed. */
 function escapeMarkdown(value: string): string {
   return value.replace(/[\\*_~`|>]/g, (match) => `\\${match}`);
@@ -62,22 +58,6 @@ function fieldErrors(error: z.ZodError): Record<string, string> {
     if (typeof key === "string" && !errors[key]) errors[key] = issue.message;
   }
   return errors;
-}
-
-async function isRateLimited(): Promise<boolean> {
-  const requestHeaders = await headers();
-  const forwarded = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const key = forwarded || requestHeaders.get("x-real-ip") || "local";
-  const now = Date.now();
-  const current = attempts.get(key);
-
-  if (!current || current.resetAt <= now) {
-    attempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-
-  current.count += 1;
-  return current.count > MAX_REQUESTS;
 }
 
 function getWebhookUrl(): string | null {
@@ -114,6 +94,20 @@ export async function submitStoreRequest(
     return { ok: false, errors: { discordId: "Connect your Discord account to place the order." } };
   }
 
+  // Throttle BEFORE the guild lookup below: that call goes out to Discord's API,
+  // so checking quota afterwards would let a caller burn Discord rate limit
+  // without ever touching ours. Bucketed on the Discord id as well as the
+  // address, so players behind one shared connection do not consume each
+  // other's checkout budget.
+  const throttled = await throttleAuthAction("store-request", {
+    limit: 5,
+    windowMs: 10 * 60_000,
+    identity: discord.id,
+  });
+  if (throttled) {
+    return { ok: false, message: "Too many order requests were sent. Please wait a few minutes and try again." };
+  }
+
   // Being signed in with Discord is not the same as being in the Mazora server.
   // Confirmed orders open a private ticket channel and send a DM, and neither
   // works for a non-member, so the join is required up front instead of the
@@ -140,10 +134,6 @@ export async function submitStoreRequest(
   const submittedItems = itemsSchema.safeParse(rawItems);
   if (!submittedItems.success) {
     return { ok: false, message: submittedItems.error.issues[0]?.message ?? "Your cart is invalid." };
-  }
-
-  if (await isRateLimited()) {
-    return { ok: false, message: "Too many order requests were sent. Please wait a few minutes and try again." };
   }
 
   const botConfig = getDiscordBotConfig();

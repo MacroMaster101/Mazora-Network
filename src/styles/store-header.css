@@ -1022,3 +1022,9 @@
 :root[data-theme="light"] .site-world-frame:has(.store-marketplace) .store-marketplace::after {
   background: none !important;
 }
+
+:root[data-theme="light"] .store-hero-v2-stat svg {
+  color: rgb(109 40 217);
+  filter: drop-shadow(0 2px 7px rgb(109 40 217 / 0.24));
+  stroke-width: 2.25;
+}
