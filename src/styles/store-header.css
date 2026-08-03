@@ -905,7 +905,7 @@
 }
 
 :root[data-theme="light"] .store-hero-v2::after {
-  background: linear-gradient(180deg, transparent, rgb(9 5 16 / 0.28) 48%, rgb(8 5 14 / 0.46));
+  background: linear-gradient(180deg, transparent, rgb(9 5 16 / 0.7) 48%, rgb(8 5 14) 100%);
 }
 
 :root[data-theme="light"] .store-hero-v2-live-pill,
@@ -943,12 +943,14 @@
   background-color: rgb(19 12 31);
   background-image:
     linear-gradient(180deg,
-      rgb(8 5 14 / 0.42) 0%,
-      rgb(8 5 14 / 0.2) 8rem,
+      rgb(8 5 14) 0%,
+      rgb(8 5 14 / 0.92) 6rem,
+      rgb(8 5 14 / 0.64) 14rem,
+      rgb(8 5 14 / 0.2) 28rem,
       rgb(13 8 23 / 0.12) 48%,
       rgb(8 5 14 / 0.36) 100%),
     url("/images/store/shop-marketplace-bg.webp");
-  box-shadow: 0 -2rem 4rem rgb(8 5 14 / 0.36);
+  box-shadow: 0 -3rem 5rem 1rem rgb(8 5 14 / 0.72);
 }
 
 :root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell :is(
@@ -988,4 +990,35 @@
   background:
     radial-gradient(18rem 12rem at 100% 0%, rgb(var(--accent-rgb) / 0.1), transparent 70%),
     rgb(255 255 255 / 0.66);
+}
+/* Keep the marketplace artwork continuous through the light footer. */
+:root[data-theme="light"] .site-world-frame:has(.store-marketplace) {
+  background: rgb(19 12 31) url("/images/store/shop-marketplace-bg.webp") center / cover fixed;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.store-marketplace) .site-footer {
+  background: linear-gradient(180deg, rgb(8 5 14 / 0.36), rgb(7 4 12 / 0.56) 32%, rgb(5 3 10 / 0.82)) !important;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.store-marketplace) .site-footer::before,
+:root[data-theme="light"] .site-world-frame:has(.store-marketplace) .site-footer::after {
+  background: none !important;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.store-marketplace) .store-marketplace {
+  background-image:
+    linear-gradient(180deg,
+      rgb(8 5 14) 0%,
+      rgb(8 5 14 / 0.92) 6rem,
+      rgb(8 5 14 / 0.64) 14rem,
+      rgb(8 5 14 / 0.2) 28rem,
+      rgb(13 8 23 / 0.12) 48%,
+      rgb(8 5 14 / 0.36) 100%) !important;
+  background-color: transparent !important;
+  box-shadow: none;
+}
+
+:root[data-theme="light"] .site-world-frame:has(.store-marketplace) .store-marketplace::before,
+:root[data-theme="light"] .site-world-frame:has(.store-marketplace) .store-marketplace::after {
+  background: none !important;
 }

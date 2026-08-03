@@ -963,3 +963,32 @@ body:has(.vote-redesign-hero) {
 :root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer .hover\:text-ink:hover {
   color: white;
 }
+/* Crossfade the light hero into the continuation artwork without a section edge. */
+:root[data-theme="light"] .vote-redesign-hero {
+  background: #080617;
+  box-shadow: 0 2px 0 #080617;
+  z-index: 5;
+}
+
+:root[data-theme="light"] .vote-redesign-art {
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 78%, rgb(0 0 0 / 0.9) 84%, rgb(0 0 0 / 0.46) 93%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 78%, rgb(0 0 0 / 0.9) 84%, rgb(0 0 0 / 0.46) 93%, transparent 100%);
+}
+
+:root[data-theme="light"] .vote-redesign-hero::after {
+  background: linear-gradient(180deg, transparent 0%, rgb(8 6 23 / 0.12) 22%, rgb(8 6 23 / 0.72) 72%, #080617 100%);
+}
+
+:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::after {
+  top: calc(max(46rem, 100svh) - 10rem);
+  background:
+    linear-gradient(180deg, rgb(8 6 23 / 0.14), rgb(8 6 23 / 0.08) 14rem, rgb(5 3 10 / 0.28) 100%),
+    url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, transparent 10rem, rgb(0 0 0 / 0.18) 16rem, rgb(0 0 0 / 0.62) 24rem, #000 32rem, #000 100%);
+  mask-image: linear-gradient(180deg, transparent 0, transparent 10rem, rgb(0 0 0 / 0.18) 16rem, rgb(0 0 0 / 0.62) 24rem, #000 32rem, #000 100%);
+}
+
+:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world {
+  background: none !important;
+  box-shadow: none;
+}
