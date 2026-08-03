@@ -3,6 +3,7 @@ import { footerNav, legalNav, site } from "@/lib/site";
 import { Logo } from "./logo";
 import { Icon } from "@/components/shared/icon";
 import { CopyIpButton } from "@/components/shared/copy-ip-button";
+import { CookieSettingsLink } from "@/components/shared/cookie-settings-link";
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
@@ -61,6 +62,7 @@ export function SiteFooter() {
                 {l.label}
               </Link>
             ))}
+            <CookieSettingsLink className="hover:text-ink" />
           </nav>
         </div>
       </div>

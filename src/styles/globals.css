@@ -3165,43 +3165,6 @@ h4 {
     padding-top: clamp(2rem, 6vw, 5rem);
   }
 
-  .state-error-card {
-    position: relative;
-    width: min(38rem, 100%);
-    padding: clamp(1.5rem, 5vw, 2.75rem);
-    overflow: hidden;
-    border: 1px solid rgb(216 180 254 / 0.2);
-    border-radius: 24px;
-    background: linear-gradient(145deg, rgb(20 13 34 / 0.92), rgb(8 5 15 / 0.9));
-    box-shadow: 0 36px 90px -38px rgb(0 0 0 / 0.9), inset 0 1px rgb(255 255 255 / 0.045);
-    backdrop-filter: blur(20px);
-    text-align: center;
-  }
-
-  .state-error-card::before,
-  .state-error-card::after {
-    content: "";
-    position: absolute;
-    width: 42px;
-    height: 42px;
-    border-color: rgb(196 157 255 / 0.34);
-    pointer-events: none;
-  }
-
-  .state-error-card::before {
-    left: 12px;
-    top: 12px;
-    border-left: 2px solid;
-    border-top: 2px solid;
-  }
-
-  .state-error-card::after {
-    right: 12px;
-    bottom: 12px;
-    border-right: 2px solid;
-    border-bottom: 2px solid;
-  }
-
   .state-error-icon {
     display: grid;
     width: 4.25rem;
@@ -3238,13 +3201,6 @@ h4 {
     margin-top: 0.7rem;
     font-size: clamp(2rem, 6vw, 3.25rem);
     letter-spacing: -0.045em;
-  }
-
-  .state-error-card>p:not(.state-error-code) {
-    max-width: 31rem;
-    margin: 0.9rem auto 0;
-    color: rgb(238 232 248 / 0.7);
-    line-height: 1.7;
   }
 
   .state-error-digest {
@@ -3285,10 +3241,6 @@ h4 {
       min-height: 100svh;
       padding-inline: 1rem;
       background-position: center, 44% center;
-    }
-
-    .state-error-card {
-      border-radius: 20px;
     }
 
     .state-error-actions {
@@ -15519,95 +15471,111 @@ body:has(.vote-mission-hero) {
 .dash-empty-state h2 { margin-top: 1.25rem; font-size: clamp(1.35rem, 2.5vw, 2rem); font-weight: 850; }
 .dash-empty-state p { max-width: 34rem; margin-top: 0.65rem; font-size: 0.9rem; line-height: 1.7; }
 
+/*
+  Recovery screens: one centred column on a blurred backdrop, sized to exactly
+  fill the viewport so they never scroll.
+
+  In flow rather than `position: fixed` on purpose — the site header is sticky at
+  z-50 and must stay reachable, which a full-screen fixed overlay would cover.
+  `overflow: hidden` is the guarantee that nothing ever spills into a scrollbar;
+  the content column is small enough to fit, and shrinks on short viewports via
+  the clamps below.
+*/
 .state-error,
 .state-error.state-error-compact {
-  position: fixed;
-  inset: 0;
-  z-index: 10020;
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
   width: 100%;
   min-height: 100dvh;
   margin: 0;
-  overflow: auto;
-  padding: clamp(1rem, 4vw, 3.5rem);
+  overflow: hidden;
+  padding: clamp(2rem, 5vh, 3.5rem) clamp(1.25rem, 5vw, 3rem);
+  display: grid;
   place-items: center;
   color: white;
-  background:
-    linear-gradient(125deg, rgb(5 2 11 / 0.82), rgb(8 4 17 / 0.94) 58%, rgb(4 2 9 / 0.98)),
-    url("/images/mazora-world-continuation.webp") center / cover fixed;
+  background: rgb(5 2 11);
 }
 
+/*
+  `compact` marks the screens rendered inside a layout that already has a
+  header (site/admin/dashboard), which occupies 4.75rem of flow above this
+  section.
+
+  Pulling the section up by exactly that much makes the blurred backdrop run to
+  the very top of the viewport, so the transparent nav sits ON the recovery
+  screen instead of over a strip of the ordinary page background. The matching
+  top padding keeps the centred column clear of the nav, and the net page height
+  stays exactly one viewport — no scrollbar.
+*/
+.state-error.state-error-compact {
+  min-height: 100dvh;
+  margin-top: -4.75rem;
+  padding-top: calc(4.75rem + clamp(2rem, 5vh, 3.5rem));
+}
+
+/* The blurred backdrop. Scaled up slightly so the blur has no soft edges. */
 .state-error-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: scale(1.08);
+  filter: blur(26px) saturate(1.15) brightness(0.5);
   background:
-    radial-gradient(45rem 34rem at 73% 42%, rgb(139 92 246 / 0.26), transparent 70%),
-    radial-gradient(30rem 24rem at 18% 75%, rgb(90 45 145 / 0.18), transparent 72%),
-    linear-gradient(rgb(216 180 254 / 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(216 180 254 / 0.05) 1px, transparent 1px);
-  background-size: auto, auto, 52px 52px, 52px 52px;
-  mask-image: linear-gradient(90deg, transparent, black 14%, black 86%, transparent);
+    linear-gradient(125deg, rgb(5 2 11 / 0.55), rgb(8 4 17 / 0.7) 58%, rgb(4 2 9 / 0.8)),
+    url("/images/mazora-world-continuation.webp") center / cover;
 }
 
-.state-error-card {
-  width: min(72rem, 100%);
-  min-height: min(40rem, calc(100dvh - clamp(2rem, 8vw, 7rem)));
-  display: grid;
-  grid-template-columns: minmax(15rem, 0.72fr) minmax(0, 1.28fr);
-  padding: 0;
-  border-color: rgb(216 180 254 / 0.24);
-  border-radius: clamp(1.25rem, 2.5vw, 2rem);
-  background: linear-gradient(140deg, rgb(18 11 31 / 0.94), rgb(7 4 14 / 0.96));
-  box-shadow: 0 44px 130px -35px rgb(0 0 0 / 0.95), inset 0 1px rgb(255 255 255 / 0.055);
-  text-align: left;
-}
-
-.state-error-card::before { left: 16px; top: 16px; }
-.state-error-card::after { right: 16px; bottom: 16px; }
-
-.state-error-brand {
-  position: relative;
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  justify-content: space-between;
-  overflow: hidden;
-  padding: clamp(1.5rem, 4vw, 3rem);
-  border-right: 1px solid rgb(216 180 254 / 0.14);
-  background:
-    radial-gradient(22rem 18rem at 50% 28%, rgb(139 92 246 / 0.2), transparent 72%),
-    rgb(255 255 255 / 0.015);
-}
-
-.state-error-brand::after {
+/* Accent bloom + vignette, unblurred so the glow stays crisp. */
+.state-error::after {
   content: "";
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
-  background-size: 36px 36px;
-  mask-image: linear-gradient(180deg, black, transparent 82%);
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38rem 30rem at 50% 42%, rgb(139 92 246 / 0.22), transparent 70%),
+    radial-gradient(60rem 40rem at 50% 120%, rgb(5 2 11 / 0.85), transparent 65%);
+}
+
+/* Big translucent status glyph sitting behind the column. */
+.state-error-status {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: rgb(255 255 255);
+  opacity: 0.05;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(16rem, 40vw, 34rem);
+  font-weight: 950;
+  line-height: 0.8;
+  letter-spacing: -0.09em;
+  user-select: none;
   pointer-events: none;
 }
 
-.state-error-brand > * { position: relative; z-index: 1; }
-.state-error-brand img { width: min(12rem, 72%); height: auto; object-fit: contain; filter: drop-shadow(0 12px 28px rgb(0 0 0 / 0.6)); }
-.state-error-brand > span { margin-top: auto; color: rgb(216 180 254 / 0.68); font-family: var(--font-mono), monospace; font-size: 0.64rem; font-weight: 800; letter-spacing: 0.2em; }
-.state-error-brand > strong { margin-top: 0.1rem; color: rgb(255 255 255 / 0.96); font-family: var(--font-display), sans-serif; font-size: clamp(7rem, 14vw, 12rem); font-weight: 950; line-height: 0.8; letter-spacing: -0.09em; text-shadow: 0 20px 70px rgb(139 92 246 / 0.38); }
-.state-error-brand > small { margin-top: 1rem; color: rgb(238 232 248 / 0.42); font-family: var(--font-mono), monospace; font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; }
-
 .state-error-content {
+  position: relative;
   display: flex;
   min-width: 0;
+  max-width: 46rem;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
-  align-items: flex-start;
-  padding: clamp(2rem, 6vw, 5.5rem);
+  padding: 0;
+  text-align: center;
 }
 
-.state-error-icon { margin: 0; }
+.state-error-logo { width: clamp(7rem, 14vw, 10.5rem); height: auto; object-fit: contain; filter: drop-shadow(0 12px 34px rgb(0 0 0 / 0.65)); }
+.state-error-icon { margin: clamp(1.25rem, 3vh, 2rem) 0 0; }
 .state-error-not-found .state-error-icon { border-color: rgb(247 201 72 / 0.28); background: rgb(247 201 72 / 0.08); color: rgb(247 201 72); box-shadow: 0 18px 38px -25px rgb(247 201 72 / 0.7); }
-.state-error h1 { max-width: 38rem; margin-top: 0.75rem; font-size: clamp(2.4rem, 5.4vw, 4.4rem); line-height: 0.98; letter-spacing: -0.055em; }
-.state-error-content > p:not(.state-error-code) { max-width: 36rem; margin: 1.2rem 0 0; color: rgb(238 232 248 / 0.7); font-size: clamp(0.92rem, 1.5vw, 1.05rem); line-height: 1.75; }
-.state-error-actions { justify-content: flex-start; margin-top: 2rem; }
+.state-error-code { justify-content: center; margin-top: clamp(0.9rem, 2.2vh, 1.4rem); }
+.state-error h1 { max-width: 32rem; margin-top: clamp(0.5rem, 1.4vh, 0.9rem); font-size: clamp(2.1rem, 5vw, 3.9rem); line-height: 1; letter-spacing: -0.055em; text-wrap: balance; }
+.state-error-content > p:not(.state-error-code) { max-width: 34rem; margin: clamp(0.8rem, 2vh, 1.2rem) 0 0; color: rgb(238 232 248 / 0.72); font-size: clamp(0.9rem, 1.5vw, 1.03rem); line-height: 1.7; text-wrap: pretty; }
+.state-error-digest { margin-top: clamp(0.7rem, 1.8vh, 1rem); }
+.state-error-actions { justify-content: center; margin-top: clamp(1.2rem, 3.2vh, 2.1rem); }
 .state-error-actions .btn { min-height: 3rem; }
 
 .route-loading[data-tone="world"] {
@@ -15620,16 +15588,17 @@ body:has(.vote-mission-hero) {
     url("/images/mazora-world-continuation.webp") center / cover;
 }
 
+/*
+  A recovery screen already fills the viewport, so the site footer underneath it
+  would be the only thing creating a scrollbar. Hiding it is what makes these
+  screens exactly one screen tall.
+*/
+body:has(.state-error) .site-footer { display: none; }
+
 @media (max-width: 800px) {
   .state-error,
-  .state-error.state-error-compact { padding: 0; align-items: stretch; }
-  .state-error-card { width: 100%; min-height: 100dvh; grid-template-columns: 1fr; border: 0; border-radius: 0; }
-  .state-error-brand { min-height: 13rem; padding: 1.25rem; border-right: 0; border-bottom: 1px solid rgb(216 180 254 / 0.14); }
-  .state-error-brand img { width: 7rem; }
-  .state-error-brand > span { display: none; }
-  .state-error-brand > strong { position: absolute; right: 1.5rem; bottom: 1rem; font-size: 7rem; }
-  .state-error-brand > small { margin-top: auto; }
-  .state-error-content { padding: clamp(1.5rem, 7vw, 3rem); }
+  .state-error.state-error-compact { padding: clamp(4.5rem, 9vh, 6rem) 1.25rem clamp(1.75rem, 4vh, 2.5rem); }
+  .state-error-status { font-size: clamp(12rem, 55vw, 20rem); }
 }
 
 @media (max-width: 520px) {
@@ -15689,4 +15658,50 @@ body:has(.vote-mission-hero) {
 
 :root[data-theme="light"] .store-detail-back:hover {
   color: rgb(91 33 182);
+}
+
+/* Public Light-theme contrast polish for reusable Store and Home news surfaces. */
+:root[data-theme="light"] .store-mode-tab-icon {
+  border-color: rgb(109 40 217 / 0.24);
+  color: rgb(80 58 105);
+  background: linear-gradient(145deg, rgb(250 248 253), rgb(234 227 243));
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.9);
+}
+
+:root[data-theme="light"] .store-mode-tab.is-active .store-mode-tab-icon {
+  border-color: rgb(109 40 217 / 0.42);
+  color: rgb(109 40 217);
+  background: rgb(124 58 237 / 0.1);
+}
+
+:root[data-theme="light"] .home-news-band :is(.news-home-feature, .news-home-card) {
+  border-color: rgb(109 40 217 / 0.3);
+  background:
+    radial-gradient(26rem 18rem at 100% 0%, rgb(196 181 253 / 0.2), transparent 70%),
+    linear-gradient(145deg, rgb(255 255 255 / 0.995), rgb(244 239 250 / 0.99));
+  box-shadow: 0 28px 64px -40px rgb(49 25 83 / 0.58), inset 0 1px white;
+}
+
+:root[data-theme="light"] .home-news-band :is(.news-home-feature, .news-home-card) h3 {
+  color: rgb(34 23 49);
+}
+
+:root[data-theme="light"] .home-news-band :is(.news-home-feature, .news-home-card) p.text-muted {
+  color: rgb(72 58 91);
+}
+
+:root[data-theme="light"] .home-news-band :is(.news-home-feature, .news-home-card) :is(.telemetry, .news-author-copy small) {
+  color: rgb(79 64 99);
+}
+
+:root[data-theme="light"] .home-news-band :is(.news-home-feature, .news-home-card) .news-author-copy strong {
+  color: rgb(34 23 49);
+}
+
+:root[data-theme="light"] .home-news-band :is(.news-home-feature, .news-home-card) .border-line {
+  border-color: rgb(109 40 217 / 0.22);
+}
+
+:root[data-theme="light"] .home-news-band :is(.news-home-feature, .news-home-card) .chip svg {
+  color: rgb(109 40 217);
 }

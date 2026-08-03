@@ -781,3 +781,10 @@
     linear-gradient(180deg, rgb(4 3 9 / 0.02), rgb(4 3 9 / 0.34) 48%, rgb(4 3 9 / 0.72)),
     url("/images/newsroom-header-continuation-v3.webp") center bottom / cover no-repeat;
 }
+
+:root[data-theme="light"] .newsroom-page :is(.newsroom-stat-icon, .newsroom-stat-label svg) {
+  color: rgb(109 40 217);
+  border-color: rgb(109 40 217 / 0.26);
+  filter: drop-shadow(0 2px 7px rgb(109 40 217 / 0.2));
+  stroke-width: 2.25;
+}

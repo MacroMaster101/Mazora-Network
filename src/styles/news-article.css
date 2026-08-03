@@ -966,3 +966,9 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   color: rgb(91 33 182);
   background: rgb(255 255 255 / 0.82);
 }
+
+:root[data-theme="light"] .news-detail-hero .newsroom-stat-label svg {
+  color: rgb(109 40 217);
+  filter: drop-shadow(0 2px 7px rgb(109 40 217 / 0.22));
+  stroke-width: 2.25;
+}

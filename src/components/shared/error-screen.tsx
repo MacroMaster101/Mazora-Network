@@ -34,27 +34,27 @@ export function ErrorScreen({
 
   return (
     <section className={`state-error state-error-${kind}${compact ? " state-error-compact" : ""}`} role="alert">
+      {/* Atmosphere is the whole backdrop now — the card is gone, so this blurs
+          and dims behind a single centred column instead of framing a panel. */}
       <div className="state-error-atmosphere" aria-hidden="true" />
-      <div className="state-error-card">
-        <aside className="state-error-brand" aria-hidden="true">
-          {/* A plain image keeps recovery pages independent from image optimization. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/mazora-logo.webp" alt="" />
-          <span>MAZORA NETWORK</span>
-          <strong>{statusNumber}</strong>
-          <small>Recovery gateway</small>
-        </aside>
-        <div className="state-error-content">
-          <div className="state-error-icon"><StatusIcon size={30} /></div>
-          <p className="state-error-code"><span />{code}</p>
-          <h1>{title}</h1>
-          <p>{copy}</p>
-          {error?.digest && <span className="state-error-digest">Incident {error.digest}</span>}
-          <div className="state-error-actions">
-            {reset && <button type="button" onClick={reset} className="btn btn-primary"><RefreshCw size={16} /> Try again</button>}
-            <Link href={returnHref} className="btn btn-ghost"><Home size={16} /> {returnLabel}</Link>
-            <Link href="/support" className="state-error-support"><Compass size={15} /> Get support</Link>
-          </div>
+      {/* Only 404 gets the giant backdrop glyph — a lone "!" at that scale just
+          reads as a vertical stripe, not a symbol. */}
+      {kind === "not-found" && (
+        <span className="state-error-status" aria-hidden="true">{statusNumber}</span>
+      )}
+      <div className="state-error-content">
+        {/* A plain image keeps recovery pages independent from image optimization. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="state-error-logo" src="/images/mazora-logo.webp" alt="" aria-hidden="true" />
+        <div className="state-error-icon"><StatusIcon size={26} /></div>
+        <p className="state-error-code"><span />{code}</p>
+        <h1>{title}</h1>
+        <p>{copy}</p>
+        {error?.digest && <span className="state-error-digest">Incident {error.digest}</span>}
+        <div className="state-error-actions">
+          {reset && <button type="button" onClick={reset} className="btn btn-primary"><RefreshCw size={16} /> Try again</button>}
+          <Link href={returnHref} className="btn btn-ghost"><Home size={16} /> {returnLabel}</Link>
+          <Link href="/support" className="state-error-support"><Compass size={15} /> Get support</Link>
         </div>
       </div>
     </section>
