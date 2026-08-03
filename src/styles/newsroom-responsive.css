@@ -737,6 +737,14 @@
   color: inherit;
 }
 
+:root[data-theme="light"] .newsroom-page .newsroom-stat-label {
+  color: rgb(79 61 101);
+}
+
+:root[data-theme="light"] .newsroom-page .newsroom-mast-stat > strong {
+  color: rgb(30 23 43);
+}
+
 :root[data-theme="light"] .newsroom-page .newsroom-explorer {
   color: rgb(30 23 43);
   border-color: rgb(124 58 237 / 0.22);
