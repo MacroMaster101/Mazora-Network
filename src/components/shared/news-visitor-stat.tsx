@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { UsersRound } from "lucide-react";
+import { CONSENT_EVENT, hasAccepted } from "@/lib/consent-client";
 
 let visitorRequest: Promise<number | null> | null = null;
 const articleReadRequests = new Map<string, Promise<number | null>>();
@@ -42,12 +43,23 @@ export function NewsVisitorStat({ initialCount, articleSlug }: NewsVisitorStatPr
 
   useEffect(() => {
     let active = true;
-    const request = articleSlug ? recordArticleRead(articleSlug) : recordVisit();
-    request.then((nextCount) => {
-      if (active && nextCount !== null) setCount(nextCount);
-    });
+
+    // Counting is opt-in. Until the visitor accepts we show the server-rendered
+    // figure and send nothing; accepting fires the beacon straight away rather
+    // than waiting for the next navigation.
+    function send() {
+      if (!active || !hasAccepted()) return;
+      const request = articleSlug ? recordArticleRead(articleSlug) : recordVisit();
+      request.then((nextCount) => {
+        if (active && nextCount !== null) setCount(nextCount);
+      });
+    }
+
+    send();
+    window.addEventListener(CONSENT_EVENT, send);
     return () => {
       active = false;
+      window.removeEventListener(CONSENT_EVENT, send);
     };
   }, [articleSlug]);
 
