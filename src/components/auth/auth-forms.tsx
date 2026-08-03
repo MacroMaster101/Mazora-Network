@@ -276,6 +276,18 @@ export function LoginForm({ next }: { next?: string }) {
   const validation = useClientValidation(loginSchema, state);
   const emailError = validation.errorFor("identifier");
   const passwordError = validation.errorFor("password");
+  // React resets the form once the action resolves. The email is controlled so
+  // it survives a rejected attempt; the password is deliberately cleared (by
+  // remounting PasswordInput) and refocused so the retry starts in the right
+  // field. Client-side validation calls preventDefault, so `state` only ever
+  // changes on a genuine server rejection.
+  const [email, setEmail] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (state.ok || (!state.message && !state.errors)) return;
+    setAttempt((current) => current + 1);
+    requestAnimationFrame(() => document.getElementById("password")?.focus());
+  }, [state]);
   return (
     <div className="auth-form-stack">
       <SocialButtons next={next} />
@@ -284,11 +296,11 @@ export function LoginForm({ next }: { next?: string }) {
         {next && <input type="hidden" name="next" value={next} />}
         <FormRow label="Email address" htmlFor="identifier" error={emailError}>
           <FieldShell icon={<UserRound size={17} />}>
-            <Input id="identifier" name="identifier" type="email" required maxLength={254} placeholder="you@example.com" autoComplete="email" inputMode="email" aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "identifier-error" : undefined} className="auth-field" />
+            <Input id="identifier" name="identifier" type="email" required maxLength={254} placeholder="you@example.com" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "identifier-error" : undefined} className="auth-field" />
           </FieldShell>
         </FormRow>
         <FormRow label="Password" htmlFor="password" error={passwordError}>
-          <PasswordInput id="password" name="password" placeholder="Enter your password" autoComplete="current-password" error={passwordError} />
+          <PasswordInput key={attempt} id="password" name="password" placeholder="Enter your password" autoComplete="current-password" error={passwordError} />
         </FormRow>
         <AuthMessage message={validation.message} />
         <div className="auth-form-options">

@@ -9,6 +9,7 @@ import { site } from "@/lib/site";
 import { getSupabaseConfig, isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { throttleAuthAction } from "@/lib/rate-limit";
 import {
   authFormValues,
   authValidationErrors,
@@ -72,6 +73,15 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
   const parsed = loginSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
 
+  // Bucketed per address *and* per submitted email, so spraying one account is
+  // capped without a shared NAT locking out everyone behind it.
+  const throttled = await throttleAuthAction("login", {
+    limit: 8,
+    windowMs: 15 * 60_000,
+    identity: parsed.data.identifier,
+  });
+  if (throttled) return { ok: false, message: throttled };
+
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
@@ -106,6 +116,9 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
 export async function registerAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
   const parsed = registerSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
+
+  const throttled = await throttleAuthAction("register", { limit: 5, windowMs: 60 * 60_000 });
+  if (throttled) return { ok: false, message: throttled };
 
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
@@ -243,6 +256,15 @@ export async function resendConfirmationAction(_previous: AuthResult, formData: 
   const email = String(formData.get("email") ?? "").trim();
   if (!email) return { ok: false, message: "Enter your email address first." };
 
+  // Email-sending endpoints are throttled hard — abuse here costs deliverability
+  // reputation, not just CPU.
+  const throttled = await throttleAuthAction("resend-confirmation", {
+    limit: 3,
+    windowMs: 15 * 60_000,
+    identity: email,
+  });
+  if (throttled) return { ok: false, message: throttled };
+
   if (!isSupabaseConfigured()) {
     if (isDemoAuthEnabled()) return { ok: true, message: "A new confirmation email has been sent." };
     return { ok: false, message: "Authentication has not been configured yet." };
@@ -259,6 +281,13 @@ export async function resendConfirmationAction(_previous: AuthResult, formData: 
 export async function requestPasswordResetAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
   const parsed = resetRequestSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
+
+  const throttled = await throttleAuthAction("reset-request", {
+    limit: 3,
+    windowMs: 15 * 60_000,
+    identity: parsed.data.email,
+  });
+  if (throttled) return { ok: false, message: throttled };
 
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
@@ -285,6 +314,16 @@ export async function verifyResetCodeAction(_previous: AuthResult, formData: For
   const parsed = resetCodeSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
 
+  // A 6-digit code is only 10^6 possibilities, so this is the most valuable
+  // endpoint to brute force. Bucketed per email so an attacker cannot spread
+  // guesses for one account across many addresses.
+  const throttled = await throttleAuthAction("reset-verify", {
+    limit: 5,
+    windowMs: 15 * 60_000,
+    identity: parsed.data.email,
+  });
+  if (throttled) return { ok: false, message: throttled };
+
   if (!isSupabaseConfigured()) {
     if (isDemoAuthEnabled()) return { ok: true };
     return { ok: false, message: "Authentication has not been configured yet." };
@@ -308,6 +347,9 @@ export async function verifyResetCodeAction(_previous: AuthResult, formData: For
 export async function finishPasswordResetAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
   const parsed = newPasswordSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
+
+  const throttled = await throttleAuthAction("reset-finish", { limit: 10, windowMs: 15 * 60_000 });
+  if (throttled) return { ok: false, message: throttled };
 
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
@@ -335,6 +377,10 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
 export async function updatePasswordAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
   const parsed = newPasswordSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
+
+  // This one re-checks the current password, so it is a credential oracle too.
+  const throttled = await throttleAuthAction("password-update", { limit: 10, windowMs: 15 * 60_000 });
+  if (throttled) return { ok: false, message: throttled };
 
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();

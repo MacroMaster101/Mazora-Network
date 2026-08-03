@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Bell, Gift, LifeBuoy, MessagesSquare, Users2, Swords } from "lucide-react";
 import { site } from "@/lib/site";
 import { getDiscordStats } from "@/lib/data/discord";
@@ -28,19 +29,51 @@ export default async function DiscordPage() {
 
   return (
     <>
-      <PageHero eyebrow={eyebrow} title="The community lives on Discord." lead="It's where the network really comes alive. Announcements, giveaways, teammates and support — all in one place." />
+      <PageHero
+        eyebrow={eyebrow}
+        title="The community lives on Discord."
+        lead="It's where the network really comes alive. Announcements, giveaways, teammates and support — all in one place."
+        illustration={
+          <div className="relative group">
+            <Image
+              src="/images/mazora-logo.webp"
+              alt="Mazora Network Logo"
+              width={240}
+              height={180}
+              priority
+              className="w-32 h-auto md:w-[240px] md:h-[180px] animate-float object-contain drop-shadow-[0_15px_35px_rgba(139,92,246,0.35)] transition-transform duration-500 group-hover:scale-105"
+            />
+          </div>
+        }
+      />
       <section className="section shell">
         <Reveal className="glass relative overflow-hidden p-8 text-center sm:p-14">
           <div className="pointer-events-none absolute inset-0 opacity-70 [background:radial-gradient(40rem_20rem_at_50%_0%,rgba(88,101,242,0.18),transparent_60%)]" />
-          <div className="relative">
-            <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#5865F2]/15 text-[#8b94f5]">
-              <DiscordIcon size={30} />
-            </span>
-            <h2 className="mx-auto mt-4 max-w-xl text-3xl font-bold">Join {site.name} on Discord</h2>
-            <p className="mx-auto mt-2 max-w-md text-muted">Free, instant, and the fastest way to plug into everything happening on the network.</p>
-            <a href={site.discord} target="_blank" rel="noreferrer" className="btn btn-primary mt-6">
-              <DiscordIcon size={16} /> Join the Discord
-            </a>
+          <div className="relative grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_350px]">
+            <div className="flex flex-col items-center">
+              <div className="group relative grid h-20 w-20 place-items-center">
+                <span aria-hidden className="absolute inset-0 rounded-[1.375rem] bg-[#5865F2] opacity-40 blur-xl transition-opacity duration-500 group-hover:opacity-70" />
+                <span className="relative grid h-full w-full place-items-center rounded-[1.375rem] bg-gradient-to-br from-[#5865F2] to-[#4752C4] text-white ring-1 ring-white/20 transition-transform duration-500 group-hover:scale-105">
+                  <DiscordIcon size={36} />
+                </span>
+              </div>
+              <h2 className="mt-5 max-w-xl text-3xl font-bold">Join {site.name} on Discord</h2>
+              <p className="mt-2 max-w-md text-muted">Free, instant, and the fastest way to plug into everything happening on the network.</p>
+              <a href={site.discord} target="_blank" rel="noreferrer" className="btn btn-primary mt-6">
+                <DiscordIcon size={16} /> Join the Discord
+              </a>
+            </div>
+            <div className="mx-auto w-full max-w-[350px] overflow-hidden rounded-2xl border border-line bg-[#202225] shadow-2xl">
+              <iframe
+                title="Mazora Network Discord server"
+                src="https://discord.com/widget?id=805453071261237286&theme=dark"
+                width="350"
+                height="500"
+                frameBorder="0"
+                sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+                className="block h-[500px] w-full"
+              />
+            </div>
           </div>
         </Reveal>
 
