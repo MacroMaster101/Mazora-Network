@@ -48,8 +48,8 @@ export default async function VotePage() {
 
           <div className="vote-redesign-mast" aria-label="Mazora voting overview">
             <div className="vote-redesign-stat">
-              <span><Vote size={17} aria-hidden="true" /></span>
-              <div><strong>{sites.length}</strong><small>live vote partners</small></div>
+              <span><Vote size={17} aria-hidden="true" /><small>live vote partners</small></span>
+              <strong>{sites.length}</strong>
             </div>
 
             <div className="vote-redesign-brand">
@@ -66,8 +66,8 @@ export default async function VotePage() {
             </div>
 
             <div className="vote-redesign-stat vote-redesign-stat-right">
-              <span><Trophy size={17} aria-hidden="true" /></span>
-              <div><strong>{voters.length}</strong><small>supporters ranked</small></div>
+              <span><Trophy size={17} aria-hidden="true" /><small>supporters ranked</small></span>
+              <strong>{voters.length}</strong>
             </div>
           </div>
 
