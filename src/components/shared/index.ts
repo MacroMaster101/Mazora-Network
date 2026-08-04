@@ -22,3 +22,9 @@ export { LegalToc, LegalMobileToc } from "./legal-toc";
 
 
 export { NewsAuthor } from "./news-author";
+export { ServerActivityGraph } from "./server-activity-graph";
+export { DiscordPatchList } from "./discord-patch-card";
+export { UnifiedServerStatsCard } from "./unified-server-stats-card";
+export { GoogleFormEmbed } from "./google-form-embed";
+
+

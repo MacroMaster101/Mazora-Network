@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, Camera, Radio, Sparkles, Video } from "lucide-react";
-import { PageHero } from "@/components/shared";
-import { site } from "@/lib/site";
+import Image from "next/image";
+import { Camera, Radio, Video } from "lucide-react";
+import { GoogleFormEmbed, PageHero } from "@/components/shared";
+import { getFormsConfig } from "@/lib/data/forms-config";
 
 export const metadata: Metadata = {
   title: "Content Creator Program",
@@ -15,32 +15,60 @@ const paths = [
   { icon: Camera, title: "Community media", copy: "Screenshots, builds, cinematic projects, artwork, guides, and social content that tells Mazora stories." },
 ];
 
-export default function ContentCreatorPage() {
+export default async function ContentCreatorPage() {
+  const config = await getFormsConfig();
+  const form = config.creator;
+
   return (
     <>
-      <PageHero eyebrow="Creator program" title="Tell stories from inside Mazora." lead="We work with thoughtful creators who make useful, entertaining, and original Minecraft content for the community." />
-      <section className="section shell creator-program-page">
-        <div className="creator-program-grid">
+      <PageHero
+        eyebrow="Creator program"
+        title="Tell stories from inside Mazora."
+        lead="We work with thoughtful creators who make useful, entertaining, and original Minecraft content for the community."
+        illustration={
+          <div className="relative group">
+            <Image
+              src="/images/mazora-logo.webp"
+              alt="Mazora Network Logo"
+              width={240}
+              height={180}
+              priority
+              className="w-32 h-auto md:w-[240px] md:h-[180px] animate-float object-contain drop-shadow-[0_15px_35px_rgba(139,92,246,0.35)] transition-transform duration-500 group-hover:scale-105"
+            />
+          </div>
+        }
+      />
+      <section className="shell pt-4 pb-20 space-y-8">
+        <div className="grid gap-6 sm:grid-cols-3">
           {paths.map(({ icon: Icon, title, copy }) => (
-            <article key={title} className="panel creator-program-card">
-              <span><Icon size={22} /></span>
-              <h2>{title}</h2>
-              <p>{copy}</p>
-            </article>
+            <div key={title} className="panel rounded-2xl border border-line bg-card/95 p-6 backdrop-blur-xl shadow-lg transition-all hover:border-accent/40 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/20 text-accent-bright border border-accent/30">
+                    <Icon size={20} />
+                  </span>
+                  <h3 className="font-display text-base font-bold text-ink">{title}</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-muted font-medium">{copy}</p>
+              </div>
+            </div>
           ))}
         </div>
 
-        <div className="creator-program-cta panel">
-          <div>
-            <p className="eyebrow"><Sparkles size={13} /> Applications and partnerships</p>
-            <h2>Start the conversation on Discord.</h2>
-            <p>Share your channel, the type of content you make, your usual audience, and what you would like to create with Mazora. The team reviews creator requests manually.</p>
-          </div>
-          <div>
-            <a href={site.discord} target="_blank" rel="noreferrer" className="btn btn-primary">Open Discord <ArrowRight size={15} /></a>
-            <Link href="/support/staff-application" className="btn btn-ghost">Team applications</Link>
-          </div>
-        </div>
+        <GoogleFormEmbed
+          formUrl={form.publicUrl}
+          title="Content Creator Application Form"
+          subtitle="Official Creator Program Intake"
+          description={form.enabled ? "Click below to open the official Google Form and submit your channel details and creator application." : "Creator program applications are currently closed. Please check back later."}
+          buttonText={form.enabled ? "Open Creator Application" : "Applications Closed"}
+          disabled={!form.enabled}
+          bulletPoints={[
+            "Provide direct links to your active YouTube channel, Twitch stream, TikTok, or video portfolio.",
+            "Select your main content format (YouTube videos, live streams, shorts, or cinematic edits).",
+            "Include your average view counts, subscriber/follower stats, and streaming schedule.",
+            "Share your planned Mazora video concepts, series ideas, or event stream plans.",
+          ]}
+        />
       </section>
     </>
   );
