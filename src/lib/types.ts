@@ -218,3 +218,16 @@ export interface ServerStatus {
   /** true only when a real status API is configured */
   live: boolean;
 }
+
+export interface PatchUpdate {
+  id: string;
+  version: string;
+  targetMode: string;
+  date: string;
+  author: string;
+  authorRole?: string;
+  authorAvatar?: string;
+  changes: string[];
+  discordChannel?: string;
+}
+

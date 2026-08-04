@@ -1,43 +1,21 @@
 import type { Metadata } from "next";
-import { Monitor, Smartphone } from "lucide-react";
-import { getServerStatus } from "@/lib/data/status";
 import { site } from "@/lib/site";
-import { PageHero, CopyIpButton, Reveal } from "@/components/shared";
-import { Accordion } from "@/components/ui";
+import { getServerStatus } from "@/lib/data/status";
+import { getPatchUpdates } from "@/lib/data/patches";
+import { getFaqs } from "@/lib/data/faqs";
+import { getPlayPageConfig } from "@/lib/data/play-page-config";
+import { PageHero } from "@/components/shared/page-hero";
+import { Accordion } from "@/components/ui/accordion";
+import { CopyIpButton } from "@/components/shared/copy-ip-button";
+import { Reveal } from "@/components/shared/reveal";
+import { Monitor, Smartphone } from "lucide-react";
+import { UnifiedServerStatsCard } from "@/components/shared/unified-server-stats-card";
 
 export const metadata: Metadata = {
-  title: "How to Play",
-  description: `Join ${site.name} on Java or Bedrock Edition. Copy the IP, follow the steps, and start playing in minutes.`,
+  title: "How to Play · Connect Java & Bedrock",
+  description:
+    "Step-by-step connection guide for Java Edition and Bedrock Edition players joining Mazora Network.",
 };
-
-const javaSteps = [
-  "Open Minecraft: Java Edition.",
-  "Click Multiplayer.",
-  "Click Add Server.",
-  `Enter the server address: ${site.javaIp}`,
-  "Click Done to save.",
-  "Select the server from your list.",
-  "Click Join Server and start playing.",
-];
-
-const bedrockSteps = [
-  "Open Minecraft: Bedrock Edition.",
-  "Tap Play, then the Servers tab.",
-  "Scroll down and tap Add Server.",
-  `Enter a name (e.g. ${site.name}).`,
-  `Enter the address: ${site.bedrockIp}`,
-  `Enter the port: ${site.bedrockPort}`,
-  "Save, then tap the server to join.",
-];
-
-const faqs = [
-  { q: "Which Minecraft versions are supported?", a: `We support ${site.version} on both Java and Bedrock. Most recent versions can connect.` },
-  { q: "Is the server premium only?", a: "A genuine (premium) Minecraft account is required to play on Java. This keeps the community secure and fair." },
-  { q: "Does the server support Bedrock?", a: `Yes. Bedrock players can join at ${site.bedrockIp} on port ${site.bedrockPort}.` },
-  { q: "Can mobile and console players join?", a: "Mobile and supported consoles can join through Bedrock cross-play. Some consoles require external server support." },
-  { q: "Do I need any mods?", a: "No mods are required. Optimisation and cosmetic mods are allowed; anything granting an unfair advantage is not." },
-  { q: "Is the server free?", a: "Completely free to play. Optional cosmetic and rank purchases support the server but never grant pay-to-win advantages." },
-];
 
 function Steps({ steps }: { steps: string[] }) {
   return (
@@ -55,18 +33,28 @@ function Steps({ steps }: { steps: string[] }) {
 }
 
 export default async function PlayPage() {
-  const status = await getServerStatus();
+  const [status, patchUpdates, faqs, playConfig] = await Promise.all([
+    getServerStatus(),
+    getPatchUpdates(),
+    getFaqs(),
+    getPlayPageConfig(),
+  ]);
+
   const online = status.live && status.online;
 
   return (
     <>
-      <PageHero eyebrow="Get started" title="Joining takes about a minute." lead="Copy the address, add the server, and you're in. Here's exactly how on both editions.">
+      <PageHero
+        eyebrow="Get started"
+        title={playConfig.heroTitle || "Joining takes about a minute."}
+        lead={playConfig.heroLead || "Copy the address, add the server, and you're in. Here's exactly how on both editions."}
+      >
         <div className="flex flex-wrap items-center gap-3">
           <span className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold ${online ? "border-success/40 text-success" : "border-line-strong text-muted"}`}>
             <span className={online ? "dot animate-pulse" : "dot dot-off"} />
             {online ? `Online · ${status.players}/${status.max}` : "Status unavailable"}
           </span>
-          <CopyIpButton ip={site.javaIp} label="Copy Java IP" />
+          <CopyIpButton ip={playConfig.javaIp || site.javaIp} label="Copy Java IP" />
         </div>
       </PageHero>
 
@@ -78,11 +66,11 @@ export default async function PlayPage() {
             </span>
             <div>
               <h2 className="font-display text-xl font-bold">Java Edition</h2>
-              <p className="telemetry text-sm text-muted">{site.javaIp}</p>
+              <p className="telemetry text-sm text-muted">{playConfig.javaIp || site.javaIp}</p>
             </div>
           </div>
-          <Steps steps={javaSteps} />
-          <CopyIpButton ip={site.javaIp} label="Copy Java IP" className="mt-6 w-full" />
+          <Steps steps={playConfig.javaSteps} />
+          <CopyIpButton ip={playConfig.javaIp || site.javaIp} label="Copy Java IP" className="mt-6 w-full" />
         </Reveal>
 
         <Reveal delay={0.05} className="panel p-7">
@@ -93,12 +81,23 @@ export default async function PlayPage() {
             <div>
               <h2 className="font-display text-xl font-bold">Bedrock Edition</h2>
               <p className="telemetry text-sm text-muted">
-                {site.bedrockIp} : {site.bedrockPort}
+                {playConfig.bedrockIp || site.bedrockIp} : {playConfig.bedrockPort || site.bedrockPort}
               </p>
             </div>
           </div>
-          <Steps steps={bedrockSteps} />
-          <CopyIpButton ip={site.bedrockIp} label="Copy Bedrock IP" className="mt-6 w-full" />
+          <Steps steps={playConfig.bedrockSteps} />
+          <CopyIpButton ip={playConfig.bedrockIp || site.bedrockIp} label="Copy Bedrock IP" className="mt-6 w-full" />
+        </Reveal>
+      </section>
+
+      {/* Single Unified Server Stats, Telemetry Graph & Patch Updates Card */}
+      <section className="section shell">
+        <Reveal>
+          <UnifiedServerStatsCard
+            status={status}
+            patches={patchUpdates}
+            customTelemetryMessage={playConfig.telemetryMessage}
+          />
         </Reveal>
       </section>
 
