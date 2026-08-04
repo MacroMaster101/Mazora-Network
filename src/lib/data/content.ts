@@ -93,21 +93,9 @@ export async function getAdminProducts(): Promise<Product[]> {
  * ------------------------------------------------------------------ */
 
 export async function getVoteSites(): Promise<VoteSite[]> {
-  const db = getDb();
-  if (!db) return [];
-  try {
-    const rows = await db.select().from(schema.voteSites).where(eq(schema.voteSites.enabled, true));
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      url: r.url,
-      reward: r.rewardDescription || "",
-      cooldownHours: r.cooldownHours,
-    }));
-  } catch (error) {
-    console.error("Failed to load vote sites:", error);
-    return [];
-  }
+  const { getAdminVoteSites } = await import("@/lib/data/voting");
+  const all = await getAdminVoteSites();
+  return all.filter((s) => s.enabled);
 }
 
 export async function getTopVoters(): Promise<TopVoter[]> {

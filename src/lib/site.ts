@@ -77,6 +77,8 @@ export const footerNav = {
   Support: [
     { label: "Support Center", href: "/support" },
     { label: "Ban Appeal", href: "/support/appeal" },
+    { label: "Staff Application", href: "/support/staff-application" },
+    { label: "Content Creator", href: "/support/content-creator" },
     { label: "Report a Player", href: "/support/report-player" },
     { label: "Report a Bug", href: "/support/report-bug" },
     { label: "Rules", href: "/rules" },

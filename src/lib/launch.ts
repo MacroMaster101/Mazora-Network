@@ -27,12 +27,6 @@ export const launchGates: LaunchGate[] = [
     message: "Rankings will open when live server statistics replace preview data.",
   },
   {
-    path: "/support/appeal",
-    eyebrow: "Support launch",
-    title: "Appeals will open soon.",
-    message: "We are finishing private case storage and staff review notifications before accepting submissions.",
-  },
-  {
     path: "/support/report-player",
     eyebrow: "Support launch",
     title: "Player reports will open soon.",
@@ -50,18 +44,7 @@ export const launchGates: LaunchGate[] = [
     title: "Suggestions will open soon.",
     message: "Voting, moderation and account attribution are being completed before ideas are accepted.",
   },
-  {
-    path: "/support/content-creator",
-    eyebrow: "Creator program",
-    title: "The Content Creator program is coming soon.",
-    message: "Applications, creator benefits and publishing guidelines are being finalized before the program opens.",
-  },
-  {
-    path: "/support/staff-application",
-    eyebrow: "Team launch",
-    title: "Staff applications are currently closed.",
-    message: "Application intake will reopen when the next recruitment round begins.",
-  },
+
   {
     path: "/dashboard",
     match: "children",

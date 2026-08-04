@@ -690,60 +690,146 @@ export function NewsEditor({
   }, [query, shown]);
 
   return (
-    <div className="space-y-4">
-      <div className="news-admin-overview">
-        <div className="news-overview-card news-overview-review">
-          <span><BookOpen size={17} /></span>
-          <div><strong>{pendingArticles.length}</strong><small>Awaiting review</small></div>
+    <div className="space-y-6">
+      {/* 1. TOP OVERVIEW METRIC CARDS */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div
+          onClick={() => setTab("review")}
+          className={`panel p-5 cursor-pointer transition-all ${
+            tab === "review"
+              ? "border-amber-500/60 bg-amber-500/10 shadow-sm"
+              : "border-line-strong/40 bg-card/90 hover:border-amber-500/40"
+          }`}
+        >
+          <div className="flex items-center justify-between text-muted">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted">Awaiting Review</span>
+            <BookOpen size={18} className="text-gold" />
+          </div>
+          <div className="telemetry mt-2 text-3xl font-bold text-ink">
+            {pendingArticles.length}
+          </div>
+          <span className="text-xs font-bold text-gold mt-1 block">
+            Discord imports & community submissions
+          </span>
         </div>
-        <div className="news-overview-card news-overview-live">
-          <span><Eye size={17} /></span>
-          <div><strong>{articles.length}</strong><small>Published & scheduled</small></div>
+
+        <div
+          onClick={() => setTab("published")}
+          className={`panel p-5 cursor-pointer transition-all ${
+            tab === "published"
+              ? "border-emerald-500/60 bg-emerald-500/10 shadow-sm"
+              : "border-line-strong/40 bg-card/90 hover:border-emerald-500/40"
+          }`}
+        >
+          <div className="flex items-center justify-between text-muted">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted">Published & Live</span>
+            <Eye size={18} className="text-success" />
+          </div>
+          <div className="telemetry mt-2 text-3xl font-bold text-success">
+            {articles.length}
+          </div>
+          <span className="text-xs font-bold text-success mt-1 block">
+            Live on network news feed
+          </span>
         </div>
-        <div className="news-overview-card">
-          <span><Archive size={17} /></span>
-          <div><strong>{hiddenArticles.length}</strong><small>Drafts & hidden</small></div>
+
+        <div
+          onClick={() => setTab("hidden")}
+          className={`panel p-5 cursor-pointer transition-all ${
+            tab === "hidden"
+              ? "border-purple-500/60 bg-purple-500/10 shadow-sm"
+              : "border-line-strong/40 bg-card/90 hover:border-purple-500/40"
+          }`}
+        >
+          <div className="flex items-center justify-between text-muted">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted">Drafts & Hidden</span>
+            <Archive size={18} className="text-accent-bright" />
+          </div>
+          <div className="telemetry mt-2 text-3xl font-bold text-ink">
+            {hiddenArticles.length}
+          </div>
+          <span className="text-xs font-bold text-accent-bright mt-1 block">
+            Unpublished drafts or hidden stories
+          </span>
         </div>
       </div>
 
-      <div className="news-toolbar">
-        <div className="news-tabs" role="tablist" aria-label="News sections">
+      {/* 2. HIGH-CONTRAST TOOLBAR (CONTAINED PANEL) */}
+      <div className="panel p-3 bg-card/90 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 shadow-md border-line-strong/50">
+        <div className="flex flex-wrap gap-1.5">
           <button
             role="tab"
             aria-selected={tab === "review"}
             onClick={() => setTab("review")}
-            className={cn("news-tab", tab === "review" && "news-tab-active")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+              tab === "review"
+                ? "bg-gold/15 text-gold border border-gold/50 shadow-xs"
+                : "text-ink hover:bg-surface hover:text-gold"
+            }`}
           >
-            Review <span className="news-count">{pendingArticles.length}</span>
+            Review
+            <span className="rounded-full bg-gold/20 px-2 py-0.5 text-xs font-mono font-bold text-gold">
+              {pendingArticles.length}
+            </span>
           </button>
+
           <button
             role="tab"
             aria-selected={tab === "published"}
             onClick={() => setTab("published")}
-            className={cn("news-tab", tab === "published" && "news-tab-active")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+              tab === "published"
+                ? "bg-gold/15 text-gold border border-gold/50 shadow-xs"
+                : "text-ink hover:bg-surface hover:text-gold"
+            }`}
           >
-            Published <span className="news-count">{articles.length}</span>
+            Published
+            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-mono font-bold text-success">
+              {articles.length}
+            </span>
           </button>
+
           <button
             role="tab"
             aria-selected={tab === "hidden"}
             onClick={() => setTab("hidden")}
-            className={cn("news-tab", tab === "hidden" && "news-tab-active")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+              tab === "hidden"
+                ? "bg-gold/15 text-gold border border-gold/50 shadow-xs"
+                : "text-ink hover:bg-surface hover:text-gold"
+            }`}
           >
-            Drafts & hidden <span className="news-count">{hiddenArticles.length}</span>
+            Drafts & Hidden
+            <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-mono font-bold text-accent-bright">
+              {hiddenArticles.length}
+            </span>
           </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="news-admin-search">
-            <Search size={14} />
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <span className="sr-only">Search articles</span>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" />
-          </label>
-          <button onClick={sync} disabled={busy || !syncConfigured} className="btn btn-ghost btn-sm">
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search news..."
+              className="h-9 w-44 sm:w-60 rounded-xl border border-line-strong/60 bg-surface pl-9 pr-3 text-xs font-bold text-ink placeholder:text-muted focus:border-gold/50 focus:outline-none shadow-2xs"
+            />
+          </div>
+
+          <button
+            onClick={sync}
+            disabled={busy || !syncConfigured}
+            className="btn btn-secondary text-xs py-2 px-3.5 gap-1.5 font-bold shadow-xs disabled:opacity-50"
+          >
             <RefreshCw size={14} className={cn(busy && "animate-spin")} /> Sync now
           </button>
-          <button onClick={() => setComposing((v) => !v)} className="btn btn-primary btn-sm">
+
+          <button
+            onClick={() => setComposing((v) => !v)}
+            className="btn btn-gold text-xs py-2 px-3.5 gap-1.5 font-bold shadow-xs"
+          >
             <Plus size={14} /> New article
           </button>
         </div>
