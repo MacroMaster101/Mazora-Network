@@ -8,6 +8,8 @@ import { DashHeader } from "@/components/dashboard/dash-ui";
 import { PlayPageEditor } from "@/components/admin/play-page-editor";
 
 export const metadata: Metadata = { title: "Play Page · Admin" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AdminPlayPage() {
   await requireRole("administrator", "/admin/play");

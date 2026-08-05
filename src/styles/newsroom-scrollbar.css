@@ -1,14 +1,1 @@
-html:has(.newsroom-page) {
-  scrollbar-color: rgb(84 60 112) rgb(7 5 13);
-}
-
-html:has(.newsroom-page)::-webkit-scrollbar-track,
-body:has(.newsroom-page)::-webkit-scrollbar-track {
-  background: rgb(7 5 13);
-}
-
-html:has(.newsroom-page)::-webkit-scrollbar-thumb,
-body:has(.newsroom-page)::-webkit-scrollbar-thumb {
-  border-color: rgb(7 5 13);
-  background: rgb(84 60 112);
-}
+/* Newsroom page scrollbar — inherits global styles, no overrides needed */

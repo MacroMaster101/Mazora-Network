@@ -19,6 +19,7 @@ import { ProfileAvatarEditor } from "@/components/dashboard/profile-avatar-edito
 import { DangerZone } from "@/components/dashboard/danger-zone";
 import { FormRow, Input } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { NotificationPreferences } from "@/components/account/notification-preferences";
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -109,16 +110,18 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
         </Card>
 
         <Card title="Preferences">
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Theme</span>
+          <div className="flex items-center justify-between pb-3 border-b border-line-strong/40">
+            <div>
+              <span className="text-sm font-bold text-ink block">Theme Preference</span>
+              <span className="text-xs text-muted font-medium">Switch between sleek dark mode and light theme</span>
+            </div>
             <ThemeToggle />
           </div>
-          {["Email notifications", "Event notifications", "Support notifications"].map((label) => (
-            <label key={label} className="flex items-center justify-between">
-              <span className="text-sm">{label}</span>
-              <input type="checkbox" defaultChecked className="h-4 w-4 accent-[#8b5cf6]" />
-            </label>
-          ))}
+
+          <div className="pt-2 scroll-mt-20" id="notification-settings">
+            <h3 className="text-xs font-bold text-ink uppercase tracking-wider mb-3">Notification Settings</h3>
+            <NotificationPreferences role={session.role} />
+          </div>
         </Card>
 
         <Card title="Security">
@@ -134,18 +137,11 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
   );
 }
 
+import { AccountNotificationsFeed } from "@/components/account/account-notifications-feed";
+
 /** The signed-in user's own notifications feed. */
 export function AccountNotifications() {
-  return (
-    <>
-      <DashHeader title="Notifications" subtitle="Ticket replies, appeal decisions, rewards and more." />
-      <DashEmpty
-        icon={<Bell size={24} />}
-        title="You're all caught up"
-        message="Notifications about your tickets, appeals, purchases and rewards will show up here."
-      />
-    </>
-  );
+  return <AccountNotificationsFeed />;
 }
 
 /** The signed-in user's own purchase history. */

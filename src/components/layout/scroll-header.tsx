@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 /** Transparent navigation that hides on scroll down and returns on scroll up. */
 export function ScrollHeader({ children, world = false }: { children: ReactNode; world?: boolean }) {
   const pathname = usePathname();
-  const onHome = pathname === "/";
+  const isHeroPage = pathname === "/" || pathname === "/vote" || pathname === "/store";
   const [hidden, setHidden] = useState(false);
   const [away, setAway] = useState(false);
   const lastY = useRef(0);
@@ -33,13 +33,13 @@ export function ScrollHeader({ children, world = false }: { children: ReactNode;
       }
 
       const delta = y - lastY.current;
-      const heroHeight = onHome
-        ? document.querySelector<HTMLElement>(".hero-stage")?.offsetHeight ?? 0
+      const heroHeight = isHeroPage
+        ? document.querySelector<HTMLElement>(".hero-stage, .vote-redesign-hero, .store-hero")?.offsetHeight ?? 0
         : 0;
       if (y <= 80) {
         upwardTravel.current = 0;
         setHidden(false);
-      } else if (onHome && y < heroHeight - 120) {
+      } else if (isHeroPage && y < heroHeight - 120) {
         upwardTravel.current = 0;
         setHidden(true);
       } else if (delta > 5) {
@@ -64,7 +64,7 @@ export function ScrollHeader({ children, world = false }: { children: ReactNode;
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [onHome, pathname]);
+  }, [isHeroPage, pathname]);
 
   return (
     <header
@@ -74,7 +74,7 @@ export function ScrollHeader({ children, world = false }: { children: ReactNode;
         "scroll-header sticky top-0 z-50 w-full",
         hidden ? "-translate-y-[115%]" : "translate-y-0",
         world && "hero-nav",
-        onHome && "-mb-[4.75rem]",
+        isHeroPage && "-mb-[4.75rem]",
       )}
     >
       {children}

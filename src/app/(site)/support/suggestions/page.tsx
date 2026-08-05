@@ -18,7 +18,7 @@ const fields: FieldConfig[] = [
 export default function SuggestionsPage() {
   return (
     <>
-      <PageHero eyebrow="Shape the network" title="Suggest a feature" lead="The best ideas come from players. Share yours — the community can upvote suggestions and staff review the favourites." />
+      <PageHero backLink={{ href: "/support", label: "Back to Support" }} eyebrow="Shape the network" title="Suggest a feature" lead="The best ideas come from players. Share yours — the community can upvote suggestions and staff review the favourites." />
       <section className="section shell max-w-2xl">
         <RequireLogin next="/support/suggestions">
           <SupportForm action={submitSuggestion} fields={fields} submitLabel="Submit suggestion" />

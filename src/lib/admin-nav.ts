@@ -69,7 +69,7 @@ export function buildAdminNav({
     {
       heading: "Content",
       items: [
-        { label: "Play Page", href: "/admin/play", icon: Gamepad2, minRole: "administrator" },
+        { label: "Play", href: "/admin/play", icon: Gamepad2, minRole: "administrator" },
         { label: "News", href: "/admin/news", icon: FileText, minRole: "administrator", visible: canManageNews },
         { label: "Events", href: "/admin/events", icon: CalendarDays, minRole: "administrator" },
         { label: "Game Modes", href: "/admin/game-modes", icon: Blocks, minRole: "administrator" },

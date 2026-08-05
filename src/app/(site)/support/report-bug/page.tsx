@@ -21,7 +21,7 @@ const fields: FieldConfig[] = [
 export default function ReportBugPage() {
   return (
     <>
-      <PageHero eyebrow="Support" title="Report a bug" lead="The more detail you give, the faster we can reproduce and fix it. Thank you for helping." />
+      <PageHero backLink={{ href: "/support", label: "Back to Support" }} eyebrow="Support" title="Report a bug" lead="The more detail you give, the faster we can reproduce and fix it. Thank you for helping." />
       <section className="section shell max-w-2xl">
         <RequireLogin next="/support/report-bug">
           <SupportForm action={submitBugReport} fields={fields} submitLabel="Submit bug report" />

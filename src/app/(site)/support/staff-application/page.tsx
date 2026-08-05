@@ -16,6 +16,7 @@ export default async function StaffApplicationPage() {
   return (
     <>
       <PageHero
+        backLink={{ href: "/support", label: "Back to Support" }}
         eyebrow="Join the Crew"
         title="Staff Application"
         lead="Mazora is community-run. If you are patient, dependable, and excited to help players, we would love to hear from you."

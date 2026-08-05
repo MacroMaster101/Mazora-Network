@@ -168,44 +168,53 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
         }`}
       >
         <form onSubmit={handleSaveUrl} className="space-y-2">
-          <label htmlFor={`form-url-${config.id}`} className="block text-xs font-semibold text-muted">
-            Form Link URL
-          </label>
-          <div className="flex gap-2">
+          <div className="flex items-center justify-between">
+            <label htmlFor={`form-url-${config.id}`} className="block text-xs font-bold uppercase tracking-wider text-ink">
+              🔗 Form Link URL
+            </label>
+            {url && (
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-bold text-accent-bright hover:underline inline-flex items-center gap-1"
+                title="Test and preview form link in new tab"
+              >
+                Test Form Link <ExternalLink size={12} />
+              </a>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               id={`form-url-${config.id}`}
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://forms.gle/..."
+              placeholder="e.g. https://forms.gle/your-form-link"
               required
-              className={`flex-1 px-3 py-2 text-xs rounded-xl bg-surface border focus:outline-none text-ink font-mono transition-colors ${
-                enabled
-                  ? "border-line focus:border-accent"
-                  : "border-line/40 focus:border-red-500/50"
-              }`}
+              className="flex-1 px-3 py-2 text-xs rounded-xl bg-surface border border-line-strong/60 focus:border-accent text-ink font-mono font-medium focus:outline-none transition-colors shadow-2xs"
             />
             <button
               type="submit"
               disabled={savingUrl || !url.trim()}
-              className={`btn btn-sm text-xs font-bold px-3.5 flex items-center gap-1.5 transition-all ${
+              className={`btn btn-sm text-xs font-bold px-4 shrink-0 flex items-center gap-1.5 transition-all shadow-xs ${
                 savedSuccess
                   ? "bg-emerald-500 text-white border-emerald-500"
-                  : "btn-primary"
+                  : "btn-gold"
               }`}
             >
               {savedSuccess ? (
                 <>
-                  <Check size={14} /> Saved
+                  <Check size={14} /> Saved Live
                 </>
               ) : (
                 <>
-                  <Save size={14} /> {savingUrl ? "Saving..." : "Save"}
+                  <Save size={14} /> {savingUrl ? "Saving..." : "Save Link"}
                 </>
               )}
             </button>
           </div>
-          {errorMsg && <p className="text-[11px] text-red-400 mt-1">{errorMsg}</p>}
+          {errorMsg && <p className="text-[11px] text-red-400 mt-1 font-semibold">{errorMsg}</p>}
         </form>
       </div>
     </article>
