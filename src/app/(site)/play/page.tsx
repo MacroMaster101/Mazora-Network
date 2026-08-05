@@ -17,6 +17,9 @@ export const metadata: Metadata = {
     "Step-by-step connection guide for Java Edition and Bedrock Edition players joining Mazora Network.",
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function Steps({ steps }: { steps: string[] }) {
   return (
     <ol className="mt-5 space-y-3">

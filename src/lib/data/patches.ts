@@ -94,15 +94,37 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
           const lines = rawContent.split("\n").map((l) => l.trim()).filter(Boolean);
           if (lines.length === 0) continue;
 
+          const lowerRaw = rawContent.toLowerCase();
+          const isExplicitPatch =
+            lowerRaw.includes("patch") ||
+            lowerRaw.includes("changelog") ||
+            (lowerRaw.includes("update") &&
+              !lowerRaw.includes("birthday") &&
+              !lowerRaw.includes("happy birthday") &&
+              !lowerRaw.includes("event"));
+
+          // Skip general announcements (e.g. birthday wishes) unless explicitly querying a dedicated channel or post contains patch keywords
+          if (!isExplicitPatch && !customChannelId) {
+            continue;
+          }
+
           // Find version line (e.g. "⭐ Patch Update 1.15" or "Patch Update 1.15")
-          const versionLine = lines.find((l) =>
-            l.toLowerCase().includes("patch") || l.toLowerCase().includes("update") || l.includes("⭐")
-          ) || lines[0];
+          const versionLine =
+            lines.find((l) => {
+              const low = l.toLowerCase();
+              return low.includes("patch") || low.includes("changelog") || (low.includes("update") && !low.includes("birthday"));
+            }) || (isExplicitPatch ? lines[0] : null);
+
+          if (!versionLine) continue;
 
           const cleanVersion = versionLine.replace(/^[*_#~>⭐\s]+/, "").trim();
+          if (cleanVersion.toLowerCase().includes("birthday") || cleanVersion.toLowerCase().includes("happy birthday")) {
+            continue;
+          }
 
           // Find target mode (e.g. "Survival - 1.21.11")
-          const modeLine = lines.find((l) => l.toLowerCase().includes("survival") || l.includes("1.21")) || "Survival - 1.21.11";
+          const modeLine =
+            lines.find((l) => l.toLowerCase().includes("survival") || l.includes("1.21")) || "Survival - 1.21.11";
 
           // Extract changes / bullet points
           const changeLines = lines

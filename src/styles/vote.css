@@ -2,21 +2,16 @@
 
 .vote-redesign-hero {
   position: relative;
-  min-height: max(46rem, 100svh) !important;
+  min-height: max(34rem, 68svh) !important;
   overflow: hidden;
   isolation: isolate;
   color: #fff;
-  background: #080617;
+  background: transparent;
+  margin-top: -4.75rem;
 }
 
 .vote-redesign-hero::after {
-  position: absolute;
-  inset: auto 0 -1px;
-  z-index: 4;
-  height: clamp(8rem, 18vh, 12rem);
-  content: "";
-  pointer-events: none;
-  background: linear-gradient(180deg, transparent 0%, rgb(8 6 23 / 0.16) 20%, #080617 92%);
+  display: none;
 }
 
 .vote-redesign-art {
@@ -24,8 +19,6 @@
   inset: 0;
   z-index: -1;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 72%, rgb(0 0 0 / 0.9) 82%, rgb(0 0 0 / 0.48) 92%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 0%, #000 72%, rgb(0 0 0 / 0.9) 82%, rgb(0 0 0 / 0.48) 92%, transparent 100%);
 }
 
 .vote-redesign-image {
@@ -44,7 +37,7 @@
   inset: 0;
   background:
     radial-gradient(44rem 30rem at 50% 38%, transparent 18%, rgb(5 3 14 / 0.18) 66%, rgb(5 3 14 / 0.52) 100%),
-    linear-gradient(180deg, rgb(5 3 14 / 0.56) 0%, transparent 25%, rgb(6 4 16 / 0.1) 60%, rgb(8 6 23 / 0.62) 100%),
+    linear-gradient(180deg, rgb(5 3 14 / 0.56) 0%, transparent 25%, rgb(6 4 16 / 0.1) 60%, rgb(8 6 23 / 0.45) 100%),
     linear-gradient(90deg, rgb(4 2 12 / 0.64), transparent 24%, transparent 76%, rgb(4 2 12 / 0.64));
 }
 
@@ -64,12 +57,12 @@
   position: relative;
   z-index: 5;
   display: flex;
-  min-height: max(46rem, 100svh);
+  min-height: max(34rem, 68svh);
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-top: calc(4.75rem + clamp(1.25rem, 3vh, 2.25rem));
-  padding-bottom: clamp(8rem, 16vh, 10rem);
+  padding-top: calc(4.75rem + clamp(1.5rem, 3.5vh, 2.5rem));
+  padding-bottom: 3rem;
   text-align: center;
 }
 
@@ -88,7 +81,7 @@
   font-size: 0.72rem;
 }
 
-.vote-redesign-status > span:first-child {
+.vote-redesign-status>span:first-child {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -129,7 +122,7 @@
   place-items: center;
 }
 
-.vote-redesign-brand > span {
+.vote-redesign-brand>span {
   position: absolute;
   inset: 12% 3%;
   border-radius: 50%;
@@ -160,7 +153,7 @@
   backdrop-filter: blur(14px);
 }
 
-.vote-redesign-stat > span {
+.vote-redesign-stat>span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -192,7 +185,7 @@
   margin-top: clamp(0.8rem, 2.5vh, 1.65rem);
 }
 
-.vote-redesign-copy > p {
+.vote-redesign-copy>p {
   display: inline-flex;
   align-items: center;
   gap: 0.48rem;
@@ -221,7 +214,7 @@
   color: rgb(216 180 254);
 }
 
-.vote-redesign-copy > div {
+.vote-redesign-copy>div {
   max-width: 42rem;
   margin-top: 1rem;
   color: rgb(238 232 248 / 0.7);
@@ -316,74 +309,30 @@
   letter-spacing: 0.08em;
 }
 
-.vote-redesign-journey > i {
+.vote-redesign-journey>i {
   width: clamp(0.8rem, 3vw, 2rem);
   height: 1px;
   background: linear-gradient(90deg, rgb(216 180 254 / 0.08), rgb(216 180 254 / 0.42), rgb(216 180 254 / 0.08));
 }
 
-/* Match Home: overlap the lower world into the fading hero instead of starting a new image. */
-html:has(.vote-redesign-hero),
-body:has(.vote-redesign-hero) {
-  background: #05030a !important;
-}
-
-.site-world-frame:has(.vote-redesign-hero) {
-  background: linear-gradient(180deg, #080617 0%, #070512 46%, #05030a 100%) !important;
-}
-
-.site-world-frame:has(.vote-redesign-hero)::before {
-  background:
-    radial-gradient(52rem 30rem at 50% 24%, rgb(139 92 246 / 0.08), transparent 72%),
-    linear-gradient(90deg, rgb(5 3 10 / 0.16), transparent 24%, transparent 76%, rgb(5 3 10 / 0.16)) !important;
-}
-
-.site-world-frame:has(.vote-redesign-hero)::after {
-  position: absolute;
-  top: calc(max(46rem, 100svh) - 8rem);
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: -1;
-  display: block !important;
-  content: "" !important;
-  pointer-events: none;
-  background:
-    linear-gradient(180deg, rgb(8 6 23 / 0.96) 0%, rgb(8 6 23 / 0.78) 10rem, rgb(7 5 18 / 0.42) 24rem, rgb(5 3 10 / 0.72) 100%),
-    url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.12) 5rem, rgb(0 0 0 / 0.5) 12rem, #000 20rem, #000 100%);
-  mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.12) 5rem, rgb(0 0 0 / 0.5) 12rem, #000 20rem, #000 100%);
-}
-
-.vote-redesign-hero + .vote-realm-world {
+/* Continuous transparent world overlay below hero section without any dark rectangular bands or lines */
+.vote-realm-world {
   position: relative;
   z-index: 4;
-  margin-top: -8rem !important;
-  padding-top: 6rem !important;
+  margin-top: -4rem !important;
+  padding-top: 4rem !important;
+  background: transparent !important;
+}
+
+.vote-realm-atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   background:
-    radial-gradient(48rem 22rem at 50% 4rem, rgb(139 92 246 / 0.07), transparent 72%),
-    linear-gradient(180deg, transparent 0%, rgb(8 6 23 / 0.24) 8rem, rgb(6 4 14 / 0.32) 52%, rgb(5 3 10 / 0.58) 100%) !important;
-}
-
-.vote-redesign-hero + .vote-realm-world::before {
-  display: block !important;
-  inset: 0 !important;
-  content: "" !important;
-  opacity: 0.32 !important;
-  background-image:
-    radial-gradient(circle at 16% 18%, rgb(216 180 254 / 0.25) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 72% 32%, rgb(110 231 242 / 0.18) 0 1px, transparent 1.5px) !important;
-  background-size: 68px 68px, 92px 92px !important;
-  -webkit-mask-image: linear-gradient(180deg, #000, transparent 56%) !important;
-  mask-image: linear-gradient(180deg, #000, transparent 56%) !important;
-}
-
-.site-world-frame:has(.vote-redesign-hero) .site-footer,
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer,
-:root[data-theme="dark"] .site-world-frame:has(.vote-redesign-hero) .site-footer {
-  border: 0 !important;
-  background: linear-gradient(180deg, transparent, rgb(5 3 10 / 0.36) 42%, rgb(4 2 8 / 0.72)) !important;
-  box-shadow: none !important;
+    radial-gradient(54rem 32rem at 50% 0%, rgb(139 92 246 / 0.15), transparent 70%),
+    radial-gradient(48rem 28rem at 12% 20%, rgb(14 165 173 / 0.08), transparent 72%),
+    radial-gradient(54rem 32rem at 86% 36%, rgb(139 92 246 / 0.12), transparent 72%),
+    linear-gradient(90deg, rgb(5 3 10 / 0.4), transparent 20%, transparent 80%, rgb(5 3 10 / 0.4));
 }
 
 @media (max-width: 899px) {
@@ -431,7 +380,7 @@ body:has(.vote-redesign-hero) {
     font-size: 0.66rem;
   }
 
-  .vote-redesign-status > span:first-child {
+  .vote-redesign-status>span:first-child {
     padding-inline: 0.55rem;
     font-size: 0.58rem;
   }
@@ -455,7 +404,7 @@ body:has(.vote-redesign-hero) {
     border-radius: 0.9rem;
   }
 
-  .vote-redesign-stat > span {
+  .vote-redesign-stat>span {
     gap: 0.3rem;
   }
 
@@ -468,7 +417,7 @@ body:has(.vote-redesign-hero) {
     letter-spacing: 0.11em;
   }
 
-  .vote-redesign-copy > p {
+  .vote-redesign-copy>p {
     font-size: 0.62rem;
     letter-spacing: 0.12em;
   }
@@ -479,7 +428,7 @@ body:has(.vote-redesign-hero) {
     line-height: 0.94;
   }
 
-  .vote-redesign-copy > div {
+  .vote-redesign-copy>div {
     margin-top: 0.8rem;
     font-size: 0.82rem;
     line-height: 1.55;
@@ -516,7 +465,7 @@ body:has(.vote-redesign-hero) {
     line-height: 1.25;
   }
 
-  .vote-redesign-journey > i {
+  .vote-redesign-journey>i {
     display: none;
   }
 
@@ -528,13 +477,14 @@ body:has(.vote-redesign-hero) {
     mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 3rem, rgb(0 0 0 / 0.55) 8rem, #000 14rem, #000 100%);
   }
 
-  .vote-redesign-hero + .vote-realm-world {
+  .vote-redesign-hero+.vote-realm-world {
     margin-top: -6rem !important;
     padding-top: 4.5rem !important;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .vote-redesign-brand img,
   .vote-redesign-primary,
   .vote-redesign-secondary {
@@ -580,7 +530,7 @@ body:has(.vote-redesign-hero) {
   box-shadow: 0 16px 38px -25px rgb(38 19 66 / 0.5), inset 0 1px rgb(255 255 255 / 0.92);
 }
 
-:root[data-theme="light"] .vote-redesign-status > span:first-child {
+:root[data-theme="light"] .vote-redesign-status>span:first-child {
   border-color: rgb(124 58 237 / 0.2);
   color: #43206f;
   background: rgb(139 92 246 / 0.1);
@@ -595,7 +545,7 @@ body:has(.vote-redesign-hero) {
   box-shadow: 0 22px 52px -34px rgb(43 22 74 / 0.48), inset 0 1px rgb(255 255 255 / 0.9);
 }
 
-:root[data-theme="light"] .vote-redesign-stat > span {
+:root[data-theme="light"] .vote-redesign-stat>span {
   border-color: transparent;
   color: rgb(109 40 217);
   background: transparent;
@@ -631,7 +581,7 @@ body:has(.vote-redesign-hero) {
   color: rgb(109 40 217);
 }
 
-:root[data-theme="light"] .vote-redesign-journey > i {
+:root[data-theme="light"] .vote-redesign-journey>i {
   display: none;
 }
 
@@ -651,7 +601,7 @@ body:has(.vote-redesign-hero) {
     url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
 }
 
-:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world {
+:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world {
   color: #291b3b;
   background:
     radial-gradient(48rem 22rem at 50% 4rem, rgb(139 92 246 / 0.08), transparent 72%),
@@ -675,7 +625,7 @@ body:has(.vote-redesign-hero) {
   text-shadow: 0 3px 20px rgb(255 255 255 / 0.72);
 }
 
-:root[data-theme="light"] .vote-hub-heading > p:last-child {
+:root[data-theme="light"] .vote-hub-heading>p:last-child {
   color: rgb(64 47 84 / 0.76);
   text-shadow: 0 2px 14px rgb(255 255 255 / 0.7);
 }
@@ -701,7 +651,7 @@ body:has(.vote-redesign-hero) {
 :root[data-theme="light"] .vote-hub-leaderboard-card :is(.vote-realm-leader-head, .vote-ref-pagination),
 :root[data-theme="light"] .vote-hub-sites-head,
 :root[data-theme="light"] .vote-hub-guide-head,
-:root[data-theme="light"] .vote-hub-guide-list > div {
+:root[data-theme="light"] .vote-hub-guide-list>div {
   border-color: rgb(77 53 113 / 0.13);
 }
 
@@ -732,7 +682,7 @@ body:has(.vote-redesign-hero) {
 
 :root[data-theme="light"] .vote-realm-table .field,
 :root[data-theme="light"] .vote-table-search .field,
-:root[data-theme="light"] .vote-filter-menu > summary {
+:root[data-theme="light"] .vote-filter-menu>summary {
   border-color: rgb(77 53 113 / 0.17);
   color: #261735;
   background: rgb(255 255 255 / 0.76);
@@ -744,18 +694,18 @@ body:has(.vote-redesign-hero) {
 }
 
 :root[data-theme="light"] .vote-table-search svg,
-:root[data-theme="light"] .vote-filter-menu > summary > svg:last-child,
+:root[data-theme="light"] .vote-filter-menu>summary>svg:last-child,
 :root[data-theme="light"] .vote-filter-current small {
   color: rgb(78 60 99 / 0.62);
 }
 
-:root[data-theme="light"] .vote-filter-menu > summary > svg:first-child,
+:root[data-theme="light"] .vote-filter-menu>summary>svg:first-child,
 :root[data-theme="light"] .vote-filter-current strong {
   color: rgb(76 42 122);
 }
 
-:root[data-theme="light"] .vote-filter-menu > summary:hover,
-:root[data-theme="light"] .vote-filter-menu[open] > summary {
+:root[data-theme="light"] .vote-filter-menu>summary:hover,
+:root[data-theme="light"] .vote-filter-menu[open]>summary {
   border-color: rgb(124 58 237 / 0.3);
   background: rgb(139 92 246 / 0.08);
 }
@@ -827,7 +777,7 @@ body:has(.vote-redesign-hero) {
 }
 
 /* Light transition and empty-table contrast polish. */
-:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world {
+:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world {
   background:
     linear-gradient(180deg, #ece6f4 0%, rgb(236 230 244 / 0.97) 9rem, rgb(242 237 247 / 0.78) 20rem, rgb(245 241 249 / 0.46) 52%, rgb(238 232 243 / 0.7) 100%) !important;
 }
@@ -852,7 +802,7 @@ body:has(.vote-redesign-hero) {
   mask-image: none;
 }
 
-:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world {
+:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world {
   background:
     linear-gradient(180deg, transparent 0%, rgb(244 240 248 / 0.06) 14rem, rgb(240 234 245 / 0.16) 54%, rgb(233 226 240 / 0.3) 100%) !important;
 }
@@ -894,6 +844,7 @@ body:has(.vote-redesign-hero) {
 :root[data-theme="light"] .vote-redesign-hero::after {
   background: none;
 }
+
 /* Keep the same generated image visible through the light footer. */
 :root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer {
   background: transparent !important;
@@ -919,10 +870,10 @@ body:has(.vote-redesign-hero) {
   mask-image: none;
 }
 
-:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world,
+:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world,
 :root[data-theme="light"] .vote-realm-atmosphere,
-:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world::before,
-:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world::after {
+:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world::before,
+:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world::after {
   background: none !important;
 }
 
@@ -936,7 +887,7 @@ body:has(.vote-redesign-hero) {
   text-shadow: 0 4px 28px rgb(3 1 8 / 0.82);
 }
 
-:root[data-theme="light"] .vote-hub-heading > p:last-child {
+:root[data-theme="light"] .vote-hub-heading>p:last-child {
   color: rgb(245 239 251 / 0.78);
   text-shadow: 0 2px 16px rgb(3 1 8 / 0.78);
 }
@@ -957,32 +908,8 @@ body:has(.vote-redesign-hero) {
 :root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer .hover\:text-ink:hover {
   color: white;
 }
-/* Crossfade the light hero into the continuation artwork without a section edge. */
-:root[data-theme="light"] .vote-redesign-hero {
-  background: #080617;
-  box-shadow: none;
-  z-index: 5;
-}
 
-:root[data-theme="light"] .vote-redesign-art {
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 78%, rgb(0 0 0 / 0.9) 84%, rgb(0 0 0 / 0.46) 93%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 0%, #000 78%, rgb(0 0 0 / 0.9) 84%, rgb(0 0 0 / 0.46) 93%, transparent 100%);
-}
-
-:root[data-theme="light"] .vote-redesign-hero::after {
-  background: linear-gradient(180deg, transparent 0%, rgb(8 6 23 / 0.12) 22%, rgb(8 6 23 / 0.72) 72%, #080617 100%);
-}
-
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::after {
-  top: calc(max(46rem, 100svh) - 10rem);
-  background:
-    linear-gradient(180deg, rgb(8 6 23 / 0.14), rgb(8 6 23 / 0.08) 14rem, rgb(5 3 10 / 0.28) 100%),
-    url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, transparent 10rem, rgb(0 0 0 / 0.18) 16rem, rgb(0 0 0 / 0.62) 24rem, #000 32rem, #000 100%);
-  mask-image: linear-gradient(180deg, transparent 0, transparent 10rem, rgb(0 0 0 / 0.18) 16rem, rgb(0 0 0 / 0.62) 24rem, #000 32rem, #000 100%);
-}
-
-:root[data-theme="light"] .vote-redesign-hero + .vote-realm-world {
-  background: none !important;
-  box-shadow: none;
+:root[data-theme="light"] .vote-realm-world {
+  color: #291b3b;
+  background: transparent !important;
 }
