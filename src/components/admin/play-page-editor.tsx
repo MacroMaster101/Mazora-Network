@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Gamepad2,
@@ -243,8 +243,38 @@ export function PlayPageEditor({
   const totalPages = Math.ceil((patches.length || 1) / patchesPerPage);
   const visiblePatches = patches.slice((currentPage - 1) * patchesPerPage, currentPage * patchesPerPage);
 
-  // Active section tab
-  const [activeTab, setActiveTab] = useState<"connection" | "stats" | "patches" | "faqs">("connection");
+  type TabType = "connection" | "stats" | "patches" | "faqs";
+
+  // Active section tab with URL query parameter & localStorage persistence
+  const [activeTab, setActiveTabState] = useState<TabType>("connection");
+
+  // Read initial tab from URL query param or localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get("tab") as TabType | null;
+      const validTabs: TabType[] = ["connection", "stats", "patches", "faqs"];
+
+      if (urlTab && validTabs.includes(urlTab)) {
+        setActiveTabState(urlTab);
+      } else {
+        const storedTab = localStorage.getItem("mazora_admin_play_tab") as TabType | null;
+        if (storedTab && validTabs.includes(storedTab)) {
+          setActiveTabState(storedTab);
+        }
+      }
+    }
+  }, []);
+
+  const setActiveTab = (tab: TabType) => {
+    setActiveTabState(tab);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mazora_admin_play_tab", tab);
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.replaceState(null, "", url.toString());
+    }
+  };
 
   // Save Play Page Config Server Action
   const handleSaveConfig = async (e: React.FormEvent) => {

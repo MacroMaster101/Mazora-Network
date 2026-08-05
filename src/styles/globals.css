@@ -4124,7 +4124,8 @@ body.initial-load-active {
 
 /* Signed-in navigation and account portal surfaces. */
 
-.account-avatar-trigger {
+.account-avatar-trigger,
+.header-notif-trigger {
   position: relative;
   display: grid;
   width: 2.7rem;
@@ -4133,14 +4134,18 @@ body.initial-load-active {
   border: 1px solid rgb(var(--line-strong));
   border-radius: 999px;
   background: linear-gradient(145deg, rgb(var(--card) / 0.96), rgb(var(--surface) / 0.82));
+  color: rgb(var(--ink) / 0.85);
   box-shadow: 0 10px 26px -18px rgb(var(--accent-rgb) / 0.9), inset 0 1px rgb(255 255 255 / 0.2);
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, color 180ms ease;
 }
 
 .account-avatar-trigger:hover,
-.account-avatar-trigger[aria-expanded="true"] {
+.account-avatar-trigger[aria-expanded="true"],
+.header-notif-trigger:hover,
+.header-notif-trigger[aria-expanded="true"] {
   transform: translateY(-1px);
   border-color: rgb(var(--accent-rgb) / 0.65);
+  color: rgb(var(--accent-bright));
   box-shadow: 0 11px 28px -16px rgb(var(--accent-rgb) / 0.9), 0 0 0 3px rgb(var(--accent-rgb) / 0.1);
 }
 
@@ -4331,6 +4336,163 @@ body.initial-load-active {
 
 .hero-nav .account-menu-link.is-active {
   color: #d8b4fe;
+}
+
+/* Header notification dropdown contrast & theme styles */
+.header-notif-dropdown {
+  border: 1px solid rgb(var(--line-strong));
+  background: rgb(var(--card) / 0.98);
+  color: rgb(var(--ink));
+  box-shadow: 0 24px 60px -24px rgb(15 23 42 / 0.28), 0 8px 24px -16px rgb(var(--accent-rgb) / 0.35);
+}
+
+/* Light Theme Styling (Applies both in hero-nav and scrolled down) */
+:root[data-theme="light"] .header-notif-dropdown,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 20px 50px -15px rgba(15, 23, 42, 0.25), 0 6px 20px -8px rgba(124, 58, 237, 0.15) !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown h4,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown h4 {
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-item,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-item {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-item:hover,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-item:hover {
+  background: #eef2ff !important;
+  border-color: #c7d2fe !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-item-title,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-item-title {
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-item-desc,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-item-desc {
+  color: #334155 !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-item-time,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-item-time {
+  color: #64748b !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-pref-link,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-pref-link {
+  color: #475569 !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-pref-link:hover,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-pref-link:hover {
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-all-read-badge,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-all-read-badge {
+  background: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+  font-weight: 700 !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-mark-read-btn,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-mark-read-btn {
+  color: #6d28d9 !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-mark-read-btn:hover,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-mark-read-btn:hover {
+  color: #4c1d95 !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-mark-unread-btn,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-mark-unread-btn {
+  color: #475569 !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-mark-unread-btn:hover,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-mark-unread-btn:hover {
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-view-all-link,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-view-all-link {
+  color: #6d28d9 !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-view-all-link:hover,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-view-all-link:hover {
+  color: #4c1d95 !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-header-icon,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-header-icon {
+  color: #7c3aed !important;
+}
+
+:root[data-theme="light"] .header-notif-dropdown .notif-toggle-hint,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-toggle-hint {
+  color: #6d28d9 !important;
+}
+
+/* Dark Theme Hero & Scrolled Styling */
+:root[data-theme="dark"] .hero-nav .header-notif-dropdown,
+:root:not([data-theme="light"]) .hero-nav .header-notif-dropdown {
+  border-color: rgb(216 180 254 / 0.22) !important;
+  background: rgb(12 7 24 / 0.98) !important;
+  color: white !important;
+  box-shadow: 0 24px 64px -28px rgb(0 0 0 / 0.92), 0 0 0 1px rgb(255 255 255 / 0.025) !important;
+}
+
+:root[data-theme="dark"] .hero-nav .header-notif-dropdown .notif-item,
+:root:not([data-theme="light"]) .hero-nav .header-notif-dropdown .notif-item {
+  border-color: rgb(216 180 254 / 0.15) !important;
+  background: rgb(216 180 254 / 0.06) !important;
+}
+
+:root[data-theme="dark"] .hero-nav .header-notif-dropdown .notif-item:hover,
+:root:not([data-theme="light"]) .hero-nav .header-notif-dropdown .notif-item:hover {
+  background: rgb(216 180 254 / 0.12) !important;
+}
+
+:root[data-theme="dark"] .hero-nav .header-notif-dropdown .notif-item-title,
+:root:not([data-theme="light"]) .hero-nav .header-notif-dropdown .notif-item-title {
+  color: white !important;
+}
+
+:root[data-theme="dark"] .hero-nav .header-notif-dropdown .notif-item-desc,
+:root:not([data-theme="light"]) .hero-nav .header-notif-dropdown .notif-item-desc {
+  color: rgb(233 213 255 / 0.78) !important;
+}
+
+:root[data-theme="dark"] .hero-nav .header-notif-dropdown .notif-item-time,
+:root:not([data-theme="light"]) .hero-nav .header-notif-dropdown .notif-item-time {
+  color: rgb(233 213 255 / 0.58) !important;
+}
+
+:root[data-theme="dark"] .header-notif-dropdown .notif-pref-link,
+:root:not([data-theme="light"]) .hero-nav .header-notif-dropdown .notif-pref-link {
+  color: rgb(233 213 255 / 0.7) !important;
+}
+
+:root[data-theme="dark"] .header-notif-dropdown .notif-pref-link:hover,
+:root:not([data-theme="light"]) .hero-nav .header-notif-dropdown .notif-pref-link:hover {
+  color: white !important;
+}
+
+:root[data-theme="dark"] .header-notif-dropdown .notif-toggle-hint,
+:root:not([data-theme="light"]) .hero-nav .header-notif-dropdown .notif-toggle-hint {
+  color: #c084fc !important;
 }
 
 .scroll-header:not(.hero-nav) {
