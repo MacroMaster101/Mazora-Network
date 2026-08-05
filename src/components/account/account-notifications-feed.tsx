@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import {
   Bell,
@@ -19,36 +19,11 @@ import {
 import { cn } from "@/lib/utils";
 import { DashHeader, DashEmpty } from "@/components/dashboard/dash-ui";
 
-export interface NotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  category: "welcome" | "system" | "support" | "security";
-  read: boolean;
-  sender: "mazora" | "staff" | "system";
-}
-
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "notif-1",
-    title: "🎉 Welcome to Mazora Network",
-    message: "Your account is active. Connect to mc.mazora.us to claim your starter pack and explore survival mode!",
-    time: "Just now",
-    category: "welcome",
-    read: false,
-    sender: "mazora",
-  },
-  {
-    id: "notif-4",
-    title: "🔒 Session Verification",
-    message: "Your login session was verified successfully. If you suspect unauthorized activity, change your password in account settings.",
-    time: "1d ago",
-    category: "security",
-    read: true,
-    sender: "system",
-  },
-];
+import {
+  getStoredNotifications,
+  saveStoredNotifications,
+  type NotificationItem,
+} from "@/lib/notifications-store";
 
 export function AccountNotificationsFeed() {
   const pathname = usePathname();
@@ -56,8 +31,19 @@ export function AccountNotificationsFeed() {
     ? "/admin/account#notification-settings"
     : "/dashboard/settings#notification-settings";
 
-  const [items, setItems] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [items, setItems] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
+
+  useEffect(() => {
+    setItems(getStoredNotifications());
+
+    function handleUpdate() {
+      setItems(getStoredNotifications());
+    }
+
+    window.addEventListener("mazora_notifs_updated", handleUpdate);
+    return () => window.removeEventListener("mazora_notifs_updated", handleUpdate);
+  }, []);
 
   const unreadCount = items.filter((n) => !n.read).length;
   const readCount = items.filter((n) => n.read).length;
@@ -69,25 +55,32 @@ export function AccountNotificationsFeed() {
   });
 
   const markAllRead = () => {
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    const updated = items.map((n) => ({ ...n, read: true }));
+    setItems(updated);
+    saveStoredNotifications(updated);
   };
 
   const markAllUnread = () => {
-    setItems((prev) => prev.map((n) => ({ ...n, read: false })));
+    const updated = items.map((n) => ({ ...n, read: false }));
+    setItems(updated);
+    saveStoredNotifications(updated);
   };
 
   const toggleRead = (id: string) => {
-    setItems((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: !n.read } : n))
-    );
+    const updated = items.map((n) => (n.id === id ? { ...n, read: !n.read } : n));
+    setItems(updated);
+    saveStoredNotifications(updated);
   };
 
   const deleteNotif = (id: string) => {
-    setItems((prev) => prev.filter((n) => n.id !== id));
+    const updated = items.filter((n) => n.id !== id);
+    setItems(updated);
+    saveStoredNotifications(updated);
   };
 
   const clearAll = () => {
     setItems([]);
+    saveStoredNotifications([]);
   };
 
   const getCategoryBadge = (category: NotificationItem["category"]) => {
@@ -273,10 +266,10 @@ export function AccountNotificationsFeed() {
             <div
               key={item.id}
               className={cn(
-                "group relative p-5 rounded-2xl border transition-all duration-200 shadow-lg backdrop-blur-xl",
+                "group relative p-5 rounded-2xl border transition-all duration-200 shadow-md backdrop-blur-xl",
                 item.read
-                  ? "border-line/70 bg-card/85 hover:bg-card hover:border-line-strong text-ink/80"
-                  : "border-accent/40 bg-card hover:border-accent/60 shadow-accent/5 text-ink"
+                  ? "border-line-strong dark:border-line bg-white dark:bg-card text-ink/80 opacity-90"
+                  : "border-accent/40 bg-white dark:bg-card text-ink shadow-accent/5 ring-1 ring-accent/20"
               )}
             >
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">

@@ -9,25 +9,11 @@ import { isStaff, roleDashboardPath } from "@/lib/auth/roles";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
 import { cn } from "@/lib/utils";
 
-interface HeaderNotifItem {
-  id: string;
-  title: string;
-  desc: string;
-  time: string;
-  read: boolean;
-  sender: "mazora" | "staff" | "system";
-}
-
-const DEFAULT_HEADER_NOTIFS: HeaderNotifItem[] = [
-  {
-    id: "n1",
-    title: "🎉 Welcome to Mazora",
-    desc: "Your account is active. Connect to mc.mazora.us to claim your starter pack!",
-    time: "Just now",
-    read: false,
-    sender: "mazora",
-  },
-];
+import {
+  getStoredNotifications,
+  saveStoredNotifications,
+  type NotificationItem,
+} from "@/lib/notifications-store";
 
 /** Account menu for regular members — personal account screens under /dashboard. */
 const MEMBER_MENU = [
@@ -40,18 +26,28 @@ const MEMBER_MENU = [
 export function HeaderActions({ session }: { session: Session | null }) {
   const [open, setOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifs, setNotifs] = useState<HeaderNotifItem[]>(DEFAULT_HEADER_NOTIFS);
+  const [notifs, setNotifs] = useState<NotificationItem[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
   useEffect(() => {
+    setNotifs(getStoredNotifications());
+
     function onClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
     }
+    function handleUpdate() {
+      setNotifs(getStoredNotifications());
+    }
+
     document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    window.addEventListener("mazora_notifs_updated", handleUpdate);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      window.removeEventListener("mazora_notifs_updated", handleUpdate);
+    };
   }, []);
 
   if (!session) {
@@ -73,7 +69,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
   // so their menu points at their own role dashboard instead.
   const staff = isStaff(session.role);
   const notifPath = staff ? "/admin/account/notifications" : "/dashboard/notifications";
-  const settingsPath = staff ? "/admin/account" : "/dashboard/settings";
+  const settingsPath = staff ? "/admin/account#notification-settings" : "/dashboard/settings#notification-settings";
 
   const menu = staff
     ? [
@@ -89,17 +85,21 @@ export function HeaderActions({ session }: { session: Session | null }) {
   const unreadCount = notifs.filter((n) => !n.read).length;
 
   const markAllRead = () => {
-    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    const updated = notifs.map((n) => ({ ...n, read: true }));
+    setNotifs(updated);
+    saveStoredNotifications(updated);
   };
 
   const markAllUnread = () => {
-    setNotifs((prev) => prev.map((n) => ({ ...n, read: false })));
+    const updated = notifs.map((n) => ({ ...n, read: false }));
+    setNotifs(updated);
+    saveStoredNotifications(updated);
   };
 
   const toggleNotifRead = (id: string) => {
-    setNotifs((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: !n.read } : n))
-    );
+    const updated = notifs.map((n) => (n.id === id ? { ...n, read: !n.read } : n));
+    setNotifs(updated);
+    saveStoredNotifications(updated);
   };
 
   return (
@@ -190,8 +190,8 @@ export function HeaderActions({ session }: { session: Session | null }) {
                           {item.time}
                         </span>
                       </div>
-                      <p className="notif-item-desc text-[11px] text-muted leading-snug font-medium">
-                        {item.desc}
+                      <p className="notif-item-desc text-[11px] text-muted leading-snug font-medium line-clamp-2">
+                        {item.message}
                       </p>
                       <div className="mt-1 flex items-center justify-between">
                         <span className="text-[10px] font-bold text-accent-bright/70">
