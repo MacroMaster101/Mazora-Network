@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Mail, Calendar, LifeBuoy, Info, Check, ShieldCheck, Globe, Sparkles } from "lucide-react";
+import { Mail, Calendar, LifeBuoy, Info, Check, ShieldCheck, Globe, Sparkles } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
 interface NotificationSettings {
@@ -93,12 +93,12 @@ export function NotificationPreferences() {
   return (
     <div className="space-y-4">
       {/* Information Banner Explaining Default Off & Website Always Active */}
-      <div className="p-4 rounded-2xl border border-accent/30 bg-accent/8 dark:bg-accent/12 space-y-2">
+      <div className="p-4 rounded-2xl border border-accent/30 bg-accent/10 dark:bg-accent/15 space-y-2">
         <div className="flex items-center gap-2 text-xs font-bold text-accent-bright">
           <Info size={16} />
           <span>Notification Channel Defaults & Preferences</span>
         </div>
-        <p className="text-xs text-ink/70 dark:text-muted font-medium leading-relaxed">
+        <p className="text-xs text-ink/80 dark:text-gray-300 font-medium leading-relaxed">
           By default, all external notifications (Email receipts, Event alerts, Support emails) are <strong className="text-ink dark:text-white font-extrabold">DISABLED</strong> to protect your inbox from unwanted messages. Only <strong className="text-accent-bright font-extrabold">Website In-App Notifications</strong> are active by default. (Exception: The initial Welcome Email is delivered upon registration).
         </p>
       </div>
@@ -110,24 +110,24 @@ export function NotificationPreferences() {
       )}
 
       {/* Website Notifications — Always Active Card */}
-      <div className="flex items-start justify-between gap-4 p-4 rounded-2xl border border-emerald-500/35 bg-emerald-50 dark:bg-emerald-500/12">
+      <div className="flex items-start justify-between gap-4 p-4 rounded-2xl border border-emerald-500/35 bg-emerald-500/10 dark:bg-emerald-950/30">
         <div className="flex items-start gap-3.5 min-w-0">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
             <Globe size={18} />
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-ink">Website In-App Notifications</span>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+              <span className="text-sm font-bold text-ink dark:text-emerald-300">Website In-App Notifications</span>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                 Active Default
               </span>
             </div>
-            <p className="text-xs text-ink/60 dark:text-muted leading-relaxed font-medium mt-1">
+            <p className="text-xs text-ink/70 dark:text-emerald-200/70 leading-relaxed font-medium mt-1">
               Delivered directly to your header notification bell and dashboard feed while browsing Mazora Network.
             </p>
           </div>
         </div>
-        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0 pt-2 flex items-center gap-1">
+        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 shrink-0 pt-2 flex items-center gap-1">
           <ShieldCheck size={14} /> Always On
         </span>
       </div>
@@ -142,8 +142,8 @@ export function NotificationPreferences() {
             key={item.id}
             className={`group relative flex items-start justify-between gap-4 p-4 rounded-2xl border transition-all duration-200 ${
               enabled
-                ? "bg-white dark:bg-card/90 border-line-strong dark:border-line hover:border-accent/40 shadow-sm dark:shadow-2xs"
-                : "bg-white/60 dark:bg-card/40 border-line dark:border-line/40 opacity-90 dark:opacity-85"
+                ? "bg-card border-line-strong dark:border-line hover:border-accent/40 shadow-xs"
+                : "bg-card/70 border-line-strong/60 dark:border-line/40"
             }`}
           >
             <div className="flex items-start gap-3.5 min-w-0">
@@ -151,7 +151,7 @@ export function NotificationPreferences() {
                 className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition-colors ${
                   enabled
                     ? "bg-accent/15 text-accent-bright border-accent/25"
-                    : "bg-gray-100 dark:bg-surface text-gray-400 dark:text-muted border-gray-200 dark:border-line/50"
+                    : "bg-surface text-muted border-line-strong/40"
                 }`}
               >
                 <Icon size={18} />
@@ -164,38 +164,38 @@ export function NotificationPreferences() {
                     className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider border ${
                       enabled
                         ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25"
-                        : "bg-gray-100 dark:bg-surface text-gray-500 dark:text-muted border-gray-200 dark:border-line"
+                        : "bg-surface text-muted border-line-strong/40"
                     }`}
                   >
                     {enabled ? "ON" : "OFF (Default)"}
                   </span>
 
-                  {/* Tooltip trigger icon */}
+                  {/* Tooltip trigger icon & popup */}
                   <div className="relative inline-block">
                     <button
                       type="button"
                       onMouseEnter={() => setActiveTooltip(item.id)}
                       onMouseLeave={() => setActiveTooltip(null)}
                       onClick={() => setActiveTooltip((prev) => (prev === item.id ? null : item.id))}
-                      className="text-gray-400 dark:text-muted hover:text-accent-bright transition-colors p-0.5 rounded-full"
+                      className="text-muted hover:text-accent-bright transition-colors p-0.5 rounded-full"
                       title={item.tooltip}
                     >
                       <Info size={14} />
                     </button>
 
-                    {/* Tooltip popup */}
+                    {/* Tooltip popup — positioned cleanly below to prevent covering card title */}
                     {activeTooltip === item.id && (
-                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 rounded-xl bg-gray-900 dark:bg-[#1a1028] text-white text-xs leading-relaxed shadow-2xl border border-gray-700 dark:border-line-strong z-50 animate-fade-in pointer-events-none">
-                        <p className="font-semibold text-accent-bright mb-1 flex items-center gap-1">
-                          <Info size={12} /> Channel Setting Info
+                      <div className="absolute right-0 top-full mt-2 w-64 sm:w-72 p-3 rounded-xl bg-ink text-white text-xs leading-relaxed shadow-2xl border border-line-strong z-[100] animate-fade-in pointer-events-none">
+                        <p className="font-bold text-accent-bright mb-1 flex items-center gap-1">
+                          <Info size={13} /> {item.label} Info
                         </p>
-                        {item.tooltip}
+                        <p className="text-gray-200 font-medium">{item.tooltip}</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <p className="text-xs text-ink/60 dark:text-muted leading-relaxed font-medium mt-1">
+                <p className="text-xs text-muted leading-relaxed font-medium mt-1">
                   {item.desc}
                 </p>
 
@@ -213,7 +213,7 @@ export function NotificationPreferences() {
               onClick={() => handleToggle(item.id)}
               aria-label={`Toggle ${item.label}`}
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                enabled ? "bg-accent" : "bg-gray-300 dark:bg-surface-strong/60"
+                enabled ? "bg-accent" : "bg-surface-strong/80 dark:bg-surface-strong/60"
               }`}
             >
               <span
