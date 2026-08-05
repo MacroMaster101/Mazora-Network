@@ -19,7 +19,7 @@ const fields: FieldConfig[] = [
 export default function ReportPlayerPage() {
   return (
     <>
-      <PageHero eyebrow="Support" title="Report a player" lead="Help us keep the network fair. Reports are private — only you and staff can see them." />
+      <PageHero backLink={{ href: "/support", label: "Back to Support" }} eyebrow="Support" title="Report a player" lead="Help us keep the network fair. Reports are private — only you and staff can see them." />
       <section className="section shell max-w-2xl">
         <RequireLogin next="/support/report-player">
           <SupportForm action={submitPlayerReport} fields={fields} submitLabel="Submit report" />

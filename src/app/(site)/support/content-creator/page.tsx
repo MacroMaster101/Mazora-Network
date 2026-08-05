@@ -22,6 +22,7 @@ export default async function ContentCreatorPage() {
   return (
     <>
       <PageHero
+        backLink={{ href: "/support", label: "Back to Support" }}
         eyebrow="Creator program"
         title="Tell stories from inside Mazora."
         lead="We work with thoughtful creators who make useful, entertaining, and original Minecraft content for the community."
