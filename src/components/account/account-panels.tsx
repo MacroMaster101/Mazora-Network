@@ -118,7 +118,7 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
             <ThemeToggle />
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 scroll-mt-20" id="notification-settings">
             <h3 className="text-xs font-bold text-ink uppercase tracking-wider mb-3">Notification Settings</h3>
             <NotificationPreferences />
           </div>
