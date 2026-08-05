@@ -151,7 +151,7 @@ const INITIAL_TEMPLATES: DefaultTemplate[] = [
   {
     id: "tpl-welcome",
     name: "New Player Welcome Message",
-    trigger: "Automatically sent on first login. This is a fixed default — it cannot be manually dispatched and is delivered to every new user.",
+    trigger: "Automatically sent on first login via Website + Email. This is a fixed default — it cannot be manually dispatched and is delivered to every new user.",
     title: "🎉 Welcome to Mazora Network",
     message: "Your account is active. Connect to mc.mazora.us to claim your starter pack and explore survival mode!",
     category: "welcome",
@@ -161,7 +161,7 @@ const INITIAL_TEMPLATES: DefaultTemplate[] = [
   {
     id: "tpl-security",
     name: "Account Session Verification",
-    trigger: "Automatically sent on first login or new device session. Fixed default — fires automatically.",
+    trigger: "Automatically sent on first login or new device session via Website only. Fixed default — fires automatically.",
     title: "🔒 Session Verification",
     message: "Your login session was verified successfully. If you suspect unauthorized activity, change your password in account settings.",
     category: "security",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Mail, Calendar, LifeBuoy, Info, Check } from "lucide-react";
+import { Bell, Mail, Calendar, LifeBuoy, Info, Check, ShieldCheck, Globe, Sparkles } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
 interface NotificationSettings {
@@ -14,10 +14,11 @@ const STORAGE_KEY = "mazora_user_notification_prefs";
 
 export function NotificationPreferences() {
   const { toast } = useToast();
+  // Default disabled (OFF) by default for external channels — only website notifications active by default
   const [prefs, setPrefs] = useState<NotificationSettings>({
-    email: true,
-    events: true,
-    support: true,
+    email: false,
+    events: false,
+    support: false,
   });
   const [saved, setSaved] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -29,13 +30,13 @@ export function NotificationPreferences() {
         if (stored) {
           const parsed = JSON.parse(stored);
           setPrefs({
-            email: parsed.email ?? true,
-            events: parsed.events ?? true,
-            support: parsed.support ?? true,
+            email: parsed.email ?? false,
+            events: parsed.events ?? false,
+            support: parsed.support ?? false,
           });
         }
       } catch {
-        // Fallback to default ON
+        // Fallback to default OFF for external channels
       }
     }
   }, []);
@@ -54,8 +55,8 @@ export function NotificationPreferences() {
 
     const labelMap = {
       email: "Email Notifications",
-      events: "Event Notifications",
-      support: "Support & Ticket Notifications",
+      events: "Event Alerts",
+      support: "Support Notifications",
     };
 
     toast(
@@ -67,35 +68,71 @@ export function NotificationPreferences() {
   const notificationItems = [
     {
       id: "email" as const,
-      label: "Email notifications",
+      label: "Email Notifications (Store & System)",
       icon: Mail,
       desc: "Receive email updates for order confirmations, store receipts, and password resets.",
-      tooltip: "Turn OFF if you prefer not to receive email receipts or store order status updates.",
+      tooltip: "DISABLED by default to keep your inbox clean. Turn ON if you want email receipts for purchases.",
+      exception: "Welcome email is always sent on registration.",
     },
     {
       id: "events" as const,
-      label: "Event notifications",
+      label: "Event & Realm Alerts",
       icon: Calendar,
-      desc: "Get real-time alerts for server community events, double XP weekend drops, and tournament announcements.",
-      tooltip: "Turn OFF if you do not want in-game or web alerts regarding community server events.",
+      desc: "Get alerts for server community events, double XP weekend drops, and tournament announcements.",
+      tooltip: "DISABLED by default. Enable to receive event & realm maintenance alerts.",
     },
     {
       id: "support" as const,
-      label: "Support notifications",
+      label: "Support Ticket & Appeal Emails",
       icon: LifeBuoy,
-      desc: "Receive notifications when staff members reply to your tickets, ban appeals, or bug reports.",
-      tooltip: "Turn OFF if you do not want alerts when staff respond to your support tickets or appeals.",
+      desc: "Receive external notifications when staff members reply to your tickets, ban appeals, or bug reports.",
+      tooltip: "DISABLED by default. Enable to get external email alerts when staff reply to your tickets.",
     },
   ];
 
   return (
     <div className="space-y-4">
+      {/* Information Banner Explaining Default Off & Website Always Active */}
+      <div className="p-4 rounded-2xl border border-accent/25 bg-accent/10 dark:bg-accent/15 space-y-2">
+        <div className="flex items-center gap-2 text-xs font-bold text-accent-bright">
+          <Info size={16} />
+          <span>Notification Channel Defaults & Preferences</span>
+        </div>
+        <p className="text-xs text-ink/80 dark:text-muted font-medium leading-relaxed">
+          By default, all external notifications (Email receipts, Event alerts, Support emails) are <strong className="text-ink dark:text-white">DISABLED</strong> to protect your inbox from unwanted messages. Only <strong className="text-accent-bright">Website In-App Notifications</strong> are active by default. (Exception: The initial Welcome Email is delivered upon registration).
+        </p>
+      </div>
+
       {saved && (
         <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 rounded-xl animate-fade-in">
           <Check size={14} /> Notification preferences updated live!
         </div>
       )}
 
+      {/* Website Notifications — Always Active Card */}
+      <div className="flex items-start justify-between gap-4 p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/15">
+        <div className="flex items-start gap-3.5 min-w-0">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            <Globe size={18} />
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-ink">Website In-App Notifications</span>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                Active Default
+              </span>
+            </div>
+            <p className="text-xs text-muted leading-relaxed font-medium mt-1">
+              Delivered directly to your header notification bell and dashboard feed while browsing Mazora Network.
+            </p>
+          </div>
+        </div>
+        <span className="text-xs font-bold text-emerald-400 shrink-0 pt-2 flex items-center gap-1">
+          <ShieldCheck size={14} /> Always On
+        </span>
+      </div>
+
+      {/* External Optional Channels (Disabled by default) */}
       {notificationItems.map((item) => {
         const Icon = item.icon;
         const enabled = prefs[item.id];
@@ -105,8 +142,8 @@ export function NotificationPreferences() {
             key={item.id}
             className={`group relative flex items-start justify-between gap-4 p-4 rounded-2xl border transition-all duration-200 ${
               enabled
-                ? "bg-card/80 border-line hover:border-accent/40 shadow-2xs"
-                : "bg-card/40 border-line/40 opacity-75"
+                ? "bg-card/90 border-line hover:border-accent/40 shadow-2xs"
+                : "bg-card/40 border-line/40 opacity-85"
             }`}
           >
             <div className="flex items-start gap-3.5 min-w-0">
@@ -121,16 +158,16 @@ export function NotificationPreferences() {
               </span>
 
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-ink">{item.label}</span>
                   <span
                     className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider border ${
                       enabled
                         ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
-                        : "bg-red-500/10 text-red-400 border-red-500/20"
+                        : "bg-surface text-muted border-line"
                     }`}
                   >
-                    {enabled ? "ON" : "OFF"}
+                    {enabled ? "ON" : "OFF (Default)"}
                   </span>
 
                   {/* Tooltip trigger icon */}
@@ -148,8 +185,10 @@ export function NotificationPreferences() {
 
                     {/* Tooltip popup */}
                     {activeTooltip === item.id && (
-                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 rounded-xl bg-ink/95 text-white text-xs leading-relaxed shadow-xl border border-line-strong/60 z-50 animate-fade-in pointer-events-none">
-                        <p className="font-semibold text-accent-bright mb-1">💡 Quick Info</p>
+                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 rounded-xl bg-card text-ink text-xs leading-relaxed shadow-2xl border border-line-strong z-50 animate-fade-in pointer-events-none">
+                        <p className="font-semibold text-accent-bright mb-1 flex items-center gap-1">
+                          <Info size={12} /> Channel Setting Info
+                        </p>
                         {item.tooltip}
                       </div>
                     )}
@@ -159,6 +198,12 @@ export function NotificationPreferences() {
                 <p className="text-xs text-muted leading-relaxed font-medium mt-1">
                   {item.desc}
                 </p>
+
+                {item.exception && (
+                  <p className="text-[11px] text-accent-bright font-semibold mt-1 flex items-center gap-1">
+                    <Sparkles size={11} /> {item.exception}
+                  </p>
+                )}
               </div>
             </div>
 

@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { usePathname } from "next/navigation";
 import {
   Bell,
   Check,
   CheckCheck,
+  Info,
   Mail,
   MailCheck,
   RotateCcw,
+  Settings,
   ShieldAlert,
   Sparkles,
   Trash2,
@@ -48,6 +51,11 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 export function AccountNotificationsFeed() {
+  const pathname = usePathname();
+  const settingsUrl = pathname?.startsWith("/admin")
+    ? "/admin/account#notification-settings"
+    : "/dashboard/settings#notification-settings";
+
   const [items, setItems] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
 
@@ -128,6 +136,34 @@ export function AccountNotificationsFeed() {
         title="Notifications"
         subtitle="Ticket replies, appeal decisions, network updates and system rewards."
       />
+
+      {/* Information Banner & Preferences Tooltip */}
+      <div className="p-4 rounded-2xl border border-line-strong bg-card backdrop-blur-2xl shadow-xl flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2 rounded-xl bg-accent/15 text-accent-bright border border-accent/25 shrink-0">
+            <Info size={18} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-ink">Notification Delivery Settings</span>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-surface text-muted border border-line">
+                Website Only (Default)
+              </span>
+            </div>
+            <p className="text-xs text-muted font-medium pt-0.5">
+              In-app website notifications are active. External email/discord alerts are disabled by default (except welcome registration emails).
+            </p>
+          </div>
+        </div>
+
+        <a
+          href={settingsUrl}
+          className="px-3 py-1.5 rounded-xl border border-line bg-surface hover:bg-surface/80 text-ink text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all"
+        >
+          <Settings size={13} />
+          <span>Manage Preferences</span>
+        </a>
+      </div>
 
       {/* Control bar */}
       <div className="flex flex-wrap items-center justify-between gap-3.5 p-4 rounded-2xl border border-line-strong bg-card backdrop-blur-2xl shadow-xl">
