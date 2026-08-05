@@ -1,21 +1,26 @@
 import type { Metadata } from "next";
-import { Bell } from "lucide-react";
 import { requireRole } from "@/lib/auth";
+import { listAccounts } from "@/lib/data/accounts";
 import { DashHeader } from "@/components/dashboard/dash-ui";
-import { AdminPlaceholder } from "@/components/admin/admin-ui";
+import { AdminBroadcastManager } from "@/components/admin/admin-broadcast-manager";
 
 export const metadata: Metadata = { title: "Notifications · Admin" };
 
 export default async function AdminNotificationsPage() {
   await requireRole("owner", "/admin/notifications");
+  const accounts = await listAccounts();
+
+  const users = (accounts ?? []).map((a) => ({
+    id: a.userId,
+    username: a.username,
+    displayName: a.displayName,
+    role: a.role,
+  }));
+
   return (
     <>
-      <DashHeader title="Notifications" subtitle="Broadcast announcements to users." />
-      <AdminPlaceholder
-        icon={<Bell size={24} />}
-        title="Broadcast tools arrive with the database"
-        message="Send targeted notifications to users, roles or the whole network once notifications are wired up."
-      />
+      <DashHeader title="Notifications" subtitle="Compose and broadcast announcements, events, and system notifications across the network." />
+      <AdminBroadcastManager users={users} />
     </>
   );
 }

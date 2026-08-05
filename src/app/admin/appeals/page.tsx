@@ -48,19 +48,6 @@ export default async function AdminAppealsPage() {
         />
       </div>
 
-      <div className="panel flex items-start gap-4 p-5 rounded-2xl border border-accent/25 bg-card/95 backdrop-blur-xl shadow-lg">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent-bright border border-accent/25">
-          <KeyRound size={20} />
-        </div>
-        <div>
-          <h4 className="font-display text-sm font-bold text-ink">
-            Google Form Responses & Owner Access
-          </h4>
-          <p className="text-xs text-muted leading-relaxed font-medium mt-1">
-            Form submissions are stored inside Google Drive. To view, review, or edit submitted responses, <strong>ask the Google Form owner to invite your Google account as an Editor or Viewer</strong> on the Google Form / Google Sheet.
-          </p>
-        </div>
-      </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
         <AdminFormToggleCard config={config.appeals} iconName="appeals" />

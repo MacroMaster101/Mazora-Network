@@ -125,60 +125,60 @@ export function MobileMenu({
                     ))}
                   </div>
                 ) : (
-                <div className="grid gap-1.5">
-                  {primaryNav.map((item) =>
-                    item.children ? (
-                      <div key={item.label}>
-                        <button
-                          type="button"
-                          onClick={() => setExpanded((value) => (value === item.label ? null : item.label))}
-                          aria-expanded={expanded === item.label}
-                          className="flex w-full items-center justify-between rounded-xl border border-transparent px-4 py-3 text-sm font-semibold text-muted transition-colors hover:border-line-strong hover:bg-ink/5 hover:text-ink"
+                  <div className="grid gap-1.5">
+                    {primaryNav.map((item) =>
+                      item.children ? (
+                        <div key={item.label}>
+                          <button
+                            type="button"
+                            onClick={() => setExpanded((value) => (value === item.label ? null : item.label))}
+                            aria-expanded={expanded === item.label}
+                            className="flex w-full items-center justify-between rounded-xl border border-transparent px-4 py-3 text-sm font-semibold text-muted transition-colors hover:border-line-strong hover:bg-ink/5 hover:text-ink"
+                          >
+                            <span className="flex items-center gap-3">
+                              <span className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-ink/5 text-accent-bright"><NavIcon label={item.label} size={15} /></span>
+                              {item.label}
+                            </span>
+                            <ChevronDown size={16} className={cn("transition-transform", expanded === item.label && "rotate-180")} />
+                          </button>
+                          {expanded === item.label && (
+                            <div className="ml-8 mt-1 grid gap-1 border-l border-line pl-3">
+                              {item.children.map((child) => (
+                                <Link
+                                  key={child.href}
+                                  href={child.href}
+                                  className={cn(
+                                    "rounded-lg px-3 py-2.5 text-sm text-muted transition-colors hover:bg-accent/10 hover:text-ink",
+                                    active(child.href) && "bg-accent/10 text-accent-bright",
+                                  )}
+                                >
+                                  {child.label}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <Link
+                          key={item.label}
+                          href={item.href!}
+                          aria-current={active(item.href!) ? "page" : undefined}
+                          className={cn(
+                            "group flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition-colors",
+                            active(item.href!)
+                              ? "border-accent/45 bg-accent/10 text-accent-bright"
+                              : "border-transparent text-muted hover:border-line-strong hover:bg-ink/5 hover:text-ink",
+                          )}
                         >
                           <span className="flex items-center gap-3">
                             <span className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-ink/5 text-accent-bright"><NavIcon label={item.label} size={15} /></span>
                             {item.label}
                           </span>
-                          <ChevronDown size={16} className={cn("transition-transform", expanded === item.label && "rotate-180")} />
-                        </button>
-                        {expanded === item.label && (
-                          <div className="ml-8 mt-1 grid gap-1 border-l border-line pl-3">
-                            {item.children.map((child) => (
-                              <Link
-                                key={child.href}
-                                href={child.href}
-                                className={cn(
-                                  "rounded-lg px-3 py-2.5 text-sm text-muted transition-colors hover:bg-accent/10 hover:text-ink",
-                                  active(child.href) && "bg-accent/10 text-accent-bright",
-                                )}
-                              >
-                                {child.label}
-                              </Link>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <Link
-                        key={item.label}
-                        href={item.href!}
-                        aria-current={active(item.href!) ? "page" : undefined}
-                        className={cn(
-                          "group flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition-colors",
-                          active(item.href!)
-                            ? "border-accent/45 bg-accent/10 text-accent-bright"
-                            : "border-transparent text-muted hover:border-line-strong hover:bg-ink/5 hover:text-ink",
-                        )}
-                      >
-                        <span className="flex items-center gap-3">
-                          <span className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-ink/5 text-accent-bright"><NavIcon label={item.label} size={15} /></span>
-                          {item.label}
-                        </span>
-                        <ArrowUpRight size={15} className="opacity-45 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                      </Link>
-                    ),
-                  )}
-                </div>
+                          <ArrowUpRight size={15} className="opacity-45 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                        </Link>
+                      ),
+                    )}
+                  </div>
                 )}
 
                 {session && !showAdminNav && (
