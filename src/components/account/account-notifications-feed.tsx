@@ -131,7 +131,7 @@ export function AccountNotificationsFeed() {
       />
 
       {/* Information Banner & Preferences Tooltip */}
-      <div className="p-4 rounded-2xl border border-line-strong bg-card backdrop-blur-2xl shadow-xl flex flex-wrap items-center justify-between gap-3">
+      <div className="p-4 rounded-2xl border border-line-strong bg-white dark:bg-card backdrop-blur-2xl shadow-md dark:shadow-xl flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="p-2 rounded-xl bg-accent/15 text-accent-bright border border-accent/25 shrink-0">
             <Info size={18} />
@@ -139,11 +139,11 @@ export function AccountNotificationsFeed() {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-ink">Notification Delivery Settings</span>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-surface text-muted border border-line">
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-gray-100 dark:bg-surface text-gray-500 dark:text-muted border border-gray-200 dark:border-line">
                 Website Only (Default)
               </span>
             </div>
-            <p className="text-xs text-muted font-medium pt-0.5">
+            <p className="text-xs text-ink/60 dark:text-muted font-medium pt-0.5">
               In-app website notifications are active. External email/discord alerts are disabled by default (except welcome registration emails).
             </p>
           </div>
@@ -151,7 +151,7 @@ export function AccountNotificationsFeed() {
 
         <a
           href={settingsUrl}
-          className="px-3 py-1.5 rounded-xl border border-line bg-surface hover:bg-surface/80 text-ink text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all"
+          className="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-line bg-gray-50 dark:bg-surface hover:bg-gray-100 dark:hover:bg-surface/80 text-ink text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all"
         >
           <Settings size={13} />
           <span>Manage Preferences</span>
@@ -159,9 +159,9 @@ export function AccountNotificationsFeed() {
       </div>
 
       {/* Control bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3.5 p-4 rounded-2xl border border-line-strong bg-card backdrop-blur-2xl shadow-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3.5 p-4 rounded-2xl border border-line-strong bg-white dark:bg-card backdrop-blur-2xl shadow-md dark:shadow-xl">
         {/* Filter Tabs */}
-        <div className="flex items-center gap-1 bg-surface/80 p-1 rounded-xl border border-line">
+        <div className="flex items-center gap-1 bg-gray-100/80 dark:bg-surface/80 p-1 rounded-xl border border-gray-200 dark:border-line">
           <button
             type="button"
             onClick={() => setFilter("all")}
@@ -223,7 +223,7 @@ export function AccountNotificationsFeed() {
             <button
               type="button"
               onClick={markAllUnread}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-line bg-surface hover:bg-surface/80 text-ink/80 hover:text-ink text-xs font-semibold transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 dark:border-line bg-gray-50 dark:bg-surface hover:bg-gray-100 dark:hover:bg-surface/80 text-ink/80 hover:text-ink text-xs font-semibold transition-all shadow-sm"
             >
               <RotateCcw size={13} />
               Mark all as unread
@@ -234,7 +234,7 @@ export function AccountNotificationsFeed() {
             <button
               type="button"
               onClick={clearAll}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-500 dark:text-red-400 text-xs font-semibold transition-all shadow-sm"
             >
               <Trash2 size={13} />
               Clear all
@@ -268,8 +268,8 @@ export function AccountNotificationsFeed() {
               className={cn(
                 "group relative p-5 rounded-2xl border transition-all duration-200 shadow-md backdrop-blur-xl",
                 item.read
-                  ? "border-line-strong dark:border-line bg-white dark:bg-card text-ink/80 opacity-90"
-                  : "border-accent/40 bg-white dark:bg-card text-ink shadow-accent/5 ring-1 ring-accent/20"
+                  ? "border-gray-200 dark:border-line bg-white dark:bg-card text-ink/75"
+                  : "border-accent/40 bg-white dark:bg-card text-ink shadow-accent/5 ring-1 ring-accent/15"
               )}
             >
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -334,7 +334,7 @@ export function AccountNotificationsFeed() {
                     className={cn(
                       "px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm",
                       item.read
-                        ? "border-line bg-surface hover:bg-surface/80 text-ink/80 hover:text-ink"
+                        ? "border-gray-200 dark:border-line bg-gray-50 dark:bg-surface hover:bg-gray-100 dark:hover:bg-surface/80 text-ink/80 hover:text-ink"
                         : "border-accent/40 bg-accent/15 text-accent-bright hover:bg-accent/25"
                     )}
                   >
@@ -355,7 +355,7 @@ export function AccountNotificationsFeed() {
                     type="button"
                     onClick={() => deleteNotif(item.id)}
                     title="Delete notification"
-                    className="p-2 rounded-xl border border-line/60 bg-surface/50 hover:border-red-500/40 hover:bg-red-500/10 text-muted hover:text-red-400 transition-all"
+                    className="p-2 rounded-xl border border-gray-200 dark:border-line/60 bg-gray-50 dark:bg-surface/50 hover:border-red-400 dark:hover:border-red-500/40 hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 dark:text-muted hover:text-red-500 dark:hover:text-red-400 transition-all"
                   >
                     <Trash2 size={14} />
                   </button>

@@ -127,7 +127,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
 
         {/* Header Notifications Dropdown */}
         {notifOpen && (
-          <div className="header-notif-dropdown animate-fade-up max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.75rem] max-sm:w-auto max-sm:max-w-none sm:absolute sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 z-[95] rounded-2xl border border-line-strong/60 bg-card/98 backdrop-blur-2xl p-4 shadow-2xl">
+          <div className="header-notif-dropdown animate-fade-up max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.75rem] max-sm:w-auto max-sm:max-w-none sm:absolute sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 z-[95] rounded-2xl border border-gray-200 dark:border-line-strong/60 bg-white dark:bg-card/98 backdrop-blur-2xl p-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-line-strong/40 pb-3 mb-3">
               <div className="flex items-center gap-2">
                 <Bell size={16} className="notif-header-icon text-accent-bright" />
@@ -145,7 +145,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
                     <span>Mark all read</span>
                   </button>
                 ) : (
-                  <span className="notif-all-read-badge px-2 py-0.5 rounded-full bg-surface text-[10px] font-bold text-muted border border-line">
+                  <span className="notif-all-read-badge px-2 py-0.5 rounded-full bg-gray-100 dark:bg-surface text-[10px] font-bold text-gray-500 dark:text-muted border border-gray-200 dark:border-line">
                     All read
                   </span>
                 )}
@@ -160,8 +160,8 @@ export function HeaderActions({ session }: { session: Session | null }) {
                   className={cn(
                     "notif-item relative p-2.5 rounded-xl border transition-all cursor-pointer group",
                     item.read
-                      ? "border-line/40 bg-surface/30 opacity-75 hover:opacity-100 hover:bg-surface/60"
-                      : "border-line/70 bg-surface/60 hover:bg-surface"
+                      ? "border-gray-200/60 dark:border-line/40 bg-gray-50/60 dark:bg-surface/30 opacity-80 hover:opacity-100 hover:bg-gray-100/60 dark:hover:bg-surface/60"
+                      : "border-gray-200 dark:border-line/70 bg-gray-50 dark:bg-surface/60 hover:bg-gray-100 dark:hover:bg-surface"
                   )}
                 >
                   <div className="flex gap-2.5">
