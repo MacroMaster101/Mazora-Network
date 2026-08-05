@@ -49,7 +49,7 @@ export function NavLinks() {
               >
                 <div className="px-3 pb-2 pt-1.5">
                   <p className="nav-dropdown-kicker telemetry text-[10px] uppercase tracking-[0.2em] text-muted">
-                    {item.label === "Forums" ? "Community desk" : "Explore Mazora"}
+                    {item.label === "Help" || item.label === "Support" || item.label === "Forums" ? "Help & Support Desk" : "Explore Mazora"}
                   </p>
                 </div>
                 {item.children.map((child) => (
@@ -62,8 +62,8 @@ export function NavLinks() {
                       child.href === bestMatch && "bg-accent/10",
                     )}
                   >
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-accent/15 bg-accent/10 text-accent-bright">
-                      <ArrowUpRight size={14} />
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-accent/15 bg-accent/10 text-accent-bright group-hover/child:scale-105 transition-transform duration-150">
+                      <NavIcon label={child.label} size={15} />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="nav-dropdown-title block text-sm font-semibold text-ink">{child.label}</span>

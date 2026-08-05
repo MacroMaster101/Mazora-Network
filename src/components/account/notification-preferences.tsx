@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Mail, Calendar, LifeBuoy, Info, Check, ShieldCheck, Globe, Sparkles } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { isStaff } from "@/lib/auth/roles";
+import type { Role } from "@/lib/types";
 
 interface NotificationSettings {
   email: boolean;
@@ -12,8 +14,10 @@ interface NotificationSettings {
 
 const STORAGE_KEY = "mazora_user_notification_prefs";
 
-export function NotificationPreferences() {
+export function NotificationPreferences({ role }: { role?: Role | string }) {
   const { toast } = useToast();
+  const isStaffUser = role ? isStaff(role as Role) : false;
+
   // Default disabled (OFF) by default for external channels — only website notifications active by default
   const [prefs, setPrefs] = useState<NotificationSettings>({
     email: false,
@@ -68,25 +72,25 @@ export function NotificationPreferences() {
   const notificationItems = [
     {
       id: "email" as const,
-      label: "Email Notifications (Store & System)",
+      label: "Email Notifications (Store & Account)",
       icon: Mail,
-      desc: "Receive email updates for order confirmations, store receipts, and password resets.",
-      tooltip: "DISABLED by default to keep your inbox clean. Turn ON if you want email receipts for purchases.",
-      exception: "Welcome email is always sent on registration.",
+      desc: "Receive email notifications for store orders, purchase receipts, and password resets.",
+      tooltip: "Turn ON if you would like email receipts and order confirmations sent to your email inbox.",
+      adminNote: "Staff & Admin Note: Welcome email is automatically sent on account registration.",
     },
     {
       id: "events" as const,
       label: "Event & Realm Alerts",
       icon: Calendar,
-      desc: "Get alerts for server community events, double XP weekend drops, and tournament announcements.",
-      tooltip: "DISABLED by default. Enable to receive event & realm maintenance alerts.",
+      desc: "Get notifications for community events, double XP weekend drops, and realm announcements.",
+      tooltip: "Turn ON to receive email alerts for server events and double XP weekends.",
     },
     {
       id: "support" as const,
       label: "Support Ticket & Appeal Emails",
       icon: LifeBuoy,
-      desc: "Receive external notifications when staff members reply to your tickets, ban appeals, or bug reports.",
-      tooltip: "DISABLED by default. Enable to get external email alerts when staff reply to your tickets.",
+      desc: "Receive email updates when staff members reply to your support tickets or ban appeals.",
+      tooltip: "Turn ON to receive an email alert whenever staff reply to your ticket.",
     },
   ];
 
@@ -96,10 +100,10 @@ export function NotificationPreferences() {
       <div className="p-4 rounded-2xl border border-accent/30 bg-accent/10 dark:bg-accent/15 space-y-2">
         <div className="flex items-center gap-2 text-xs font-bold text-accent-bright">
           <Info size={16} />
-          <span>Notification Channel Defaults & Preferences</span>
+          <span>Notification Delivery Preferences</span>
         </div>
         <p className="text-xs text-ink/80 dark:text-gray-300 font-medium leading-relaxed">
-          By default, all external notifications (Email receipts, Event alerts, Support emails) are <strong className="text-ink dark:text-white font-extrabold">DISABLED</strong> to protect your inbox from unwanted messages. Only <strong className="text-accent-bright font-extrabold">Website In-App Notifications</strong> are active by default. (Exception: The initial Welcome Email is delivered upon registration).
+          Manage your notification channel preferences. <strong className="text-accent-bright font-extrabold">Website In-App Notifications</strong> are active by default so you stay updated while browsing. External email and event alerts can be enabled below anytime.
         </p>
       </div>
 
@@ -167,7 +171,7 @@ export function NotificationPreferences() {
                         : "bg-surface text-muted border-line-strong/40"
                     }`}
                   >
-                    {enabled ? "ON" : "OFF (Default)"}
+                    {enabled ? "ON" : "OFF"}
                   </span>
 
                   {/* Tooltip trigger icon & popup */}
@@ -183,13 +187,13 @@ export function NotificationPreferences() {
                       <Info size={14} />
                     </button>
 
-                    {/* Tooltip popup — positioned cleanly below to prevent covering card title */}
+                    {/* Tooltip popup */}
                     {activeTooltip === item.id && (
-                      <div className="absolute right-0 top-full mt-2 w-64 sm:w-72 p-3 rounded-xl bg-ink text-white text-xs leading-relaxed shadow-2xl border border-line-strong z-[100] animate-fade-in pointer-events-none">
-                        <p className="font-bold text-accent-bright mb-1 flex items-center gap-1">
+                      <div className="absolute right-0 top-full mt-2 w-64 sm:w-72 p-3.5 rounded-xl bg-white dark:bg-[#1a1028] text-xs leading-relaxed shadow-2xl border border-gray-300 dark:border-line-strong z-[100] animate-fade-in pointer-events-none">
+                        <p className="font-bold text-purple-700 dark:text-accent-bright mb-1 flex items-center gap-1">
                           <Info size={13} /> {item.label} Info
                         </p>
-                        <p className="text-gray-200 font-medium">{item.tooltip}</p>
+                        <p className="text-gray-800 dark:text-gray-200 font-medium">{item.tooltip}</p>
                       </div>
                     )}
                   </div>
@@ -199,26 +203,31 @@ export function NotificationPreferences() {
                   {item.desc}
                 </p>
 
-                {item.exception && (
-                  <p className="text-[11px] text-accent-bright font-semibold mt-1 flex items-center gap-1">
-                    <Sparkles size={11} /> {item.exception}
+                {/* Permission-gated Staff/Admin Note */}
+                {isStaffUser && item.adminNote && (
+                  <p className="text-[11px] text-accent-bright font-semibold mt-1.5 flex items-center gap-1">
+                    <Sparkles size={11} /> {item.adminNote}
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Toggle Switch Button */}
+            {/* High Contrast Toggle Switch Button */}
             <button
               type="button"
               onClick={() => handleToggle(item.id)}
               aria-label={`Toggle ${item.label}`}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                enabled ? "bg-accent" : "bg-surface-strong/80 dark:bg-surface-strong/60"
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out focus:outline-none ${
+                enabled
+                  ? "bg-accent border-accent/60 shadow-md shadow-accent/20"
+                  : "bg-gray-300 dark:bg-zinc-800 border-gray-400 dark:border-zinc-600"
               }`}
             >
               <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                  enabled ? "translate-x-5" : "translate-x-0"
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow-md transition duration-200 ease-in-out ${
+                  enabled
+                    ? "translate-x-5 bg-white border border-white"
+                    : "translate-x-0 bg-white dark:bg-gray-200 border border-gray-300 dark:border-gray-500"
                 }`}
               />
             </button>

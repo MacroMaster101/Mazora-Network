@@ -16,6 +16,7 @@ export default async function AppealPage() {
   return (
     <>
       <PageHero
+        backLink={{ href: "/support", label: "Back to Support" }}
         eyebrow="Support & Moderation"
         title="Ban & Mute Appeal"
         lead="Made a mistake, or think a punishment was issued in error? Submit an official appeal form below for moderator review."

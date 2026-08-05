@@ -256,26 +256,62 @@ export function HeaderActions({ session }: { session: Session | null }) {
         </button>
 
         {open && (
-          <div className="account-menu animate-fade-up absolute right-0 top-[calc(100%+10px)] z-[90] max-w-[calc(100vw-1.5rem)] overflow-hidden">
-            <div className="account-menu-header">
-              <p className="account-menu-name">{session.displayName}</p>
-              <p className="account-menu-role">{session.role}</p>
+          <div className="account-menu animate-fade-up absolute right-0 top-[calc(100%+10px)] z-[90] w-72 max-w-[calc(100vw-1.5rem)] overflow-hidden">
+            <div className="account-menu-header flex items-center gap-3.5 p-4 border-b border-slate-200/80 dark:border-purple-900/40">
+              <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 text-sm font-black text-white shadow-md border border-purple-400/30">
+                {initials}
+                {session.avatarUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={session.avatarUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full rounded-2xl object-cover"
+                    onError={(event) => { event.currentTarget.hidden = true; }}
+                  />
+                )}
+                <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0c0618] shadow-sm" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="account-menu-name text-sm font-extrabold text-slate-900 dark:text-white truncate leading-tight">
+                  {session.displayName}
+                </p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="text-[11px] font-extrabold text-purple-700 dark:text-purple-300 capitalize tracking-wide px-2.5 py-0.5 rounded-full bg-purple-500/10 dark:bg-purple-400/15 border border-purple-500/20 inline-block">
+                    {session.role}
+                  </span>
+                </div>
+              </div>
             </div>
-            <nav className="account-menu-links" aria-label="Account navigation">
+
+            <nav className="account-menu-links p-2.5 grid gap-1" aria-label="Account navigation">
               {menu.map((m) => (
                 <Link
                   key={m.href}
                   href={m.href}
                   onClick={() => setOpen(false)}
-                  className={cn("account-menu-link", activeMenuHref === m.href && "is-active")}
+                  className={cn(
+                    "account-menu-link group flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-bold transition-all duration-150",
+                    "text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-purple-700 dark:hover:text-white",
+                    activeMenuHref === m.href && "is-active bg-purple-500/15 text-purple-700 dark:text-purple-300 font-extrabold"
+                  )}
                 >
-                  <span className="account-menu-link-icon"><m.icon size={16} /></span><span>{m.label}</span>
+                  <span className="account-menu-link-icon grid h-8 w-8 place-items-center rounded-xl border border-purple-500/20 bg-purple-500/10 dark:bg-purple-400/15 text-purple-600 dark:text-purple-300 group-hover:scale-105 transition-transform duration-150">
+                    <m.icon size={15} />
+                  </span>
+                  <span className="flex-1 truncate">{m.label}</span>
                 </Link>
               ))}
             </nav>
-            <form action="/logout" method="post" className="account-menu-footer">
-              <button type="submit" className="account-menu-logout">
-                <LogOut size={16} /> Log out
+
+            <form action="/logout" method="post" className="account-menu-footer p-2.5 border-t border-slate-200/80 dark:border-purple-900/40">
+              <button
+                type="submit"
+                className="account-menu-logout group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all duration-150"
+              >
+                <span className="grid h-8 w-8 place-items-center rounded-xl border border-red-500/20 bg-red-500/10 text-red-500 group-hover:scale-105 transition-transform duration-150">
+                  <LogOut size={15} />
+                </span>
+                <span>Log out</span>
               </button>
             </form>
           </div>

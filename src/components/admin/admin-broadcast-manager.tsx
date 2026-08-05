@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Edit3,
   Lock,
+  Mail,
   Megaphone,
   Pencil,
   Radio,
@@ -1045,9 +1046,16 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
                           <h4 className="font-display text-base font-bold text-ink">{tpl.name}</h4>
 
                           {tpl.fixed ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border bg-accent/15 text-accent-bright border-accent/25">
-                              <Lock size={10} /> Fixed Default
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border bg-accent/15 text-accent-bright border-accent/25">
+                                <Lock size={10} /> Fixed Default
+                              </span>
+                              {tpl.id === "tpl-welcome" && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border bg-blue-500/15 text-blue-400 border-blue-500/25">
+                                  <Mail size={10} /> Website + Email Delivery
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className={cn(
                               "px-2 py-0.5 rounded-full text-[10px] font-extrabold border",

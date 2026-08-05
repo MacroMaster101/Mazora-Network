@@ -18,7 +18,9 @@ export default async function LaunchStatusPage({
 }) {
   const from = (await searchParams).from ?? "/";
   const gate = getLaunchGate(from);
-  const accountRoute = from.startsWith("/dashboard") || from.startsWith("/admin");
+  
+  const isSupportRoute = from.startsWith("/support") || from === "/forums" || from.includes("tickets");
+  const isAccountRoute = (from.startsWith("/dashboard") || from.startsWith("/admin")) && !isSupportRoute;
 
   return (
     <div className="launch-status-page">
@@ -34,10 +36,27 @@ export default async function LaunchStatusPage({
           </p>
           <div className="launch-status-badge"><ShieldCheck size={14} /> In final testing</div>
           <div className="launch-status-actions">
-            <Link href={accountRoute ? "/dashboard" : "/"} className="btn btn-primary">
-              {accountRoute ? <ArrowLeft size={16} /> : <Home size={16} />}
-              {accountRoute ? "Back to dashboard" : "Back home"}
-            </Link>
+            {isSupportRoute ? (
+              <Link href="/support" className="btn btn-primary">
+                <ArrowLeft size={16} /> Back to Support
+              </Link>
+            ) : isAccountRoute ? (
+              <Link href="/dashboard" className="btn btn-primary">
+                <ArrowLeft size={16} /> Back to dashboard
+              </Link>
+            ) : (
+              <Link href="/" className="btn btn-primary">
+                <Home size={16} /> Back home
+              </Link>
+            )}
+
+            {/* Secondary Back to Support button if on account/dashboard coming soon page */}
+            {isAccountRoute && (
+              <Link href="/support" className="btn btn-ghost">
+                <ArrowLeft size={16} /> Back to Support
+              </Link>
+            )}
+
             <a href={site.discord} target="_blank" rel="noreferrer" className="btn btn-ghost">
               <DiscordIcon size={16} /> Get updates on Discord
             </a>

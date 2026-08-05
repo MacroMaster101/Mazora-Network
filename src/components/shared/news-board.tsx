@@ -107,9 +107,12 @@ export function NewsBoard({ articles, limit = 5 }: { articles: NewsArticle[]; li
         </div>
       )}
 
-      <div className="flex justify-center pt-2">
-        <Link href="/news" className="home-news-more group inline-flex items-center gap-1.5 text-sm font-semibold text-accent-bright">
-          View all news <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
+      <div className="flex justify-center pt-4">
+        <Link
+          href="/news"
+          className="group inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-extrabold text-white bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-600/30 hover:shadow-purple-500/50 hover:scale-105 transition-all duration-200"
+        >
+          View all news <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
         </Link>
       </div>
     </div>
