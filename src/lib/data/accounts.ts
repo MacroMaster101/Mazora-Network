@@ -25,6 +25,7 @@ export interface AccountSummary {
   displayName: string | null;
   email: string;
   role: Role;
+  minecraftUsername: string | null;
   createdAt: string | null;
   lastSignInAt: string | null;
   /** Set when the account was created by an invitation. */
@@ -42,15 +43,7 @@ interface ProfileName {
   displayName: string | null;
 }
 
-/**
- * The one place the site's username precedence is defined.
- *
- * Profile first, then whatever auth carries, then the email local part as a
- * last resort. Anything that shows a username to a person, or compares one that
- * a person typed, must go through this — the delete dialog once rendered the
- * profile name while the server compared against the email-derived one, so a
- * correctly typed confirmation was rejected every time.
- */
+/** The one place the site's username precedence is defined. */
 export function resolveUsername(input: {
   profileUsername?: string | null;
   metadataUsername?: unknown;
@@ -111,6 +104,26 @@ async function profileNames(): Promise<Map<string, ProfileName>> {
   return map;
 }
 
+async function minecraftUsernames(): Promise<Map<string, string>> {
+  const db = getDb();
+  const map = new Map<string, string>();
+  if (!db) return map;
+  try {
+    const rows = await db
+      .select({
+        userId: schema.minecraftAccounts.userId,
+        minecraftUsername: schema.minecraftAccounts.minecraftUsername,
+      })
+      .from(schema.minecraftAccounts);
+    for (const row of rows) {
+      map.set(row.userId, row.minecraftUsername);
+    }
+  } catch (error) {
+    console.error("Failed to load minecraft usernames:", error);
+  }
+  return map;
+}
+
 /** Every account, newest rank-holders included. Returns null when unconfigured. */
 export async function listAccounts(): Promise<AccountSummary[] | null> {
   const admin = getSupabaseAdmin();
@@ -124,6 +137,7 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
     }
 
     const names = await profileNames();
+    const mcNames = await minecraftUsernames();
 
     return (data?.users ?? []).map((user) => {
       const profile = names.get(user.id);
@@ -133,19 +147,19 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
         email: user.email,
       });
       const displayName = profile?.displayName ?? null;
+      const minecraftUsername = mcNames.get(user.id) ?? null;
 
       return {
-      userId: user.id,
-      username: String(username),
-      displayName: displayName && displayName !== username ? displayName : null,
-      email: user.email ?? "",
-      role: toRole(user.app_metadata?.role),
-      createdAt: user.created_at ?? null,
-      lastSignInAt: user.last_sign_in_at ?? null,
-      invitedAt: user.invited_at ?? null,
-      // An accepted invite leaves a sign-in or a confirmation behind, so the
-      // absence of both is what makes an invitation still outstanding.
-      pendingInvite: Boolean(user.invited_at) && !user.last_sign_in_at && !user.email_confirmed_at,
+        userId: user.id,
+        username: String(username),
+        displayName: displayName && displayName !== username ? displayName : null,
+        email: user.email ?? "",
+        role: toRole(user.app_metadata?.role),
+        minecraftUsername,
+        createdAt: user.created_at ?? null,
+        lastSignInAt: user.last_sign_in_at ?? null,
+        invitedAt: user.invited_at ?? null,
+        pendingInvite: Boolean(user.invited_at) && !user.last_sign_in_at && !user.email_confirmed_at,
       };
     });
   } catch (error) {

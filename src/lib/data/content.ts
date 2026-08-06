@@ -20,6 +20,7 @@ import type {
   TopVoter,
 } from "@/lib/types";
 import { getDb, schema } from "@/lib/db/client";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 /* ------------------------------------------------------------------ *
  * Store — backed by the products table (see scripts/seed-store.ts).
@@ -50,6 +51,41 @@ function toProduct(row: ProductRow): Product {
 }
 
 export async function getProducts(): Promise<Product[]> {
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    try {
+      const { data, error } = await admin
+        .from("products")
+        .select("*")
+        .eq("enabled", true)
+        .order("sort_order", { ascending: true });
+
+      if (!error && data) {
+        return data.map((row) => ({
+          id: String(row.id),
+          slug: String(row.slug),
+          name: String(row.name),
+          imageUrl: row.image_url ?? undefined,
+          category: row.category as Product["category"],
+          description: row.description ?? "",
+          price: Number(row.price),
+          salePrice: row.sale_price != null ? Number(row.sale_price) : undefined,
+          features: Array.isArray(row.features) ? row.features : [],
+          accent: (row.accent ?? "violet") as Product["accent"],
+          badge: row.badge ?? undefined,
+          family: row.family ?? undefined,
+          billing: row.billing ?? undefined,
+          subcategory: row.subcategory ?? undefined,
+          gameModeSlug: row.game_mode_slug ?? "survival-smp",
+          sortOrder: Number(row.sort_order ?? 0),
+          enabled: Boolean(row.enabled),
+        }));
+      }
+    } catch {
+      // Fallthrough to Drizzle driver below
+    }
+  }
+
   const db = getDb();
   if (!db) return [];
   try {
@@ -59,31 +95,57 @@ export async function getProducts(): Promise<Product[]> {
       .where(eq(schema.products.enabled, true))
       .orderBy(asc(schema.products.sortOrder));
     return rows.map(toProduct);
-  } catch (error) {
-    console.error("Failed to load products:", error);
+  } catch {
     return [];
   }
 }
 
 export async function getProduct(slug: string): Promise<Product | null> {
-  const db = getDb();
-  if (!db) return null;
-  try {
-    const [row] = await db.select().from(schema.products).where(eq(schema.products.slug, slug)).limit(1);
-    return row && row.enabled ? toProduct(row) : null;
-  } catch (error) {
-    console.error("Failed to load product:", error);
-    return null;
-  }
+  const products = await getProducts();
+  return products.find((p) => p.slug === slug) ?? null;
 }
+
 export async function getAdminProducts(): Promise<Product[]> {
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    try {
+      const { data, error } = await admin
+        .from("products")
+        .select("*")
+        .order("sort_order", { ascending: true });
+
+      if (!error && data) {
+        return data.map((row) => ({
+          id: String(row.id),
+          slug: String(row.slug),
+          name: String(row.name),
+          imageUrl: row.image_url ?? undefined,
+          category: row.category as Product["category"],
+          description: row.description ?? "",
+          price: Number(row.price),
+          salePrice: row.sale_price != null ? Number(row.sale_price) : undefined,
+          features: Array.isArray(row.features) ? row.features : [],
+          accent: (row.accent ?? "violet") as Product["accent"],
+          badge: row.badge ?? undefined,
+          family: row.family ?? undefined,
+          billing: row.billing ?? undefined,
+          subcategory: row.subcategory ?? undefined,
+          gameModeSlug: row.game_mode_slug ?? "survival-smp",
+          sortOrder: Number(row.sort_order ?? 0),
+          enabled: Boolean(row.enabled),
+        }));
+      }
+    } catch {
+      // Fallthrough to Drizzle
+    }
+  }
+
   const db = getDb();
   if (!db) return [];
   try {
     const rows = await db.select().from(schema.products).orderBy(asc(schema.products.sortOrder));
     return rows.map(toProduct);
-  } catch (error) {
-    console.error("Failed to load admin products:", error);
+  } catch {
     return [];
   }
 }
@@ -223,6 +285,40 @@ function toArticle(row: NewsRow): NewsArticle {
 }
 
 export async function getNews(): Promise<NewsArticle[]> {
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    try {
+      const { data, error } = await admin
+        .from("news_articles")
+        .select("*")
+        .eq("status", "published")
+        .order("published_at", { ascending: false });
+      if (!error && data) {
+        return data.map((row) => ({
+          slug: String(row.slug),
+          title: String(row.title),
+          excerpt: String(row.excerpt ?? ""),
+          body: String(row.body ?? row.content ?? "")
+            .replace(/\r\n?/g, "\n")
+            .split(/\n{2,}/)
+            .map((p) => p.trim())
+            .filter(Boolean),
+          category: String(row.category ?? "News"),
+          accent: "violet",
+          date: String(row.published_at ?? row.created_at ?? new Date().toISOString()),
+          author: String(row.author_name ?? "Mazora Team"),
+          authorRole: String(row.author_role ?? "News Publisher"),
+          authorAvatar: row.author_avatar_url ?? undefined,
+          publisherMode: "team",
+          readMinutes: Number(row.read_time_minutes ?? 2),
+          featuredImage: row.featured_image ?? undefined,
+        }));
+      }
+    } catch {
+      // Fallthrough
+    }
+  }
+
   const db = getDb();
   if (!db) return [];
   try {
@@ -235,8 +331,7 @@ export async function getNews(): Promise<NewsArticle[]> {
       ))
       .orderBy(sql`coalesce(${schema.newsArticles.publishedAt}, ${schema.newsArticles.createdAt}) desc`);
     return rows.map(toArticle);
-  } catch (error) {
-    console.error("Failed to load news:", error);
+  } catch {
     return [];
   }
 }

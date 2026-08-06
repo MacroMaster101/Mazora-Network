@@ -30,7 +30,7 @@ export default async function AdminPlayersPage() {
   return (
     <>
       <DashHeader title="Minecraft players" subtitle={`${players.length} linked players`} />
-      <ReadOnlyBanner note="Player stats sync from the Minecraft plugin. Editing here activates with the stats pipeline." />
+      <ReadOnlyBanner note="Player profiles sync automatically when users link their Minecraft Game Name in Settings. Live in-game stats update via server sync." />
       <AdminTable columns={columns} rows={players} />
     </>
   );

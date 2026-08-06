@@ -1,18 +1,10 @@
-/**
- * Presentational kit for the staff control room at /admin.
- *
- * The room is one screen for every staff rank — boards appear as the viewer's
- * rank allows, rather than sending each role to its own page. Its signature is
- * that it never disguises where a number came from: live upstream/database
- * values are bracketed and pulse, demo-dataset values carry a DEMO tag, and
- * anything not yet wired to the database is a dashed STANDBY block instead of
- * a reassuring zero.
- */
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Radio, Shield, Sparkles } from "lucide-react";
 import type { Role } from "@/lib/types";
 import { roleLabel } from "@/lib/auth/roles";
+import { MinecraftAvatar } from "@/components/shared";
+import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 
 /** Role accent as an RGB triplet, matching the staff badge palette. */
@@ -21,7 +13,7 @@ export function roleAccent(role: Role): string {
     case "it":
       return "6 182 212";
     case "owner":
-      return "var(--gold)";
+      return "245 158 11";
     case "administrator":
       return "139 92 246";
     case "senior_moderator":
@@ -47,6 +39,7 @@ export function ago(iso: string): string {
 
 /** The header: who is on duty, and whether the network is answering. */
 export function WatchBar({
+  username,
   displayName,
   role,
   online,
@@ -54,6 +47,7 @@ export function WatchBar({
   version,
   live,
 }: {
+  username?: string;
   displayName: string;
   role: Role;
   online: number;
@@ -62,41 +56,66 @@ export function WatchBar({
   live: boolean;
 }) {
   return (
-    <header className="cr-watch flex flex-wrap items-center justify-between gap-5 px-5 py-5 sm:px-7 sm:py-6">
-      <div className="min-w-0">
-        <span className="cr-rolechip">On duty · {roleLabel(role)}</span>
-        <h1 className="mt-3 truncate font-display text-2xl font-bold sm:text-[1.75rem]">{displayName}</h1>
-        <p className="mt-1 text-sm text-muted">
-          Everything you can act on, in one place. Boards unlock with your rank.
-        </p>
-      </div>
-
-      <div className={cn("shrink-0 rounded-xl border border-line bg-card/70 px-4 py-3", live && "cr-live")}>
-        {live ? (
-          <>
-            <span className="flex items-center gap-2">
-              <span className="cr-dot" aria-hidden="true" />
-              <span className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-muted">Network live</span>
-            </span>
-            <p className="telemetry mt-1.5 text-xl font-bold">
-              {online}
-              <span className="text-sm font-normal text-muted"> / {max} online</span>
+    <header className="panel relative overflow-hidden p-6 sm:p-7 border-accent/30 bg-card/80 backdrop-blur-xl shadow-xl">
+      <div className="flex flex-wrap items-center justify-between gap-6">
+        <div className="flex items-center gap-4 min-w-0">
+          <MinecraftAvatar username={username || displayName} size={48} />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <RankChip role={role} />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400 flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                On Duty
+              </span>
+            </div>
+            <h1 className="mt-1 truncate font-display text-2xl font-bold sm:text-3xl text-ink">
+              {displayName}
+            </h1>
+            <p className="mt-1 text-xs text-muted">
+              Everything you can act on, in one place. Operations unlock with your staff rank.
             </p>
-            <p className="text-xs text-muted">Minecraft {version}</p>
-          </>
-        ) : (
-          <>
-            <span className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-muted">Network</span>
-            <p className="mt-1.5 text-sm font-semibold text-warning">Status unavailable</p>
-            <p className="text-xs text-muted">The status service did not answer.</p>
-          </>
-        )}
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            "shrink-0 rounded-2xl border p-4 transition-all min-w-[200px]",
+            live
+              ? "border-emerald-500/30 bg-emerald-500/10 shadow-lg shadow-emerald-500/5"
+              : "border-amber-500/30 bg-amber-500/10",
+          )}
+        >
+          {live ? (
+            <>
+              <span className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                  Network Live
+                </span>
+                <Radio size={12} className="text-emerald-500" />
+              </span>
+              <p className="telemetry mt-2 text-2xl font-black text-ink">
+                {online}
+                <span className="text-xs font-semibold text-muted"> / {max} online</span>
+              </p>
+              <p className="text-[11px] font-medium text-muted mt-0.5">Minecraft Leaf {version}</p>
+            </>
+          ) : (
+            <>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500">
+                Network Standby
+              </span>
+              <p className="mt-1 text-xs font-semibold text-amber-500">Status unavailable</p>
+              <p className="text-[11px] text-muted">The server query did not answer.</p>
+            </>
+          )}
+        </div>
       </div>
     </header>
   );
 }
 
-/** A single telemetry figure. `live` brackets it; `tag` labels its source. */
+/** A single telemetry figure. */
 export function Metric({
   label,
   value,
@@ -111,13 +130,22 @@ export function Metric({
   tag?: string;
 }) {
   return (
-    <div className={cn("cr-metric", live && "cr-live")}>
+    <div
+      className={cn(
+        "panel p-4 transition-all hover:border-accent/40 hover:shadow-md",
+        live && "border-emerald-500/20 bg-emerald-500/5",
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-muted">{label}</span>
-        {live ? <span className="cr-dot shrink-0" aria-label="live" /> : tag ? <span className="cr-tag">{tag}</span> : null}
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{label}</span>
+        {live ? (
+          <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500 shrink-0" />
+        ) : tag ? (
+          <span className="cr-tag text-[9px]">{tag}</span>
+        ) : null}
       </div>
-      <p className="cr-metric-value mt-2">{value}</p>
-      {detail && <p className="mt-0.5 text-xs text-muted">{detail}</p>}
+      <p className="telemetry mt-2 text-2xl font-black text-ink">{value}</p>
+      {detail && <p className="mt-1 text-xs text-muted font-medium truncate">{detail}</p>}
     </div>
   );
 }
@@ -141,33 +169,41 @@ export function Board({
   className?: string;
 }) {
   return (
-    <section className={cn("cr-board", className)}>
-      <div className="cr-board-head">
-        <h2 className="cr-board-title">
-          {icon}
+    <section className={cn("panel overflow-hidden p-0", className)}>
+      <div className="flex items-center justify-between border-b border-line/60 px-5 py-4 bg-ink/5 dark:bg-surface/50">
+        <h2 className="font-display text-sm font-bold text-ink flex items-center gap-2">
+          <span className="text-accent-bright">{icon}</span>
           {title}
         </h2>
         <span className="flex items-center gap-2">
-          {tag && <span className="cr-tag">{tag}</span>}
+          {tag && (
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border",
+                tag === "Live"
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
+                  : "border-line bg-ink/5 text-muted",
+              )}
+            >
+              {tag}
+            </span>
+          )}
           {href && (
             <Link
               href={href}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-muted transition-colors hover:text-ink"
+              className="inline-flex items-center gap-1 text-xs font-bold text-accent-bright hover:underline"
             >
               {linkLabel ?? "Open"} <ArrowUpRight size={13} />
             </Link>
           )}
         </span>
       </div>
-      {children}
+      <div>{children}</div>
     </section>
   );
 }
 
-/**
- * A queue that has no database behind it yet. Deliberately not a "0" — it says
- * what is true: the page exists, the data pipe does not.
- */
+/** A queue component for quick staff actions. */
 export function StandbyQueue({
   items,
   showDiagnostics = false,
@@ -176,19 +212,25 @@ export function StandbyQueue({
   showDiagnostics?: boolean;
 }) {
   return (
-    <div className="grid gap-2 p-3 sm:grid-cols-2">
+    <div className="grid gap-2.5 p-4 sm:grid-cols-2">
       {items.map((item) => (
-        <Link key={item.href} href={item.href} className="cr-standby flex items-center gap-3 px-3.5 py-3 transition-colors">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-line-strong bg-ink/5 text-muted">
+        <Link
+          key={item.href}
+          href={item.href}
+          className="flex items-center gap-3 rounded-xl border border-line bg-card/50 p-3.5 transition-all hover:border-accent/40 hover:bg-accent/5 group"
+        >
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line bg-ink/5 text-accent-bright group-hover:scale-105 transition-transform">
             {item.icon}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold">{item.label}</span>
-            <span className="block text-[0.68rem] text-muted">
+            <span className="block text-xs font-bold text-ink group-hover:text-accent-bright transition-colors">
+              {item.label}
+            </span>
+            <span className="block text-[10px] text-muted font-medium">
               {showDiagnostics ? "Awaiting database" : "Coming soon"}
             </span>
           </span>
-          <ArrowUpRight size={14} className="shrink-0 text-muted" />
+          <ArrowUpRight size={14} className="shrink-0 text-muted group-hover:text-accent-bright transition-colors" />
         </Link>
       ))}
     </div>
@@ -197,5 +239,6 @@ export function StandbyQueue({
 
 /** Shown when a board's source isn't configured — never a fabricated zero. */
 export function BoardNotice({ children }: { children: ReactNode }) {
-  return <p className="px-4 py-6 text-center text-sm text-muted">{children}</p>;
+  return <p className="px-5 py-8 text-center text-xs font-medium text-muted">{children}</p>;
 }
+

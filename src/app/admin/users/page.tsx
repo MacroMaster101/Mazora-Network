@@ -33,6 +33,7 @@ export default async function AdminUsersPage() {
       displayName: account.displayName,
       email: account.email,
       role: account.role,
+      minecraftUsername: account.minecraftUsername,
       lockedReason,
       pendingInvite: account.pendingInvite,
     };

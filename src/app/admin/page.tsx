@@ -19,6 +19,8 @@ import { getDiscordStats } from "@/lib/data/discord";
 import { getPlayers } from "@/lib/data/players";
 import { getEvents, getNews, getProducts } from "@/lib/data/content";
 import { getAccountsSnapshot, getRecentAudit } from "@/lib/data/admin-overview";
+import { MinecraftAvatar } from "@/components/shared";
+import { RankChip } from "@/components/admin/rank-chip";
 import {
   Board,
   BoardNotice,
@@ -66,8 +68,9 @@ export default async function ControlRoom() {
   const liveEvents = events.filter((e) => e.status !== "completed").length;
 
   return (
-    <div className="cr" style={{ "--ra": roleAccent(role) } as CSSProperties}>
+    <div className="space-y-6">
       <WatchBar
+        username={session.username}
         displayName={session.displayName}
         role={role}
         online={status.players}
@@ -76,8 +79,8 @@ export default async function ControlRoom() {
         live={status.live}
       />
 
-      {/* Network telemetry — the only figures on this page that are genuinely live. */}
-      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {/* Network telemetry — live upstream statistics. */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metric
           label="Players online"
           value={status.live ? String(status.players) : "—"}
@@ -104,17 +107,16 @@ export default async function ControlRoom() {
         />
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        {/* Every staff rank sees their queues. Helpers see only this board, so it
-            takes the full width rather than leaving an empty column beside it. */}
+      <div className="grid gap-6 xl:grid-cols-2">
+        {/* Staff queues */}
         <Board
           title="Your queues"
-          icon={<Ticket size={13} />}
+          icon={<Ticket size={16} />}
           tag={showDiagnostics ? "Standby" : "Coming soon"}
           className={!canModerate ? "xl:col-span-2" : undefined}
         >
           <StandbyQueue items={QUEUES} showDiagnostics={showDiagnostics} />
-          <p className="border-t border-line px-4 py-3 text-xs text-muted">
+          <p className="border-t border-line/60 px-5 py-3 text-xs text-muted font-medium bg-ink/5">
             {showDiagnostics
               ? "Submissions are not stored yet. These open once the support tables are connected — until then the queues are empty by design, not because there is nothing waiting."
               : "These staff queues are coming soon. They will appear here as each workflow becomes available."}
@@ -124,25 +126,23 @@ export default async function ControlRoom() {
         {canModerate && (
           <Board
             title="Player roster"
-            icon={<Radio size={13} />}
+            icon={<Radio size={16} />}
             href="/admin/players"
             linkLabel="All players"
             tag={onlinePlayers.length > 0 ? undefined : showDiagnostics ? "Standby" : "Coming soon"}
           >
             {onlinePlayers.length > 0 ? (
-              <div>
+              <div className="divide-y divide-line/40">
                 {onlinePlayers.map((p) => (
-                  <div key={p.username} className="cr-row">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[rgb(var(--ra)/0.12)] text-xs font-bold text-[rgb(var(--ra))]">
-                      {p.username.slice(0, 2).toUpperCase()}
-                    </span>
+                  <div key={p.username} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/5 transition-colors">
+                    <MinecraftAvatar username={p.username} size={30} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{p.username}</span>
-                      <span className="block text-xs text-muted">
+                      <span className="block truncate text-xs font-bold text-ink">{p.username}</span>
+                      <span className="block text-[11px] text-muted">
                         {p.currentMode} · Level {p.level}
                       </span>
                     </span>
-                    <span className="telemetry shrink-0 text-xs text-muted">{p.playtimeHours.toLocaleString()}h</span>
+                    <span className="telemetry shrink-0 text-xs text-muted font-medium">{p.playtimeHours.toLocaleString()}h</span>
                   </div>
                 ))}
               </div>
@@ -159,29 +159,29 @@ export default async function ControlRoom() {
         {canSeeAccounts && (
           <Board
             title="Accounts"
-            icon={<UsersRound size={13} />}
+            icon={<UsersRound size={16} />}
             href="/admin/users"
             linkLabel="Manage"
             tag="Live"
-            /* The audit board sits beside this one; without it, take the row. */
             className={!canSeeAudit ? "xl:col-span-2" : undefined}
           >
             {accounts ? (
               <>
-                <div className="grid grid-cols-3 gap-3 p-3">
+                <div className="grid grid-cols-3 gap-3 p-4 bg-ink/5 dark:bg-surface/30">
                   <Metric label="Registered" value={accounts.total.toLocaleString()} live />
                   <Metric label="New · 7d" value={accounts.newThisWeek.toLocaleString()} live />
                   <Metric label="Staff" value={accounts.staffCount.toLocaleString()} live />
                 </div>
-                <div className="border-t border-line">
+                <div className="divide-y divide-line/40 border-t border-line/60">
                   {accounts.recent.map((u) => (
-                    <div key={u.email} className="cr-row">
+                    <div key={u.email} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/5 transition-colors">
+                      <MinecraftAvatar username={u.username} size={30} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{u.username}</span>
-                        <span className="block truncate text-xs text-muted">{u.email}</span>
+                        <span className="block truncate text-xs font-bold text-ink">{u.username}</span>
+                        <span className="block truncate text-[11px] text-muted">{u.email}</span>
                       </span>
-                      <span className="cr-tag shrink-0">{roleLabel(u.role)}</span>
-                      <span className="telemetry w-9 shrink-0 text-right text-xs text-muted">{ago(u.createdAt)}</span>
+                      <RankChip role={u.role} />
+                      <span className="telemetry w-10 shrink-0 text-right text-xs text-muted font-medium">{ago(u.createdAt)}</span>
                     </div>
                   ))}
                 </div>
@@ -199,22 +199,22 @@ export default async function ControlRoom() {
         )}
 
         {canSeeAudit && (
-          <Board title="Audit trail" icon={<ScrollText size={13} />} href="/admin/audit-logs" tag="Live">
+          <Board title="Audit trail" icon={<ScrollText size={16} />} href="/admin/audit-logs" tag="Live">
             {audit === null ? (
               <BoardNotice>Not recording — no database connection.</BoardNotice>
             ) : audit.length === 0 ? (
               <BoardNotice>No privileged actions recorded yet.</BoardNotice>
             ) : (
-              <div>
+              <div className="divide-y divide-line/40">
                 {audit.map((row) => (
-                  <div key={row.id} className="cr-row">
-                    <span className="cr-tag shrink-0">{row.action}</span>
-                    <span className="min-w-0 flex-1 text-sm">
-                      <span className="font-semibold">{row.actor}</span>
+                  <div key={row.id} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/5 transition-colors">
+                    <span className="cr-tag shrink-0 uppercase tracking-wider text-[10px] font-bold">{row.action}</span>
+                    <span className="min-w-0 flex-1 text-xs">
+                      <span className="font-bold text-ink">{row.actor}</span>
                       <span className="text-muted"> → {row.target}</span>
-                      {row.detail && <span className="block text-xs text-muted">{row.detail}</span>}
+                      {row.detail && <span className="block text-[11px] text-muted">{row.detail}</span>}
                     </span>
-                    <span className="telemetry w-9 shrink-0 text-right text-xs text-muted">{ago(row.createdAt)}</span>
+                    <span className="telemetry w-10 shrink-0 text-right text-xs text-muted font-medium">{ago(row.createdAt)}</span>
                   </div>
                 ))}
               </div>
@@ -225,12 +225,12 @@ export default async function ControlRoom() {
         {canManageContent && (
           <Board
             title="Content & commerce"
-            icon={<ShoppingBag size={13} />}
+            icon={<ShoppingBag size={16} />}
             href="/admin/store"
             linkLabel="Manage"
             className="xl:col-span-2"
           >
-            <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 bg-ink/5 dark:bg-surface/30">
               <Metric
                 label="Store products"
                 value={String(products.length)}
@@ -254,8 +254,9 @@ export default async function ControlRoom() {
         )}
       </div>
 
-      <p className="mt-4 flex items-center gap-2 text-xs text-muted">
-        <Activity size={13} /> {showDiagnostics
+      <p className="mt-4 flex items-center gap-2 text-xs text-muted font-medium">
+        <Activity size={14} className="text-accent-bright" />{" "}
+        {showDiagnostics
           ? "Bracketed figures are live. Anything marked “Standby” has no data source connected yet — it is blank because nothing is being recorded, not because the count is zero."
           : "Live figures update automatically. Tools marked “Coming soon” will appear as they become ready for staff."}
       </p>

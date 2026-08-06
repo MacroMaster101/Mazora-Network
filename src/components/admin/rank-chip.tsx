@@ -29,10 +29,10 @@ const TIER_OF: Record<Role, Tier> = {
 };
 
 const TIER_STYLE: Record<Tier, string> = {
-  leadership: "border-gold/40 bg-gold/10 text-gold",
-  staff: "border-accent/40 bg-accent/12 text-accent-bright",
-  supporter: "border-success/35 bg-success/10 text-success",
-  player: "border-line-strong bg-ink/5 text-muted",
+  leadership: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold",
+  staff: "border-accent/40 bg-accent/15 text-accent-bright font-extrabold shadow-sm",
+  supporter: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold",
+  player: "border-line-strong bg-ink/10 dark:bg-white/10 text-ink dark:text-slate-200 font-extrabold",
 };
 
 export function rankTier(role: Role): Tier {

@@ -16,6 +16,7 @@ import {
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { usernameForUser } from "@/lib/data/accounts";
 import { getDb, schema } from "@/lib/db/client";
+import { canManageMinecraft } from "@/lib/auth/permissions";
 import { site } from "@/lib/site";
 
 /**
@@ -358,4 +359,41 @@ export async function deleteUserAction(
   revalidatePath("/admin/users");
   revalidatePath("/admin/staff");
   return { ok: true, message: `${targetName} was deleted.` };
+}
+
+/* ------------------------------------------------------------------ *
+ * Release Minecraft IGN Claim (Admin Reclaim Support)
+ * ------------------------------------------------------------------ */
+
+export async function adminReleaseMinecraftUsernameAction(
+  _previous: AdminActionResult,
+  formData: FormData,
+): Promise<AdminActionResult> {
+  const session = await getSession();
+  const actorId = await getSessionUserId();
+  const allowed = await canManageMinecraft(session, actorId);
+  if (!session || !allowed) return { ok: false, message: "Not authorized to manage Minecraft IGN claims." };
+
+  const userId = String(formData.get("userId") ?? "").trim();
+  if (!userId) return { ok: false, message: "Missing user ID." };
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return { ok: false, message: "Server is not configured." };
+
+  const { error } = await admin.from("minecraft_accounts").delete().eq("user_id", userId);
+  if (error) return { ok: false, message: "Could not release Minecraft IGN." };
+
+  const db = getDb();
+  if (db) {
+    await db.insert(schema.auditLogs).values({
+      action: "user.minecraft.release",
+      targetType: "user",
+      targetId: userId,
+      metadata: { by: session.username },
+    });
+  }
+
+  revalidatePath("/admin/users");
+  revalidatePath("/dashboard/settings");
+  return { ok: true, message: "Minecraft IGN claim released successfully." };
 }

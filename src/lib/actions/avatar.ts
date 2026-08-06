@@ -131,26 +131,89 @@ export async function uploadProfileAvatarAction(
 
 export async function useMinecraftAvatarAction(
   _previous: AccountActionResult,
+  formData?: FormData,
 ): Promise<AccountActionResult> {
   const auth = await authenticatedUser();
   if (!auth) return { ok: false, message: "You must be signed in to use your Minecraft skin." };
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false, message: "Minecraft profile lookup is temporarily unavailable." };
 
-  const { data } = await admin
-    .from("minecraft_accounts")
-    .select("minecraft_uuid")
-    .eq("user_id", auth.user.id)
-    .maybeSingle();
-  const uuid = String(data?.minecraft_uuid ?? "").trim();
-  if (!/^[0-9a-f-]{32,36}$/i.test(uuid)) {
-    return { ok: false, message: "Link your Minecraft account before using its skin." };
+  let targetUsername = "";
+  if (formData) {
+    targetUsername = String(formData.get("username") ?? "").trim();
   }
 
-  const saved = await saveAvatarUrl(`https://mc-heads.net/avatar/${encodeURIComponent(uuid)}/256`);
-  if (!saved.ok) return saved;
+  if (!targetUsername) {
+    const { data: mcAcc } = await admin
+      .from("minecraft_accounts")
+      .select("minecraft_username")
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
+
+    if (mcAcc?.minecraft_username) {
+      targetUsername = String(mcAcc.minecraft_username);
+    } else {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("username")
+        .eq("user_id", auth.user.id)
+        .maybeSingle();
+      targetUsername = String(profile?.username ?? auth.user.user_metadata?.username ?? "");
+    }
+  }
+
+  if (!/^[a-zA-Z0-9_]{3,16}$/.test(targetUsername)) {
+    return { ok: false, message: "Enter a valid Minecraft username (3–16 letters, numbers, or underscores)." };
+  }
+
+  // Anti-theft / unique claim check: verify if another user has already claimed this IGN.
+  const { data: existingClaims } = await admin
+    .from("minecraft_accounts")
+    .select("user_id, minecraft_username")
+    .ilike("minecraft_username", targetUsername);
+
+  const stolen = (existingClaims ?? []).find((row) => String(row.user_id) !== auth.user.id);
+  if (stolen) {
+    return { ok: false, message: `The Minecraft name "${targetUsername}" is already claimed by another user.` };
+  }
+
+  const now = new Date().toISOString();
+
+  // Upsert the minecraft_accounts link for this user
+  const { data: currentLink } = await admin
+    .from("minecraft_accounts")
+    .select("id")
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+
+  if (currentLink) {
+    await admin
+      .from("minecraft_accounts")
+      .update({ minecraft_username: targetUsername, updated_at: now })
+      .eq("user_id", auth.user.id);
+  } else {
+    await admin.from("minecraft_accounts").insert({
+      user_id: auth.user.id,
+      minecraft_uuid: `offline:${targetUsername.toLowerCase()}`,
+      minecraft_username: targetUsername,
+      linked_at: now,
+      updated_at: now,
+    });
+  }
+
+  const skinAvatarUrl = `https://mc-heads.net/avatar/${encodeURIComponent(targetUsername)}/256`;
+  await admin.from("profiles").update({
+    username: targetUsername,
+    avatar_url: skinAvatarUrl,
+    updated_at: now,
+  }).eq("user_id", auth.user.id);
+
+  await auth.supabase.auth.updateUser({ data: { username: targetUsername, avatar_url: skinAvatarUrl } });
+  revalidatePath("/dashboard", "layout");
+  revalidatePath("/dashboard/settings");
+
   await removeStoredAvatars(auth.user.id);
-  return { ok: true, message: "Minecraft skin set as your profile photo." };
+  return { ok: true, message: `Minecraft skin (${targetUsername}) set as profile photo.` };
 }
 
 export async function removeProfileAvatarAction(

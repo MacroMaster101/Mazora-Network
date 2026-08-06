@@ -9,6 +9,8 @@ import { isStaff, roleDashboardPath } from "@/lib/auth/roles";
 import { primaryNav, site } from "@/lib/site";
 import type { Session } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { MinecraftAvatar } from "@/components/shared";
+import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 import { NavIcon } from "./nav-icon";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
@@ -206,35 +208,13 @@ export function MobileMenu({
                         )}
                       >
                         <div className="flex items-center gap-3.5 min-w-0">
-                          {/* User Avatar Image / Initials Badge */}
-                          <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 text-sm font-black text-white shadow-md border border-purple-400/30">
-                            {session.displayName.slice(0, 2).toUpperCase()}
-                            {session.avatarUrl && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={session.avatarUrl}
-                                alt={session.displayName}
-                                className="absolute inset-0 h-full w-full rounded-2xl object-cover"
-                                onError={(event) => { event.currentTarget.hidden = true; }}
-                              />
-                            )}
-                            <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0c0618] shadow-sm" aria-hidden="true" />
-                          </div>
+                          <MinecraftAvatar username={session.username} size={38} />
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-black text-sm text-slate-900 dark:text-white truncate leading-tight">
-                                {session.displayName}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <span className={cn(
-                                "text-[10px] font-extrabold capitalize tracking-wide px-2 py-0.5 rounded-full border inline-block",
-                                staff
-                                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30"
-                                  : "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/25"
-                              )}>
-                                {session.role}
-                              </span>
+                            <p className="font-bold text-xs text-ink truncate leading-tight">
+                              {session.displayName || session.username}
+                            </p>
+                            <div className="mt-1">
+                              <RankChip role={session.role} />
                             </div>
                           </div>
                         </div>
