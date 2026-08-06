@@ -7,6 +7,8 @@ import { Bell, Check, CheckCheck, ChevronDown, LayoutDashboard, LogIn, LogOut, R
 import type { Session } from "@/lib/auth";
 import { isStaff, roleDashboardPath } from "@/lib/auth/roles";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
+import { MinecraftAvatar } from "@/components/shared";
+import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 
 import {
@@ -18,7 +20,6 @@ import {
 /** Account menu for regular members — personal account screens under /dashboard. */
 const MEMBER_MENU = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Minecraft · Coming soon", href: "/dashboard/minecraft", icon: User },
   { label: "Tickets", href: "/dashboard/tickets", icon: Ticket },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
@@ -70,10 +71,9 @@ export function HeaderActions({ session }: { session: Session | null }) {
   const staff = isStaff(session.role);
   const notifPath = staff ? "/admin/account/notifications" : "/dashboard/notifications";
   const settingsPath = staff ? "/admin/account#notification-settings" : "/dashboard/settings#notification-settings";
-
   const menu = staff
     ? [
-        { label: "Dashboard", href: roleDashboardPath(session.role), icon: LayoutDashboard },
+        { label: "Control Room", href: "/admin", icon: LayoutDashboard },
         { label: "My Settings", href: "/admin/account", icon: Settings },
       ]
     : MEMBER_MENU;
@@ -237,38 +237,17 @@ export function HeaderActions({ session }: { session: Session | null }) {
           aria-expanded={open}
           aria-label={`Open account menu for ${session.displayName}`}
           title={session.displayName}
-          className="account-avatar-trigger"
+          className="flex items-center gap-1.5 p-1 rounded-2xl hover:bg-ink/5 dark:hover:bg-white/5 transition-colors"
         >
-          <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-bold text-accent-bright">
-            {initials}
-            {session.avatarUrl && (
-              // eslint-disable-next-line @next/next/no-img-element -- profile avatars may come from Supabase storage or Minecraft.
-              <img
-                src={session.avatarUrl}
-                alt=""
-                className="absolute inset-0 h-full w-full rounded-full object-cover"
-                onError={(event) => { event.currentTarget.hidden = true; }}
-              />
-            )}
-            <span className="account-avatar-status" aria-hidden="true" />
-          </span>
-          <ChevronDown size={13} className="account-avatar-caret" aria-hidden="true" />
+          <MinecraftAvatar username={session.username} size={32} />
+          <ChevronDown size={13} className="text-muted transition-transform" aria-hidden="true" />
         </button>
 
         {open && (
           <div className="account-menu animate-fade-up absolute right-0 top-[calc(100%+10px)] z-[90] w-72 max-w-[calc(100vw-1.5rem)] overflow-hidden">
             <div className="account-menu-header flex items-center gap-3.5 p-4 border-b border-slate-200/80 dark:border-purple-900/40">
-              <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 text-sm font-black text-white shadow-md border border-purple-400/30">
-                {initials}
-                {session.avatarUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={session.avatarUrl}
-                    alt=""
-                    className="absolute inset-0 h-full w-full rounded-2xl object-cover"
-                    onError={(event) => { event.currentTarget.hidden = true; }}
-                  />
-                )}
+              <div className="relative shrink-0">
+                <MinecraftAvatar username={session.username} size={44} />
                 <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0c0618] shadow-sm" aria-hidden="true" />
               </div>
               <div className="min-w-0 flex-1">
@@ -276,9 +255,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
                   {session.displayName}
                 </p>
                 <div className="flex items-center gap-1.5 mt-1">
-                  <span className="text-[11px] font-extrabold text-purple-700 dark:text-purple-300 capitalize tracking-wide px-2.5 py-0.5 rounded-full bg-purple-500/10 dark:bg-purple-400/15 border border-purple-500/20 inline-block">
-                    {session.role}
-                  </span>
+                  <RankChip role={session.role} />
                 </div>
               </div>
             </div>

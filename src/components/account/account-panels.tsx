@@ -4,7 +4,7 @@
  * manages their own account here just like a regular member does.
  */
 import type { ReactNode } from "react";
-import { Bell, Monitor, Receipt } from "lucide-react";
+import { Monitor, Receipt } from "lucide-react";
 import { requireSession, getDiscordIdentity, getSessionUserId } from "@/lib/auth";
 import { getOrdersForUser } from "@/lib/data/orders";
 import { OrderCard } from "@/components/shared/order-card";
@@ -99,7 +99,7 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
 
         <Card title="Connected accounts">
           <p className="-mt-2 text-xs text-muted">
-            Manage sign-in providers. Discord supports login and orders; Minecraft account linking is coming soon.
+            Manage sign-in providers and connected accounts. Discord supports login and store orders; link your Minecraft IGN for skin photo & player stats.
           </p>
           <ConnectedAccounts
             email={email}

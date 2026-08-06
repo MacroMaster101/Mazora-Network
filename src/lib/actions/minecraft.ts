@@ -9,7 +9,6 @@ import type { MinecraftConnection } from "@/lib/minecraft/connection";
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const CODE_TTL_MS = 10 * 60 * 1000;
-const MINECRAFT_LINKING_AVAILABLE = false;
 
 export interface MinecraftLinkActionState {
   ok: boolean;
@@ -22,7 +21,7 @@ export interface MinecraftLinkActionState {
 }
 
 function linkingConfigured() {
-  return isSupabaseConfigured() && (process.env.MINECRAFT_PLUGIN_SECRET?.trim().length ?? 0) >= 16;
+  return isSupabaseConfigured();
 }
 
 function codeHash(code: string) {
@@ -55,13 +54,11 @@ function connectionFromRow(row: Record<string, unknown>): MinecraftConnection {
 }
 
 export async function getMinecraftLinkStatusAction(): Promise<MinecraftLinkActionState> {
-  if (!MINECRAFT_LINKING_AVAILABLE) return { ok: false, enabled: false, message: "Minecraft account linking is coming soon." };
-
   const enabled = linkingConfigured();
   const user = await authenticatedUser();
   if (!user) return { ok: false, enabled, message: "Sign in to manage your Minecraft connection." };
   const admin = getSupabaseAdmin();
-  if (!admin) return { ok: false, enabled: false, message: "Minecraft linking requires the Supabase service role." };
+  if (!admin) return { ok: false, enabled: false, message: "Minecraft linking requires Supabase admin connection." };
 
   const { data: account } = await admin
     .from("minecraft_accounts")
@@ -88,19 +85,108 @@ export async function getMinecraftLinkStatusAction(): Promise<MinecraftLinkActio
   };
 }
 
+export async function linkMinecraftUsernameAction(
+  _previous: MinecraftLinkActionState,
+  formData: FormData,
+): Promise<MinecraftLinkActionState> {
+  const enabled = linkingConfigured();
+  if (!enabled) return { ok: false, enabled: false, message: "Account service unavailable." };
+
+  const user = await authenticatedUser();
+  if (!user) return { ok: false, enabled, message: "Sign in to link your Minecraft username." };
+  const admin = getSupabaseAdmin();
+  if (!admin) return { ok: false, enabled: false, message: "Minecraft linking is temporarily unavailable." };
+
+  const username = String(formData.get("username") ?? "").trim();
+  if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+    return { ok: false, enabled, message: "Minecraft username must be 3–16 letters, numbers, or underscores." };
+  }
+
+  // Anti-theft / unique claim check: verify if another user has already claimed this IGN in minecraft_accounts or profiles.
+  const { data: existingClaims } = await admin
+    .from("minecraft_accounts")
+    .select("user_id, minecraft_username")
+    .ilike("minecraft_username", username);
+
+  const stolen = (existingClaims ?? []).find((row) => String(row.user_id) !== user.id);
+  if (stolen) {
+    return { ok: false, enabled, message: `The Minecraft name "${username}" is already claimed by another Mazora Network user.` };
+  }
+
+  const { data: existingProfile } = await admin
+    .from("profiles")
+    .select("user_id")
+    .ilike("username", username)
+    .maybeSingle();
+
+  if (existingProfile && String(existingProfile.user_id) !== user.id) {
+    return { ok: false, enabled, message: `The website handle "${username}" is already used by another user account.` };
+  }
+
+  const { data: currentLink } = await admin
+    .from("minecraft_accounts")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const now = new Date().toISOString();
+  const avatarUrl = `https://mc-heads.net/avatar/${encodeURIComponent(username)}/256`;
+
+  if (currentLink) {
+    const { error: updateError } = await admin
+      .from("minecraft_accounts")
+      .update({
+        minecraft_username: username,
+        updated_at: now,
+      })
+      .eq("user_id", user.id);
+    if (updateError) return { ok: false, enabled, message: "Could not update Minecraft username. Please try again." };
+  } else {
+    const offlineUuid = `offline:${username.toLowerCase()}`;
+    const { error: insertError } = await admin.from("minecraft_accounts").insert({
+      user_id: user.id,
+      minecraft_uuid: offlineUuid,
+      minecraft_username: username,
+      linked_at: now,
+      updated_at: now,
+    });
+    if (insertError) return { ok: false, enabled, message: "Could not link Minecraft username. Please try again." };
+  }
+
+  // Automatically sync website Username and profile avatar photo with the Minecraft IGN
+  await admin.from("profiles").update({
+    username: username,
+    avatar_url: avatarUrl,
+    updated_at: now,
+  }).eq("user_id", user.id);
+
+  const supabase = await createSupabaseServerClient();
+  if (supabase) {
+    await supabase.auth.updateUser({ data: { username: username, avatar_url: avatarUrl } });
+  }
+
+  revalidatePath("/dashboard", "layout");
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/minecraft");
+
+  return {
+    ok: true,
+    enabled,
+    linked: {
+      id: String(currentLink?.id ?? user.id),
+      uuid: `offline:${username.toLowerCase()}`,
+      username,
+      linkedAt: now,
+    },
+    message: `Minecraft Game Name linked as ${username}.`,
+  };
+}
+
 export async function generateMinecraftLinkCodeAction(
   _previous: MinecraftLinkActionState,
 ): Promise<MinecraftLinkActionState> {
-  if (!MINECRAFT_LINKING_AVAILABLE) return { ok: false, enabled: false, message: "Minecraft account linking is coming soon." };
-
   const enabled = linkingConfigured();
-  if (!enabled) {
-    return {
-      ok: false,
-      enabled: false,
-      message: "Minecraft linking is not configured yet. Add the plugin secret and deploy the linking migration.",
-    };
-  }
+  if (!enabled) return { ok: false, enabled: false, message: "Minecraft linking is not configured yet." };
 
   const user = await authenticatedUser();
   if (!user) return { ok: false, enabled, message: "Sign in to generate a verification code." };
@@ -121,7 +207,6 @@ export async function generateMinecraftLinkCodeAction(
     };
   }
 
-  // Keep only one usable code per account and remove old hashes at the same time.
   const { error: clearError } = await admin.from("minecraft_link_codes").delete().eq("user_id", user.id);
   if (clearError) return { ok: false, enabled, message: "An old verification code could not be cleared." };
 
@@ -149,8 +234,6 @@ export async function cancelMinecraftLinkCodeAction(
   _previous: MinecraftLinkActionState,
 ): Promise<MinecraftLinkActionState> {
   const enabled = linkingConfigured();
-  if (!MINECRAFT_LINKING_AVAILABLE) return { ok: false, enabled: false, message: "Minecraft account linking is coming soon." };
-
   const user = await authenticatedUser();
   if (!user) return { ok: false, enabled, message: "Sign in to cancel a verification code." };
   const admin = getSupabaseAdmin();

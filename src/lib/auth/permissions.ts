@@ -17,6 +17,7 @@ export const GAMEMODES_PERMISSION_KEY = "gamemodes.permissions";
 export const STORE_PERMISSION_KEY = "store.permissions";
 export const RULES_PERMISSION_KEY = "rules.permissions";
 export const NOTIFICATIONS_PERMISSION_KEY = "notifications.permissions";
+export const MINECRAFT_PERMISSION_KEY = "minecraft.permissions";
 
 /** Owner and IT can never be removed, so the owner cannot lock themselves out. */
 export const ALWAYS_ALLOWED: Role[] = ["owner", "it"];
@@ -112,4 +113,7 @@ export const canManageRules = (s: Session | null, u?: string | null) => canManag
 
 export const getNotificationsPermissions = () => getModulePermissions(NOTIFICATIONS_PERMISSION_KEY);
 export const canManageNotifications = (s: Session | null, u?: string | null) => canManageModule(NOTIFICATIONS_PERMISSION_KEY, s, u);
+
+export const getMinecraftPermissions = () => getModulePermissions(MINECRAFT_PERMISSION_KEY);
+export const canManageMinecraft = (s: Session | null, u?: string | null) => canManageModule(MINECRAFT_PERMISSION_KEY, s, u);
 

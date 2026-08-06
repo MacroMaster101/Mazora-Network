@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { MailCheck, Search, UserX } from "lucide-react";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { Gamepad2, Loader2, MailCheck, Search, Unlink, UserX } from "lucide-react";
 import type { Role } from "@/lib/types";
 import { RankChip, rankTier } from "@/components/admin/rank-chip";
 import { RoleManager } from "@/components/admin/role-manager";
 import { DeleteUserButton } from "@/components/admin/delete-user";
+import { adminReleaseMinecraftUsernameAction, type AdminActionResult } from "@/lib/actions/user-admin";
 import { MinecraftAvatar } from "@/components/shared";
-import { Input } from "@/components/ui";
+import { Input, useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 export interface DirectoryRow {
@@ -17,10 +18,38 @@ export interface DirectoryRow {
   displayName: string | null;
   email: string;
   role: Role;
+  minecraftUsername?: string | null;
   /** Null when this row may be edited; otherwise why it may not be. */
   lockedReason: string | null;
   /** Invited but not yet accepted — cannot sign in, so it reads differently. */
   pendingInvite: boolean;
+}
+
+const initialAdminState: AdminActionResult = { ok: false, message: "" };
+
+function ReleaseMinecraftButton({ userId, username, minecraftUsername }: { userId: string; username: string; minecraftUsername: string }) {
+  const [state, formAction, pending] = useActionState(adminReleaseMinecraftUsernameAction, initialAdminState);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!state.message) return;
+    toast(state.message, state.ok ? "success" : "error");
+  }, [state, toast]);
+
+  return (
+    <form action={formAction} className="inline-block">
+      <input type="hidden" name="userId" value={userId} />
+      <button
+        type="submit"
+        disabled={pending}
+        title={`Release Minecraft IGN "${minecraftUsername}" claimed by @${username}`}
+        className="inline-flex items-center gap-1 rounded-md border border-line bg-ink/5 px-2 py-1 text-xs font-semibold text-muted transition hover:border-danger/40 hover:bg-danger/10 hover:text-danger disabled:opacity-50"
+      >
+        {pending ? <Loader2 size={12} className="animate-spin" /> : <Unlink size={12} />}
+        {pending ? "Releasing…" : "Release IGN"}
+      </button>
+    </form>
+  );
 }
 
 type Scope = "all" | "leadership" | "staff" | "supporter" | "player";
@@ -60,6 +89,7 @@ export function UsersDirectory({
       return (
         row.username.toLowerCase().includes(needle) ||
         (row.displayName ?? "").toLowerCase().includes(needle) ||
+        (row.minecraftUsername ?? "").toLowerCase().includes(needle) ||
         row.email.toLowerCase().includes(needle)
       );
     });
@@ -68,9 +98,6 @@ export function UsersDirectory({
   return (
     <div className="space-y-5">
       <div className="panel space-y-4 p-4 sm:p-5">
-        {/* Invite lives in the page header, not here: it creates an account
-            rather than filtering this list, so pairing it with search implied a
-            relationship that does not exist. */}
         <div className="relative">
           <Search
             size={16}
@@ -80,7 +107,7 @@ export function UsersDirectory({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by username, display name or email"
+            placeholder="Search by username, display name, Minecraft IGN or email"
             aria-label="Search accounts"
             className="pl-10"
           />
@@ -107,7 +134,6 @@ export function UsersDirectory({
                 )}
               >
                 {entry.label}
-                {/* 10px was too small to tell 9 from 0 at a glance. */}
                 <span
                   className={cn(
                     "grid min-w-[1.4rem] place-items-center rounded-full px-1.5 py-0.5 text-[11px] font-black leading-none tabular-nums",
@@ -143,6 +169,7 @@ export function UsersDirectory({
             <thead>
               <tr className="border-b border-line text-left text-xs uppercase tracking-widest text-muted">
                 <th className="px-4 py-3 font-medium">Account</th>
+                <th className="px-4 py-3 font-medium">Minecraft IGN</th>
                 <th className="px-4 py-3 font-medium">Rank</th>
                 <th className="px-4 py-3 font-medium">Change rank</th>
                 <th className="px-4 py-3 text-right font-medium">
@@ -158,7 +185,7 @@ export function UsersDirectory({
                 >
                   <td className="px-4 py-3">
                     <span className="flex items-center gap-3">
-                      <MinecraftAvatar username={row.username} size={32} />
+                      <MinecraftAvatar username={row.minecraftUsername || row.username} size={32} />
                       <span className="min-w-0">
                         <strong className="block truncate font-semibold">
                           {row.username}
@@ -181,11 +208,20 @@ export function UsersDirectory({
                     </span>
                   </td>
                   <td className="px-4 py-3">
+                    {row.minecraftUsername ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-ink/5 px-2.5 py-1 text-xs font-semibold text-ink">
+                        <Gamepad2 size={13} className="text-accent-bright" />
+                        {row.minecraftUsername}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted">None linked</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
                     <RankChip role={row.role} />
                   </td>
                   <td className="px-4 py-3">
                     {row.lockedReason ? (
-                      // Previously an unexplained em dash, which read as a bug.
                       <span className="text-xs text-muted">
                         {row.lockedReason}
                       </span>
@@ -198,14 +234,21 @@ export function UsersDirectory({
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {/* Delete follows the same rule as editing: if you may not
-                        change someone's rank, you may not remove them either. */}
-                    {row.lockedReason ? null : (
-                      <DeleteUserButton
-                        userId={row.userId}
-                        username={row.username}
-                      />
-                    )}
+                    <div className="flex items-center justify-end gap-2">
+                      {row.minecraftUsername && (
+                        <ReleaseMinecraftButton
+                          userId={row.userId}
+                          username={row.username}
+                          minecraftUsername={row.minecraftUsername}
+                        />
+                      )}
+                      {row.lockedReason ? null : (
+                        <DeleteUserButton
+                          userId={row.userId}
+                          username={row.username}
+                        />
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

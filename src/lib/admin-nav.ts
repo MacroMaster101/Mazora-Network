@@ -130,5 +130,8 @@ export function visibleAdminNav(
 }
 
 export function isAdminNavItemActive(item: AdminNavItem, pathname: string): boolean {
-  return item.exact ? pathname === item.href : pathname.startsWith(item.href);
+  if (item.exact || item.href === "/admin") {
+    return pathname === item.href;
+  }
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
