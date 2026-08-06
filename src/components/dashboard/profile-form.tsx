@@ -41,7 +41,7 @@ export function ProfileForm({
             aria-invalid={Boolean(state.errors?.displayName)}
           />
         </FormRow>
-        <FormRow label="Username" htmlFor="username" hint="Cannot be changed">
+        <FormRow label="Username" htmlFor="username" hint="Synced with Minecraft IGN">
           <Input id="username" value={username} disabled />
         </FormRow>
       </div>

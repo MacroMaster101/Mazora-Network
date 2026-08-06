@@ -3,7 +3,7 @@
 import { startTransition, useActionState, useEffect, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { BadgeCheck, Gamepad2, Link2Off, Loader2, LogIn, RefreshCw, Unlink } from "lucide-react";
+import { BadgeCheck, Gamepad2, Link2Off, Loader2, LogIn, RefreshCw, Unlink, Check } from "lucide-react";
 import {
   oauthAction,
   switchDiscordAction,
@@ -11,13 +11,16 @@ import {
   type AuthResult,
 } from "@/lib/actions/auth";
 import { disconnectMinecraftAction, type AccountActionResult } from "@/lib/actions/account";
+import { linkMinecraftUsernameAction, type MinecraftLinkActionState } from "@/lib/actions/minecraft";
 import type { DiscordIdentity } from "@/lib/types";
 import { DiscordIcon, GoogleIcon } from "@/components/auth/provider-icons";
 import { MinecraftMark } from "@/components/shared/minecraft-mark";
+import { MinecraftAvatar } from "@/components/shared/minecraft-avatar";
 import { Modal, useToast } from "@/components/ui";
 
 const initialAuth: AuthResult = { ok: false };
 const initialAccount: AccountActionResult = { ok: false };
+const initialLinkState: MinecraftLinkActionState = { ok: false, enabled: true };
 
 interface MinecraftIdentity {
   username: string;
@@ -32,25 +35,25 @@ interface ConnectedAccountsProps {
   initialMinecraft: MinecraftIdentity | null;
 }
 
-type MinecraftDialog = "switch" | "disconnect" | null;
+type MinecraftDialog = "link" | "switch" | "disconnect" | null;
 
 export function ConnectedAccounts({ email, hasGoogle, initialDiscord, initialMinecraft }: ConnectedAccountsProps) {
   const [discord, setDiscord] = useState<DiscordIdentity | null>(initialDiscord);
-  const [, setMinecraft] = useState<MinecraftIdentity | null>(initialMinecraft);
+  const [minecraft, setMinecraft] = useState<MinecraftIdentity | null>(initialMinecraft);
   const [minecraftDialog, setMinecraftDialog] = useState<MinecraftDialog>(null);
+  const [inputUsername, setInputUsername] = useState(initialMinecraft?.username || "");
   const [oauthState, oauthFormAction, oauthPending] = useActionState(oauthAction, initialAuth);
   const [unlinkState, unlinkFormAction, unlinkPending] = useActionState(unlinkDiscordAction, initialAuth);
   const [switchState, switchFormAction, switchPending] = useActionState(switchDiscordAction, initialAuth);
-  const [minecraftState, minecraftDisconnectAction, minecraftPending] = useActionState(
+  const [minecraftDisconnectState, minecraftDisconnectFormAction, minecraftDisconnectPending] = useActionState(
     disconnectMinecraftAction,
     initialAccount,
   );
+  const [linkState, linkFormAction, linkPending] = useActionState(linkMinecraftUsernameAction, initialLinkState);
+
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
-  // This card renders in both the member area (/dashboard/settings) and the
-  // staff area (/admin/account). OAuth round-trips must return to whichever
-  // one the user actually started from — staff are redirected out of /dashboard.
   const returnPath = pathname.startsWith("/admin") ? "/admin/account" : "/dashboard/settings";
 
   useEffect(() => {
@@ -68,16 +71,28 @@ export function ConnectedAccounts({ email, hasGoogle, initialDiscord, initialMin
   }, [switchState, toast]);
 
   useEffect(() => {
-    if (!minecraftState.message) return;
-    toast(minecraftState.message, minecraftState.ok ? "success" : "error");
-    if (minecraftState.ok) {
-      const wasSwitching = minecraftDialog === "switch";
+    if (!minecraftDisconnectState.message) return;
+    toast(minecraftDisconnectState.message, minecraftDisconnectState.ok ? "success" : "error");
+    if (minecraftDisconnectState.ok) {
       setMinecraft(null);
       setMinecraftDialog(null);
-      if (wasSwitching) router.push(pathname.startsWith("/admin") ? returnPath : "/dashboard/minecraft");
-      else router.refresh();
+      router.refresh();
     }
-  }, [minecraftDialog, minecraftState, pathname, returnPath, router, toast]);
+  }, [minecraftDisconnectState, router, toast]);
+
+  useEffect(() => {
+    if (!linkState.message) return;
+    toast(linkState.message, linkState.ok ? "success" : "error");
+    if (linkState.ok && linkState.linked) {
+      setMinecraft({
+        username: linkState.linked.username,
+        uuid: linkState.linked.uuid,
+        linkedAt: linkState.linked.linkedAt,
+      });
+      setMinecraftDialog(null);
+      router.refresh();
+    }
+  }, [linkState, router, toast]);
 
   const connectDiscord = () => {
     const formData = new FormData();
@@ -142,39 +157,133 @@ export function ConnectedAccounts({ email, hasGoogle, initialDiscord, initialMin
         </div>
       </div>
 
-      <div className="connected-account-row flex items-center gap-3 rounded-xl border border-dashed border-line-strong px-4 py-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line-strong bg-card">
-          <MinecraftMark className="h-6 w-6" />
-        </span>
+      <div className={`connected-account-row flex items-center gap-3 rounded-xl border px-4 py-3 ${minecraft ? "border-line-strong bg-ink/5" : "border-dashed border-line-strong"}`}>
+        {minecraft ? (
+          <MinecraftAvatar username={minecraft.username} size={40} rounded="rounded-full" />
+        ) : (
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line-strong bg-card">
+            <MinecraftMark className="h-6 w-6" />
+          </span>
+        )}
         <span className="min-w-0 flex-1">
           <strong className="flex items-center gap-1.5 text-sm">
-            <span className="truncate">Minecraft</span>
-            <span className="chip">Coming soon</span>
+            <span className="truncate">{minecraft ? minecraft.username : "Minecraft"}</span>
+            {minecraft && <BadgeCheck size={14} className="shrink-0 text-accent-bright" aria-label="Connected" />}
           </strong>
           <span className="mt-0.5 block text-xs text-muted">
-            Account linking is not available yet.
+            {minecraft ? "Minecraft Game Name linked" : "Link your Minecraft IGN for skin photo & player stats"}
           </span>
         </span>
         <div className="connected-account-actions">
-          <button type="button" className="connected-account-action" disabled aria-disabled="true">
-            <Gamepad2 size={13} /> Coming soon
-          </button>
+          {minecraft ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setInputUsername(minecraft.username);
+                  setMinecraftDialog("link");
+                }}
+                disabled={linkPending || minecraftDisconnectPending}
+                className="connected-account-action"
+              >
+                <RefreshCw size={13} />
+                Change IGN
+              </button>
+              <button
+                type="button"
+                onClick={() => setMinecraftDialog("disconnect")}
+                disabled={linkPending || minecraftDisconnectPending}
+                className="connected-account-action is-danger"
+              >
+                <Link2Off size={13} />
+                Disconnect
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setInputUsername("");
+                setMinecraftDialog("link");
+              }}
+              disabled={linkPending || minecraftDisconnectPending}
+              className="connected-account-action"
+            >
+              <Gamepad2 size={13} />
+              Connect IGN
+            </button>
+          )}
         </div>
       </div>
 
-      <Modal open={minecraftDialog !== null} onClose={() => !minecraftPending && setMinecraftDialog(null)} label={minecraftDialog === "switch" ? "Switch Minecraft account" : "Disconnect Minecraft account"}>
-        <div className="panel mx-auto max-w-md border-danger/30 p-6 sm:p-7">
-          <h2 className="font-display text-xl font-bold">{minecraftDialog === "switch" ? "Switch Minecraft account?" : "Disconnect Minecraft?"}</h2>
+      <Modal open={minecraftDialog === "link"} onClose={() => !linkPending && setMinecraftDialog(null)} label="Link Minecraft IGN">
+        <div className="panel mx-auto max-w-md p-6 sm:p-7">
+          <h2 className="font-display text-xl font-bold flex items-center gap-2">
+            <Gamepad2 className="text-accent-bright" size={20} />
+            {minecraft ? "Change Minecraft IGN" : "Link Minecraft IGN"}
+          </h2>
           <p className="mt-2 text-sm text-muted">
-            {minecraftDialog === "switch"
-              ? "The current player and synced statistics will be removed. You will then be taken to verify a different Minecraft account."
-              : "This removes the linked player identity and synced statistics. You can verify the account again later."}
+            Enter your Minecraft in-game username (Premium, TLauncher, or Cracked). We will load your skin head automatically.
+          </p>
+
+          <form action={linkFormAction} className="mt-5 space-y-4">
+            <div className="flex items-center gap-4 rounded-xl border border-line-strong bg-ink/10 p-4">
+              <MinecraftAvatar username={inputUsername.trim() || "Steve"} size={52} rounded="rounded-xl" />
+              <div className="min-w-0 flex-1">
+                <label htmlFor="mc-ign-input" className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1">
+                  In-Game Username
+                </label>
+                <input
+                  id="mc-ign-input"
+                  name="username"
+                  type="text"
+                  value={inputUsername}
+                  onChange={(e) => setInputUsername(e.target.value)}
+                  placeholder="e.g. KaviYa"
+                  maxLength={16}
+                  required
+                  className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-ink focus:border-accent focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {linkState.message && !linkState.ok && (
+              <p className="text-xs font-semibold text-danger">{linkState.message}</p>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={linkPending}
+                onClick={() => setMinecraftDialog(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary btn-sm"
+                disabled={linkPending || !inputUsername.trim()}
+              >
+                {linkPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                {linkPending ? "Linking…" : "Save & Link IGN"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      <Modal open={minecraftDialog === "disconnect"} onClose={() => !minecraftDisconnectPending && setMinecraftDialog(null)} label="Disconnect Minecraft account">
+        <div className="panel mx-auto max-w-md border-danger/30 p-6 sm:p-7">
+          <h2 className="font-display text-xl font-bold">Disconnect Minecraft?</h2>
+          <p className="mt-2 text-sm text-muted">
+            This removes the linked player identity and associated skin head avatar from your account. You can reconnect anytime.
           </p>
           <div className="mt-6 flex flex-wrap justify-end gap-2">
-            <button type="button" className="btn btn-ghost btn-sm" disabled={minecraftPending} onClick={() => setMinecraftDialog(null)}>Cancel</button>
-            <button type="button" className="btn btn-ghost btn-sm border-danger/40 text-danger" disabled={minecraftPending} onClick={() => startTransition(() => minecraftDisconnectAction())}>
-              {minecraftPending ? <Loader2 size={14} className="animate-spin" /> : minecraftDialog === "switch" ? <RefreshCw size={14} /> : <Unlink size={14} />}
-              {minecraftPending ? "Working…" : minecraftDialog === "switch" ? "Switch account" : "Disconnect"}
+            <button type="button" className="btn btn-ghost btn-sm" disabled={minecraftDisconnectPending} onClick={() => setMinecraftDialog(null)}>Cancel</button>
+            <button type="button" className="btn btn-ghost btn-sm border-danger/40 text-danger" disabled={minecraftDisconnectPending} onClick={() => startTransition(() => minecraftDisconnectFormAction())}>
+              {minecraftDisconnectPending ? <Loader2 size={14} className="animate-spin" /> : <Unlink size={14} />}
+              {minecraftDisconnectPending ? "Working…" : "Disconnect"}
             </button>
           </div>
         </div>
@@ -182,3 +291,4 @@ export function ConnectedAccounts({ email, hasGoogle, initialDiscord, initialMin
     </div>
   );
 }
+
