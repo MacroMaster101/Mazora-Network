@@ -16,22 +16,26 @@ The official community platform for the Mazora Minecraft network.
 
 ## ⛏️ About the project
 
-Mazora Network is a responsive Minecraft community website built with the Next.js App Router. It combines a cinematic Minecraft presentation with practical community features: server connection details, live Minecraft and Discord counts, news, events, forums, player profiles, game modes, support forms, store pages, account areas, and administration scaffolds.
+Mazora Network is a production-ready Minecraft community website built with the Next.js App Router. It combines a cinematic Minecraft presentation with practical community features: server connection details, live Minecraft and Discord counts, news, events, forums, player profiles, game modes, support forms, a full storefront, member dashboards, and a role-based staff administration panel.
 
 The site reads its content from PostgreSQL through Drizzle ORM. Without `DATABASE_URL`,
 repositories return nothing and each page shows an explicit empty state rather than
-placeholder content — the store, rulebook and live counts are the parts backed by real
-data today.
+placeholder content — the store, rulebook, gallery, news, and live counts are the parts
+backed by real data today.
 
 ### ✨ Current experience
 
 - Responsive homepage with a full-screen Minecraft hero and continuous themed background
-- First visit follows the device color preference; an explicit light or dark choice is then saved locally
+- Full light and dark theme support across all pages — first visit follows device preference, then user choice is persisted locally
 - Desktop navigation that hides while scrolling down and returns cleanly on intentional upward scrolling
 - Mobile navigation drawer with forums, additional pages, theme selection, and account actions
 - Live Java server count for `mc.mazora.us`
 - Live Discord member and online counts from the Mazora invite
 - News board, pagination, network summary, responsive footer, and copy-IP actions
+- Minecraft skin avatars throughout the UI — header, dashboard sidebar, profile editor, player cards, and admin user directory
+- Discord-based store ordering with ticket lifecycle, purchase announcements, and transcript archival
+- Role-based admin control room with live telemetry, user management, permissions editor, player management, and content tools
+- Member dashboard with profile editing, avatar upload, connected accounts (Discord), ticket system, and notification preferences
 - Keyboard focus states, semantic landmarks, skip navigation, accessible labels, and reduced-motion support
 
 ## 🧱 Technology
@@ -184,13 +188,14 @@ Forums contains staff applications, ban appeals, suggestions, and the discussion
 ### 👤 Account areas
 
 - Login, registration, and account recovery open in one accessible dialog over the current public page. Every internal auth link is intercepted globally, while direct auth URLs return to the homepage and automatically open the same dialog for refreshes, shared links, protected-route redirects, and OAuth errors.
-- `/dashboard` — the member area: Minecraft linking, statistics, tickets, appeals, reports, events, votes, purchases, notifications, and settings
-- `/admin` — the staff control room, plus users, players, content, moderation, orders, voting, configuration, and audit views
+- `/dashboard` — the member area: overview with stats, profile avatar editor, connected accounts (Discord), tickets, appeals, reports, events, votes, purchases, notifications, and settings. Features a glass-panel sidebar with Minecraft skin avatar and rank badge.
+- `/admin` — the staff control room with role-based access. Includes live telemetry dashboard, user directory with role management, permissions editor, player management, content tools (news, rules, gallery, store, game modes, events, pages), moderation (reports, tickets, suggestions), orders with Discord ticket lifecycle, voting configuration, site settings, and audit logs. Each staff role sees only the sections relevant to their rank.
 
 Members and staff land in different places. After signing in, a non-staff member goes to
-the homepage and a staff member goes to `/admin`. Staff do not use `/dashboard` — visiting
-it redirects them to the control room — so their own account screens (settings, connected
-accounts, notifications, purchases) live under `/admin/account`.
+the homepage and a staff member goes to `/admin`. Staff do not use `/dashboard` — their
+account screens (settings, connected accounts, notifications, purchases) live under
+`/admin/account`. The header dropdown reflects this: staff see Control Room and My Settings,
+members see Dashboard, Tickets, and Settings.
 
 ### Roles
 
@@ -344,7 +349,7 @@ For architecture, live integrations, theme behavior, and deployment notes, see [
 
 ## 📌 Status
 
-The public platform, responsive homepage, and Supabase authentication integration are implemented. Database-backed content is optional. Provider credentials, payment processing, complete admin mutations, and production Minecraft synchronization remain deployment-phase work.
+The platform is production-ready. The public website, responsive homepage, full light/dark theme support, Supabase authentication with Google and Discord OAuth, database-backed content management, Discord store ordering with ticket lifecycle, role-based admin control room, member dashboard, permissions system, player management, and Minecraft skin avatar integration are all implemented. Database content is optional for local development — pages show clean empty states when unconfigured. Provider credentials and production Minecraft plugin synchronization are deployment-phase configuration.
 
 ---
 
