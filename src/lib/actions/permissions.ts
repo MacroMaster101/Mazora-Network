@@ -20,6 +20,7 @@ import {
   STORE_PERMISSION_KEY,
   RULES_PERMISSION_KEY,
   NOTIFICATIONS_PERMISSION_KEY,
+  MINECRAFT_PERMISSION_KEY,
 } from "@/lib/auth/permissions";
 
 export interface PermissionActionResult {
@@ -106,5 +107,8 @@ export async function saveRulesPermissionsAction(fd: FormData) {
 }
 export async function saveNotificationsPermissionsAction(fd: FormData) {
   return saveModulePermissionAction(NOTIFICATIONS_PERMISSION_KEY, "Notifications", fd);
+}
+export async function saveMinecraftPermissionsAction(fd: FormData) {
+  return saveModulePermissionAction(MINECRAFT_PERMISSION_KEY, "Minecraft IGN", fd);
 }
 

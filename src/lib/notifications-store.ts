@@ -8,6 +8,7 @@ export interface NotificationItem {
   category: "welcome" | "system" | "support" | "security";
   read: boolean;
   sender: "mazora" | "staff" | "system";
+  href?: string;
 }
 
 export const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
