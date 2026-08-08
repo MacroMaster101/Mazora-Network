@@ -38,7 +38,7 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
   let email = "";
   let hasGoogle = false;
   let hasPassword = false;
-  let minecraftIdentity: { username: string; uuid: string; linkedAt: string } | null = null;
+  let minecraftIdentity: { username: string; uuid: string; linkedAt: string; skinUrl: string | null } | null = null;
   const discord = await getDiscordIdentity();
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
@@ -58,7 +58,7 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
         const accountStore = getSupabaseAdmin() ?? supabase;
         const { data: minecraftAccount } = await accountStore
           .from("minecraft_accounts")
-          .select("id,minecraft_uuid,minecraft_username,linked_at")
+          .select("id,minecraft_uuid,minecraft_username,linked_at,skin_head_url")
           .eq("user_id", data.user.id)
           .maybeSingle();
         if (minecraftAccount) {
@@ -66,6 +66,7 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
             username: String(minecraftAccount.minecraft_username),
             uuid: String(minecraftAccount.minecraft_uuid),
             linkedAt: String(minecraftAccount.linked_at),
+            skinUrl: minecraftAccount.skin_head_url ? String(minecraftAccount.skin_head_url) : null,
           };
         }
       }

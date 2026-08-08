@@ -3353,10 +3353,6 @@ html {
 }
 
 /* First-load experience and lightweight route transitions. */
-body.initial-load-active {
-  overflow: hidden;
-}
-
 .initial-loader-overlay {
   position: fixed;
   inset: 0;
@@ -3365,12 +3361,30 @@ body.initial-load-active {
   opacity: 1;
   visibility: visible;
   transition: opacity 500ms cubic-bezier(0.22, 1, 0.36, 1), visibility 500ms;
-  /* Failsafe: this overlay is server-rendered, so if the client bundle never
-     runs (CSP block, chunk 404, script error) the React timer that dismisses
-     it never fires and the whole site sits behind a dead loading screen. This
-     pure-CSS dismissal needs no JavaScript, so the site always becomes usable.
-     The JS path finishes long before 8s and cancels this via [data-phase]. */
-  animation: initial-loader-failsafe 400ms ease 8s forwards;
+  /*
+    Dismissal is CSS-driven, not JavaScript-driven, and that is the whole
+    point. This overlay is opaque and server-rendered, so nothing behind it
+    counts as painted while it is up — whatever dismisses it therefore sets
+    the page's Largest Contentful Paint. A React effect cannot run until the
+    client bundle has downloaded, parsed and hydrated, which on a throttled
+    mobile connection measured ~4.9s of render delay (85% of a 5.8s LCP) even
+    though the hero image behind it had finished downloading in 22ms. No
+    JS-based dismissal can beat hydration, so this one does not try.
+
+    Running on the CSS timeline instead means the reveal happens on schedule
+    regardless of how slow (or broken) the JavaScript is, which also makes
+    this its own failsafe: a CSP block, chunk 404 or script error can no
+    longer leave the site stranded behind a dead loading screen.
+  */
+  animation: initial-loader-failsafe 420ms cubic-bezier(0.22, 1, 0.36, 1) 700ms forwards;
+}
+
+/* Someone who asked for less motion should not sit through the reveal at all. */
+@media (prefers-reduced-motion: reduce) {
+  .initial-loader-overlay {
+    animation-delay: 0ms;
+    animation-duration: 1ms;
+  }
 }
 
 .initial-loader-overlay[data-phase="leaving"],

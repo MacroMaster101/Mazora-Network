@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Gamepad2, Loader2, Trash2, Upload, Check } from "lucide-react";
+import { Camera, Gamepad2, Loader2, Search, Trash2, Upload, Check, X } from "lucide-react";
 import { DiscordIcon } from "@/components/auth/provider-icons";
 import {
   removeProfileAvatarAction,
@@ -10,11 +10,17 @@ import {
   useDiscordAvatarAction,
   useMinecraftAvatarAction,
 } from "@/lib/actions/avatar";
+import {
+  removeMinecraftSkinAction,
+  uploadMinecraftSkinAction,
+  type SkinUploadActionState,
+} from "@/lib/actions/minecraft";
 import type { AccountActionResult } from "@/lib/actions/account";
 import { Modal, useToast } from "@/components/ui";
 import { MinecraftAvatar } from "@/components/shared/minecraft-avatar";
 
 const initialState: AccountActionResult = { ok: false };
+const initialSkinUploadState: SkinUploadActionState = { ok: false };
 
 export function ProfileAvatarEditor({
   displayName,
@@ -36,10 +42,14 @@ export function ProfileAvatarEditor({
   const [minecraftState, minecraftAction, minecraftPending] = useActionState(useMinecraftAvatarAction, initialState);
   const [discordState, discordAction, discordPending] = useActionState(useDiscordAvatarAction, initialState);
   const [removeState, removeAction, removePending] = useActionState(removeProfileAvatarAction, initialState);
+  const [skinUploadState, skinUploadAction, skinUploadPending] = useActionState(uploadMinecraftSkinAction, initialSkinUploadState);
+  const [skinRemoveState, skinRemoveAction, skinRemovePending] = useActionState(removeMinecraftSkinAction, initialSkinUploadState);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showMcModal, setShowMcModal] = useState(false);
   const [mcUsername, setMcUsername] = useState(username || "");
+  const [skinFile, setSkinFile] = useState<File | null>(null);
+  const [skinPreviewUrl, setSkinPreviewUrl] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   const initials = useMemo(
@@ -50,6 +60,10 @@ export function ProfileAvatarEditor({
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
+
+  useEffect(() => () => {
+    if (skinPreviewUrl) URL.revokeObjectURL(skinPreviewUrl);
+  }, [skinPreviewUrl]);
 
   useEffect(() => {
     if (!uploadState.message) return;
@@ -82,6 +96,35 @@ export function ProfileAvatarEditor({
     if (removeState.ok) router.refresh();
   }, [removeState, router, toast]);
 
+  useEffect(() => {
+    if (!skinUploadState.message) return;
+    toast(skinUploadState.message, skinUploadState.ok ? "success" : "error");
+    if (skinUploadState.ok) {
+      setSkinFile(null);
+      setSkinPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return null;
+      });
+      setShowMcModal(false);
+      router.refresh();
+    }
+  }, [skinUploadState, router, toast]);
+
+  useEffect(() => {
+    if (!skinRemoveState.message) return;
+    toast(skinRemoveState.message, skinRemoveState.ok ? "success" : "error");
+    if (skinRemoveState.ok) router.refresh();
+  }, [skinRemoveState, router, toast]);
+
+  /** Clears a staged file without touching the rest of the modal or closing it. */
+  const clearSkinFile = () => {
+    setSkinFile(null);
+    setSkinPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+  };
+
   const shownAvatar = previewUrl ?? avatarUrl;
 
   // googleusercontent is the photo that came with the Google account, not
@@ -90,18 +133,24 @@ export function ProfileAvatarEditor({
   // Remove looking broken because clearing it just falls back to the same
   // image again.
   const isProviderPhoto = Boolean(avatarUrl?.includes("googleusercontent.com"));
+  // Distinguished from the general mc-heads.net lookup below: this is a file
+  // the member uploaded themselves, stored in our own bucket, not a live
+  // lookup — the "Remove skin" option (further down) keys off this too.
+  const hasCustomSkin = Boolean(avatarUrl?.includes("/skin-head-"));
   const avatarSource = previewUrl
     ? "New photo"
-    : avatarUrl?.includes("mc-heads.net")
-      ? "Minecraft skin"
-      : avatarUrl?.includes("cdn.discordapp.com")
-        ? "Discord photo"
-        : isProviderPhoto
-          ? "Email photo"
-          : avatarUrl
-            ? "Uploaded photo"
-            : "Initials";
-  const busy = uploadPending || minecraftPending || discordPending || removePending;
+    : hasCustomSkin
+      ? "Custom skin"
+      : avatarUrl?.includes("mc-heads.net")
+        ? "Minecraft skin"
+        : avatarUrl?.includes("cdn.discordapp.com")
+          ? "Discord photo"
+          : isProviderPhoto
+            ? "Email photo"
+            : avatarUrl
+              ? "Uploaded photo"
+              : "Initials";
+  const busy = uploadPending || minecraftPending || discordPending || removePending || skinUploadPending || skinRemovePending;
 
   return (
     <div className="profile-avatar-editor">
@@ -202,58 +251,193 @@ export function ProfileAvatarEditor({
 
       <Modal open={showMcModal} onClose={() => !minecraftPending && setShowMcModal(false)} label="Set Minecraft skin avatar">
         <div className="panel mx-auto max-w-md p-6 sm:p-7">
-          <h2 className="font-display text-xl font-bold flex items-center gap-2">
-            <Gamepad2 className="text-accent-bright" size={20} />
-            Use Minecraft Skin
-          </h2>
-          <p className="mt-2 text-sm text-muted">
-            Enter your in-game Minecraft username (for premium or TLauncher/cracked players). We will automatically fetch and set your skin head as your profile avatar.
-          </p>
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-accent/25 bg-accent/10 text-accent-bright">
+              <Gamepad2 size={19} />
+            </span>
+            <div>
+              <h2 className="font-display text-lg font-bold leading-tight">Use Minecraft Skin</h2>
+              <p className="text-xs text-muted">Fetched by username, or uploaded as a file — your choice.</p>
+            </div>
+          </div>
 
-          <form action={minecraftAction} className="mt-5 space-y-4">
-            <div className="flex items-center gap-4 rounded-xl border border-line-strong bg-ink/10 p-4">
-              <MinecraftAvatar username={mcUsername.trim() || "Steve"} size={56} rounded="rounded-xl" />
-              <div className="min-w-0 flex-1">
-                <label htmlFor="mc-skin-username-input" className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1">
-                  Minecraft IGN / Username
-                </label>
-                <input
-                  id="mc-skin-username-input"
-                  name="username"
-                  type="text"
-                  value={mcUsername}
-                  onChange={(e) => setMcUsername(e.target.value)}
-                  placeholder="e.g. KaviYa"
-                  maxLength={16}
-                  required
-                  className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-ink focus:border-accent focus:outline-none"
-                />
+          <div className="mt-5 rounded-2xl border border-line-strong bg-ink/5 p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-line-strong bg-card text-muted">
+                <Search size={14} />
+              </span>
+              <h3 className="text-sm font-bold text-ink">Fetch by username</h3>
+            </div>
+            <p className="text-xs text-muted">
+              Works for premium accounts. TLauncher and cracked usernames have no real skin to fetch —
+              use <strong className="text-ink">Upload a file</strong> below instead.
+            </p>
+
+            <form action={minecraftAction} className="mt-3 space-y-3">
+              <div className="flex items-center gap-3 rounded-xl border border-line-strong bg-card p-3">
+                <MinecraftAvatar username={mcUsername.trim() || "Steve"} size={48} rounded="rounded-lg" />
+                <div className="min-w-0 flex-1">
+                  <label htmlFor="mc-skin-username-input" className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted">
+                    Minecraft IGN / Username
+                  </label>
+                  <input
+                    id="mc-skin-username-input"
+                    name="username"
+                    type="text"
+                    value={mcUsername}
+                    onChange={(e) => setMcUsername(e.target.value)}
+                    placeholder="e.g. KaviYa"
+                    maxLength={16}
+                    required
+                    className="w-full rounded-lg border border-line bg-base px-3 py-2 text-sm font-semibold text-ink focus:border-accent focus:outline-none"
+                  />
+                </div>
               </div>
-            </div>
 
-            {minecraftState.message && !minecraftState.ok && (
-              <p className="text-xs font-semibold text-danger">{minecraftState.message}</p>
+              {minecraftState.message && !minecraftState.ok && (
+                <p className="text-xs font-semibold text-danger">{minecraftState.message}</p>
+              )}
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={minecraftPending || !mcUsername.trim()}
+                >
+                  {minecraftPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                  {minecraftPending ? "Saving…" : "Set Profile Photo"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="my-3 flex items-center gap-3 px-1 text-[11px] font-bold uppercase tracking-widest text-muted">
+            <span className="h-px flex-1 bg-line" />
+            or
+            <span className="h-px flex-1 bg-line" />
+          </div>
+
+          <div className="rounded-2xl border border-line-strong bg-ink/5 p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-line-strong bg-card text-muted">
+                <Upload size={13} />
+              </span>
+              <h3 className="text-sm font-bold text-ink">Upload a skin file</h3>
+            </div>
+            <p className="text-xs text-muted">
+              For TLauncher/cracked accounts, or anyone who wants a custom head. Download a 64×64 skin PNG
+              from NameMC or TLauncher&apos;s catalog, then upload it here.
+            </p>
+
+            <form action={skinUploadAction} className="mt-3 space-y-3">
+              <input
+                id="mc-skin-file"
+                name="skin"
+                type="file"
+                accept="image/png"
+                className="sr-only"
+                disabled={skinUploadPending}
+                onChange={(event) => {
+                  const nextFile = event.target.files?.[0] ?? null;
+                  setSkinFile(nextFile);
+                  setSkinPreviewUrl((current) => {
+                    if (current) URL.revokeObjectURL(current);
+                    return nextFile ? URL.createObjectURL(nextFile) : null;
+                  });
+                }}
+              />
+              <div className="flex items-center gap-3 rounded-xl border border-line-strong bg-card p-3">
+                {skinPreviewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- local blob preview of the just-picked file, before it's processed server-side.
+                  <img
+                    src={skinPreviewUrl}
+                    alt="Selected skin preview"
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 shrink-0 rounded-lg border border-line-strong object-cover"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                ) : (
+                  // No new file picked yet — show the currently uploaded skin
+                  // (or the plain username lookup, if there isn't one) so this
+                  // card isn't blank while a custom skin is already set.
+                  <MinecraftAvatar
+                    username={username || "Steve"}
+                    skinUrl={hasCustomSkin ? avatarUrl : undefined}
+                    size={48}
+                    rounded="rounded-lg"
+                  />
+                )}
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <label
+                    htmlFor="mc-skin-file"
+                    className={`btn btn-secondary btn-sm ${skinUploadPending ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
+                  >
+                    <Upload size={13} /> Choose skin file
+                  </label>
+                  {skinFile && (
+                    <span className="flex items-center gap-1.5 rounded-lg border border-line-strong bg-base px-2.5 py-1 text-xs font-semibold text-ink">
+                      <span className="min-w-0 truncate">{skinFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={clearSkinFile}
+                        disabled={skinUploadPending}
+                        aria-label="Clear selected file"
+                        className="shrink-0 text-muted hover:text-danger"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {skinPreviewUrl && (
+                <p className="text-xs text-muted">
+                  The head icon is cropped from this file after upload.
+                </p>
+              )}
+              {skinUploadState.message && !skinUploadState.ok && (
+                <p className="text-xs font-semibold text-danger">{skinUploadState.message}</p>
+              )}
+
+              {skinFile && (
+                <div className="flex justify-end">
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={skinUploadPending}>
+                    {skinUploadPending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                    {skinUploadPending ? "Uploading…" : "Upload skin"}
+                  </button>
+                </div>
+              )}
+            </form>
+
+            {hasCustomSkin && !skinFile && (
+              <form action={skinRemoveAction} className="mt-3 border-t border-line-strong/60 pt-3">
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-danger hover:underline disabled:opacity-50"
+                  disabled={busy}
+                >
+                  {skinRemovePending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  {skinRemovePending ? "Removing…" : "Remove uploaded skin"}
+                </button>
+                {skinRemoveState.message && !skinRemoveState.ok && (
+                  <p className="mt-1.5 text-xs font-semibold text-danger">{skinRemoveState.message}</p>
+                )}
+              </form>
             )}
+          </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={minecraftPending}
-                onClick={() => setShowMcModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary btn-sm"
-                disabled={minecraftPending || !mcUsername.trim()}
-              >
-                {minecraftPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                {minecraftPending ? "Saving…" : "Set Profile Photo"}
-              </button>
-            </div>
-          </form>
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={minecraftPending || skinUploadPending}
+              onClick={() => setShowMcModal(false)}
+            >
+              Close
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

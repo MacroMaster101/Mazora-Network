@@ -64,7 +64,12 @@ export function CookieConsent() {
           <p className="mt-1 text-sm leading-snug text-muted">
             We use optional cookies to count article reads — no personal data, no
             tracking across sites.{" "}
-            <Link href="/privacy" className="text-accent-bright hover:underline">
+            {/*
+              Underlined at rest, not only on hover: this link sits inside a
+              paragraph, so colour alone is its only distinguishing signal for
+              anyone who can't perceive the accent hue (axe "link-in-text-block").
+            */}
+            <Link href="/privacy" className="text-accent-bright underline underline-offset-2">
               Privacy policy
             </Link>
           </p>

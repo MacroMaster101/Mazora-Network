@@ -6,6 +6,8 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { AVATAR_BUCKET } from "@/lib/storage/avatar-bucket";
+import { removeStoredSkinFiles } from "@/lib/actions/minecraft";
 
 export interface AccountActionResult {
   ok: boolean;
@@ -90,7 +92,7 @@ export async function updateProfileAction(
   return { ok: true, message: "Profile updated." };
 }
 
-/** Removes Minecraft mappings, pending codes, and cascaded player statistics. */
+/** Removes Minecraft mappings, pending codes, cascaded player statistics, and any uploaded skin. */
 export async function disconnectMinecraftAction(
   _previous: AccountActionResult,
 ): Promise<AccountActionResult> {
@@ -106,12 +108,17 @@ export async function disconnectMinecraftAction(
     .eq("user_id", auth.user.id);
   if (accountError) return { ok: false, message: "Minecraft could not be disconnected. Please try again." };
 
+  await removeStoredSkinFiles(auth.user.id);
+
   const { data: profile } = await admin
     .from("profiles")
     .select("avatar_url")
     .eq("user_id", auth.user.id)
     .maybeSingle();
-  if (String(profile?.avatar_url ?? "").startsWith("https://mc-heads.net/")) {
+  const avatarUrl = String(profile?.avatar_url ?? "");
+  const isMcHeadsAvatar = avatarUrl.startsWith("https://mc-heads.net/");
+  const isUploadedSkinAvatar = avatarUrl.includes(`/${AVATAR_BUCKET}/${auth.user.id}/skin-head-`);
+  if (isMcHeadsAvatar || isUploadedSkinAvatar) {
     await admin.from("profiles").update({ avatar_url: null }).eq("user_id", auth.user.id);
     await auth.supabase.auth.updateUser({ data: { avatar_url: null } });
   }
@@ -125,6 +132,8 @@ export async function disconnectMinecraftAction(
   revalidatePath("/admin", "layout");
   revalidatePath("/admin/account");
   revalidatePath("/dashboard/minecraft");
+  revalidatePath("/players", "layout");
+  revalidatePath("/leaderboards");
   return { ok: true, message: "Minecraft has been disconnected." };
 }
 
