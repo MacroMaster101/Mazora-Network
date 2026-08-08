@@ -119,26 +119,3 @@ export function storeArtFor(
 
   return "/images/store/battlepass-pass.png";
 }
-
-/** Map weapon bundle display names to processed artwork */
-export const storeCategoryDetails: Record<
-  Product["category"],
-  { eyebrow: string; description: string }
-> = {
-  Ranks: {
-    eyebrow: "Stand out",
-    description: "Six Survival ranks, each available monthly or permanently.",
-  },
-  "Crate Keys": {
-    eyebrow: "Unlock rewards",
-    description: "Vote, Epic, Mystery, Seasonal, Spawner and Legendary key packs.",
-  },
-  Battlepass: {
-    eyebrow: "Season progression",
-    description: "Unlock the premium reward track or reset the free battlepass.",
-  },
-  "Add-ons": {
-    eyebrow: "Boost your world",
-    description: "XP, Claim Blocks and Player Points for your Survival journey.",
-  },
-};

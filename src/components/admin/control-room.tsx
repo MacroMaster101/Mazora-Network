@@ -6,24 +6,6 @@ import { UserAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 
-/** Role accent as an RGB triplet, matching the staff badge palette. */
-export function roleAccent(role: Role): string {
-  switch (role) {
-    case "it":
-      return "6 182 212";
-    case "owner":
-      return "245 158 11";
-    case "administrator":
-      return "139 92 246";
-    case "senior_moderator":
-      return "245 158 11";
-    case "moderator":
-      return "244 63 94";
-    default:
-      return "16 185 129";
-  }
-}
-
 /** Short relative time — "4m", "3h", "2d". */
 export function ago(iso: string): string {
   const then = new Date(iso).getTime();
