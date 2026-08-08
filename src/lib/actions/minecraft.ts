@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { AVATAR_BUCKET, ensureAvatarBucket } from "@/lib/storage/avatar-bucket";
+import { SKIN_MAX_BYTES, cropAndCompositeHead, validateSkinBytes } from "@/lib/skins/process";
 
 /**
  * Setting the Minecraft in-game name on an account.
@@ -145,4 +147,194 @@ export async function linkMinecraftUsernameAction(
     },
     message: `Minecraft name set to ${username}.`,
   };
+}
+
+/** Shape returned to the client for a skin-upload attempt. */
+export interface SkinUploadActionState {
+  ok: boolean;
+  message?: string;
+}
+
+/**
+ * Deletes stored skin files for this user, optionally keeping specific paths.
+ * Scoped to filenames starting with "skin-" specifically — the
+ * profile-avatars bucket also holds this user's general photo uploads under
+ * "avatar-*", which must survive a skin upload/removal untouched.
+ *
+ * Called two ways: with no `keepPaths` to remove everything (Minecraft
+ * disconnect — no skin should remain), or with the two paths just uploaded
+ * to remove only the now-stale previous files (re-upload).
+ */
+export async function removeStoredSkinFiles(userId: string, keepPaths: string[] = []): Promise<void> {
+  const admin = getSupabaseAdmin();
+  if (!admin) return;
+  const { data } = await admin.storage.from(AVATAR_BUCKET).list(userId, { limit: 100 });
+  const keepNames = new Set(keepPaths.map((path) => path.split("/").pop()));
+  const skinFiles = (data ?? []).filter(
+    (item) => /^skin-(raw|head)-/.test(item.name) && !keepNames.has(item.name),
+  );
+  if (skinFiles.length) {
+    await admin.storage.from(AVATAR_BUCKET).remove(skinFiles.map((item) => `${userId}/${item.name}`));
+  }
+}
+
+/**
+ * Uploads a real Minecraft skin file and sets its processed head as both the
+ * account's profile photo and its public player-facing head icon.
+ *
+ * Requires an existing linked Minecraft account: there is no player identity
+ * to attach a skin to otherwise, and the UI does not offer this option
+ * before an IGN is linked (see ProfileAvatarEditor).
+ */
+export async function uploadMinecraftSkinAction(
+  _previous: SkinUploadActionState,
+  formData: FormData,
+): Promise<SkinUploadActionState> {
+  const user = await authenticatedUser();
+  if (!user) return { ok: false, message: "Sign in to upload a skin." };
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return { ok: false, message: "Skin uploads are temporarily unavailable." };
+
+  const { data: mcAccount } = await admin
+    .from("minecraft_accounts")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!mcAccount) {
+    return { ok: false, message: "Link your Minecraft IGN before uploading a skin." };
+  }
+
+  const file = formData.get("skin");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, message: "Choose a skin file to upload." };
+  }
+  if (file.size > SKIN_MAX_BYTES) {
+    return { ok: false, message: "Skin file must be 512 KB or smaller." };
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const validated = validateSkinBytes(bytes);
+  if (!validated.ok) {
+    return { ok: false, message: validated.message };
+  }
+
+  if (!(await ensureAvatarBucket())) {
+    return { ok: false, message: "Skin storage is temporarily unavailable." };
+  }
+
+  const headBuffer = await cropAndCompositeHead(Buffer.from(bytes), validated.format);
+
+  const timestamp = Date.now();
+  const rawPath = `${user.id}/skin-raw-${timestamp}.png`;
+  const headPath = `${user.id}/skin-head-${timestamp}.png`;
+
+  const { error: rawUploadError } = await admin.storage.from(AVATAR_BUCKET).upload(rawPath, bytes, {
+    contentType: "image/png",
+    cacheControl: "3600",
+    upsert: false,
+  });
+  if (rawUploadError) return { ok: false, message: "The skin could not be uploaded. Please try again." };
+
+  const { error: headUploadError } = await admin.storage.from(AVATAR_BUCKET).upload(headPath, headBuffer, {
+    contentType: "image/png",
+    cacheControl: "3600",
+    upsert: false,
+  });
+  if (headUploadError) {
+    await admin.storage.from(AVATAR_BUCKET).remove([rawPath]);
+    return { ok: false, message: "The skin could not be processed. Please try again." };
+  }
+
+  const { data: rawPublicUrl } = admin.storage.from(AVATAR_BUCKET).getPublicUrl(rawPath);
+  const { data: headPublicUrl } = admin.storage.from(AVATAR_BUCKET).getPublicUrl(headPath);
+  const now = new Date().toISOString();
+
+  await admin
+    .from("minecraft_accounts")
+    .update({
+      skin_head_url: headPublicUrl.publicUrl,
+      raw_skin_url: rawPublicUrl.publicUrl,
+      updated_at: now,
+    })
+    .eq("user_id", user.id);
+
+  await admin
+    .from("profiles")
+    .update({ avatar_url: headPublicUrl.publicUrl, updated_at: now })
+    .eq("user_id", user.id);
+
+  const supabase = await createSupabaseServerClient();
+  if (supabase) {
+    await supabase.auth.updateUser({ data: { avatar_url: headPublicUrl.publicUrl } });
+  }
+
+  await removeStoredSkinFiles(user.id, [rawPath, headPath]);
+
+  revalidatePath("/dashboard", "layout");
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/account");
+  revalidatePath("/players", "layout");
+  revalidatePath("/leaderboards");
+
+  return { ok: true, message: "Skin uploaded and set as your profile photo." };
+}
+
+/**
+ * Removes a self-uploaded skin: clears the stored files, the `minecraft_accounts`
+ * columns, and — only if the profile's current avatar is actually the uploaded
+ * skin, not something the user has since switched to (an upload, Discord photo,
+ * or a fresh mc-heads.net lookup) — the profile avatar too.
+ *
+ * Does not touch the linked Minecraft account itself; that stays connected,
+ * this only removes the custom skin layered on top of it.
+ */
+export async function removeMinecraftSkinAction(
+  _previous: SkinUploadActionState,
+): Promise<SkinUploadActionState> {
+  const user = await authenticatedUser();
+  if (!user) return { ok: false, message: "Sign in to remove your skin." };
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return { ok: false, message: "Skin management is temporarily unavailable." };
+
+  const { data: mcAccount } = await admin
+    .from("minecraft_accounts")
+    .select("id, skin_head_url")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!mcAccount?.skin_head_url) {
+    return { ok: false, message: "No uploaded skin to remove." };
+  }
+
+  await removeStoredSkinFiles(user.id);
+
+  const now = new Date().toISOString();
+  await admin
+    .from("minecraft_accounts")
+    .update({ skin_head_url: null, raw_skin_url: null, updated_at: now })
+    .eq("user_id", user.id);
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("avatar_url")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (String(profile?.avatar_url ?? "").includes("/skin-head-")) {
+    await admin.from("profiles").update({ avatar_url: null, updated_at: now }).eq("user_id", user.id);
+    const supabase = await createSupabaseServerClient();
+    if (supabase) {
+      await supabase.auth.updateUser({ data: { avatar_url: null } });
+    }
+  }
+
+  revalidatePath("/dashboard", "layout");
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/account");
+  revalidatePath("/players", "layout");
+  revalidatePath("/leaderboards");
+
+  return { ok: true, message: "Skin removed." };
 }

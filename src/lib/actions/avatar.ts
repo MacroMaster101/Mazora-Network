@@ -5,9 +5,9 @@ import { getDiscordIdentity } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { AVATAR_BUCKET, ensureAvatarBucket } from "@/lib/storage/avatar-bucket";
 import type { AccountActionResult } from "@/lib/actions/account";
 
-const AVATAR_BUCKET = "profile-avatars";
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const MIME_EXTENSIONS = {
   "image/jpeg": "jpg",
@@ -39,19 +39,6 @@ function detectedMime(bytes: Uint8Array): AvatarMime | null {
     String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
   ) return "image/webp";
   return null;
-}
-
-async function ensureAvatarBucket() {
-  const admin = getSupabaseAdmin();
-  if (!admin) return false;
-  const { data } = await admin.storage.getBucket(AVATAR_BUCKET);
-  if (data) return true;
-  const { error } = await admin.storage.createBucket(AVATAR_BUCKET, {
-    public: true,
-    fileSizeLimit: MAX_AVATAR_BYTES,
-    allowedMimeTypes: Object.keys(MIME_EXTENSIONS),
-  });
-  return !error || /already exists/i.test(error.message);
 }
 
 async function saveAvatarUrl(url: string | null): Promise<AccountActionResult> {

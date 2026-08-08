@@ -5,23 +5,35 @@ import { cn } from "@/lib/utils";
 import { accentFor } from "@/lib/utils";
 
 /**
- * Renders a Minecraft head from a skin API, with a coloured monogram fallback
- * shown while loading or if the image fails (e.g. offline). mc-heads returns a
- * default head for unknown players, so there is always something to show.
+ * Renders a Minecraft head, with a coloured monogram fallback shown while
+ * loading or if the image fails (e.g. offline).
+ *
+ * Source priority: a self-uploaded skin (`skinUrl`, set once a player uploads
+ * a real skin file) takes priority over the mc-heads.net lookup by username.
+ * The lookup-by-username fallback exists because mc-heads.net returns a
+ * default head for unknown players, so there is always something to show —
+ * but it only has real data for premium Mojang accounts. Offline/cracked
+ * accounts (TLauncher and similar) have no Mojang account for it to look up,
+ * so they always got the default head until `skinUrl` gave them a way around
+ * that lookup entirely.
  */
 export function MinecraftAvatar({
   username,
+  skinUrl,
   size = 48,
   className,
   rounded = "rounded-lg",
 }: {
   username: string;
+  /** A self-uploaded skin's processed head icon. Takes priority over the mc-heads.net lookup when set. */
+  skinUrl?: string | null;
   size?: number;
   className?: string;
   rounded?: string;
 }) {
   const [failed, setFailed] = useState(false);
   const bg = accentFor(username);
+  const src = skinUrl || `https://mc-heads.net/avatar/${encodeURIComponent(username)}/${size * 2}`;
 
   return (
     <span
@@ -35,7 +47,7 @@ export function MinecraftAvatar({
       {!failed && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`https://mc-heads.net/avatar/${encodeURIComponent(username)}/${size * 2}`}
+          src={src}
           alt={`${username}'s Minecraft head`}
           width={size}
           height={size}
