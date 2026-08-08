@@ -3,7 +3,13 @@
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 
-/** Fade-and-rise on scroll into view. Reduced-motion users get an instant show. */
+/**
+ * Fade-and-rise on scroll into view.
+ *
+ * Reduced-motion users get the fade without the rise. That is not automatic —
+ * it comes from `<MotionConfig reducedMotion="user">` in app/providers.tsx.
+ * Framer Motion ignores prefers-reduced-motion unless told to honour it.
+ */
 export function Reveal({
   children,
   delay = 0,

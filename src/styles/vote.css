@@ -1,8 +1,15 @@
 /* Vote page v11 — original sanctuary masthead and Home-style world crossfade. */
 
+/* The frame's continuation artwork (globals.css, `.site-world-frame:has(
+   .vote-mission-hero)::after`) is anchored at `100svh - 7rem` and reaches full
+   opacity at exactly 100svh — it assumes the hero is one viewport tall. The
+   hero used to be `68svh` plus stacked content, so it ran past that point and
+   its photo hard-cut while the continuation was only part-way faded in: the
+   seam. Sizing the hero to the viewport makes its bottom edge land exactly
+   where the continuation finishes fading in, so the two crossfade cleanly. */
 .vote-redesign-hero {
   position: relative;
-  min-height: max(34rem, 68svh) !important;
+  min-height: 100svh !important;
   overflow: hidden;
   isolation: isolate;
   color: #fff;
@@ -19,6 +26,11 @@
   inset: 0;
   z-index: -1;
   overflow: hidden;
+  /* Belt-and-braces for the cases the viewport sizing can't cover (short
+     viewports, long content): the artwork always fades out across the same
+     final stretch the continuation fades in over, so it can never hard-cut. */
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 7rem), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 7rem), transparent 100%);
 }
 
 .vote-redesign-image {
@@ -57,12 +69,14 @@
   position: relative;
   z-index: 5;
   display: flex;
-  min-height: max(34rem, 68svh);
+  min-height: 100svh;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding-top: calc(4.75rem + clamp(1.5rem, 3.5vh, 2.5rem));
-  padding-bottom: 3rem;
+  /* Keeps the journey pill clear of the last 7rem where the artwork hands over
+     to the continuation, so content never sits in the crossfade band. */
+  padding-bottom: 7rem;
   text-align: center;
 }
 
@@ -333,6 +347,12 @@
     radial-gradient(48rem 28rem at 12% 20%, rgb(14 165 173 / 0.08), transparent 72%),
     radial-gradient(54rem 32rem at 86% 36%, rgb(139 92 246 / 0.12), transparent 72%),
     linear-gradient(90deg, rgb(5 3 10 / 0.4), transparent 20%, transparent 80%, rgb(5 3 10 / 0.4));
+  /* This overlay's box starts 4rem up inside the hero, and both its top-anchored
+     purple glow and its left/right edge darkening began at full strength on that
+     first pixel — drawing a hard horizontal line across the artwork. Easing the
+     whole layer in over its first 8rem lets it build up gradually instead. */
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 8rem);
+  mask-image: linear-gradient(180deg, transparent 0, #000 8rem);
 }
 
 @media (max-width: 899px) {
@@ -523,10 +543,15 @@
     linear-gradient(90deg, rgb(9 5 24 / 0.42), transparent 25%, transparent 75%, rgb(9 5 24 / 0.42));
 }
 
+/* The status pill, stat cards, secondary button and step tracker re-theme to
+   a light card in light theme, matching the rest of the light UI. Boosted
+   from 0.78-0.82 to a crisp, near-solid opacity — the same fix applied to
+   Store's equivalent hero pills — since the lower opacity read as a
+   washed-out block over the hero art rather than a clean white card. */
 :root[data-theme="light"] .vote-redesign-status {
   border-color: rgb(92 63 132 / 0.18);
   color: rgb(57 43 76 / 0.72);
-  background: rgb(252 250 255 / 0.78);
+  background: rgb(252 250 255 / 0.94);
   box-shadow: 0 16px 38px -25px rgb(38 19 66 / 0.5), inset 0 1px rgb(255 255 255 / 0.92);
 }
 
@@ -541,7 +566,7 @@
   color: #2b1c3e;
   background:
     radial-gradient(12rem 7rem at 100% 0%, rgb(139 92 246 / 0.1), transparent 74%),
-    rgb(252 250 255 / 0.82);
+    rgb(252 250 255 / 0.94);
   box-shadow: 0 22px 52px -34px rgb(43 22 74 / 0.48), inset 0 1px rgb(255 255 255 / 0.9);
 }
 
@@ -563,13 +588,13 @@
 :root[data-theme="light"] .vote-redesign-journey {
   border-color: rgb(78 52 116 / 0.2);
   color: #2f2042;
-  background: rgb(252 250 255 / 0.8);
+  background: rgb(252 250 255 / 0.94);
   box-shadow: 0 18px 42px -32px rgb(43 22 74 / 0.42), inset 0 1px rgb(255 255 255 / 0.9);
 }
 
 :root[data-theme="light"] .vote-redesign-secondary:hover {
   border-color: rgb(124 58 237 / 0.3);
-  background: rgb(255 255 255 / 0.94);
+  background: rgb(255 255 255 / 0.98);
 }
 
 :root[data-theme="light"] .vote-redesign-journey {
@@ -912,4 +937,20 @@
 :root[data-theme="light"] .vote-realm-world {
   color: #291b3b;
   background: transparent !important;
+}
+/* Light theme hero/continuation crossfade.
+   Light mode deliberately keeps its sanctuary photo unmasked over an opaque
+   #ece6f4 hero background, so the photo simply stopped dead at the hero's
+   bottom edge and the continuation artwork below started at full strength —
+   a hard photo-to-photo line. Dropping the opaque fill lets the continuation
+   (which already begins 7rem above that edge) show through, and fading the
+   hero artwork out across that same 7rem turns the cut into a real crossfade,
+   matching how dark mode now behaves. */
+:root[data-theme="light"] .vote-redesign-hero {
+  background: transparent;
+}
+
+:root[data-theme="light"] .vote-redesign-art {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 7rem), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 7rem), transparent 100%);
 }

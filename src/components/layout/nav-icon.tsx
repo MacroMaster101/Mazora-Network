@@ -5,7 +5,6 @@ import {
   Headset,
   House,
   Images,
-  LifeBuoy,
   UsersRound,
   ScrollText,
   ShoppingBag,

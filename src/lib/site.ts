@@ -1,3 +1,45 @@
+/** The one origin every canonical, OG tag and sitemap URL is built from. */
+const CANONICAL_ORIGIN = "https://mazora.us";
+
+/**
+ * Resolves the public origin, refusing values that would poison canonical URLs.
+ *
+ * Every `<link rel="canonical">`, `og:url` and sitemap `<loc>` on the site is
+ * derived from this one string, so a wrong value here is not a cosmetic bug —
+ * it tells Google the real home of every page is somewhere else. The two ways
+ * that actually happens in practice are a `NEXT_PUBLIC_SITE_URL` left pointing
+ * at localhost (copied from .env.example into the Vercel dashboard) and one set
+ * to the *.vercel.app deployment URL, which 308s to the apex and must never be
+ * advertised as canonical.
+ *
+ * In production those are ignored in favour of the apex, so a misconfigured
+ * dashboard degrades to "correct" instead of to "silently de-indexed". Plain
+ * http:// is upgraded for the same reason. Development keeps whatever is set,
+ * because localhost is the right answer there.
+ */
+export function resolvePublicOrigin(): string {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!raw) return CANONICAL_ORIGIN;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return CANONICAL_ORIGIN;
+  }
+
+  if (process.env.NODE_ENV !== "production") return parsed.origin;
+
+  const host = parsed.hostname.toLowerCase();
+  const unusable =
+    parsed.protocol !== "https:" ||
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host.endsWith(".vercel.app") ||
+    host.startsWith("www.");
+  return unusable ? CANONICAL_ORIGIN : parsed.origin;
+}
+
 /** Server-wide configuration. In Phase 2 these become editable site_settings rows. */
 export const site = {
   name: "Mazora Network",
@@ -13,7 +55,7 @@ export const site = {
   region: "Asia Pacific",
   launchDate: "2023-10-01",
   discord: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://mazora.us",
+  url: resolvePublicOrigin(),
   socials: [
     { label: "Discord", href: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt", icon: "Discord" },
     { label: "TikTok", href: "https://www.tiktok.com/@mazoramc?_r=1&_t=ZS-98Q2DRMhZZa", icon: "TikTok" },

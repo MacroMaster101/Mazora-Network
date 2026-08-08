@@ -1,25 +1,86 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
-import { ArrowRight, ChevronDown, Clock3, Gamepad2, House, PackageSearch, Sparkles } from "lucide-react";
-import type { GameMode, Product, StoreCategoryConfig } from "@/lib/types";
+import { ChevronDown, Clock3, Crown, Flame, Gamepad2, Gem, Heart, House, Package, PackageSearch, Rocket, Shield, Sparkles, Sword, Wand2 } from "lucide-react";
+import type { GameMode, Product, StoreCategoryConfig, StoreRoadmapConfig, StoreWelcomeBannerConfig } from "@/lib/types";
+import { DEFAULT_STORE_ROADMAP, DEFAULT_STORE_WELCOME_BANNER } from "@/lib/types";
 import { ProductCard } from "./product-card";
 import { RankOfferCard } from "./rank-offer-card";
+import { Icon } from "./icon";
 import { cn } from "@/lib/utils";
 import { readStoreReturnState, STORE_RETURN_KEY, STORE_RETURN_PENDING_KEY } from "@/lib/store-navigation";
 
 type StoreView = Product["category"] | "All";
+
+function getModeDisplayName(mode?: GameMode | null) {
+  if (!mode) return "";
+  return mode.name === "Survival SMP" ? "Survival" : mode.name;
+}
+
+function renderRoadmapIcon(iconKey: string) {
+  switch (iconKey.toLowerCase()) {
+    case "sword":
+    case "swords":
+      return <Sword size={18} />;
+    case "wand":
+    case "magic":
+      return <Wand2 size={18} />;
+    case "sparkles":
+    case "pet":
+    case "pets":
+      return <Sparkles size={18} />;
+    case "shield":
+    case "armor":
+      return <Shield size={18} />;
+    case "crown":
+    case "vip":
+      return <Crown size={18} />;
+    case "gem":
+    case "key":
+      return <Gem size={18} />;
+    case "rocket":
+    case "booster":
+      return <Rocket size={18} />;
+    case "clock":
+    case "time":
+      return <Clock3 size={18} />;
+    default:
+      return <Package size={18} />;
+  }
+}
+
+function getStatusBadgeStyle(status: string) {
+  const lower = status.toLowerCase();
+  if (lower.includes("dev")) {
+    return { badge: "border-purple-500/40 bg-purple-500/15 text-purple-300", dot: "bg-purple-400" };
+  }
+  if (lower.includes("soon")) {
+    return { badge: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300", dot: "bg-emerald-400" };
+  }
+  if (lower.includes("plan")) {
+    return { badge: "border-amber-500/40 bg-amber-500/15 text-amber-300", dot: "bg-amber-400" };
+  }
+  if (lower.includes("test")) {
+    return { badge: "border-rose-500/40 bg-rose-500/15 text-rose-300", dot: "bg-rose-400" };
+  }
+  return { badge: "border-violet-500/40 bg-violet-500/15 text-violet-300", dot: "bg-violet-400" };
+}
 
 export function StoreExplorer({
   products,
   modes,
   featuredSlugs,
   categoryConfigs,
+  welcomeBanner = DEFAULT_STORE_WELCOME_BANNER,
+  roadmap = DEFAULT_STORE_ROADMAP,
 }: {
   products: Product[];
   modes: GameMode[];
   featuredSlugs: string[];
   categoryConfigs: StoreCategoryConfig[];
+  welcomeBanner?: StoreWelcomeBannerConfig;
+  roadmap?: StoreRoadmapConfig;
 }) {
   const availableModes = modes;
   const defaultMode = availableModes.find((mode) => mode.storeStatus === "live")?.slug ?? availableModes[0]?.slug ?? "";
@@ -146,9 +207,9 @@ export function StoreExplorer({
                 className={cn("store-mode-tab", activeMode === mode.slug && "is-active")}
                 aria-pressed={activeMode === mode.slug}
               >
-                <span className="store-mode-tab-icon"><Gamepad2 size={15} /></span>
+                <span className="store-mode-tab-icon"><Icon name={mode.icon || "Gamepad2"} size={15} /></span>
                 <span>
-                  <strong>{mode.name}</strong>
+                  <strong>{getModeDisplayName(mode)}</strong>
                   <small>{mode.tagline || (isLive ? "Store live" : "Coming soon")}</small>
                 </span>
                 <i className={isLive ? "is-live" : ""} aria-hidden="true" />
@@ -166,10 +227,10 @@ export function StoreExplorer({
             <Gamepad2 size={34} />
           </div>
           <p className="eyebrow">Mode marketplace</p>
-          <h2>{selectedMode?.name} shop</h2>
+          <h2>{getModeDisplayName(selectedMode)} shop</h2>
           <p>
             This mode&apos;s items are still being designed and balanced. The store will open here when
-            {selectedMode?.name} rewards are ready.
+            {getModeDisplayName(selectedMode)} rewards are ready.
           </p>
           <div>
             <Clock3 size={15} />
@@ -178,7 +239,7 @@ export function StoreExplorer({
         </section>
       ) : (
         <>
-      <nav className="store-shop-nav" aria-label={`${selectedMode?.name ?? "Game mode"} store categories`}>
+      <nav className="store-shop-nav" aria-label={`${getModeDisplayName(selectedMode) || "Game mode"} store categories`}>
         <div className="store-shop-nav-main">
           <button type="button" onClick={() => chooseView("All")} className={cn("store-shop-nav-item", active === "All" && "is-active")} aria-pressed={active === "All"}>
             <House size={15} /> Store Home
@@ -204,12 +265,61 @@ export function StoreExplorer({
 
       {active === "All" ? (
         <div className="store-home-view store-home-v3">
+          {welcomeBanner.enabled && (
+            <section className="store-home-welcome-v3" aria-labelledby="store-welcome-title">
+              <div className="store-home-welcome-content">
+                <div className="store-home-welcome-header">
+                  <span className="store-home-welcome-pill">
+                    <Sparkles size={13} /> {welcomeBanner.badge}
+                  </span>
+                  <h2 id="store-welcome-title">{welcomeBanner.title}</h2>
+                </div>
+                <div className="store-home-welcome-body">
+                  <p>{welcomeBanner.paragraph1}</p>
+                  <p>{welcomeBanner.paragraph2}</p>
+                </div>
+                <div className="store-home-welcome-support">
+                  <div className="store-home-welcome-support-icon">
+                    <Heart size={18} />
+                  </div>
+                  <p>{welcomeBanner.supportNote}</p>
+                </div>
+              </div>
+              <div className="store-home-welcome-media">
+                <div className="store-home-welcome-media-aura" aria-hidden="true" />
+                <div className="store-home-welcome-media-frame group">
+                  <Image
+                    src={welcomeBanner.imageUrl}
+                    alt={welcomeBanner.title}
+                    fill
+                    sizes="(max-width: 900px) 100vw, 480px"
+                    className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
+                    priority
+                  />
+                  <div className="store-home-welcome-media-shimmer" aria-hidden="true" />
+                  <div className="store-home-welcome-media-overlay" aria-hidden="true" />
+                  <div className="store-home-welcome-media-badge">
+                    <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                    </span>
+                    <span>
+                      Minecraft {getModeDisplayName(selectedMode) || "Survival"} · v{selectedMode?.version || "1.21.11"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className="store-home-featured-v3" aria-labelledby="store-featured-title">
             <header className="store-home-featured-v3-head">
               <div>
-                <p className="eyebrow">Admin-curated loadout</p>
-                <h3 id="store-featured-title">Featured in the marketplace.</h3>
-                <p>Three standout upgrades selected by the Mazora team and updated directly from Store administration.</p>
+                <span className="store-home-trending-pill">
+                  <Flame size={13} className="text-amber-400" /> FEATURED UPGRADES
+                </span>
+                <h3 id="store-featured-title">Whats New & Trending?</h3>
+                <p>Enjoy the new and trending upgrades to enhance your experience!</p>
               </div>
               <span className="telemetry"><Sparkles size={13} /> {newArrivals.length} live picks</span>
             </header>
@@ -223,44 +333,41 @@ export function StoreExplorer({
             </div>
           </section>
 
-          <section className="store-home-category-hub" aria-labelledby="store-category-hub-title">
-            <div className="store-home-category-hub-intro">
-              <p className="eyebrow">Explore the catalog</p>
-              <h3 id="store-category-hub-title">Choose your next upgrade.</h3>
-              <p>Jump directly to the part of the {selectedMode?.name ?? "server"} marketplace that fits your play style.</p>
-              <span className="telemetry">{String(activeCategories.length).padStart(2, "0")} collections · {displayCount(products.filter((product) => (product.gameModeSlug ?? "survival-smp") === activeMode))} offers</span>
-            </div>
 
-            <div className="store-home-category-v3-grid">
-              {activeCategories.map((config, index) => (
-                <article key={config.key} className={`store-home-category-v3 accent-${config.accent}`}>
-                  <span className="telemetry">{String(index + 1).padStart(2, "0")} · {config.eyebrow}</span>
-                  <h4>{config.label}</h4>
-                  <p>{config.description}</p>
-                  {config.useSubcategories && config.subcategories.some((item) => item.enabled) ? (
-                    <div>
-                      {config.subcategories.filter((item) => item.enabled).sort((a, b) => a.sortOrder - b.sortOrder).slice(0, 3).map((item) => (
-                        <button key={item.key} type="button" onClick={() => chooseView(config.key, item.key)}>{item.label}</button>
-                      ))}
+          {roadmap.enabled && (
+            <section className="store-home-roadmap-v3" aria-labelledby="store-roadmap-title">
+              <div className="store-home-roadmap-header">
+                <div>
+                  <span className="store-home-roadmap-pill">
+                    <Sparkles size={13} /> {roadmap.eyebrow}
+                  </span>
+                  <h3 id="store-roadmap-title">{roadmap.title}</h3>
+                  {roadmap.subtitle && <p className="store-home-roadmap-desc">{roadmap.subtitle}</p>}
+                </div>
+              </div>
+
+              <div className="store-home-roadmap-grid">
+                {roadmap.items.filter((item) => item.enabled).map((item) => {
+                  const style = getStatusBadgeStyle(item.status);
+                  return (
+                    <div key={item.id} className="store-home-roadmap-card group">
+                      <div className="store-home-roadmap-card-head">
+                        <div className="store-home-roadmap-card-icon">
+                          {renderRoadmapIcon(item.icon)}
+                        </div>
+                        <span className={cn("store-home-roadmap-tag", style.badge)}>
+                          <span className={cn("h-1.5 w-1.5 rounded-full animate-pulse", style.dot)} />
+                          {item.status}
+                        </span>
+                      </div>
+                      <h4 className="store-home-roadmap-card-title">{item.title}</h4>
+                      {item.desc && <p className="store-home-roadmap-card-desc">{item.desc}</p>}
                     </div>
-                  ) : (
-                    <button type="button" onClick={() => chooseView(config.key)}>Browse {config.label.toLowerCase()} <ArrowRight size={14} /></button>
-                  )}
-                </article>
-              ))}
-            </div>
-          </section>
-          <section className="store-home-roadmap-v3" aria-label="Coming next">
-            <div>
-              <p className="eyebrow">Marketplace roadmap</p>
-              <h3>More ways to stand out.</h3>
-            </div>
-            <div>
-              <span>Weapon Bundles <small>Soon</small></span>
-              <span>Custom Weapons <small>Soon</small></span>
-              <span>Custom Pets <small>Soon</small></span>
-            </div>
-          </section>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </div>
       ) : list.length > 0 ? (
         <div className="store-category-sections">

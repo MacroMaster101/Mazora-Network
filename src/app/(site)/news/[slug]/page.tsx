@@ -9,6 +9,8 @@ import { fmtDate } from "@/lib/utils";
 import { ArticleArt, NewsAuthor, NewsCard, Reveal } from "@/components/shared";
 import { NewsVisitorStat } from "@/components/shared/news-visitor-stat";
 import { ShareButtons } from "@/components/shared/share-buttons";
+import { JsonLd } from "@/components/shared/json-ld";
+import { absoluteUrl, breadcrumbSchema, jsonLdGraph, newsArticleSchema } from "@/lib/seo";
 import "@/styles/news-article.css";
 
 // Per-request so an unknown slug returns a real 404 instead of a soft 200, and
@@ -19,17 +21,35 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const article = await getArticle(slug);
-  if (!article) return { title: "Article not found" };
+  // noindex, not just an absent title: an unknown slug 404s below, and a soft
+  // metadata object on a page that is about to throw would otherwise be the
+  // only signal a crawler saw if the notFound() render were ever cached.
+  if (!article) return { title: "Article not found", robots: { index: false, follow: false } };
+
   return {
     title: article.title,
     description: article.excerpt,
+    // Explicit rather than inherited: /news/[slug] is the one route where the
+    // canonical must name the article, and relying on the layout default here
+    // would silently break if the article were ever reachable by a second path.
+    alternates: { canonical: `/news/${article.slug}` },
     openGraph: {
       title: article.title,
       description: article.excerpt,
       type: "article",
+      url: absoluteUrl(`/news/${article.slug}`),
       authors: [article.author],
       publishedTime: article.date,
-      ...(article.featuredImage ? { images: [{ url: article.featuredImage }] } : {}),
+      // Falls back to the site card rather than emitting no image at all — a
+      // Discord unfurl with no thumbnail is the single biggest difference in
+      // how a link performs in a Minecraft community.
+      images: [article.featuredImage ? { url: article.featuredImage } : { url: "/images/og-default.webp", width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: article.title,
+      description: article.excerpt,
+      images: [article.featuredImage ?? "/images/og-default.webp"],
     },
   };
 }
@@ -46,6 +66,27 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   return (
     <article className="news-article-page">
+      <JsonLd
+        data={jsonLdGraph(
+          newsArticleSchema({
+            slug: article.slug,
+            title: article.title,
+            description: article.excerpt,
+            publishedAt: article.date,
+            imageUrl: article.featuredImage
+              ? // Already absolute when it comes from Supabase storage or Discord.
+                /^https?:\/\//.test(article.featuredImage)
+                ? article.featuredImage
+                : absoluteUrl(article.featuredImage)
+              : absoluteUrl("/images/og-default.webp"),
+            authorName: article.author,
+          }),
+          breadcrumbSchema([
+            { name: "News", path: "/news" },
+            { name: article.title, path: `/news/${article.slug}` },
+          ]),
+        )}
+      />
       <header className="news-detail-hero">
         <div className="news-detail-hero-backdrop" aria-hidden="true" />
         <div className="shell news-detail-hero-shell">

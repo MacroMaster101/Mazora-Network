@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getDiscordIdentity } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -68,8 +69,14 @@ async function saveAvatarUrl(url: string | null): Promise<AccountActionResult> {
   if (error || !data) return { ok: false, message: "Your profile photo could not be updated. Please try again." };
 
   await auth.supabase.auth.updateUser({ data: { avatar_url: url } });
+  // Both shells must be refreshed, not just the member one: staff manage their
+  // own profile at /admin/account, and the header + sidebar they see there are
+  // rendered by the /admin layout. Revalidating only /dashboard left them
+  // looking at their previous avatar until a hard reload.
   revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/settings");
+  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/account");
   return { ok: true };
 }
 
@@ -209,11 +216,44 @@ export async function useMinecraftAvatarAction(
   }).eq("user_id", auth.user.id);
 
   await auth.supabase.auth.updateUser({ data: { username: targetUsername, avatar_url: skinAvatarUrl } });
+  // Both shells must be refreshed, not just the member one: staff manage their
+  // own profile at /admin/account, and the header + sidebar they see there are
+  // rendered by the /admin layout. Revalidating only /dashboard left them
+  // looking at their previous avatar until a hard reload.
   revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/settings");
+  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/account");
 
   await removeStoredAvatars(auth.user.id);
   return { ok: true, message: `Minecraft skin (${targetUsername}) set as profile photo.` };
+}
+
+/**
+ * Adopt the photo from the account's linked Discord identity.
+ *
+ * The URL is read from the session's Discord identity, never from the form, and
+ * `getDiscordIdentity` already refuses anything not served by
+ * cdn.discordapp.com — so a crafted request cannot point a profile photo at an
+ * arbitrary host.
+ */
+export async function useDiscordAvatarAction(
+  _previous: AccountActionResult,
+): Promise<AccountActionResult> {
+  const auth = await authenticatedUser();
+  if (!auth) return { ok: false, message: "You must be signed in to use your Discord photo." };
+
+  const discord = await getDiscordIdentity();
+  if (!discord?.avatarUrl) {
+    return { ok: false, message: "No Discord photo found. Connect Discord first, then try again." };
+  }
+
+  const saved = await saveAvatarUrl(discord.avatarUrl);
+  if (!saved.ok) return saved;
+
+  // The stored upload is no longer the visible photo, so it should not linger.
+  await removeStoredAvatars(auth.user.id);
+  return { ok: true, message: `Discord photo (@${discord.username}) set as your profile photo.` };
 }
 
 export async function removeProfileAvatarAction(

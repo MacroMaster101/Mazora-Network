@@ -40,7 +40,11 @@ export function buildContentSecurityPolicy(nonce: string, isDev: boolean): strin
     "default-src 'self'",
     scriptSrc,
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data: blob: https://mc-heads.net https://api.dicebear.com https://cdn.discordapp.com${supabaseImageOrigin ? ` ${supabaseImageOrigin}` : ""}`,
+    // Avatar sources, and they must stay in step with the provider allowlist in
+    // lib/data/accounts.ts: a host trusted there but missing here is silently
+    // blocked by the browser, which reads as "that member has no photo" rather
+    // than as an error. googleusercontent is where Google account photos live.
+    `img-src 'self' data: blob: https://mc-heads.net https://api.dicebear.com https://cdn.discordapp.com https://*.googleusercontent.com${supabaseImageOrigin ? ` ${supabaseImageOrigin}` : ""}`,
     "font-src 'self'",
     // https: covers the env-configured Supabase host without hard-coding it.
     // ws: is dev-only, for the hot-reload socket.

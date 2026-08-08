@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { primaryNav } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { NavIcon } from "./nav-icon";

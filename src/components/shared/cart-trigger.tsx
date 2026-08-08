@@ -24,8 +24,11 @@ export function CartTrigger({
       type="button"
       onClick={openCart}
       className={cn(
-        "group relative inline-flex items-center justify-center gap-2 rounded-xl border border-line-strong bg-card/70 font-semibold text-ink shadow-sm backdrop-blur-md transition hover:-translate-y-0.5 hover:border-accent/50 hover:text-accent-bright",
-        compact ? "h-10 w-10" : "h-10 px-3.5 text-sm",
+        "group relative inline-flex items-center justify-center gap-2 border border-line-strong bg-card/70 font-semibold text-ink shadow-sm backdrop-blur-md transition hover:-translate-y-0.5 hover:border-accent/50 hover:text-accent-bright",
+        // Compact is only ever the icon-only header button, sitting beside the
+        // circular theme toggle, notifications and avatar buttons — it needs
+        // the same round shape, not the rectangular buttons' rounded-xl.
+        compact ? "h-10 w-10 rounded-full" : "h-10 rounded-xl px-3.5 text-sm",
         className,
       )}
       aria-label={`Open cart with ${count} ${count === 1 ? "item" : "items"}`}
