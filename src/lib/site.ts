@@ -16,6 +16,10 @@ const CANONICAL_ORIGIN = "https://mazora.us";
  * dashboard degrades to "correct" instead of to "silently de-indexed". Plain
  * http:// is upgraded for the same reason. Development keeps whatever is set,
  * because localhost is the right answer there.
+ *
+ * Exported for the unit tests; `site.url` below is the only production caller.
+ * Test files are gitignored, so static analysis reports this export as unused —
+ * it is not. Dropping the `export` would silently break the local test suite.
  */
 export function resolvePublicOrigin(): string {
   const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();

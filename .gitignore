@@ -58,3 +58,12 @@ desktop.ini
 /.cursor
 /.aider
 /.continue
+
+# Tests are kept local and are not published to the repository.
+# They still run with `npm test` on a machine that has them; a fresh clone
+# will not, because these files are deliberately not distributed.
+**/__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx

@@ -51,7 +51,7 @@ export default async function PlayerProfile({ params }: { params: Promise<{ user
           </Link>
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
             <div className="relative w-fit">
-              <MinecraftAvatar username={player.username} size={104} rounded="rounded-2xl" />
+              <MinecraftAvatar username={player.username} skinUrl={player.customSkinUrl} size={104} rounded="rounded-2xl" />
               <span
                 className={`absolute -bottom-1.5 -right-1.5 h-5 w-5 rounded-full border-4 border-base ${online ? "bg-success" : "bg-muted"}`}
                 title={online ? "Online" : "Offline"}

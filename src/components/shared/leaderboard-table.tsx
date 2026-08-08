@@ -65,7 +65,7 @@ export function LeaderboardTable({ entries, valueLabel }: { entries: Leaderboard
                 </td>
                 <td className="px-4 py-3">
                   <Link href={`/players/${e.player.username}`} className="flex items-center gap-3 hover:text-accent-bright">
-                    <MinecraftAvatar username={e.player.username} size={36} />
+                    <MinecraftAvatar username={e.player.username} skinUrl={e.player.customSkinUrl} size={36} />
                     <span className="font-semibold">{e.player.username}</span>
                     <RoleBadge rank={e.player.rank} />
                   </Link>

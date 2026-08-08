@@ -3,64 +3,40 @@
 import { useEffect, useState } from "react";
 import { LoadingScreen } from "./loading-screen";
 
-type Phase = "visible" | "leaving" | "hidden";
+/**
+ * How long after the CSS reveal finishes this component drops the overlay from
+ * the tree. The visual dismissal has already happened in CSS by then (700ms
+ * delay + 420ms fade, see .initial-loader-overlay in globals.css); this only
+ * removes the now-invisible markup so it cannot trap focus or catch clicks.
+ */
+const UNMOUNT_AFTER_MS = 1400;
 
 /**
- * Hard ceiling on the first-load screen. A stalled font, image or upstream
- * fetch must never leave a visitor staring at "Preparing your adventure" — the
- * real page is already behind the overlay, so revealing it late is always
- * better than not revealing it at all. globals.css carries an equivalent
- * failsafe for the case where this component's JavaScript never runs at all.
+ * The first-load splash.
+ *
+ * Deliberately dumb: it renders the overlay and then removes it. It does NOT
+ * decide when the overlay disappears — CSS does, on a fixed timeline, for the
+ * LCP reason documented on .initial-loader-overlay in globals.css. An effect
+ * here cannot run until React has hydrated, and gating an opaque full-screen
+ * overlay on hydration is what previously pushed mobile LCP to ~5.8s.
+ *
+ * Nothing here locks body scroll either. That used to happen on mount, which
+ * is now *after* the overlay has already faded — it would lock scrolling on a
+ * page the visitor can see and is trying to use.
  */
-const MAX_DISPLAY_MS = 5000;
-
 export function InitialSiteLoader() {
-  const [phase, setPhase] = useState<Phase>("visible");
+  const [mounted, setMounted] = useState(true);
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const minimumDisplay = reducedMotion ? 0 : 650;
-    const fadeDuration = reducedMotion ? 0 : 420;
-
-    document.documentElement.dataset.initialLoad = "active";
-    document.body.classList.add("initial-load-active");
-
-    let leaveTimer = 0;
-    let hideTimer = 0;
-    let released = false;
-
-    const release = () => {
-      if (released) return;
-      released = true;
-      setPhase("leaving");
-      document.documentElement.dataset.initialLoad = "complete";
-      document.body.classList.remove("initial-load-active");
-      hideTimer = window.setTimeout(() => setPhase("hidden"), fadeDuration);
-    };
-
-    // Dismiss once the page has actually finished loading rather than after a
-    // blind delay, so the reveal never uncovers a half-painted page. The
-    // minimum stops the reveal flickering on instant loads.
-    const scheduleRelease = () => {
-      leaveTimer = window.setTimeout(release, Math.max(0, minimumDisplay - performance.now()));
-    };
-
-    if (document.readyState === "complete") scheduleRelease();
-    else window.addEventListener("load", scheduleRelease, { once: true });
-
-    const capTimer = window.setTimeout(release, MAX_DISPLAY_MS);
-
-    return () => {
-      window.removeEventListener("load", scheduleRelease);
-      window.clearTimeout(leaveTimer);
-      window.clearTimeout(hideTimer);
-      window.clearTimeout(capTimer);
-      document.documentElement.dataset.initialLoad = "complete";
-      document.body.classList.remove("initial-load-active");
-    };
+    const timer = window.setTimeout(() => setMounted(false), UNMOUNT_AFTER_MS);
+    return () => window.clearTimeout(timer);
   }, []);
 
-  if (phase === "hidden") return null;
+  if (!mounted) return null;
 
-  return <div className="initial-loader-overlay" data-phase={phase}><LoadingScreen /></div>;
+  return (
+    <div className="initial-loader-overlay" aria-hidden="true">
+      <LoadingScreen />
+    </div>
+  );
 }

@@ -9,7 +9,7 @@ export async function getPlayers(): Promise<Player[]> {
   try {
     const { data: accounts } = await admin
       .from("minecraft_accounts")
-      .select("id, minecraft_uuid, minecraft_username, linked_at");
+      .select("id, minecraft_uuid, minecraft_username, linked_at, skin_head_url");
 
     if (!accounts || accounts.length === 0) return [];
 
@@ -29,6 +29,7 @@ export async function getPlayers(): Promise<Player[]> {
       return {
         username: String(acc.minecraft_username),
         uuid: String(acc.minecraft_uuid),
+        customSkinUrl: acc.skin_head_url ? String(acc.skin_head_url) : null,
         rank: "Member",
         accent: "violet",
         level: Number(stats?.level ?? 1),

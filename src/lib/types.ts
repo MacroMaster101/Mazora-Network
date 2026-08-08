@@ -170,6 +170,8 @@ export interface EventItem {
 export interface Player {
   username: string;
   uuid: string;
+  /** A self-uploaded skin's processed head icon, when set. See MinecraftAvatar. */
+  customSkinUrl?: string | null;
   rank: string;
   accent: Accent;
   level: number;

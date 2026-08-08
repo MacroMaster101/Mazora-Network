@@ -43,6 +43,8 @@ export const minecraftAccounts = pgTable(
     userId: uuid("user_id").notNull(),
     minecraftUuid: text("minecraft_uuid").notNull(),
     minecraftUsername: text("minecraft_username").notNull(),
+    skinHeadUrl: text("skin_head_url"),
+    rawSkinUrl: text("raw_skin_url"),
     linkedAt: timestamp("linked_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
