@@ -9,7 +9,7 @@ import { isStaff, roleDashboardPath } from "@/lib/auth/roles";
 import { primaryNav, site } from "@/lib/site";
 import type { Session } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { MinecraftAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 import { NavIcon } from "./nav-icon";
@@ -208,7 +208,7 @@ export function MobileMenu({
                         )}
                       >
                         <div className="flex items-center gap-3.5 min-w-0">
-                          <MinecraftAvatar username={session.username} size={38} />
+                          <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={38} />
                           <div className="min-w-0 flex-1">
                             <p className="font-bold text-xs text-ink truncate leading-tight">
                               {session.displayName || session.username}

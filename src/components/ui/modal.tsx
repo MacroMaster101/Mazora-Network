@@ -10,11 +10,13 @@ export function Modal({
   onClose,
   children,
   label,
+  size = "default",
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
   label?: string;
+  size?: "default" | "wide";
 }) {
   useEffect(() => {
     if (!open) return;
@@ -43,7 +45,7 @@ export function Modal({
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="animate-fade-up relative z-10 max-h-[90vh] w-full max-w-3xl overflow-auto">
+      <div className={`animate-fade-up relative z-10 max-h-[90vh] w-full overflow-auto ${size === "wide" ? "max-w-6xl" : "max-w-3xl"}`}>
         <button
           onClick={onClose}
           aria-label="Close"

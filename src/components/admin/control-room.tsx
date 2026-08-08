@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Radio, Shield, Sparkles } from "lucide-react";
+import { ArrowUpRight, Radio } from "lucide-react";
 import type { Role } from "@/lib/types";
-import { roleLabel } from "@/lib/auth/roles";
-import { MinecraftAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +40,7 @@ export function ago(iso: string): string {
 export function WatchBar({
   username,
   displayName,
+  avatarUrl,
   role,
   online,
   max,
@@ -49,6 +49,8 @@ export function WatchBar({
 }: {
   username?: string;
   displayName: string;
+  /** The signed-in member's chosen avatar, when they have one. */
+  avatarUrl?: string;
   role: Role;
   online: number;
   max: number;
@@ -59,7 +61,7 @@ export function WatchBar({
     <header className="panel relative overflow-hidden p-6 sm:p-7 border-accent/30 bg-card/80 backdrop-blur-xl shadow-xl">
       <div className="flex flex-wrap items-center justify-between gap-6">
         <div className="flex items-center gap-4 min-w-0">
-          <MinecraftAvatar username={username || displayName} size={48} />
+          <UserAvatar username={username || displayName} avatarUrl={avatarUrl} size={48} />
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
               <RankChip role={role} />

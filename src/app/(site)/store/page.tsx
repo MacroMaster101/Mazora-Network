@@ -7,7 +7,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { getGameModes, getProducts } from "@/lib/data/content";
-import { getStoreFeaturedSlugs } from "@/lib/data/store-settings";
+import { getStoreFeaturedSlugs, getStoreRoadmap, getStoreWelcomeBanner } from "@/lib/data/store-settings";
 import { getStoreCategoryConfigs } from "@/lib/data/store-categories";
 import { Reveal } from "@/components/shared";
 import { CartTrigger } from "@/components/shared/cart-trigger";
@@ -25,11 +25,13 @@ export default async function StorePage({
 }: {
   searchParams: Promise<{ cart?: string }>;
 }) {
-  const [products, modes, params, featuredSlugs] = await Promise.all([
+  const [products, modes, params, featuredSlugs, welcomeBanner, roadmap] = await Promise.all([
     getProducts(),
     getGameModes(),
     searchParams,
     getStoreFeaturedSlugs(),
+    getStoreWelcomeBanner(),
+    getStoreRoadmap(),
   ]);
   const categoryConfigs = await getStoreCategoryConfigs(modes);
   const offerCount = new Set(products.map((product) => product.family ?? product.slug)).size;
@@ -122,7 +124,14 @@ export default async function StorePage({
       <div className="store-marketplace">
         <section className="section shell store-catalog-shell">
           <Reveal>
-            <StoreExplorer products={products} modes={modes} featuredSlugs={featuredSlugs} categoryConfigs={categoryConfigs} />
+            <StoreExplorer
+              products={products}
+              modes={modes}
+              featuredSlugs={featuredSlugs}
+              categoryConfigs={categoryConfigs}
+              welcomeBanner={welcomeBanner}
+              roadmap={roadmap}
+            />
           </Reveal>
         </section>
       </div>

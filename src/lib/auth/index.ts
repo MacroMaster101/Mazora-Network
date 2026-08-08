@@ -4,6 +4,8 @@ import type { DiscordIdentity, Role } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
+import { resolveAvatarUrl } from "@/lib/avatar-source";
+import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
 import {
   canGrantRank,
   canManageRank,
@@ -28,10 +30,11 @@ export interface Session {
   role: Role;
 }
 
-// Re-export the pure role helpers so existing server-side callers of
-// "@/lib/auth" keep working unchanged. Client Components must import
-// these directly from "@/lib/auth/roles" to avoid pulling in
-// "next/headers" via this file.
+// Re-export the pure helpers so existing server-side callers of "@/lib/auth"
+// keep working unchanged. Client Components — and tests — must import these
+// directly from "@/lib/auth/roles" and "@/lib/auth/discord-identity" to avoid
+// pulling in "next/headers" and server-only via this file.
+export { pickDiscordIdentity };
 export {
   canGrantRank,
   canManageRank,
@@ -109,7 +112,11 @@ export async function getSession(): Promise<Session | null> {
       username,
       displayName,
       bio: typeof profile?.bio === "string" ? profile.bio : "",
-      avatarUrl: typeof profile?.avatar_url === "string" ? profile.avatar_url : undefined,
+      // Same resolution the admin account lists use: the avatar they chose,
+      // then the photo from their sign-in provider. Without the provider
+      // fallback the header and sidebars showed a monogram for members whose
+      // Google/Discord photo the Users board was happily displaying.
+      avatarUrl: resolveAvatarUrl(profile?.avatar_url, data.user.user_metadata) ?? undefined,
       role: safeRole(data.user.app_metadata?.role),
     };
   }
@@ -133,26 +140,6 @@ export async function getSessionUserId(): Promise<string | null> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
   return data.user.id;
-}
-
-/**
- * The Discord identity that should represent the account right now.
- *
- * An account can end up holding more than one Discord identity (linking a
- * second account succeeds server-side even though nothing in the UI offers it),
- * and `Array.find` would then return whichever happens to sit first — in
- * practice the oldest, so a user who switched accounts kept seeing their
- * previous username. Ordering by recency picks the one they actually last used,
- * which is also the one Supabase signs them in as.
- */
-export function pickDiscordIdentity<
-  T extends { provider: string; updated_at?: string; last_sign_in_at?: string; created_at?: string },
->(identities: T[] | undefined | null): T | undefined {
-  const discord = (identities ?? []).filter((entry) => entry.provider === "discord");
-  if (discord.length <= 1) return discord[0];
-  const freshness = (entry: T) =>
-    Date.parse(entry.updated_at ?? entry.last_sign_in_at ?? entry.created_at ?? "") || 0;
-  return [...discord].sort((a, b) => freshness(b) - freshness(a))[0];
 }
 
 /** Discord identity of the signed-in user, when they authenticated with Discord. */

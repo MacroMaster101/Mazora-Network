@@ -52,22 +52,6 @@ export const minecraftAccounts = pgTable(
   }),
 );
 
-export const minecraftLinkCodes = pgTable(
-  "minecraft_link_codes",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id").notNull(),
-    codeHash: text("code_hash").notNull(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    usedAt: timestamp("used_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({
-    codeHashIdx: uniqueIndex("minecraft_link_codes_hash_idx").on(t.codeHash),
-    userIdx: index("minecraft_link_codes_user_idx").on(t.userId),
-  }),
-);
-
 export const playerStatistics = pgTable("player_statistics", {
   id: uuid("id").defaultRandom().primaryKey(),
   minecraftAccountId: uuid("minecraft_account_id").notNull(),

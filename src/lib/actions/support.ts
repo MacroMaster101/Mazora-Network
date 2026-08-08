@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
+import { throttleAuthAction } from "@/lib/rate-limit";
 import { getDb } from "@/lib/db/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import * as schema from "@/lib/db/schema";
@@ -34,6 +35,18 @@ async function requireUser(): Promise<{ userId: string | null } | ActionResult> 
   if (!session) {
     return { ok: false, message: "You need to be logged in to submit this form." };
   }
+
+  // Signing in is not on its own a brake: without this one account could file
+  // unlimited tickets/appeals/reports, flooding the staff queue and amplifying
+  // database writes. One shared budget across every support form, bucketed per
+  // account, so filing a ticket and then a bug report still works.
+  const throttled = await throttleAuthAction("support-submit", {
+    limit: 6,
+    windowMs: 10 * 60_000,
+    identity: session.username,
+  });
+  if (throttled) return { ok: false, message: throttled };
+
   if (isSupabaseConfigured()) {
     const userId = await getSessionUserId();
     if (!userId) {

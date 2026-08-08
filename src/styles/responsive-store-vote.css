@@ -149,18 +149,20 @@
    options in an unlabelled horizontal scroller. */
 @media (max-width: 899px) {
   .store-mode-tabs {
+    flex-wrap: wrap;
     overflow: clip;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow-x: visible;
   }
   .store-mode-tab {
+    flex: 1 1 30%;
     min-width: 0;
     border-bottom: 1px solid rgb(var(--line) / 0.7);
   }
 }
 
 @media (max-width: 599px) {
-  .store-mode-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .store-mode-tab {
+    flex: 1 1 45%;
     min-height: 4rem;
     gap: 0.5rem;
     padding: 0.65rem;

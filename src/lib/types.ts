@@ -8,6 +8,87 @@
 export type Accent = "green" | "gold" | "cyan" | "rose" | "violet" | "orange";
 export type OnlineStatus = "online" | "offline";
 
+export interface StoreWelcomeBannerConfig {
+  badge: string;
+  title: string;
+  paragraph1: string;
+  paragraph2: string;
+  supportNote: string;
+  imageUrl: string;
+  enabled: boolean;
+}
+
+export const DEFAULT_STORE_WELCOME_BANNER: StoreWelcomeBannerConfig = {
+  badge: "EST. 2020 · SURVIVAL RPG EXPERIENCE",
+  title: "Welcome to Mazora - Survival",
+  paragraph1:
+    "Since 2020, Mazora has been dedicated to delivering a premium survival experience where fantasy, medieval adventure, RPG progression, and classic Minecraft come together in one immersive world. Explore breathtaking custom biomes, conquer handcrafted dungeons, challenge powerful bosses, master unique skills, collect animated weapon cosmetics, and discover countless ways to forge your own adventure through carefully balanced progression.",
+  paragraph2:
+    "Whether you’re building your dream base, trading with the community, venturing into the unknown, or embracing PvP, Mazora gives you the freedom to play your way. With regular updates, an ever-expanding world, and a welcoming community from around the globe, there’s always something new waiting beyond the horizon.",
+  supportNote:
+    "Every purchase from our store directly supports Mazora’s ongoing development, helping us create new content, improve existing features, and continue delivering the high-quality survival experience our players have enjoyed since 2020. Thank you for being part of Mazora’s journey.",
+  imageUrl: "/images/vote-world-bg-v2.webp",
+  enabled: true,
+};
+
+export interface StoreRoadmapItem {
+  id: string;
+  title: string;
+  desc: string;
+  status: string;
+  icon: string;
+  enabled: boolean;
+}
+
+export interface StoreRoadmapConfig {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  items: StoreRoadmapItem[];
+  enabled: boolean;
+}
+
+export const DEFAULT_STORE_ROADMAP: StoreRoadmapConfig = {
+  eyebrow: "MARKETPLACE ROADMAP",
+  title: "More ways to stand out.",
+  subtitle: "Sneak peek at upcoming feature bundles, custom cosmetics, and unique upgrades currently in development.",
+  enabled: true,
+  items: [
+    {
+      id: "weapon-bundles",
+      title: "Weapon Bundles",
+      desc: "Curated sets of animated weapon skins and custom particle trails.",
+      status: "Coming Soon",
+      icon: "package",
+      enabled: true,
+    },
+    {
+      id: "custom-weapons",
+      title: "Custom Weapons",
+      desc: "Exclusive 3D weapon models with unique skill abilities.",
+      status: "In Development",
+      icon: "sword",
+      enabled: true,
+    },
+    {
+      id: "custom-pets",
+      title: "Custom Pets",
+      desc: "Animated companion pets with stat boosts and cosmetic effects.",
+      status: "Coming Soon",
+      icon: "sparkles",
+      enabled: true,
+    },
+    {
+      id: "seasonal-cosmetics",
+      title: "Seasonal Cosmetics",
+      desc: "Limited-edition holiday armor trims, cloaks, and aura particles.",
+      status: "Planned",
+      icon: "wand",
+      enabled: true,
+    },
+  ],
+};
+
 export type Role =
   | "guest"
   | "member"

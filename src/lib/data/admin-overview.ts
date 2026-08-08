@@ -13,12 +13,15 @@ import type { Role } from "@/lib/types";
 import { ROLES } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { resolveAvatarUrl } from "@/lib/avatar-source";
 
 export interface AccountRow {
   username: string;
   email: string;
   role: Role;
   createdAt: string;
+  /** Chosen avatar, else the sign-in provider's photo, else null (monogram). */
+  avatarUrl: string | null;
 }
 
 export interface AccountsSnapshot {
@@ -70,11 +73,24 @@ export async function getAccountsSnapshot(): Promise<AccountsSnapshot | null> {
   if (error || !data) return null;
 
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+  // This list is built from auth alone for speed, so it has no profile join and
+  // therefore no chosen avatar. One extra read keeps the control room's faces
+  // consistent with the Users board rather than falling back to a generic head.
+  const chosenAvatars = new Map<string, string | null>();
+  try {
+    const { data: profiles } = await admin.from("profiles").select("user_id, avatar_url");
+    for (const row of profiles ?? []) chosenAvatars.set(String(row.user_id), row.avatar_url ?? null);
+  } catch {
+    // Avatars are cosmetic here; a failure must not take out the whole snapshot.
+  }
+
   const users = data.users.map((u) => ({
     username: String(u.user_metadata?.username ?? u.email?.split("@")[0] ?? "player"),
     email: u.email ?? "",
     role: toRole(u.app_metadata?.role),
     createdAt: u.created_at ?? "",
+    avatarUrl: resolveAvatarUrl(chosenAvatars.get(u.id), u.user_metadata),
   }));
 
   const staffRanked: Role[] = ["helper", "moderator", "senior_moderator", "administrator", "owner", "it"];
