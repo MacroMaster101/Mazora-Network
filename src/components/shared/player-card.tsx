@@ -13,7 +13,7 @@ export function PlayerCard({ player }: { player: Player }) {
       className="panel panel-hover group flex items-center gap-4 p-4"
     >
       <div className="relative">
-        <MinecraftAvatar username={player.username} size={52} />
+        <MinecraftAvatar username={player.username} skinUrl={player.customSkinUrl} size={52} />
         <span
           className={cn(
             "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-card",

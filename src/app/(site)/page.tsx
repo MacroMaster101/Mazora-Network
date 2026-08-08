@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,9 +10,8 @@ import { getDiscordStats } from "@/lib/data/discord";
 import { getServerStatus } from "@/lib/data/status";
 import { site } from "@/lib/site";
 import { withCommas } from "@/lib/utils";
-import { RouteLoading } from "@/components/shared/route-loading";
+import { headers } from "next/headers";
 import { getPreviewNews } from "@/lib/news/preview-fixtures";
-import { JsonLd } from "@/components/shared/json-ld";
 import { jsonLdGraph, organizationSchema, websiteSchema } from "@/lib/seo";
 
 /**
@@ -180,25 +178,33 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
               </div>
 
               <dl className="home-network-facts grid grid-cols-2 overflow-hidden border border-white/15 bg-black/10">
+                {/*
+                  The caption sits inside its own <dd> rather than a bare
+                  <span>: a <div> inside a <dl> may only contain dt/dd groups,
+                  so a stray span made this an invalid definition list (axe
+                  "definition-list"). Two <dd>s per <dt> is valid and is the
+                  correct reading anyway — the number and its unit are both
+                  descriptions of the same term.
+                */}
                 <div className="p-5 sm:p-6">
                   <dt className="text-xs uppercase tracking-widest text-muted">Live now</dt>
                   <dd className="telemetry mt-1 text-2xl font-bold">{status.live ? withCommas(status.players) : "—"}</dd>
-                  <span className="mt-1 block text-xs text-white/45">players online</span>
+                  <dd className="mt-1 text-xs text-white/45">players online</dd>
                 </div>
                 <div className="p-5 sm:p-6">
                   <dt className="text-xs uppercase tracking-widest text-muted">Community</dt>
                   <dd className="telemetry mt-1 text-2xl font-bold">{discord.live ? withCommas(discord.members) : "—"}</dd>
-                  <span className="mt-1 block text-xs text-white/45">Discord members</span>
+                  <dd className="mt-1 text-xs text-white/45">Discord members</dd>
                 </div>
                 <div className="p-5 sm:p-6">
                   <dt className="text-xs uppercase tracking-widest text-muted">Platforms</dt>
                   <dd className="telemetry mt-1 text-lg font-bold sm:text-xl">Java + Bedrock</dd>
-                  <span className="mt-1 block text-xs text-white/45">cross-play ready</span>
+                  <dd className="mt-1 text-xs text-white/45">cross-play ready</dd>
                 </div>
                 <div className="p-5 sm:p-6">
                   <dt className="text-xs uppercase tracking-widest text-muted">Version</dt>
                   <dd className="telemetry mt-1 text-2xl font-bold">{site.version}</dd>
-                  <span className="mt-1 block text-xs text-white/45">latest supported</span>
+                  <dd className="mt-1 text-xs text-white/45">latest supported</dd>
                 </div>
               </dl>
             </div>
@@ -216,14 +222,30 @@ export default async function HomePage({
   const previewValue = (await searchParams).previewNews;
   const previewNews = process.env.NODE_ENV === "development" && previewValue === "15";
   const previewEmpty = process.env.NODE_ENV === "development" && previewValue === "0";
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const json = JSON.stringify(jsonLdGraph(organizationSchema(), websiteSchema())).replace(/</g, "\\u003c");
+
   return (
     <>
       {/* Outside Suspense so the graph is in the initial HTML rather than a
-          streamed chunk — crawlers that do not wait for the stream still see it. */}
-      <JsonLd data={jsonLdGraph(organizationSchema(), websiteSchema())} />
-      <Suspense fallback={<RouteLoading />}>
-        <HomeContent previewNews={previewNews} previewEmpty={previewEmpty} />
-      </Suspense>
+          streamed chunk — crawlers that do not wait for the stream still see it.
+          Inlined rather than via the JsonLd component: see json-ld.tsx for why. */}
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{ __html: json }}
+      />
+      {/*
+        Deliberately NOT wrapped in <Suspense>. The fallback (RouteLoading)
+        reserves ~26-50rem, while the real page is several thousand pixels
+        tall, so swapping one for the other pushed the footer down and was the
+        entire source of this page's CLS (measured 0.156 — over the 0.1 budget
+        — with the footer named as the only culprit). Every fetch behind
+        HomeContent is cached and fast, so rendering it server-side before the
+        first flush costs little; see the numbers in the audit notes.
+      */}
+      <HomeContent previewNews={previewNews} previewEmpty={previewEmpty} />
     </>
   );
 }

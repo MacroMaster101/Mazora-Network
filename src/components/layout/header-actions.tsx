@@ -52,15 +52,22 @@ export function HeaderActions({ session }: { session: Session | null }) {
   }, []);
 
   if (!session) {
+    // The account dock that wraps this becomes visible at min-[1200px] (see
+    // site-header.tsx), and the mobile drawer (which also carries Log in /
+    // Join) hides at that same width — so this must be visible starting at
+    // 1200px too, not later, or there is a width range with no way to sign in
+    // from the header at all. Labels follow the same icon-then-text pattern
+    // NavLinks uses: icon only from 1200px, full text from 1280px, so the
+    // compact 1200-1279px range doesn't force wrapping.
     return (
-      <div className="hidden items-center gap-1.5 min-[1280px]:flex">
+      <div className="hidden items-center gap-1.5 min-[1200px]:flex">
         <AuthDialogTrigger view="login" className="desktop-login-link" title="Log in">
           <LogIn size={15} />
-          <span>Log in</span>
+          <span className="hidden min-[1280px]:inline">Log in</span>
         </AuthDialogTrigger>
-        <AuthDialogTrigger view="register" className="desktop-register-link">
+        <AuthDialogTrigger view="register" className="desktop-register-link" title="Join">
           <Sparkles size={14} />
-          <span>Join</span>
+          <span className="hidden min-[1280px]:inline">Join</span>
         </AuthDialogTrigger>
       </div>
     );
