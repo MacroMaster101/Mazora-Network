@@ -109,18 +109,23 @@ function fmtDateTime(iso: string): string {
 }
 
 function PublisherAvatar({ src, name, team = false }: { src?: string | null; name: string; team?: boolean }) {
+  // Stored avatar URLs are a snapshot taken when the article's publisher was
+  // last set — if that photo is later replaced (new upload, switching to a
+  // Minecraft skin), the old file is deleted and this URL 404s. Fall back to
+  // initials rather than showing a broken image.
+  const [failed, setFailed] = useState(false);
   const fallback = name.trim().slice(0, 1).toUpperCase() || "M";
   return (
     <span className={cn("news-publisher-avatar", team && "news-publisher-avatar-team")}>
-      {src ? (
+      {src && !failed ? (
         // Publisher avatars can come from Discord or profile storage.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" loading="lazy" decoding="async" />
+        <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
       ) : team ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src="/images/mazora-icon.png" alt="" loading="lazy" decoding="async" />
       ) : (
-        <span>{fallback}</span>
+        <span className="news-author-fallback">{fallback}</span>
       )}
     </span>
   );

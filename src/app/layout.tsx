@@ -12,6 +12,18 @@ const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-disp
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
+/**
+ * The default social card. 1200×630 is the size Discord, X and Facebook all
+ * crop to, and Discord in particular is where most Mazora links get shared.
+ * Pages with their own artwork (news articles) override `openGraph.images`.
+ */
+const OG_IMAGE = {
+  url: "/images/og-default.webp",
+  width: 1200,
+  height: 630,
+  alt: `${site.name} — Minecraft survival, skyblock and minigame worlds`,
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
@@ -21,17 +33,36 @@ export const metadata: Metadata = {
   description: site.description,
   applicationName: site.name,
   keywords: ["Minecraft server", "Minecraft community", "survival", "skyblock", "lifesteal", "KitPvP", site.name],
+  /*
+    "./" is resolved by Next against the *current* pathname, so every route
+    self-canonicalises to its own https://mazora.us URL without each page having
+    to repeat it. This is the single signal that collapses the www, http and
+    *.vercel.app duplicates Google would otherwise be free to pick between —
+    those hosts 308 to the apex, and the canonical agrees with the destination.
+    A page that needs a different target (e.g. a paginated view folding into
+    page 1) can still override `alternates` locally.
+  */
+  alternates: { canonical: "./" },
   openGraph: {
     type: "website",
     siteName: site.name,
     title: `${site.name} — ${site.tagline}`,
     description: site.description,
     url: site.url,
+    locale: "en_US",
+    images: [OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: `${site.name} — ${site.tagline}`,
     description: site.description,
+    images: [OG_IMAGE.url],
+  },
+  // metadataBase makes these absolute, which Discord and X both require —
+  // a root-relative og:image is silently dropped by most unfurlers.
+  icons: {
+    icon: [{ url: "/images/mazora-icon.png", type: "image/png", sizes: "512x512" }],
+    apple: [{ url: "/images/mazora-icon.png", sizes: "512x512" }],
   },
   robots: { index: true, follow: true },
 };

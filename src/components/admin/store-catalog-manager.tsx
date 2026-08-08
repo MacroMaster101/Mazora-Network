@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { ChevronRight, Crown, Edit3, Eye, EyeOff, Gamepad2, Gauge, Grid2X2, ImagePlus, KeyRound, List, PackagePlus, Plus, Save, Search, ShoppingBag, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ChevronRight, Crown, Edit3, Eye, EyeOff, Gauge, Grid2X2, ImagePlus, KeyRound, List, PackagePlus, Plus, Save, Search, ShoppingBag, Sparkles, Trash2, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { GameMode, Product, StoreCategoryConfig } from "@/lib/types";
 import {
   deleteStoreModeAction,
   deleteStoreProductAction,
-  saveStoreModeAction,
   saveStoreProductAction,
   toggleStoreModeAction,
   toggleStoreProductAction,
@@ -17,12 +16,14 @@ import {
 import { FormRow, Input, Modal, Select, Textarea, useToast } from "@/components/ui";
 import { usd } from "@/lib/utils";
 import { deleteStoreCategoryAction, saveStoreCategoryAction } from "@/lib/actions/store-settings";
+import { Icon } from "@/components/shared/icon";
+import { GameModeFormModal } from "./game-mode-form-modal";
 
 type ProductDraft = Product | null;
 type ModeDraft = GameMode | null;
 type CategoryDraft = StoreCategoryConfig | null;
 
-const ACCENTS = ["violet", "cyan", "green", "gold", "rose", "orange"];
+const ACCENTS = ["violet", "cyan", "green", "gold", "rose", "orange"] as const;
 const CATEGORY_OPTIONS = [
   { value: "Ranks", label: "Ranks", description: "Supporter tiers", icon: Crown },
   { value: "Crate Keys", label: "Crate Keys", description: "Reward keys", icon: KeyRound },
@@ -176,9 +177,6 @@ export function StoreCatalogManager({
 
   function openMode(mode: ModeDraft) {
     setModeDraft(mode);
-    setName(mode?.name ?? "");
-    setSlug(mode?.slug ?? "");
-    setSlugTouched(Boolean(mode));
   }
 
   function submit(
@@ -228,9 +226,9 @@ export function StoreCatalogManager({
         </div>
 
         <nav className="store-admin-breadcrumbs" aria-label="Store catalog breadcrumb">
-          <Link href="/admin/store" className={view === "modes" ? "is-current" : ""}><b>01</b> Game modes</Link>
+          <Link href="/admin/store/catalog" className={view === "modes" ? "is-current" : ""}><b>01</b> Game modes</Link>
           <ChevronRight size={14} />
-          {selectedMode && view !== "modes" ? <Link href={`/admin/store/${selectedMode.slug}`} className={view === "categories" ? "is-current" : ""}><b>02</b> {selectedMode.name}</Link> : <span><b>02</b> Categories</span>}
+          {selectedMode && view !== "modes" ? <Link href={`/admin/store/catalog/${selectedMode.slug}`} className={view === "categories" ? "is-current" : ""}><b>02</b> {selectedMode.name}</Link> : <span><b>02</b> Categories</span>}
           <ChevronRight size={14} />
           <span className={view === "items" ? "is-current" : ""}><b>03</b> {view === "items" ? selectedCategoryConfig?.label ?? selectedCategory : "Items"}</span>
         </nav>
@@ -247,8 +245,8 @@ export function StoreCatalogManager({
                 const liveCount = products.filter((product) => (product.gameModeSlug ?? "survival-smp") === mode.slug && product.enabled !== false).length;
                 return (
                   <article key={mode.id ?? mode.slug} className={`store-admin-mode-choice ${mode.enabled === false ? "is-disabled" : ""}`}>
-                    <Link href={`/admin/store/${mode.slug}`} className="store-admin-choice-main">
-                      <span><Gamepad2 size={19} /></span>
+                    <Link href={`/admin/store/catalog/${mode.slug}`} className="store-admin-choice-main">
+                      <span><Icon name={mode.icon} size={22} /></span>
                       <strong>{mode.name}</strong>
                       <small>{liveCount}/{count} items live</small>
                       <i className={mode.storeStatus === "live" ? "is-live" : ""}>{mode.storeStatus === "live" ? "Live" : "Soon"}</i>
@@ -280,7 +278,7 @@ export function StoreCatalogManager({
                 const liveCount = modeProducts.filter((product) => product.category === config.key && product.enabled !== false).length;
                 return (
                   <article key={`${config.gameModeSlug}:${config.key}`} className={`store-admin-category-choice accent-${config.accent} ${!config.enabled ? "is-disabled" : ""}`}>
-                    <Link href={`/admin/store/${selectedMode.slug}/${slugify(config.key)}`} className="store-admin-choice-main">
+                    <Link href={`/admin/store/catalog/${selectedMode.slug}/${slugify(config.key)}`} className="store-admin-choice-main">
                       <span><Icon size={19} /></span>
                       <small>{config.eyebrow}</small>
                       <strong>{config.label}</strong>
@@ -585,71 +583,11 @@ export function StoreCatalogManager({
             </div>
           </form>
         )}
-      </Modal>      <Modal open={modeDraft !== undefined} onClose={() => setModeDraft(undefined)} label={modeDraft ? "Edit Store game mode" : "Create Store game mode"}>
-        <form action={(data) => submit(data, saveStoreModeAction, () => setModeDraft(undefined))} className="store-admin-modal panel overflow-hidden">
-          <div className="border-b border-line px-6 py-5">
-            <p className="eyebrow">{modeDraft ? "Edit marketplace" : "New marketplace"}</p>
-            <h2 className="mt-2 text-2xl font-black">{modeDraft ? modeDraft.name : "Create game mode"}</h2>
-          </div>
-          <div className="grid gap-5 p-6 md:grid-cols-2">
-            {modeDraft?.id && <input type="hidden" name="id" value={modeDraft.id} />}
-            <FormRow label="Mode name" htmlFor="mode-name">
-              <Input id="mode-name" name="name" value={name} onChange={(event) => {
-                setName(event.target.value);
-                if (!slugTouched) setSlug(slugify(event.target.value));
-              }} required />
-            </FormRow>
-            <FormRow label="Slug" htmlFor="mode-slug">
-              <Input id="mode-slug" name="slug" value={slug} onChange={(event) => {
-                setSlugTouched(true);
-                setSlug(slugify(event.target.value));
-              }} required />
-            </FormRow>
-            <div className="md:col-span-2">
-              <FormRow label="Description" htmlFor="mode-description">
-                <Textarea id="mode-description" name="description" rows={3} defaultValue={modeDraft?.description ?? ""} />
-              </FormRow>
-            </div>
-            <FormRow label="Tab label" htmlFor="mode-tagline">
-              <Input id="mode-tagline" name="tagline" defaultValue={modeDraft?.tagline ?? ""} placeholder="Store live" />
-            </FormRow>
-            <FormRow label="Minecraft version" htmlFor="mode-version">
-              <Input id="mode-version" name="version" defaultValue={modeDraft?.version ?? "1.21.11"} required />
-            </FormRow>
-            <FormRow label="Store status" htmlFor="mode-status">
-              <Select id="mode-status" name="storeStatus" defaultValue={modeDraft?.storeStatus ?? "coming_soon"}>
-                <option value="live">Store live</option><option value="coming_soon">Coming soon</option>
-              </Select>
-            </FormRow>
-            <FormRow label="Accent" htmlFor="mode-accent">
-              <Select id="mode-accent" name="accent" defaultValue={modeDraft?.accent ?? "violet"}>
-                {ACCENTS.map((item) => <option key={item}>{item}</option>)}
-              </Select>
-            </FormRow>
-            <FormRow label="Icon key" htmlFor="mode-icon">
-              <Input id="mode-icon" name="icon" defaultValue={modeDraft?.icon ?? "gamepad-2"} />
-            </FormRow>
-            <FormRow label="Display order" htmlFor="mode-order">
-              <Input id="mode-order" name="sortOrder" type="number" defaultValue={modeDraft?.sortOrder ?? modes.length * 10} />
-            </FormRow>
-            <label className="store-admin-publish flex items-center gap-3 rounded-xl border border-line p-4 text-sm font-semibold md:col-span-2">
-              <input type="checkbox" name="enabled" defaultChecked={modeDraft?.enabled ?? true} className="h-4 w-4 accent-violet-500" />
-              Show this game mode in the Store selector
-            </label>
-          </div>
-          <div className="flex justify-end gap-2 border-t border-line px-6 py-4">
-            <button type="button" className="btn btn-secondary" onClick={() => setModeDraft(undefined)}>Cancel</button>
-            <button type="submit" disabled={busy} className="btn btn-primary"><Save size={15} /> {busy ? "Saving…" : "Save game mode"}</button>
-          </div>
-        </form>
       </Modal>
+      <GameModeFormModal draft={modeDraft} modesCount={modes.length} onClose={() => setModeDraft(undefined)} />
     </>
   );
 }
-
-
-
-
 
 
 

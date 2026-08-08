@@ -449,6 +449,14 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   background: linear-gradient(145deg, rgb(35 22 55 / 0.92), rgb(10 7 18 / 0.9));
 }
 
+/* This meta bar had no light-theme background of its own, so the dark tile
+   above stayed on regardless of theme — a dark purple square dropped into an
+   otherwise light pill. */
+:root[data-theme="light"] .news-detail-meta .news-author-avatar {
+  border-color: rgb(124 58 237 / 0.2);
+  background: linear-gradient(145deg, white, rgb(239 232 250));
+}
+
 .news-detail-meta .news-author-avatar-team {
   width: 3.35rem;
   padding-inline: 0.25rem;

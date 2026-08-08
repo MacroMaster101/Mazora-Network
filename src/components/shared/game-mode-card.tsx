@@ -11,9 +11,9 @@ export function GameModeCard({ mode }: { mode: GameMode }) {
       <div className="p-5">
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-display text-lg font-bold">{mode.name}</h3>
-          <span className={`hud telemetry rounded-md px-2 py-1 text-xs ${accentStyles[mode.accent].text}`}>
-            <span className="dot mr-1.5 inline-block align-middle" />
-            {mode.players}
+          <span className={`hud telemetry rounded-md px-2 py-1 text-xs ${mode.storeStatus === "live" ? accentStyles[mode.accent].text : "text-muted"}`}>
+            <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${mode.storeStatus === "live" ? "bg-emerald-400" : "bg-muted"}`} />
+            {mode.storeStatus === "live" ? "Live" : "Soon"}
           </span>
         </div>
         <p className="mt-1 text-sm text-accent-bright/80">{mode.tagline}</p>

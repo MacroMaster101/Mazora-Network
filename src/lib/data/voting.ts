@@ -1,6 +1,5 @@
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import type { VoteSite } from "@/lib/types";
 
 export interface AdminVoteSite extends VoteSite {

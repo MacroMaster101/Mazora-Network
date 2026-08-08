@@ -7,7 +7,7 @@ import { RankChip, rankTier } from "@/components/admin/rank-chip";
 import { RoleManager } from "@/components/admin/role-manager";
 import { DeleteUserButton } from "@/components/admin/delete-user";
 import { adminReleaseMinecraftUsernameAction, type AdminActionResult } from "@/lib/actions/user-admin";
-import { MinecraftAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared";
 import { Input, useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,8 @@ export interface DirectoryRow {
   email: string;
   role: Role;
   minecraftUsername?: string | null;
+  /** The avatar this member chose (photo or Minecraft skin), or their provider photo. */
+  avatarUrl?: string | null;
   /** Null when this row may be edited; otherwise why it may not be. */
   lockedReason: string | null;
   /** Invited but not yet accepted — cannot sign in, so it reads differently. */
@@ -185,7 +187,7 @@ export function UsersDirectory({
                 >
                   <td className="px-4 py-3">
                     <span className="flex items-center gap-3">
-                      <MinecraftAvatar username={row.minecraftUsername || row.username} size={32} />
+                      <UserAvatar username={row.username} avatarUrl={row.avatarUrl} size={32} />
                       <span className="min-w-0">
                         <strong className="block truncate font-semibold">
                           {row.username}

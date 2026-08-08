@@ -1,6 +1,7 @@
 import "server-only";
 import { desc } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
+import { profilesByBylineName } from "@/lib/data/content";
 
 export interface AdminArticle {
   id: string;
@@ -42,6 +43,16 @@ export async function getAdminNews(): Promise<AdminNews | null> {
   if (!db) return null;
   try {
     const rows = await db.select().from(schema.newsArticles).orderBy(desc(schema.newsArticles.createdAt));
+
+    // author_avatar_url is a snapshot taken when the publisher was last set, so
+    // it breaks as soon as that person changes their photo. Resolve the live
+    // profile by byline name (profiles.username is uniquely indexed) so the
+    // editorial desk shows the same face as the public byline and the Users
+    // board, instead of a dead link that renders as a monogram.
+    const liveByName = await profilesByBylineName(
+      rows.filter((r) => r.publisherMode === "author").map((r) => String(r.authorName ?? "")),
+    );
+
     const mapped: AdminArticle[] = rows.map((r) => ({
       id: String(r.id),
       title: r.title,
@@ -53,7 +64,8 @@ export async function getAdminNews(): Promise<AdminNews | null> {
       source: r.source,
       authorName: r.authorName,
       authorRole: r.authorRole,
-      authorAvatarUrl: r.authorAvatarUrl,
+      authorAvatarUrl:
+        liveByName.get(String(r.authorName ?? "").trim().toLowerCase())?.avatarUrl ?? r.authorAvatarUrl,
       teamAvatarUrl: r.teamAvatarUrl,
       readTimeMinutes: r.readTimeMinutes,
       publisherMode: r.publisherMode === "author" ? "author" : "team",

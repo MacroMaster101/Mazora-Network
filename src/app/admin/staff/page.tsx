@@ -8,7 +8,7 @@ import { DashHeader } from "@/components/dashboard/dash-ui";
 import { ReadOnlyBanner } from "@/components/admin/admin-ui";
 import { RankChip } from "@/components/admin/rank-chip";
 import { InviteUserButton, PendingInvites } from "@/components/admin/user-invites";
-import { MinecraftAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared";
 import { fmtDate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Staff · Admin" };
@@ -105,7 +105,7 @@ export default async function AdminStaffPage() {
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {group.members.map((member) => (
                   <article key={member.userId} className="panel panel-hover flex items-center gap-3 p-4">
-                    <MinecraftAvatar username={member.username} size={40} />
+                    <UserAvatar username={member.username} avatarUrl={member.avatarUrl} size={40} />
                     <span className="min-w-0 flex-1">
                       <strong className="block truncate font-semibold">{member.username}</strong>
                       <span className="block truncate text-xs text-muted">{member.email}</span>

@@ -6,7 +6,14 @@ import { getSession, hasAtLeast } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db/client";
 import { getAdminGameModes, getAdminProducts, getProducts } from "@/lib/data/content";
 import { categoryConfigId, getStoreCategoryConfigs, getStoreCategorySettingState, STORE_CATEGORY_CONFIG_KEY } from "@/lib/data/store-categories";
-import { getStoreFeaturedSlugs, STORE_FEATURED_PICKS_KEY } from "@/lib/data/store-settings";
+import {
+  getStoreFeaturedSlugs,
+  getStoreRoadmap,
+  getStoreWelcomeBanner,
+  STORE_FEATURED_PICKS_KEY,
+  STORE_ROADMAP_KEY,
+  STORE_WELCOME_BANNER_KEY,
+} from "@/lib/data/store-settings";
 
 export interface StoreSettingsActionResult {
   ok: boolean;
@@ -55,7 +62,126 @@ export async function saveStoreFeaturedPicksAction(formData: FormData): Promise<
 
   revalidatePath("/store");
   revalidatePath("/admin/store");
+  revalidatePath("/admin/store/content");
   return { ok: true, message: "Store featured picks updated." };
+}
+
+const welcomeBannerSchema = z.object({
+  badge: z.string().trim().min(2, "Enter a badge text.").max(120),
+  title: z.string().trim().min(2, "Enter a banner title.").max(140),
+  paragraph1: z.string().trim().min(10, "Add paragraph 1 content.").max(2000),
+  paragraph2: z.string().trim().min(10, "Add paragraph 2 content.").max(2000),
+  supportNote: z.string().trim().min(10, "Add support note content.").max(1500),
+  imageUrl: z.string().trim().min(1, "Enter an image URL.").max(500),
+  enabled: z.boolean(),
+});
+
+export async function saveStoreWelcomeBannerAction(formData: FormData): Promise<StoreSettingsActionResult> {
+  const session = await getSession();
+  if (!session || !hasAtLeast(session.role, "administrator")) {
+    return { ok: false, message: "You do not have permission to manage Store welcome banner." };
+  }
+
+  const db = getDb();
+  if (!db) return { ok: false, message: "The database is not connected." };
+
+  const parsed = welcomeBannerSchema.safeParse({
+    badge: formData.get("badge"),
+    title: formData.get("title"),
+    paragraph1: formData.get("paragraph1"),
+    paragraph2: formData.get("paragraph2"),
+    supportNote: formData.get("supportNote"),
+    imageUrl: formData.get("imageUrl"),
+    enabled: formData.get("enabled") === "on" || formData.get("enabled") === "true",
+  });
+
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Check welcome banner fields." };
+  }
+
+  const before = await getStoreWelcomeBanner();
+  await db
+    .insert(schema.siteSettings)
+    .values({ settingKey: STORE_WELCOME_BANNER_KEY, settingValue: parsed.data })
+    .onConflictDoUpdate({
+      target: schema.siteSettings.settingKey,
+      set: { settingValue: parsed.data, updatedAt: new Date() },
+    });
+
+  await db.insert(schema.auditLogs).values({
+    action: "store.welcome_banner.update",
+    targetType: "setting",
+    targetId: STORE_WELCOME_BANNER_KEY,
+    metadata: { before, after: parsed.data, by: session.username },
+  });
+
+  revalidatePath("/store");
+  revalidatePath("/admin/store");
+  revalidatePath("/admin/store/content");
+  return { ok: true, message: "Store welcome banner updated." };
+}
+
+const roadmapItemSchema = z.object({
+  id: z.string().trim().min(1).max(80),
+  title: z.string().trim().min(2, "Enter feature title.").max(100),
+  desc: z.string().trim().max(300).default(""),
+  status: z.string().trim().min(1).max(50),
+  icon: z.string().trim().min(1).max(50).default("package"),
+  enabled: z.boolean().default(true),
+});
+
+const roadmapSchema = z.object({
+  eyebrow: z.string().trim().min(2, "Enter section eyebrow.").max(80),
+  title: z.string().trim().min(2, "Enter section title.").max(120),
+  subtitle: z.string().trim().max(500).default(""),
+  enabled: z.boolean().default(true),
+  items: z.array(roadmapItemSchema),
+});
+
+export async function saveStoreRoadmapAction(formData: FormData): Promise<StoreSettingsActionResult> {
+  const session = await getSession();
+  if (!session || !hasAtLeast(session.role, "administrator")) {
+    return { ok: false, message: "You do not have permission to manage Store roadmap." };
+  }
+
+  const db = getDb();
+  if (!db) return { ok: false, message: "The database is not connected." };
+
+  const rawJson = formData.get("roadmapJson");
+  if (typeof rawJson !== "string") {
+    return { ok: false, message: "Invalid roadmap data submitted." };
+  }
+
+  try {
+    const parsedData = JSON.parse(rawJson);
+    const parsed = roadmapSchema.safeParse(parsedData);
+    if (!parsed.success) {
+      return { ok: false, message: parsed.error.issues[0]?.message ?? "Check roadmap fields." };
+    }
+
+    const before = await getStoreRoadmap();
+    await db
+      .insert(schema.siteSettings)
+      .values({ settingKey: STORE_ROADMAP_KEY, settingValue: parsed.data })
+      .onConflictDoUpdate({
+        target: schema.siteSettings.settingKey,
+        set: { settingValue: parsed.data, updatedAt: new Date() },
+      });
+
+    await db.insert(schema.auditLogs).values({
+      action: "store.roadmap.update",
+      targetType: "setting",
+      targetId: STORE_ROADMAP_KEY,
+      metadata: { before, after: parsed.data, by: session.username },
+    });
+
+    revalidatePath("/store");
+    revalidatePath("/admin/store");
+    revalidatePath("/admin/store/content");
+    return { ok: true, message: "Store marketplace roadmap updated." };
+  } catch {
+    return { ok: false, message: "Failed to parse roadmap configuration." };
+  }
 }
 
 const storeCategorySchema = z.object({
@@ -83,7 +209,8 @@ const storeSubcategorySchema = z.object({
 function refreshCategoryPaths(modeSlug: string) {
   revalidatePath("/store");
   revalidatePath("/admin/store");
-  revalidatePath(`/admin/store/${modeSlug}`);
+  revalidatePath("/admin/store/catalog");
+  revalidatePath(`/admin/store/catalog/${modeSlug}`);
 }
 
 async function persistCategoryState(state: Awaited<ReturnType<typeof getStoreCategorySettingState>>) {

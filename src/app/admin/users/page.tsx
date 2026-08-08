@@ -34,6 +34,7 @@ export default async function AdminUsersPage() {
       email: account.email,
       role: account.role,
       minecraftUsername: account.minecraftUsername,
+      avatarUrl: account.avatarUrl,
       lockedReason,
       pendingInvite: account.pendingInvite,
     };

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Bell,
   Check,
   ChevronDown,
   Edit3,
@@ -21,7 +20,6 @@ import {
   User,
   Users,
   X,
-  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MinecraftAvatar } from "@/components/shared";

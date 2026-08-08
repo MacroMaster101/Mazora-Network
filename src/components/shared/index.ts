@@ -5,6 +5,7 @@ export { Reveal } from "./reveal";
 export { EmptyState } from "./empty-state";
 export { CopyIpButton } from "./copy-ip-button";
 export { MinecraftAvatar } from "./minecraft-avatar";
+export { UserAvatar } from "./user-avatar";
 export { MinecraftMark } from "./minecraft-mark";
 export { RoleBadge } from "./role-badge";
 export { Countdown } from "./countdown";

@@ -20,7 +20,18 @@ export function LoadingScreen() {
           </div>
         </div>
         <p className="initial-loader-eyebrow"><span /> Enter the network <span /></p>
-        <h1>Preparing your adventure</h1>
+        {/*
+          Deliberately not an <h1>. Transient loading text is not a page
+          heading: an <h1> here would sit ahead of the real one in the initial
+          markup and become the primary heading crawlers and screen readers saw.
+          The wrapper is already role="status" with an aria-label, which is the
+          correct semantic for this.
+
+          This splash used to appear twice in the initial HTML — once here via
+          InitialSiteLoader's overlay and once as the root loading.tsx fallback.
+          The root loading.tsx has been removed, so this is now the only copy.
+        */}
+        <p className="initial-loader-title">Preparing your adventure</p>
         <p className="initial-loader-copy">Syncing worlds, players, and the latest from Mazora.</p>
         <div className="initial-loader-progress" aria-hidden="true">
           <div className="initial-loader-progress-line"><i /></div>

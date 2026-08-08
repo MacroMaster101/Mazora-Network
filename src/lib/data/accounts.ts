@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { ROLES, hasAtLeast } from "@/lib/auth/roles";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getDb, schema } from "@/lib/db/client";
+import { resolveAvatarUrl } from "@/lib/avatar-source";
 import type { Role } from "@/lib/types";
 
 /**
@@ -26,6 +27,12 @@ export interface AccountSummary {
   email: string;
   role: Role;
   minecraftUsername: string | null;
+  /**
+   * The avatar this member actually chose: an uploaded photo, or the mc-heads
+   * skin URL written when they pick "Minecraft skin". Falls back to the photo
+   * that came with their sign-in provider, then null (callers show a monogram).
+   */
+  avatarUrl: string | null;
   createdAt: string | null;
   lastSignInAt: string | null;
   /** Set when the account was created by an invitation. */
@@ -41,6 +48,7 @@ function toRole(value: unknown): Role {
 interface ProfileName {
   username: string;
   displayName: string | null;
+  avatarUrl: string | null;
 }
 
 /** The one place the site's username precedence is defined. */
@@ -93,10 +101,15 @@ async function profileNames(): Promise<Map<string, ProfileName>> {
         userId: schema.profiles.userId,
         username: schema.profiles.username,
         displayName: schema.profiles.displayName,
+        avatarUrl: schema.profiles.avatarUrl,
       })
       .from(schema.profiles);
     for (const row of rows) {
-      map.set(row.userId, { username: row.username, displayName: row.displayName });
+      map.set(row.userId, {
+        username: row.username,
+        displayName: row.displayName,
+        avatarUrl: row.avatarUrl,
+      });
     }
   } catch (error) {
     console.error("Failed to load profile names:", error);
@@ -156,6 +169,7 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
         email: user.email ?? "",
         role: toRole(user.app_metadata?.role),
         minecraftUsername,
+        avatarUrl: resolveAvatarUrl(profile?.avatarUrl, user.user_metadata),
         createdAt: user.created_at ?? null,
         lastSignInAt: user.last_sign_in_at ?? null,
         invitedAt: user.invited_at ?? null,

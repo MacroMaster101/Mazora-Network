@@ -6,6 +6,7 @@ import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageGallery } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
 import { rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
+import { throttleAuthAction } from "@/lib/rate-limit";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
 
 export interface GalleryActionResult {
@@ -114,6 +115,15 @@ export async function submitGalleryAction(formData: FormData): Promise<GalleryAc
     return { ok: false, message: "You must be logged in to submit an artwork." };
   }
 
+  // Each submission resolves (and may re-host) an image, so an unthrottled
+  // loop here is both a moderation-queue flood and outbound fetch amplification.
+  const throttled = await throttleAuthAction("gallery-submit", {
+    limit: 5,
+    windowMs: 10 * 60_000,
+    identity: session.username,
+  });
+  if (throttled) return { ok: false, message: throttled };
+
   const userId = await getSessionUserId();
   const db = getDb();
   if (!db) return NO_DB;
@@ -157,6 +167,15 @@ export async function submitGalleryAction(formData: FormData): Promise<GalleryAc
 export async function toggleGalleryLikeAction(imageId: string): Promise<GalleryActionResult> {
   const userId = await getSessionUserId();
   if (!userId) return { ok: false, message: "Please log in to like artworks." };
+
+  // Generous enough for real toggling, low enough that scripted like/unlike
+  // cannot hammer the likes table.
+  const throttled = await throttleAuthAction("gallery-like", {
+    limit: 30,
+    windowMs: 60_000,
+    identity: userId,
+  });
+  if (throttled) return { ok: false, message: throttled };
 
   const db = getDb();
   if (!db) return NO_DB;

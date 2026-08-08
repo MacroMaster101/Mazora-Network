@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Check, CheckCheck, ChevronDown, LayoutDashboard, LogIn, LogOut, RotateCcw, Settings, Sparkles, Ticket, User } from "lucide-react";
+import { Bell, CheckCheck, ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, Sparkles, Ticket, User } from "lucide-react";
 import type { Session } from "@/lib/auth";
-import { isStaff, roleDashboardPath } from "@/lib/auth/roles";
+import { isStaff } from "@/lib/auth/roles";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
-import { MinecraftAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 
@@ -80,18 +80,11 @@ export function HeaderActions({ session }: { session: Session | null }) {
   const activeMenuHref = menu
     .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
-  const initials = session.displayName.slice(0, 2).toUpperCase();
 
   const unreadCount = notifs.filter((n) => !n.read).length;
 
   const markAllRead = () => {
     const updated = notifs.map((n) => ({ ...n, read: true }));
-    setNotifs(updated);
-    saveStoredNotifications(updated);
-  };
-
-  const markAllUnread = () => {
-    const updated = notifs.map((n) => ({ ...n, read: false }));
     setNotifs(updated);
     saveStoredNotifications(updated);
   };
@@ -239,7 +232,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
           title={session.displayName}
           className="flex items-center gap-1.5 p-1 rounded-2xl hover:bg-ink/5 dark:hover:bg-white/5 transition-colors"
         >
-          <MinecraftAvatar username={session.username} size={32} />
+          <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={32} />
           <ChevronDown size={13} className="text-muted transition-transform" aria-hidden="true" />
         </button>
 
@@ -247,7 +240,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
           <div className="account-menu animate-fade-up absolute right-0 top-[calc(100%+10px)] z-[90] w-72 max-w-[calc(100vw-1.5rem)] overflow-hidden">
             <div className="account-menu-header flex items-center gap-3.5 p-4 border-b border-slate-200/80 dark:border-purple-900/40">
               <div className="relative shrink-0">
-                <MinecraftAvatar username={session.username} size={44} />
+                <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={44} />
                 <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0c0618] shadow-sm" aria-hidden="true" />
               </div>
               <div className="min-w-0 flex-1">
