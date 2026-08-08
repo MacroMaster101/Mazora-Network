@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { getSession, isStaff } from "@/lib/auth";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { FORMS_CONFIG_KEY, getFormsConfig, FormConfigItem } from "@/lib/data/forms-config";
 
 export interface FormActionState {

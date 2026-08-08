@@ -21,7 +21,7 @@ create index if not exists game_modes_store_order_idx on public.game_modes(sort_
 insert into public.game_modes
   (name, slug, description, icon, accent, tagline, version, store_status, sort_order, enabled)
 values
-  ('Survival SMP', 'survival-smp', 'Mazora''s live Survival RPG marketplace.', 'gamepad-2', 'violet', 'Store live', '1.21.11', 'live', 0, true),
+  ('Survival', 'survival-smp', 'Mazora''s live Survival RPG marketplace.', 'gamepad-2', 'violet', 'Store live', '1.21.11', 'live', 0, true),
   ('Skyblock', 'skyblock', 'Skyblock marketplace opening in a future season.', 'gamepad-2', 'cyan', 'Coming soon', '1.21.11', 'coming_soon', 10, true),
   ('Lifesteal', 'lifesteal', 'Lifesteal marketplace opening in a future season.', 'gamepad-2', 'rose', 'Coming soon', '1.21.11', 'coming_soon', 20, true),
   ('OneBlock', 'oneblock', 'OneBlock marketplace opening in a future season.', 'gamepad-2', 'green', 'Coming soon', '1.21.11', 'coming_soon', 30, true),

@@ -3,9 +3,11 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Gamepad2, Loader2, Trash2, Upload, Check } from "lucide-react";
+import { DiscordIcon } from "@/components/auth/provider-icons";
 import {
   removeProfileAvatarAction,
   uploadProfileAvatarAction,
+  useDiscordAvatarAction,
   useMinecraftAvatarAction,
 } from "@/lib/actions/avatar";
 import type { AccountActionResult } from "@/lib/actions/account";
@@ -19,16 +21,20 @@ export function ProfileAvatarEditor({
   username,
   email,
   avatarUrl,
+  hasDiscordPhoto = false,
   enabled,
 }: {
   displayName: string;
   username: string;
   email: string;
   avatarUrl?: string;
+  /** Only offer the Discord option when that account actually has a photo. */
+  hasDiscordPhoto?: boolean;
   enabled: boolean;
 }) {
   const [uploadState, uploadAction, uploadPending] = useActionState(uploadProfileAvatarAction, initialState);
   const [minecraftState, minecraftAction, minecraftPending] = useActionState(useMinecraftAvatarAction, initialState);
+  const [discordState, discordAction, discordPending] = useActionState(useDiscordAvatarAction, initialState);
   const [removeState, removeAction, removePending] = useActionState(removeProfileAvatarAction, initialState);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -65,13 +71,37 @@ export function ProfileAvatarEditor({
   }, [minecraftState, router, toast]);
 
   useEffect(() => {
+    if (!discordState.message) return;
+    toast(discordState.message, discordState.ok ? "success" : "error");
+    if (discordState.ok) router.refresh();
+  }, [discordState, router, toast]);
+
+  useEffect(() => {
     if (!removeState.message) return;
     toast(removeState.message, removeState.ok ? "success" : "error");
     if (removeState.ok) router.refresh();
   }, [removeState, router, toast]);
 
   const shownAvatar = previewUrl ?? avatarUrl;
-  const busy = uploadPending || minecraftPending || removePending;
+
+  // googleusercontent is the photo that came with the Google account, not
+  // something the member uploaded — labelling it "Uploaded photo" (the old
+  // catch-all) told them they had set a picture they never chose, and left
+  // Remove looking broken because clearing it just falls back to the same
+  // image again.
+  const isProviderPhoto = Boolean(avatarUrl?.includes("googleusercontent.com"));
+  const avatarSource = previewUrl
+    ? "New photo"
+    : avatarUrl?.includes("mc-heads.net")
+      ? "Minecraft skin"
+      : avatarUrl?.includes("cdn.discordapp.com")
+        ? "Discord photo"
+        : isProviderPhoto
+          ? "Email photo"
+          : avatarUrl
+            ? "Uploaded photo"
+            : "Initials";
+  const busy = uploadPending || minecraftPending || discordPending || removePending;
 
   return (
     <div className="profile-avatar-editor">
@@ -95,9 +125,7 @@ export function ProfileAvatarEditor({
             <p className="profile-avatar-name">{displayName}</p>
             <p className="profile-avatar-email">{email || `@${username}`}</p>
           </div>
-          <span className="profile-avatar-source">
-            {previewUrl ? "New photo" : avatarUrl?.includes("mc-heads.net") ? "Minecraft skin" : avatarUrl ? "Uploaded photo" : "Initials"}
-          </span>
+          <span className="profile-avatar-source">{avatarSource}</span>
         </div>
 
         <div className="profile-avatar-actions">
@@ -143,8 +171,22 @@ export function ProfileAvatarEditor({
             Minecraft skin
           </button>
 
+          {hasDiscordPhoto && (
+            <form action={discordAction}>
+              <button type="submit" className="btn btn-secondary btn-sm" disabled={!enabled || busy}>
+                {discordPending ? <Loader2 size={14} className="animate-spin" /> : <DiscordIcon className="h-3.5 w-3.5" />}
+                {discordPending ? "Applying…" : "Discord photo"}
+              </button>
+            </form>
+          )}
+
           <form action={removeAction}>
-            <button type="submit" className="profile-avatar-remove" disabled={!enabled || !avatarUrl || busy}>
+            <button
+              type="submit"
+              className="profile-avatar-remove"
+              disabled={!enabled || !avatarUrl || isProviderPhoto || busy}
+              title={isProviderPhoto ? "This is your account's email photo — there is nothing stored to remove." : undefined}
+            >
               {removePending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
               Remove
             </button>
@@ -216,4 +258,4 @@ export function ProfileAvatarEditor({
       </Modal>
     </div>
   );
-}
+}

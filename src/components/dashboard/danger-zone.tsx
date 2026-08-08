@@ -1,46 +1,25 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { AlertTriangle, Loader2, Unlink, UserRoundX } from "lucide-react";
-import {
-  deleteAccountAction,
-  disconnectMinecraftAction,
-  type AccountActionResult,
-} from "@/lib/actions/account";
+import { useActionState, useEffect, useState } from "react";
+import { AlertTriangle, Loader2, UserRoundX } from "lucide-react";
+import { deleteAccountAction, type AccountActionResult } from "@/lib/actions/account";
 import { FormRow, Input, Modal, useToast } from "@/components/ui";
 
 const initialState: AccountActionResult = { ok: false };
 
-export function DangerZone({
-  username,
-  initiallyLinked,
-  enabled,
-}: {
-  username: string;
-  initiallyLinked: boolean;
-  enabled: boolean;
-}) {
-  const [, setLinked] = useState(initiallyLinked);
-  const [dialog, setDialog] = useState<"disconnect" | "delete" | null>(null);
+/**
+ * Account deletion only.
+ *
+ * A permanently-disabled "Minecraft linking · Coming soon" button used to sit
+ * here, along with a disconnect dialog nothing could open. Setting and clearing
+ * a Minecraft name now lives entirely in the Connected accounts card, which is
+ * where users look for it.
+ */
+export function DangerZone({ username, enabled }: { username: string; enabled: boolean }) {
+  const [dialog, setDialog] = useState<"delete" | null>(null);
   const [confirmation, setConfirmation] = useState("");
-  const [disconnectState, disconnectAction, disconnectPending] = useActionState(
-    disconnectMinecraftAction,
-    initialState,
-  );
   const [deleteState, deleteAction, deletePending] = useActionState(deleteAccountAction, initialState);
   const { toast } = useToast();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!disconnectState.message) return;
-    toast(disconnectState.message, disconnectState.ok ? "success" : "error");
-    if (disconnectState.ok) {
-      setLinked(false);
-      setDialog(null);
-      router.refresh();
-    }
-  }, [disconnectState, toast, router]);
 
   useEffect(() => {
     if (!deleteState.message) return;
@@ -52,7 +31,7 @@ export function DangerZone({
   }, [deleteState, toast]);
 
   const closeDialog = () => {
-    if (disconnectPending || deletePending) return;
+    if (deletePending) return;
     setDialog(null);
     setConfirmation("");
   };
@@ -66,14 +45,6 @@ export function DangerZone({
         <div className="mt-4 flex flex-wrap gap-3">
           <button
             type="button"
-            className="btn btn-ghost btn-sm border-danger/40 text-danger"
-            disabled
-            title="Minecraft linking is coming soon"
-          >
-            <Unlink size={14} /> Minecraft linking · Coming soon
-          </button>
-          <button
-            type="button"
             onClick={() => setDialog("delete")}
             className="btn btn-ghost btn-sm border-danger/40 text-danger"
             disabled={!enabled}
@@ -83,32 +54,9 @@ export function DangerZone({
           </button>
         </div>
         <p className="mt-3 text-xs text-muted">
-          These actions are permanent and require a confirmation step.
+          This action is permanent and requires a confirmation step.
         </p>
       </section>
-
-      <Modal open={dialog === "disconnect"} onClose={closeDialog} label="Disconnect Minecraft account">
-        <div className="panel mx-auto max-w-md border-danger/30 p-6 sm:p-7">
-          <h2 className="font-display text-xl font-bold">Disconnect Minecraft?</h2>
-          <p className="mt-2 text-sm text-muted">
-            Your Minecraft identity and synced player statistics will be removed. You can link the account again later.
-          </p>
-          <div className="mt-6 flex flex-wrap justify-end gap-2">
-            <button type="button" onClick={closeDialog} className="btn btn-ghost btn-sm" disabled={disconnectPending}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => startTransition(() => disconnectAction())}
-              className="btn btn-ghost btn-sm border-danger/40 text-danger"
-              disabled={disconnectPending}
-            >
-              {disconnectPending ? <Loader2 size={14} className="animate-spin" /> : <Unlink size={14} />}
-              {disconnectPending ? "Disconnecting…" : "Disconnect"}
-            </button>
-          </div>
-        </div>
-      </Modal>
 
       <Modal open={dialog === "delete"} onClose={closeDialog} label="Permanently delete account">
         <form action={deleteAction} className="panel mx-auto max-w-md border-danger/40 p-6 sm:p-7">
@@ -151,4 +99,4 @@ export function DangerZone({
       </Modal>
     </>
   );
-}
+}

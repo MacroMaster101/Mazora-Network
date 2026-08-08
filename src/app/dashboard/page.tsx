@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Blocks, Bell, Receipt, Ticket, Shield, ArrowRight } from "lucide-react";
+import { Bell, Receipt, Ticket, Shield, ArrowRight } from "lucide-react";
 import { requireSession, isStaff } from "@/lib/auth";
 import { StatTile } from "@/components/dashboard/dash-ui";
-import { MinecraftAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
 
 export const metadata: Metadata = { title: "User Dashboard" };
@@ -43,7 +43,7 @@ export default async function DashboardOverview() {
       {/* Profile Welcome Banner */}
       <div className="rounded-2xl border border-line-strong bg-card/90 dark:bg-card/80 p-6 backdrop-blur-xl shadow-lg flex flex-wrap items-center justify-between gap-5">
         <div className="flex items-center gap-4 min-w-0">
-          <MinecraftAvatar username={session.username} size={48} />
+          <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={48} />
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
               <RankChip role={session.role} />

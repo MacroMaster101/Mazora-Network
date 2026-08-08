@@ -79,8 +79,14 @@ export async function updateProfileAction(
   // Keep provider-independent auth metadata aligned for any surface that has
   // to render before the profile row is available.
   await auth.supabase.auth.updateUser({ data: { display_name: parsed.data.displayName } });
+  // Both shells must be refreshed, not just the member one: staff manage their
+  // own profile at /admin/account, and the header + sidebar they see there are
+  // rendered by the /admin layout. Revalidating only /dashboard left them
+  // looking at their previous avatar until a hard reload.
   revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/settings");
+  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/account");
   return { ok: true, message: "Profile updated." };
 }
 
@@ -100,12 +106,6 @@ export async function disconnectMinecraftAction(
     .eq("user_id", auth.user.id);
   if (accountError) return { ok: false, message: "Minecraft could not be disconnected. Please try again." };
 
-  const { error: codeError } = await admin
-    .from("minecraft_link_codes")
-    .delete()
-    .eq("user_id", auth.user.id);
-  if (codeError) return { ok: false, message: "The account was disconnected, but an old link code could not be cleared." };
-
   const { data: profile } = await admin
     .from("profiles")
     .select("avatar_url")
@@ -116,8 +116,14 @@ export async function disconnectMinecraftAction(
     await auth.supabase.auth.updateUser({ data: { avatar_url: null } });
   }
 
+  // Both shells must be refreshed, not just the member one: staff manage their
+  // own profile at /admin/account, and the header + sidebar they see there are
+  // rendered by the /admin layout. Revalidating only /dashboard left them
+  // looking at their previous avatar until a hard reload.
   revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/settings");
+  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/account");
   revalidatePath("/dashboard/minecraft");
   return { ok: true, message: "Minecraft has been disconnected." };
 }
@@ -176,4 +182,4 @@ export async function deleteAccountAction(
   // prevents the browser retaining a stale JWT until its normal expiry.
   await auth.supabase.auth.signOut({ scope: "local" });
   redirect("/");
-}
+}

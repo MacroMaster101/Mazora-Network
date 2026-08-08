@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Store subcategory items · Admin" };
 
 export default async function AdminStoreSubcategoryItemsPage({ params }: { params: Promise<{ modeSlug: string; categorySlug: string; subcategorySlug: string }> }) {
   const { modeSlug, categorySlug, subcategorySlug } = await params;
-  await requireRole("administrator", `/admin/store/${modeSlug}/${categorySlug}/${subcategorySlug}`);
+  await requireRole("administrator", `/admin/store/catalog/${modeSlug}/${categorySlug}/${subcategorySlug}`);
   const [products, modes] = await Promise.all([getAdminProducts(), getAdminGameModes()]);
   const mode = modes.find((item) => item.slug === modeSlug);
   if (!mode) notFound();
@@ -29,7 +29,7 @@ export default async function AdminStoreSubcategoryItemsPage({ params }: { param
       <DashHeader
         title={`${mode.name} · ${subcategory.label}`}
         subtitle={`${itemCount} products in ${config.label}`}
-        action={<div className="store-admin-page-actions"><Link href={`/admin/store/${mode.slug}/${storeCategorySlug(config.key)}`} className="btn btn-secondary btn-sm"><ArrowLeft size={15} /> Subcategories</Link><Link href="/store" className="btn btn-ghost btn-sm"><ExternalLink size={15} /> Public store</Link></div>}
+        action={<div className="store-admin-page-actions"><Link href={`/admin/store/catalog/${mode.slug}/${storeCategorySlug(config.key)}`} className="btn btn-secondary btn-sm"><ArrowLeft size={15} /> Subcategories</Link><Link href="/store" className="btn btn-ghost btn-sm"><ExternalLink size={15} /> Public store</Link></div>}
       />
       <StoreCatalogManager products={products} modes={modes} categoryConfigs={categoryConfigs} view="items" initialModeSlug={mode.slug} initialCategory={config.key} initialSubcategory={subcategory.key} />
     </div>

@@ -2806,9 +2806,15 @@ html {
     color: #2e1065;
   }
 
+  /* Not the dark theme's rule with the colors swapped: that one lightens a
+     dark badge toward the (also dark) hero art, so it stays visible either
+     way. This badge is already light against dark art, so dropping to an 8%
+     tint on hover let the dark art underneath show back through — a dark
+     icon over dark art. Hovering should read as "lighter", same as the dark
+     theme does, so this brightens toward solid white instead of fading out. */
   :root[data-theme="light"] .hero-nav .header-cart-trigger:hover {
     border-color: rgba(147, 51, 234, 0.5);
-    background: rgba(147, 51, 234, 0.08);
+    background: rgba(255, 255, 255, 0.98);
   }
 
 
@@ -2912,6 +2918,17 @@ html {
 
   :root[data-theme="light"] .hero-nav .nav-dropdown-kicker {
     color: #7c3aed;
+  }
+
+  /* The dropdown's own item icons (text-accent-bright) were missed from the
+     resets above: .hero-nav .text-accent-bright (further up) hardcodes the
+     light lavender meant for text sitting directly on dark hero art, which
+     this icon badge inherited even though it sits on the dropdown's own solid
+     panel — on the light theme's near-white panel that made the icon nearly
+     invisible. Restoring the theme's normal accent-bright variable here,
+     exactly like the title/copy/kicker resets above it. */
+  .hero-nav .nav-dropdown .text-accent-bright {
+    color: rgb(var(--accent-bright));
   }
 
   /* Homepage hero: cinematic world art framed as a subtle game HUD. */
@@ -3567,8 +3584,15 @@ body.initial-load-active {
   background: linear-gradient(90deg, rgb(196 157 255 / 0.72), transparent);
 }
 
-.initial-loader h1 {
+/* Was `.initial-loader h1` — the element is now a <p> so the splash no longer
+   contributes a document heading (see loading-screen.tsx). Styling unchanged;
+   the display font comes from the explicit family below rather than the h1
+   element default it previously inherited. */
+.initial-loader-title {
   margin-top: 0.8rem;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 800;
+  line-height: 1.05;
   font-size: clamp(2rem, 5.2vw, 3.55rem);
   letter-spacing: -0.045em;
   text-wrap: balance;
@@ -4784,8 +4808,6 @@ body.initial-load-active {
 .admin-sidebar>nav::-webkit-scrollbar {
   display: none;
 }
-
-
 
 .dashboard-sidebar>nav .text-muted,
 .admin-sidebar>nav .text-muted {
@@ -6672,9 +6694,9 @@ body.initial-load-active {
 }
 
 .store-mode-tabs {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   overflow: hidden;
-  grid-template-columns: repeat(6, minmax(9rem, 1fr));
   border: 1px solid rgb(var(--line));
   border-radius: 1.35rem;
   background: rgb(var(--surface) / 0.7);
@@ -6684,7 +6706,8 @@ body.initial-load-active {
 .store-mode-tab {
   position: relative;
   display: grid;
-  min-width: 0;
+  flex: 1 1 9rem;
+  min-width: 9rem;
   min-height: 5rem;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -6818,6 +6841,82 @@ body.initial-load-active {
 }
 
 .store-mode-coming-soon>div:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.75rem;
+  border: 1px solid rgb(var(--accent-rgb) / 0.3);
+  border-radius: 999px;
+  background: rgb(var(--accent-rgb) / 0.1);
+  padding: 0.65rem 0.9rem;
+  color: rgb(var(--accent-bright));
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Game mode detail page "coming soon" state — same treatment as the Store's
+   per-mode coming-soon panel, under its own class names since it's used on a
+   different page with its own copy and no shop context. */
+.gamemode-coming-soon {
+  display: flex;
+  min-height: 28rem;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgb(var(--line));
+  border-radius: 2rem;
+  background:
+    radial-gradient(34rem 24rem at 50% 45%, rgb(var(--accent-rgb) / 0.17), transparent 72%),
+    linear-gradient(145deg, rgb(var(--card) / 0.78), rgb(var(--surface) / 0.5));
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.gamemode-coming-soon-orbit {
+  position: relative;
+  display: grid;
+  width: 8rem;
+  height: 8rem;
+  place-items: center;
+  margin-bottom: 2rem;
+  border: 1px solid rgb(var(--accent-rgb) / 0.32);
+  border-radius: 50%;
+  color: rgb(var(--accent-bright));
+}
+
+.gamemode-coming-soon-orbit::before,
+.gamemode-coming-soon-orbit::after {
+  position: absolute;
+  inset: 0.8rem -1.4rem;
+  transform: rotate(34deg);
+  border: 1px solid rgb(var(--accent-rgb) / 0.18);
+  border-radius: 50%;
+  content: "";
+}
+
+.gamemode-coming-soon-orbit::after {
+  transform: rotate(-34deg);
+}
+
+.gamemode-coming-soon h2 {
+  margin-top: 0.65rem;
+  font-size: clamp(1.8rem, 4vw, 2.75rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.gamemode-coming-soon>p:not(.eyebrow) {
+  max-width: 34rem;
+  margin-top: 1rem;
+  color: rgb(var(--muted));
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+
+.gamemode-coming-soon>div:last-child {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -7061,8 +7160,12 @@ body.initial-load-active {
 
 @media (max-width: 1100px) {
   .store-mode-tabs {
+    flex-wrap: nowrap;
     overflow-x: auto;
-    grid-template-columns: repeat(6, minmax(10rem, 1fr));
+  }
+
+  .store-mode-tab {
+    flex: 0 0 10rem;
   }
 
   .store-rank-grid {
@@ -8588,7 +8691,7 @@ body:has(.store-hero) {
 }
 
 :root[data-theme="light"] .store-rank-card {
-  background: rgba(255, 255, 255, 0.78) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
   border-color: rgb(var(--loot) / 0.3);
   box-shadow: 0 16px 42px -28px rgb(var(--loot) / 0.25), inset 0 1px rgb(255 255 255 / 0.8);
 }
@@ -8785,7 +8888,7 @@ body:has(.store-hero) {
 }
 
 :root[data-theme="light"] .store-product-card {
-  background: rgba(255, 255, 255, 0.78) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
   border-color: rgb(var(--loot) / 0.3);
   box-shadow: 0 16px 42px -28px rgb(var(--loot) / 0.25), inset 0 1px rgb(255 255 255 / 0.8);
 }
@@ -9343,6 +9446,20 @@ body:has(.store-detail-page) .scroll-header[data-away="true"][data-hidden="false
 :root:not([data-theme="dark"]) .scroll-header.hero-nav[data-away="true"][data-hidden="false"] .desktop-nav-item:hover {
   color: #7e22ce;
   background: transparent;
+}
+
+/* .desktop-login-link carries its own explicit (white) text color for the
+   transparent, at-top state, which otherwise wins over the dock's inherited
+   color once scrolled — leaving white text on the now-solid white pill.
+   Needs the same explicit swap the nav items get above. */
+:root:not([data-theme="dark"]) .scroll-header.hero-nav[data-away="true"][data-hidden="false"] .desktop-login-link {
+  color: #2e1065;
+  text-shadow: none;
+}
+
+:root:not([data-theme="dark"]) .scroll-header.hero-nav[data-away="true"][data-hidden="false"] .desktop-login-link:hover {
+  color: #7e22ce;
+  background: rgb(46 16 101 / 0.06);
 }
 
 /* Right dock: cart and theme sit as one cluster, separated from the account
@@ -12439,18 +12556,14 @@ button.store-shop-nav-item:hover,
   color: #d8b4fe;
 }
 
-:root[data-theme="light"] body:has(.store-hero) .header-cart-trigger,
-:root[data-theme="light"] body:has(.store-hero) .theme-orb,
-:root[data-theme="light"] body:has(.store-hero) .mobile-menu-trigger,
-:root[data-theme="light"] body:has(.store-hero) .account-avatar-trigger {
-  border-color: rgb(255 255 255 / 0.18);
-  background: rgb(8 4 18 / 0.34);
-  color: white;
-}
-
-:root[data-theme="light"] body:has(.store-hero) .theme-orb {
-  color: #d8b4fe;
-}
+/* No Store-specific override for the header icon buttons (cart, theme toggle,
+   notifications, avatar, mobile menu): `.hero-nav` above already themes them
+   consistently on every page that floats its header over hero artwork —
+   including this one, since ScrollHeader always applies `.hero-nav` when
+   `world` is set. A duplicate, Store-only rule used to sit here and paint
+   these buttons a near-invisible dark glass instead of the same bold white
+   circle Home, Play and Rules use, which is what made Store's row look
+   inconsistent with the rest of the site. */
 /* Compact product showcase and contextual return control. */
 .store-detail-layout .store-detail-media {
   aspect-ratio: 1.16 / 1;
@@ -15338,6 +15451,22 @@ body:has(.vote-mission-hero) {
   background: rgb(8 5 16 / 0.88);
 }
 
+/* Several contexts (the compact meta bar, the sidebar publisher card) give
+   .news-author-avatar its own background tuned for a photo filling the tile
+   edge-to-edge — in the sidebar's case a near-white gradient. That tile
+   background shows straight through when there's no photo and this initials
+   fallback renders instead, in the sidebar's case leaving light-on-light
+   text with no visible avatar tile at all. Filling the tile itself with a
+   guaranteed accent tint means the fallback always reads as its own avatar,
+   regardless of what background the surrounding context set. */
+.news-author-fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: rgb(var(--accent-rgb) / 0.14);
+}
+
 .news-author-copy {
   display: grid;
   min-width: 0;
@@ -15391,7 +15520,8 @@ body:has(.vote-mission-hero) {
 :root[data-theme="light"] .newsroom-page .newsroom-feature .news-author-copy small,
 :root[data-theme="light"] .newsroom-page .news-public-card .news-author-copy small,
 :root[data-theme="light"] .home-news-band .news-author-copy small,
-:root[data-theme="light"] .news-article-page .news-public-card .news-author-copy small {
+:root[data-theme="light"] .news-article-page .news-public-card .news-author-copy small,
+:root[data-theme="light"] .news-article-page .news-detail-meta .news-author-copy small {
   color: rgb(91 81 108);
 }
 

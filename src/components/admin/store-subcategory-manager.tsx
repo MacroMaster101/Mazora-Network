@@ -82,8 +82,8 @@ export function StoreSubcategoryManager({ mode, category, products }: { mode: Ga
         </div>
       </div>
       <nav className="store-admin-breadcrumbs" aria-label="Store subcategory breadcrumb">
-        <Link href="/admin/store"><b>01</b> Game modes</Link><ChevronRight size={14} />
-        <Link href={`/admin/store/${mode.slug}`}><b>02</b> {mode.name}</Link><ChevronRight size={14} />
+        <Link href="/admin/store/catalog"><b>01</b> Game modes</Link><ChevronRight size={14} />
+        <Link href={`/admin/store/catalog/${mode.slug}`}><b>02</b> {mode.name}</Link><ChevronRight size={14} />
         <span className="is-current"><b>03</b> {category.label}</span><ChevronRight size={14} />
         <span><b>04</b> Items</span>
       </nav>
@@ -98,7 +98,7 @@ export function StoreSubcategoryManager({ mode, category, products }: { mode: Ga
             const live = products.filter((product) => productSubcategory(product) === item.key && product.enabled !== false).length;
             return (
               <article key={item.key} className={`store-admin-subcategory-card ${item.enabled ? "" : "is-disabled"}`}>
-                <Link href={`/admin/store/${mode.slug}/${slugify(category.key)}/${slugify(item.key)}`}>
+                <Link href={`/admin/store/catalog/${mode.slug}/${slugify(category.key)}/${slugify(item.key)}`}>
                   <span><Layers3 size={20} /></span>
                   <small>Subcategory</small>
                   <h3>{item.label}</h3>

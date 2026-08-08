@@ -1,23 +1,42 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Blocks } from "lucide-react";
 import { getGameModes } from "@/lib/data/content";
+import { getServerStatus } from "@/lib/data/status";
 import { EmptyState, PageHero, GameModeCard, Reveal } from "@/components/shared";
 
 export const metadata: Metadata = {
   title: "Game Modes",
-  description: "Explore every game mode on the network — Survival SMP, Skyblock, Lifesteal, OneBlock, KitPvP and Creative.",
+  description: "Explore every game mode on the network — Survival, Skyblock, Lifesteal, OneBlock, KitPvP and Creative.",
 };
 
 export default async function GameModesPage() {
-  const modes = await getGameModes();
-  const totalPlayers = modes.reduce((n, m) => n + m.players, 0);
+  const [modes, status] = await Promise.all([getGameModes(), getServerStatus()]);
+  const eyebrow =
+    modes.length === 0
+      ? "Game modes"
+      : status.live
+        ? `${modes.length} worlds · ${status.players} online now`
+        : `${modes.length} worlds`;
 
   return (
     <>
       <PageHero
-        eyebrow={modes.length > 0 ? `${modes.length} worlds · ${totalPlayers} playing now` : "Game modes"}
+        eyebrow={eyebrow}
         title="Pick a world. Make it yours."
         lead="One shared account across every mode. Jump between them freely and carry your rank everywhere."
+        illustration={
+          <div className="relative group p-2">
+            <Image
+              src="/images/mazora-logo.webp"
+              alt="Mazora Network Logo"
+              width={260}
+              height={168}
+              priority
+              className="relative animate-float object-contain drop-shadow-[0_15px_35px_rgba(147,51,234,0.45)] transition-transform duration-300 group-hover:scale-105"
+            />
+          </div>
+        }
       />
       <section className="section shell">
         {modes.length > 0 ? (

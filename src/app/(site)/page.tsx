@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, MonitorSmartphone, Newspaper, Play, ShieldCheck, UsersRound } from "lucide-react";
@@ -12,6 +13,23 @@ import { site } from "@/lib/site";
 import { withCommas } from "@/lib/utils";
 import { RouteLoading } from "@/components/shared/route-loading";
 import { getPreviewNews } from "@/lib/news/preview-fixtures";
+import { JsonLd } from "@/components/shared/json-ld";
+import { jsonLdGraph, organizationSchema, websiteSchema } from "@/lib/seo";
+
+/**
+ * The homepage carries the only title on the site that is not templated, so it
+ * has to do the work the template does elsewhere: name the brand and the modes
+ * people actually search for. The root layout's `%s · Mazora Network` template
+ * is bypassed by `title.absolute`, which keeps this from reading
+ * "Mazora Network · Mazora Network".
+ */
+export const metadata: Metadata = {
+  title: {
+    absolute: `${site.name} | Minecraft Survival, Skyblock, Lifesteal & More`,
+  },
+  description:
+    "Join Mazora Network — a Java and Bedrock Minecraft community with Survival, Skyblock, Lifesteal, OneBlock, KitPvP and Creative worlds, one account across every mode.",
+};
 
 async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean; previewEmpty: boolean }) {
   const [status, discord, publishedNews] = await Promise.all([
@@ -24,6 +42,15 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
   return (
     <>
       <section className="hero-stage relative z-[3] -mt-[4.75rem] isolate flex min-h-[660px] overflow-hidden pt-[4.75rem] sm:min-h-[710px] lg:min-h-[100svh]">
+        {/*
+          The hero presents the brand as artwork rather than type, so the page's
+          only heading is visually hidden. Without it the homepage shipped no
+          <h1> at all — previously masked by the loading splash, which rendered
+          one before the real content on every route.
+        */}
+        <h1 className="sr-only">
+          {site.name} — {site.tagline}
+        </h1>
         <div className="hero-art pointer-events-none absolute inset-0">
           <Image
             src="/images/mazora-community-hero.webp"
@@ -190,8 +217,13 @@ export default async function HomePage({
   const previewNews = process.env.NODE_ENV === "development" && previewValue === "15";
   const previewEmpty = process.env.NODE_ENV === "development" && previewValue === "0";
   return (
-    <Suspense fallback={<RouteLoading />}>
-      <HomeContent previewNews={previewNews} previewEmpty={previewEmpty} />
-    </Suspense>
+    <>
+      {/* Outside Suspense so the graph is in the initial HTML rather than a
+          streamed chunk — crawlers that do not wait for the stream still see it. */}
+      <JsonLd data={jsonLdGraph(organizationSchema(), websiteSchema())} />
+      <Suspense fallback={<RouteLoading />}>
+        <HomeContent previewNews={previewNews} previewEmpty={previewEmpty} />
+      </Suspense>
+    </>
   );
 }

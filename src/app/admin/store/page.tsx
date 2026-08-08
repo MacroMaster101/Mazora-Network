@@ -1,25 +1,22 @@
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth";
 import { getAdminGameModes, getAdminProducts } from "@/lib/data/content";
-import { getStoreFeaturedSlugs } from "@/lib/data/store-settings";
-import { getStoreCategoryConfigs } from "@/lib/data/store-categories";
-import { saveStoreFeaturedPicksAction } from "@/lib/actions/store-settings";
+import { getStoreRoadmap, getStoreWelcomeBanner } from "@/lib/data/store-settings";
 import { DashHeader } from "@/components/dashboard/dash-ui";
-import { StoreFeaturedPicksEditor } from "@/components/admin/store-featured-picks-editor";
-import { StoreCatalogManager } from "@/components/admin/store-catalog-manager";
+import { StoreDashboardCards } from "@/components/admin/store-dashboard-cards";
 import "@/styles/admin-store.css";
 
 export const metadata: Metadata = { title: "Store · Admin" };
 
 export default async function AdminStorePage() {
   await requireRole("administrator", "/admin/store");
-  const [products, modes, featuredSlugs] = await Promise.all([
+  const [products, modes, welcomeBanner, roadmap] = await Promise.all([
     getAdminProducts(),
     getAdminGameModes(),
-    getStoreFeaturedSlugs(),
+    getStoreWelcomeBanner(),
+    getStoreRoadmap(),
   ]);
-  const categoryConfigs = await getStoreCategoryConfigs(modes);
-  const enabledProducts = products.filter((product) => product.enabled);
+  const activeRoadmapItems = roadmap.items.filter((item) => item.enabled).length;
 
   return (
     <div className="admin-store-page">
@@ -27,12 +24,10 @@ export default async function AdminStorePage() {
         title="Store dashboard"
         subtitle={`${products.length} products · ${modes.length} game modes · database managed`}
       />
-      <StoreFeaturedPicksEditor
-        products={enabledProducts}
-        selectedSlugs={featuredSlugs}
-        saveAction={saveStoreFeaturedPicksAction}
+      <StoreDashboardCards
+        contentSummary={`Banner ${welcomeBanner.enabled ? "live" : "hidden"} · ${activeRoadmapItems} roadmap cards active`}
+        catalogSummary={`${products.length} products · ${modes.length} game modes`}
       />
-      <StoreCatalogManager products={products} modes={modes} categoryConfigs={categoryConfigs} view="modes" />
     </div>
   );
 }

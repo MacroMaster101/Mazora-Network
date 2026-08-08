@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Store items · Admin" };
 
 export default async function AdminStoreItemsPage({ params }: { params: Promise<{ modeSlug: string; categorySlug: string }> }) {
   const { modeSlug, categorySlug } = await params;
-  await requireRole("administrator", `/admin/store/${modeSlug}/${categorySlug}`);
+  await requireRole("administrator", `/admin/store/catalog/${modeSlug}/${categorySlug}`);
   const [products, modes] = await Promise.all([getAdminProducts(), getAdminGameModes()]);
   const mode = modes.find((item) => item.slug === modeSlug);
   if (!mode) notFound();
@@ -31,7 +31,7 @@ export default async function AdminStoreItemsPage({ params }: { params: Promise<
       <DashHeader
         title={`${mode.name} · ${config.label}`}
         subtitle={config.useSubcategories ? `${subcategoryCount} subcategories · ${itemCount} products` : `${itemCount} products · filtered item management dashboard`}
-        action={<div className="store-admin-page-actions"><Link href={`/admin/store/${mode.slug}`} className="btn btn-secondary btn-sm"><ArrowLeft size={15} /> Categories</Link><Link href="/store" className="btn btn-ghost btn-sm"><ExternalLink size={15} /> Public store</Link></div>}
+        action={<div className="store-admin-page-actions"><Link href={`/admin/store/catalog/${mode.slug}`} className="btn btn-secondary btn-sm"><ArrowLeft size={15} /> Categories</Link><Link href="/store" className="btn btn-ghost btn-sm"><ExternalLink size={15} /> Public store</Link></div>}
       />
       {config.useSubcategories ? (
         <StoreSubcategoryManager mode={mode} category={config} products={categoryProducts} />
@@ -41,6 +41,3 @@ export default async function AdminStoreItemsPage({ params }: { params: Promise<
     </div>
   );
 }
-
-
-

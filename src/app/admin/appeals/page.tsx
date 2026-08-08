@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { KeyRound } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { Metric } from "@/components/admin/control-room";

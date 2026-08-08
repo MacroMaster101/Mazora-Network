@@ -7,7 +7,7 @@
  * does not have. Today the store and vote sites read from the database; the
  * remaining sections fill in as their tables are populated.
  */
-import { and, asc, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, isNull, lte, or, sql } from "drizzle-orm";
 import type {
   Accent,
   EventItem,
@@ -260,7 +260,57 @@ function accentFor(slug: string): Accent {
   return NEWS_ACCENTS[hash % NEWS_ACCENTS.length];
 }
 
-function toArticle(row: NewsRow): NewsArticle {
+/**
+ * Live profile fields joined in by authorId. When present for an
+ * "author"-mode article, these win over the article's own stored
+ * authorName/authorAvatarUrl columns — those are a one-time snapshot from
+ * whenever the publisher was last set, which goes stale the moment the
+ * author uploads a new photo or switches to a Minecraft skin avatar (the old
+ * file is deleted). Reading the live profile means the byline always shows
+ * whatever the author currently has set, everywhere, without needing the
+ * snapshot re-saved. Discord-imported articles have no linked authorId and
+ * keep using the stored discordAuthor snapshot, same as before.
+ */
+type LiveAuthorProfile = { avatarUrl: string | null; displayName: string | null; username: string | null } | null;
+
+/**
+ * Profiles looked up by byline name, keyed lowercase.
+ *
+ * Articles imported from Discord carry no `author_id`, so the join on that
+ * column resolves nothing for them — which is why their bylines fell back to a
+ * stale avatar snapshot and rendered a monogram. Their stored `author_name` is
+ * still a real site username (staff pick the publisher when reviewing the
+ * import), and `profiles.username` is uniquely indexed, so matching on it is an
+ * unambiguous 1:1 lookup rather than a guess.
+ */
+export async function profilesByBylineName(
+  names: string[],
+): Promise<Map<string, { avatarUrl: string | null; displayName: string | null; username: string }>> {
+  const map = new Map<string, { avatarUrl: string | null; displayName: string | null; username: string }>();
+  const wanted = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+  if (wanted.length === 0) return map;
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return map;
+  try {
+    const { data } = await admin
+      .from("profiles")
+      .select("username, display_name, avatar_url")
+      .in("username", wanted);
+    for (const row of data ?? []) {
+      map.set(String(row.username).toLowerCase(), {
+        avatarUrl: row.avatar_url ?? null,
+        displayName: row.display_name ?? null,
+        username: String(row.username),
+      });
+    }
+  } catch {
+    // A byline avatar is cosmetic; never fail article loading over it.
+  }
+  return map;
+}
+
+function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile): NewsArticle {
   const normalised = (row.content ?? "").replace(/\r\n?/g, "\n");
   const body = normalised.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
   const words = normalised.split(/\s+/).filter(Boolean).length;
@@ -275,9 +325,13 @@ function toArticle(row: NewsRow): NewsArticle {
     category: row.category,
     accent: accentFor(row.slug),
     date: published instanceof Date ? published.toISOString() : String(published),
-    author: teamByline ? "Mazora Team" : (row.authorName ?? row.discordAuthor ?? "Mazora Team"),
+    author: teamByline
+      ? "Mazora Team"
+      : (liveAuthor?.displayName || liveAuthor?.username) ?? (row.authorName ?? row.discordAuthor ?? "Mazora Team"),
     authorRole: teamByline ? "Official Newsroom" : (row.authorRole ?? row.discordAuthorRole ?? "News Publisher"),
-    authorAvatar: teamByline ? (row.teamAvatarUrl ?? "/images/mazora-icon.png") : (row.authorAvatarUrl ?? undefined),
+    authorAvatar: teamByline
+      ? (row.teamAvatarUrl ?? "/images/mazora-icon.png")
+      : (liveAuthor?.avatarUrl ?? row.authorAvatarUrl ?? undefined),
     publisherMode,
     readMinutes: row.readTimeMinutes ?? Math.max(1, Math.round(words / 200)),
     featuredImage: row.featuredImage ?? undefined,
@@ -294,25 +348,67 @@ export async function getNews(): Promise<NewsArticle[]> {
         .eq("status", "published")
         .order("published_at", { ascending: false });
       if (!error && data) {
-        return data.map((row) => ({
-          slug: String(row.slug),
-          title: String(row.title),
-          excerpt: String(row.excerpt ?? ""),
-          body: String(row.body ?? row.content ?? "")
-            .replace(/\r\n?/g, "\n")
-            .split(/\n{2,}/)
-            .map((p) => p.trim())
-            .filter(Boolean),
-          category: String(row.category ?? "News"),
-          accent: "violet",
-          date: String(row.published_at ?? row.created_at ?? new Date().toISOString()),
-          author: String(row.author_name ?? "Mazora Team"),
-          authorRole: String(row.author_role ?? "News Publisher"),
-          authorAvatar: row.author_avatar_url ?? undefined,
-          publisherMode: "team",
-          readMinutes: Number(row.read_time_minutes ?? 2),
-          featuredImage: row.featured_image ?? undefined,
-        }));
+        // Live profile lookup, same reasoning as toArticle: author_name/
+        // author_avatar_url are a one-time snapshot that goes stale the
+        // moment the author changes their photo, so the current profile wins
+        // whenever the article is linked to one.
+        const authorIds = [...new Set(data.map((row) => row.author_id).filter(Boolean))];
+        const profileById = new Map<string, { avatar_url: string | null; display_name: string | null; username: string | null }>();
+        if (authorIds.length) {
+          const { data: profiles } = await admin
+            .from("profiles")
+            .select("user_id, avatar_url, display_name, username")
+            .in("user_id", authorIds);
+          for (const p of profiles ?? []) profileById.set(String(p.user_id), p);
+        }
+
+        // Discord imports have no author_id, so the lookup above misses them
+        // entirely. Fall back to matching their byline name against a username.
+        const byName = await profilesByBylineName(
+          data
+            .filter((row) => row.publisher_mode === "author" && !profileById.has(String(row.author_id ?? "")))
+            .map((row) => String(row.author_name ?? "")),
+        );
+
+        return data.map((row) => {
+          // This hardcoded "team" used to ignore the row's real publisher_mode
+          // entirely, so every article's byline read "Mazora Team" here even
+          // when getArticle() (below, via toArticle) correctly showed the
+          // individual author for the very same row. Mirror toArticle's logic
+          // so the home/listing byline matches the article page.
+          const publisherMode = row.publisher_mode === "author" ? "author" : "team";
+          const teamByline = publisherMode === "team";
+          const liveById = row.author_id ? profileById.get(String(row.author_id)) : undefined;
+          const liveByName = byName.get(String(row.author_name ?? "").trim().toLowerCase());
+          const liveProfile = liveById ?? (liveByName
+            ? { avatar_url: liveByName.avatarUrl, display_name: liveByName.displayName, username: liveByName.username }
+            : undefined);
+          return {
+            slug: String(row.slug),
+            title: String(row.title),
+            excerpt: String(row.excerpt ?? ""),
+            body: String(row.body ?? row.content ?? "")
+              .replace(/\r\n?/g, "\n")
+              .split(/\n{2,}/)
+              .map((p) => p.trim())
+              .filter(Boolean),
+            category: String(row.category ?? "News"),
+            accent: "violet",
+            date: String(row.published_at ?? row.created_at ?? new Date().toISOString()),
+            author: teamByline
+              ? "Mazora Team"
+              : String((liveProfile?.display_name || liveProfile?.username) ?? row.author_name ?? row.discord_author ?? "Mazora Team"),
+            authorRole: teamByline
+              ? "Official Newsroom"
+              : String(row.author_role ?? row.discord_author_role ?? "News Publisher"),
+            authorAvatar: teamByline
+              ? (row.team_avatar_url ?? "/images/mazora-icon.png")
+              : (liveProfile?.avatar_url ?? row.author_avatar_url ?? undefined),
+            publisherMode,
+            readMinutes: Number(row.read_time_minutes ?? 2),
+            featuredImage: row.featured_image ?? undefined,
+          };
+        });
       }
     } catch {
       // Fallthrough
@@ -323,14 +419,32 @@ export async function getNews(): Promise<NewsArticle[]> {
   if (!db) return [];
   try {
     const rows = await db
-      .select()
+      .select({
+        ...getTableColumns(schema.newsArticles),
+        liveAvatarUrl: schema.profiles.avatarUrl,
+        liveDisplayName: schema.profiles.displayName,
+        liveUsername: schema.profiles.username,
+      })
       .from(schema.newsArticles)
+      .leftJoin(schema.profiles, eq(schema.newsArticles.authorId, schema.profiles.userId))
       .where(and(
         eq(schema.newsArticles.status, "published"),
         or(isNull(schema.newsArticles.publishedAt), lte(schema.newsArticles.publishedAt, new Date())),
       ))
       .orderBy(sql`coalesce(${schema.newsArticles.publishedAt}, ${schema.newsArticles.createdAt}) desc`);
-    return rows.map(toArticle);
+    // Same byline-name fallback as the Supabase path above, for the rows the
+    // authorId join could not resolve (Discord imports).
+    const byName = await profilesByBylineName(
+      rows.filter((r) => r.publisherMode === "author" && !r.liveAvatarUrl).map((r) => String(r.authorName ?? "")),
+    );
+    return rows.map((row) => {
+      const fallback = byName.get(String(row.authorName ?? "").trim().toLowerCase());
+      return toArticle(row, {
+        avatarUrl: row.liveAvatarUrl ?? fallback?.avatarUrl ?? null,
+        displayName: row.liveDisplayName ?? fallback?.displayName ?? null,
+        username: row.liveUsername ?? fallback?.username ?? null,
+      });
+    });
   } catch {
     return [];
   }
@@ -341,15 +455,32 @@ export async function getArticle(slug: string): Promise<NewsArticle | null> {
   if (!db) return null;
   try {
     const [row] = await db
-      .select()
+      .select({
+        ...getTableColumns(schema.newsArticles),
+        liveAvatarUrl: schema.profiles.avatarUrl,
+        liveDisplayName: schema.profiles.displayName,
+        liveUsername: schema.profiles.username,
+      })
       .from(schema.newsArticles)
+      .leftJoin(schema.profiles, eq(schema.newsArticles.authorId, schema.profiles.userId))
       .where(and(
         eq(schema.newsArticles.slug, slug),
         eq(schema.newsArticles.status, "published"),
         or(isNull(schema.newsArticles.publishedAt), lte(schema.newsArticles.publishedAt, new Date())),
       ))
       .limit(1);
-    return row ? toArticle(row) : null;
+    if (!row) return null;
+    // Discord-imported articles carry no authorId, so resolve by byline name.
+    const fallback = row.publisherMode === "author" && !row.liveAvatarUrl
+      ? (await profilesByBylineName([String(row.authorName ?? "")])).get(
+          String(row.authorName ?? "").trim().toLowerCase(),
+        )
+      : undefined;
+    return toArticle(row, {
+      avatarUrl: row.liveAvatarUrl ?? fallback?.avatarUrl ?? null,
+      displayName: row.liveDisplayName ?? fallback?.displayName ?? null,
+      username: row.liveUsername ?? fallback?.username ?? null,
+    });
   } catch (error) {
     console.error("Failed to load article:", error);
     return null;

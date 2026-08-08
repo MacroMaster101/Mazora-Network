@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import {
@@ -13,13 +12,13 @@ import {
   UsersRound,
   Radio,
 } from "lucide-react";
-import { getSession, hasAtLeast, isStaff, roleLabel } from "@/lib/auth";
+import { getSession, hasAtLeast, isStaff } from "@/lib/auth";
 import { getServerStatus } from "@/lib/data/status";
 import { getDiscordStats } from "@/lib/data/discord";
 import { getPlayers } from "@/lib/data/players";
 import { getEvents, getNews, getProducts } from "@/lib/data/content";
 import { getAccountsSnapshot, getRecentAudit } from "@/lib/data/admin-overview";
-import { MinecraftAvatar } from "@/components/shared";
+import { MinecraftAvatar, UserAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
 import {
   Board,
@@ -28,7 +27,6 @@ import {
   StandbyQueue,
   WatchBar,
   ago,
-  roleAccent,
 } from "@/components/admin/control-room";
 
 export const metadata: Metadata = { title: "Control room · Admin" };
@@ -72,6 +70,7 @@ export default async function ControlRoom() {
       <WatchBar
         username={session.username}
         displayName={session.displayName}
+        avatarUrl={session.avatarUrl}
         role={role}
         online={status.players}
         max={status.max}
@@ -175,7 +174,7 @@ export default async function ControlRoom() {
                 <div className="divide-y divide-line/40 border-t border-line/60">
                   {accounts.recent.map((u) => (
                     <div key={u.email} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/5 transition-colors">
-                      <MinecraftAvatar username={u.username} size={30} />
+                      <UserAvatar username={u.username} avatarUrl={u.avatarUrl} size={30} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-xs font-bold text-ink">{u.username}</span>
                         <span className="block truncate text-[11px] text-muted">{u.email}</span>

@@ -38,7 +38,6 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
   let email = "";
   let hasGoogle = false;
   let hasPassword = false;
-  let hasMinecraft = false;
   let minecraftIdentity: { username: string; uuid: string; linkedAt: string } | null = null;
   const discord = await getDiscordIdentity();
   if (isSupabaseConfigured()) {
@@ -62,7 +61,6 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
           .select("id,minecraft_uuid,minecraft_username,linked_at")
           .eq("user_id", data.user.id)
           .maybeSingle();
-        hasMinecraft = Boolean(minecraftAccount);
         if (minecraftAccount) {
           minecraftIdentity = {
             username: String(minecraftAccount.minecraft_username),
@@ -84,6 +82,7 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
             username={session.username}
             email={email}
             avatarUrl={session.avatarUrl}
+            hasDiscordPhoto={Boolean(discord?.avatarUrl)}
             enabled={isSupabaseConfigured()}
           />
           <div className="profile-avatar-divider" />
@@ -99,7 +98,7 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
 
         <Card title="Connected accounts">
           <p className="-mt-2 text-xs text-muted">
-            Manage sign-in providers and connected accounts. Discord supports login and store orders; link your Minecraft IGN for skin photo & player stats.
+            Manage sign-in providers and connected accounts. Discord supports login and store orders. Set your Minecraft name — premium, TLauncher or cracked — for your skin photo and player stats.
           </p>
           <ConnectedAccounts
             email={email}
@@ -131,7 +130,7 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
           <span className="chip">Two-factor authentication · coming soon</span>
         </Card>
 
-        <DangerZone username={session.username} initiallyLinked={hasMinecraft} enabled={isSupabaseConfigured()} />
+        <DangerZone username={session.username} enabled={isSupabaseConfigured()} />
       </div>
     </>
   );

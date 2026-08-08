@@ -45,6 +45,9 @@ const modeSchema = z.object({
   icon: z.string().trim().min(1).max(60),
   accent: z.enum(accents),
   storeStatus: z.enum(["live", "coming_soon"]),
+  features: z.string().max(3000),
+  rules: z.string().max(3000),
+  commands: z.string().max(4000),
   sortOrder: z.coerce.number().int().min(-10000).max(10000),
   enabled: z.boolean(),
 });
@@ -71,7 +74,13 @@ function errors(error: z.ZodError): Record<string, string> {
 function refreshStore(slug?: string) {
   revalidatePath("/store");
   revalidatePath("/admin/store");
-  if (slug) revalidatePath(`/store/${slug}`);
+  revalidatePath("/admin/store/catalog");
+  revalidatePath("/admin/game-modes");
+  revalidatePath("/game-modes");
+  if (slug) {
+    revalidatePath(`/store/${slug}`);
+    revalidatePath(`/game-modes/${slug}`);
+  }
 }
 
 function isOwnStorageUrl(url: string): boolean {
@@ -141,6 +150,9 @@ function modeInput(formData: FormData) {
     icon: text(formData, "icon"),
     accent: text(formData, "accent"),
     storeStatus: text(formData, "storeStatus"),
+    features: text(formData, "features"),
+    rules: text(formData, "rules"),
+    commands: text(formData, "commands"),
     sortOrder: text(formData, "sortOrder") || "0",
     enabled: formData.get("enabled") === "on",
   });
@@ -246,6 +258,17 @@ export async function saveStoreModeAction(formData: FormData): Promise<StoreAdmi
     icon: value.icon,
     accent: value.accent,
     storeStatus: value.storeStatus,
+    features: value.features.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
+    rules: value.rules.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
+    commands: value.commands
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [cmd, ...rest] = line.split("|");
+        return { cmd: cmd.trim(), desc: rest.join("|").trim() };
+      })
+      .filter((c) => c.cmd),
     sortOrder: value.sortOrder,
     enabled: value.enabled,
     updatedAt: new Date(),
@@ -264,7 +287,7 @@ export async function saveStoreModeAction(formData: FormData): Promise<StoreAdmi
     targetId: saved.id,
     metadata: { by: session.username, before, after: saved },
   });
-  refreshStore();
+  refreshStore(saved.slug);
   return { ok: true, message: value.id ? "Game mode updated." : "Game mode created." };
 }
 
@@ -306,7 +329,7 @@ export async function deleteStoreProductAction(formData: FormData): Promise<Stor
     metadata: { by: session.username, before },
   });
   refreshStore(before.slug);
-  revalidatePath(`/admin/store/${before.gameModeSlug}`);
+  revalidatePath(`/admin/store/catalog/${before.gameModeSlug}`);
   return { ok: true, message: `${before.name} deleted.` };
 }
 
