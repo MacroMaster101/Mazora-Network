@@ -1523,5 +1523,3 @@ export function PlayPageEditor({
     </div>
   );
 }
-
-export const PageDetailsEditor = PlayPageEditor;

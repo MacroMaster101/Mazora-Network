@@ -15,17 +15,10 @@ export { GameModeCard } from "./game-mode-card";
 export { NewsCard } from "./news-card";
 export { EventCard } from "./event-card";
 export { PlayerCard } from "./player-card";
-export { StaffCard } from "./staff-card";
 export { ProductCard } from "./product-card";
 export { LeaderboardTable } from "./leaderboard-table";
 export { accentStyles, coverGradient } from "./accent";
 export { LegalToc, LegalMobileToc } from "./legal-toc";
-
-
 export { NewsAuthor } from "./news-author";
-export { ServerActivityGraph } from "./server-activity-graph";
-export { DiscordPatchList } from "./discord-patch-card";
 export { UnifiedServerStatsCard } from "./unified-server-stats-card";
 export { GoogleFormEmbed } from "./google-form-embed";
-
-
