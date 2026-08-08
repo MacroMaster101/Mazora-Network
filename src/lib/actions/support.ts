@@ -64,14 +64,6 @@ const ticketSchema = z.object({
   message: z.string().min(10, "Describe your issue in a little more detail."),
 });
 
-const appealSchema = z.object({
-  minecraftUsername: z.string().min(3, "Enter your Minecraft username."),
-  punishmentType: z.string().min(1, "Select the punishment type."),
-  punishmentReason: z.string().optional(),
-  appealText: z.string().min(20, "Tell us why the punishment should be lifted (min 20 chars)."),
-  evidenceUrl: z.string().url("Enter a valid URL.").optional().or(z.literal("")),
-});
-
 const reportPlayerSchema = z.object({
   reportedUsername: z.string().min(3, "Enter the reported player's username."),
   category: z.string().min(1, "Choose a category."),
@@ -92,16 +84,6 @@ const suggestionSchema = z.object({
   title: z.string().min(4, "Give your idea a short title."),
   category: z.string().min(1, "Choose a category."),
   description: z.string().min(20, "Explain your idea (min 20 chars)."),
-});
-
-const staffApplicationSchema = z.object({
-  minecraftUsername: z.string().min(3, "Enter your Minecraft username."),
-  age: z.string().min(1, "Enter your age."),
-  role: z.string().min(1, "Choose the role you are applying for."),
-  timezone: z.string().min(2, "Enter your timezone."),
-  experience: z.string().min(30, "Tell us a little more about your experience (min 30 chars)."),
-  motivation: z.string().min(30, "Tell us why you want to join the team (min 30 chars)."),
-  availability: z.string().min(10, "Describe when you are usually available."),
 });
 
 function fields(formData: FormData): Record<string, string> {
@@ -148,25 +130,6 @@ export async function submitTicket(_prev: ActionResult, formData: FormData): Pro
   });
   if (!saved) return { ok: false, message: SAVE_FAILED };
   return { ok: true, message: "Ticket opened. Our team will reply soon." };
-}
-
-export async function submitAppeal(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const auth = await requireUser();
-  if ("ok" in auth) return auth;
-  const parsed = appealSchema.safeParse(fields(formData));
-  if (!parsed.success) return { ok: false, errors: zodErrors(parsed.error) };
-  const saved = await persist(async () =>
-    getDb()!.insert(schema.banAppeals).values({
-      userId: auth.userId!,
-      minecraftUsername: parsed.data.minecraftUsername,
-      punishmentType: parsed.data.punishmentType,
-      punishmentReason: parsed.data.punishmentReason || null,
-      appealText: parsed.data.appealText,
-      evidenceUrl: parsed.data.evidenceUrl || null,
-    }),
-  );
-  if (!saved) return { ok: false, message: SAVE_FAILED };
-  return { ok: true, message: "Appeal submitted. You'll be notified when it's reviewed." };
 }
 
 export async function submitPlayerReport(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -222,27 +185,4 @@ export async function submitSuggestion(_prev: ActionResult, formData: FormData):
   );
   if (!saved) return { ok: false, message: SAVE_FAILED };
   return { ok: true, message: "Suggestion submitted. The community can vote on it soon." };
-}
-
-export async function submitStaffApplication(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const auth = await requireUser();
-  if ("ok" in auth) return auth;
-  const parsed = staffApplicationSchema.safeParse(fields(formData));
-  if (!parsed.success) return { ok: false, errors: zodErrors(parsed.error) };
-
-  // There is no staff_applications table yet, so with a real database there is
-  // nowhere to persist this. Returning success would falsely tell applicants
-  // their application was received. Until the table and review flow exist, this
-  // route must not claim to store anything when a database is configured.
-  if (isSupabaseConfigured()) {
-    return {
-      ok: false,
-      message: "Staff applications aren't open through the site yet. Please apply in the Mazora Discord server.",
-    };
-  }
-
-  return {
-    ok: true,
-    message: "Application received. The management team will contact shortlisted applicants on Discord.",
-  };
 }
