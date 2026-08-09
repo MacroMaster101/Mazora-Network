@@ -10,7 +10,6 @@ import {
   VerifyEmailPanel,
 } from "./auth-panels";
 import type { AuthDialogView } from "./auth-dialog-provider";
-import "@/styles/overlays.generated.css";
 
 const labels: Record<AuthDialogView, string> = {
   login: "Log in to Mazora Network",
