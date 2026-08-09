@@ -7,6 +7,9 @@ import { NewsExplorer } from "@/components/shared/news-explorer";
 import { NewsVisitorStat } from "@/components/shared/news-visitor-stat";
 import { getPreviewNews } from "@/lib/news/preview-fixtures";
 import { getNewsVisitorCount } from "@/lib/data/news-visitors";
+// news-pages.css holds rules split out of globals.css and must load first, which
+// is the order they cascaded in there. Do not reshuffle.
+import "@/styles/news-pages.css";
 import "@/styles/newsroom-redesign.css";
 import "@/styles/newsroom-world.css";
 import "@/styles/newsroom-world-finish.css";

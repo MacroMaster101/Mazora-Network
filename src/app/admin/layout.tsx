@@ -6,6 +6,8 @@ import { canManageGallery, canManageNews } from "@/lib/auth/permissions";
 import { SiteHeader } from "@/components/layout/site-header";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminDiagnosticsProvider } from "@/components/admin/admin-diagnostics-context";
+// The staff panel reuses the dashboard's account/avatar panels.
+import "@/styles/dashboard-panels.css";
 
 /**
  * Belt-and-braces only. The staff panel is already unreachable without a

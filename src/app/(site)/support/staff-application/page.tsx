@@ -26,9 +26,9 @@ export default async function StaffApplicationPage() {
               src="/images/mazora-logo.webp"
               alt="Mazora Network Logo"
               width={240}
-              height={180}
+              height={160}
               priority
-              className="w-32 h-auto md:w-[240px] md:h-[180px] animate-float object-contain drop-shadow-[0_15px_35px_rgba(139,92,246,0.35)] transition-transform duration-500 group-hover:scale-105"
+              className="h-auto w-32 md:w-[240px] animate-float object-contain drop-shadow-[0_15px_35px_rgba(139,92,246,0.35)] transition-transform duration-500 group-hover:scale-105"
             />
           </div>
         }

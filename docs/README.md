@@ -25,6 +25,42 @@ Theme state is managed by the providers and controls in `src/components/theme`. 
 
 Light and dark modes share the same background artwork. On a first visit, the no-flash boot script follows the device preference; after the visitor chooses light or dark, that explicit choice is stored locally. The two visible choices keep desktop and mobile controls consistent. Themes change component surfaces, borders, text, and contrast rather than replacing the world image. Always preview both themes because translucent cards inherit significant color from the background.
 
+## 🎨 Stylesheet architecture
+
+`globals.css` is imported by the root layout, so **every byte in it is render-blocking on every route**. It holds design tokens, the shell, and rules that are genuinely reachable everywhere — including the auth modal and the cart drawer, both of which mount in the root providers and can therefore appear on any page.
+
+Everything else lives in a sheet imported by the page that renders it:
+
+| Sheet | Imported by |
+|---|---|
+| `store-pages.css`, `store-header.css` | `/store`, `/store/[slug]` |
+| `vote-pages.css`, `vote.css` | `/vote` |
+| `news-pages.css`, `newsroom-*.css`, `news-article.css` | `/news`, `/news/[slug]` |
+| `store-vote-responsive.css` | `/store`, `/store/[slug]`, `/vote` |
+| `dashboard-panels.css` | `/dashboard`, `/admin` |
+| `admin-store.css` | `/admin/store/*`, `/admin/game-modes` |
+
+Two invariants hold when moving rules between these files:
+
+1. **Do not split a selector across files.** A route sheet loads *after* `globals.css`, so if the same selector is written in both, the extracted copy now wins where the global one used to. Move every rule for a selector together, or leave them all behind.
+2. **Preserve import order.** Each page imports its sheets in the order those rules originally cascaded, and the imports carry comments saying so. Reordering them silently changes which declaration wins.
+
+A useful check after any split: concatenate the sheets a route loads, in load order, before and after the change, and confirm the sequence of rules is unchanged apart from intended removals.
+
+## 🎬 Animation
+
+There is no JavaScript animation library. Scroll reveals are an IntersectionObserver in `components/shared/reveal.tsx` toggling `data-reveal`, with the transition in the `[data-reveal]` rules. The cart drawer's open/close is `.cart-drawer-layer[data-open]`, with `CLOSE_MS` in `cart-drawer.tsx` holding the unmount until the slide-out finishes — that pairing replaces what `AnimatePresence` used to do, so the two values must stay in step.
+
+Reduced motion is handled per-transition in CSS: drop the transform, keep the opacity cross-fade. There is no global motion provider to rely on any more, so a new animation must handle `prefers-reduced-motion` itself.
+
+## 🖼️ Images
+
+Only the LCP element should carry `priority`. It emits a `<link rel="preload">` into `<head>`, and preloads are consumed in document order — so a full-viewport `priority` image that renders earlier in the tree than the hero (the first-load splash, for instance) will beat the real LCP element to the network. The hero additionally sets `fetchPriority="high"`, because `priority` alone does not put that attribute on the `<img>`.
+
+Art referenced from CSS `background-image` never touches `next/image`: no resizing, no format conversion, no lazy loading. Pre-size and pre-compress those files.
+
+Remote images are only handed to `next/image` when `isOptimisableImage` (in `src/lib/image-hosts.ts`) approves the host, because several image URLs are snapshots of whatever a profile pointed at when a record was written. An unconfigured host passed to `<Image>` throws, so the `<img>` fallback is load-bearing. Keep that allowlist in step with `images.remotePatterns` in `next.config.ts`.
+
 ## 🧭 Header behavior
 
 Desktop navigation is centered, with the logo on the left and theme/account actions on the right. It has no full-width glass card or persistent background.
@@ -111,6 +147,7 @@ Every completed change should pass:
 ```bash
 npm run lint
 npm run typecheck
+npm test
 npm run build
 ```
 

@@ -788,3 +788,24 @@
   filter: drop-shadow(0 2px 7px rgb(109 40 217 / 0.2));
   stroke-width: 2.25;
 }
+
+/* The archive stays cinematic around the content, while its reading cards are
+   opaque in light mode for consistent contrast across every viewport. */
+:root[data-theme="light"] .newsroom-page :is(
+  .newsroom-explorer,
+  .newsroom-feature,
+  .news-public-card,
+  .newsroom-no-results
+) {
+  border-color: rgb(193 182 213 / 0.72) !important;
+  background: rgb(248 246 251) !important;
+  box-shadow: 0 24px 58px -40px rgb(49 30 80 / 0.48), inset 0 1px white !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:root[data-theme="light"] .newsroom-page :is(.newsroom-search, .newsroom-page-button) {
+  background: rgb(252 251 253) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

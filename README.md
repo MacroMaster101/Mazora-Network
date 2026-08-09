@@ -44,8 +44,8 @@ backed by real data today.
 |---|---|
 | Framework | Next.js 15 App Router, React 19, Server Components, Server Actions |
 | Language | TypeScript with strict checking |
-| Styling | Tailwind CSS 3 plus theme tokens in `src/styles/globals.css` |
-| UI | Lucide icons and Framer Motion |
+| Styling | Tailwind CSS 3, theme tokens in `src/styles/globals.css`, route-scoped sheets for the rest |
+| UI | Lucide icons; animation is CSS transitions, with no JS animation runtime |
 | Data | Drizzle ORM with PostgreSQL; empty states when unconfigured |
 | Database driver | postgres-js driver against Supabase PostgreSQL |
 | Validation | Zod |
@@ -73,6 +73,7 @@ Open [http://localhost:3000](http://localhost:3000). Environment variables and a
 | `npm run dev` | Start the local development server |
 | `npm run lint` | Run ESLint with zero warnings allowed |
 | `npm run typecheck` | Run strict TypeScript checking without emitting files |
+| `npm test` | Run the unit tests (kept local — see repository hygiene) |
 | `npm run build` | Create and validate the production build |
 | `npm run start` | Serve a completed production build |
 | `npm run db:generate` | Generate SQL migrations from the Drizzle schema |
@@ -93,9 +94,7 @@ npx tsx --env-file=.env scripts/seed-news-preview.ts
 Before handing off a change, run:
 
 ```bash
-npm run lint
-npm run typecheck
-npm run build
+npm run lint && npm run typecheck && npm test && npm run build
 ```
 
 Development output is stored in `.next-dev`, separately from the production `.next` directory. This allows a production build to run without corrupting an active development server's manifests.
@@ -318,8 +317,15 @@ src/
     auth/              Session abstraction and the role ladder
     data/              Data repositories and live integrations
     db/                Database client and Drizzle schema
+    image-hosts.ts     Which remote image hosts next/image may optimise
     site.ts            Server identity, navigation, social, and footer configuration
-  styles/globals.css   Design tokens, themes, layout, and responsive styling
+  styles/
+    globals.css        Design tokens, themes, shell layout, and anything genuinely site-wide
+    store-pages.css    /store and /store/[slug]
+    vote-pages.css     /vote
+    news-pages.css     /news and /news/[slug]
+    dashboard-panels.css  /dashboard and /admin account panels
+    store-vote-responsive.css  Narrow-viewport store menus and the vote table
 public/images/         Logo, Minecraft artwork, avatars, and content imagery
 supabase/migrations/   PostgreSQL migrations
 docs/                  Maintainer documentation
@@ -327,10 +333,47 @@ docs/                  Maintainer documentation
 
 For architecture, live integrations, theme behavior, and deployment notes, see [docs/README.md](docs/README.md).
 
+## ⚡ Front-end performance rules
+
+These are the constraints the current Lighthouse numbers depend on. Breaking one
+is easy to do by accident and hard to notice.
+
+- **Anything imported by `src/app/layout.tsx` is render-blocking on every route.**
+  Route-specific CSS belongs in a route-scoped sheet imported by the page that
+  renders it — that is why `store-pages.css`, `vote-pages.css`, `news-pages.css`
+  and `dashboard-panels.css` exist. `globals.css` is for design tokens, the
+  shell, and things genuinely reachable everywhere (the auth modal and the cart
+  drawer both live in the root providers, so their styles are global on purpose).
+- **When splitting CSS, keep two invariants.** A rule may only move if no rule
+  staying behind writes the same selector — the extracted file loads later, so a
+  split selector flips which declaration wins. And the page's `import` order must
+  mirror the order the rules previously cascaded in. The imports carry comments
+  saying so; do not reshuffle them.
+- **No JavaScript animation runtime.** Scroll reveals use an IntersectionObserver
+  that toggles `data-reveal`; the cart drawer uses `.cart-drawer-layer[data-open]`
+  with a matching unmount delay in `cart-drawer.tsx`. Both handle
+  `prefers-reduced-motion` in CSS by dropping the transform and keeping the
+  opacity cross-fade. Do not reach for an animation library to do a fade or slide.
+- **Only the LCP element should be a `priority` image.** `priority` emits a
+  `<link rel="preload">` into `<head>`, and preloads are consumed in document
+  order — a full-viewport `priority` image rendered before the hero (a splash
+  screen, for example) will beat the real LCP element to the network. The hero
+  also sets `fetchPriority="high"` explicitly, because `priority` alone does not
+  put that attribute on the `<img>`.
+- **Large decorative art referenced from CSS must be pre-sized.** A CSS
+  `background-image` bypasses `next/image` entirely: no resizing, no format
+  conversion, no lazy loading. Ship it already compressed at the size it renders.
+- **Remote images go through `next/image` only via `isOptimisableImage`.** Some
+  URLs in this app are snapshots of whatever a profile pointed at when a record
+  was written, so the host set is open-ended and an unconfigured host passed to
+  `<Image>` is a runtime error. Check the host, fall back to `<img>`, and keep
+  `src/lib/image-hosts.ts` in step with `images.remotePatterns`.
+
 ## 🧹 Repository hygiene
 
 - Do not commit `.next`, `.next-dev`, `node_modules`, log files, TypeScript build metadata, or local environment files.
 - Keep shared components only when they have a real consumer; lint and strict TypeScript checks run with zero warnings.
+- The same applies to CSS: a class that no `.tsx` renders is dead weight on every visitor. Before deleting, check it is not built dynamically (`` `is-${state}` ``) and confirm a few known-live classes still survive your filter.
 - Treat `public/images` as production assets: remove an image only after confirming it has no source, CSS, metadata, or documentation references — and, for store artwork, no `products.image_url` row pointing at it.
 - Ship large background art as WebP. A CSS `background-image` bypasses `next/image` entirely, so no resizing, format conversion or lazy loading is applied and the raw file is what every visitor downloads. The same artwork went from 2.1 MB as PNG to 143 KB as WebP.
 - Give repeated list and grid thumbnails `loading="lazy"`, but leave above-the-fold imagery eager — lazy-loading a hero or header logo delays Largest Contentful Paint instead of improving it.

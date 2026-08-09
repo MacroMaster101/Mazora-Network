@@ -26,7 +26,15 @@ export function SiteFooter() {
                 href={s.href}
                 target="_blank"
                 rel="noreferrer"
-                aria-label={s.label}
+                /*
+                  Not just `s.label`. The header and footer already carry a
+                  "Discord" link pointing at the internal /discord page, so a
+                  bare "Discord" here gave two links the same accessible name
+                  and different destinations — which is the axe
+                  "identical-links-same-purpose" finding. Naming the network
+                  makes the off-site link distinct and reads better anyway.
+                */
+                aria-label={`${site.name} on ${s.label}`}
                 className="grid h-9 w-9 place-items-center rounded-lg border border-line-strong text-muted transition-colors hover:border-accent/50 hover:text-accent-bright"
               >
                 <Icon name={s.icon} size={17} />
