@@ -11,6 +11,9 @@ import { NewsVisitorStat } from "@/components/shared/news-visitor-stat";
 import { ShareButtons } from "@/components/shared/share-buttons";
 import { JsonLd } from "@/components/shared/json-ld";
 import { absoluteUrl, breadcrumbSchema, jsonLdGraph, newsArticleSchema } from "@/lib/seo";
+// Split out of globals.css; loads before news-article.css to keep the original
+// cascade order. Do not reshuffle.
+import "@/styles/news-pages.css";
 import "@/styles/news-article.css";
 
 // Per-request so an unknown slug returns a real 404 instead of a soft 200, and

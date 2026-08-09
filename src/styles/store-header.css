@@ -1381,3 +1381,83 @@
     margin-top: clamp(1.25rem, 3svh, 3.75rem);
   }
 }
+
+/* Solid light catalog surfaces — shared with the Play page card palette. */
+:root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell :is(
+  .store-mode-tabs,
+  .store-shop-nav,
+  .store-shop-submenu,
+  .store-catalog-toolbar,
+  .store-category-section,
+  .store-coming-soon-section,
+  .store-mode-coming-soon,
+  .store-order-guide,
+  .store-home-welcome-v3,
+  .store-home-featured-v3,
+  .store-home-category-hub,
+  .store-home-roadmap-v3
+) {
+  border-color: rgb(193 182 213 / 0.72) !important;
+  background: rgb(248 246 251) !important;
+  box-shadow: 0 24px 58px -40px rgb(49 30 80 / 0.52), inset 0 1px white !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Phone and small-tablet art direction. The source compositions are wide and
+   intentionally quiet in the centre; shift their focal point toward the left
+   citadel and size marketplace art by the viewport instead of page height. */
+@media (max-width: 1023px) {
+  .store-hero-v2 > img {
+    object-position: 24% center;
+    transform: scale(1.01);
+  }
+
+  :root[data-theme="dark"] .store-hero-v2 > img {
+    filter: saturate(0.96) contrast(1.05) brightness(0.92);
+  }
+
+  .store-hero-v2 .store-hero-overlay {
+    background:
+      linear-gradient(90deg, rgb(7 4 14 / 0.38), rgb(7 4 14 / 0.08) 54%, rgb(7 4 14 / 0.34)),
+      linear-gradient(180deg, rgb(7 4 14 / 0.3), rgb(8 5 16 / 0.12) 54%, rgb(8 6 14 / 0.46)),
+      radial-gradient(28rem 22rem at 32% 38%, rgb(139 92 246 / 0.14), transparent 72%);
+  }
+
+  .store-marketplace,
+  :root[data-theme="light"] .site-world-main .store-marketplace,
+  :root[data-theme="dark"] .store-marketplace {
+    background-position: center top, 24% top;
+    background-repeat: no-repeat, repeat-y;
+    background-size: 100% 100%, auto 100svh;
+    background-attachment: scroll;
+  }
+
+  .site-world-frame:has(.store-marketplace) {
+    background-position: 24% top !important;
+    background-repeat: repeat-y !important;
+    background-size: auto 100svh !important;
+    background-attachment: scroll !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .store-hero-v2 > img {
+    object-position: 12% center;
+  }
+}
+
+:root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell :is(
+  .store-home-server-card,
+  .store-home-category-card,
+  .store-home-category-v3,
+  .store-product-card,
+  .store-rank-card,
+  .store-order-step
+) {
+  border-color: rgb(193 182 213 / 0.68) !important;
+  background: rgb(252 251 253) !important;
+  box-shadow: 0 18px 44px -36px rgb(49 30 80 / 0.42), inset 0 1px white !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

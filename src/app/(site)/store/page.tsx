@@ -13,6 +13,10 @@ import { Reveal } from "@/components/shared";
 import { CartTrigger } from "@/components/shared/cart-trigger";
 import { StoreExplorer } from "@/components/shared/store-explorer";
 import { CartPageLauncher } from "@/components/shared/cart-page-launcher";
+// Import order mirrors the order these rules loaded in before they were split
+// out of globals.css / responsive-store-vote.css. Do not reshuffle.
+import "@/styles/store-pages.css";
+import "@/styles/store-vote-responsive.css";
 import "@/styles/store-header.css";
 
 export const metadata: Metadata = {

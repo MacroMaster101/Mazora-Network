@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Check,
@@ -21,6 +20,9 @@ import { useCart } from "./cart-provider";
 import { OrderRequestForm } from "./order-request-form";
 import { StoreArtwork } from "./store-artwork";
 
+/** Slide-out duration; mirrors .cart-drawer-layer .cart-drawer in globals.css. */
+const CLOSE_MS = 320;
+
 export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean }) {
   const {
     isOpen,
@@ -37,6 +39,30 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
   const closeRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
   const isStoreRoute = pathname.startsWith("/store");
+
+  /*
+    Replaces <AnimatePresence>. `mounted` keeps the drawer in the tree while it
+    slides back out; `shown` is the flag the CSS transitions against and has to
+    flip on a later frame than the mount, or the browser has no previous value
+    to animate from and the drawer just appears.
+
+    CLOSE_MS must stay in step with the transition duration on
+    .cart-drawer-layer in globals.css.
+  */
+  const [mounted, setMounted] = useState(false);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setMounted(true);
+      const frame = requestAnimationFrame(() => setShown(true));
+      return () => cancelAnimationFrame(frame);
+    }
+
+    setShown(false);
+    const timer = window.setTimeout(() => setMounted(false), CLOSE_MS);
+    return () => window.clearTimeout(timer);
+  }, [isOpen]);
 
   // The provider can request the drawer to open straight on the details step
   // (used when returning from the Discord OAuth hop). The requested step is
@@ -72,33 +98,22 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
     if (!isStoreRoute && isOpen) closeCart();
   }, [isStoreRoute, isOpen, closeCart]);
 
-  if (!isStoreRoute) return null;
+  if (!isStoreRoute || !mounted) return null;
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0 z-[220]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <button
-            type="button"
-            className="absolute inset-0 cursor-default bg-[#07040d]/75 backdrop-blur-sm"
-            onClick={closeCart}
-            aria-label="Close cart"
-          />
+    <div className="cart-drawer-layer fixed inset-0 z-[220]" data-open={shown ? "true" : "false"}>
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default bg-[#07040d]/75 backdrop-blur-sm"
+        onClick={closeCart}
+        aria-label="Close cart"
+      />
 
-          <motion.aside
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="cart-drawer-title"
-            className="cart-drawer absolute inset-y-0 right-0 flex w-full max-w-[32rem] flex-col overflow-hidden"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 320, damping: 32 }}
-          >
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cart-drawer-title"
+        className="cart-drawer absolute inset-y-0 right-0 flex w-full max-w-[32rem] flex-col overflow-hidden"
+      >
             <div className="cart-drawer-head relative overflow-hidden px-5 py-5 sm:px-7">
               <div className="cart-drawer-glow absolute -right-20 -top-24 h-56 w-56 rounded-full blur-3xl" />
               <div className="relative flex items-start justify-between gap-4">
@@ -304,9 +319,7 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
                 <OrderRequestForm configured={requestsConfigured} />
               </div>
             )}
-          </motion.aside>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      </aside>
+    </div>
   );
 }

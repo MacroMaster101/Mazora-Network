@@ -980,3 +980,28 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   filter: drop-shadow(0 2px 7px rgb(109 40 217 / 0.22));
   stroke-width: 2.25;
 }
+
+/* Opaque article cards prevent the continuation artwork from bleeding through
+   long-form text in the light theme. */
+:root[data-theme="light"] .news-article-page :is(
+  .news-detail-reading,
+  .news-detail-aside-card,
+  .news-detail-publisher-card,
+  .news-public-card
+) {
+  border-color: rgb(193 182 213 / 0.72) !important;
+  background: rgb(248 246 251) !important;
+  box-shadow: 0 24px 58px -40px rgb(49 30 80 / 0.48), inset 0 1px white !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:root[data-theme="light"] .news-detail-hero :is(
+  .newsroom-mast-stat,
+  .newsroom-stat-label,
+  .news-detail-meta
+) {
+  background: rgb(248 246 251) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

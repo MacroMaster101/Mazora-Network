@@ -50,11 +50,22 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
           {site.name} — {site.tagline}
         </h1>
         <div className="hero-art pointer-events-none absolute inset-0">
+          {/*
+            This image is the page's LCP element on both mobile and desktop.
+
+            fetchPriority is set explicitly even though `priority` is already
+            here: `priority` emits the <link rel=preload> into <head>, but Next
+            does not put fetchpriority="high" on the <img> itself, and that
+            attribute is what Lighthouse's "LCP request discovery" audit checks
+            for. Without it the request competes at default priority with the
+            other images the browser has discovered by then.
+          */}
           <Image
             src="/images/mazora-community-hero.webp"
             alt=""
             fill
             priority
+            fetchPriority="high"
             sizes="100vw"
             className="hero-backdrop object-cover object-center"
           />
@@ -123,7 +134,19 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                 <Play size={16} className="fill-current" /> Enter the world <ArrowRight size={16} />
               </Link>
               <CopyIpButton ip={site.javaIp} label="Copy IP" className="hero-action-secondary" />
-              <a href={site.discord} target="_blank" rel="noreferrer" className="hero-cta hero-cta-quiet">
+              {/*
+                aria-label because the nav and footer both link to the internal
+                /discord page under the same "Discord" name; two links reading
+                identically but going to different places is the
+                "identical-links-same-purpose" finding.
+              */}
+              <a
+                href={site.discord}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Join the Mazora Discord server"
+                className="hero-cta hero-cta-quiet"
+              >
                 <DiscordIcon size={16} /> Discord
               </a>
             </div>
@@ -171,7 +194,13 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                 <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
                   <CopyIpButton ip={site.javaIp} label="Copy server IP" />
                   <Link href="/game-modes" className="btn btn-ghost">Explore worlds</Link>
-                  <a href={site.discord} target="_blank" rel="noreferrer" className="btn btn-ghost col-span-2 sm:col-auto">
+                  <a
+                    href={site.discord}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Join the Mazora Discord server"
+                    className="btn btn-ghost col-span-2 sm:col-auto"
+                  >
                     <DiscordIcon size={16} /> Discord
                   </a>
                 </div>
