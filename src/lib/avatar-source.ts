@@ -40,8 +40,13 @@ export function providerAvatar(metadata: Record<string, unknown> | null | undefi
 /** The avatar to display for an account: chosen first, provider second. */
 export function resolveAvatarUrl(
   chosen: string | null | undefined,
-  metadata: Record<string, unknown> | null | undefined,
+  ...metadataSources: Array<Record<string, unknown> | null | undefined>
 ): string | null {
   const picked = typeof chosen === "string" && chosen.trim() ? chosen.trim() : null;
-  return picked ?? providerAvatar(metadata);
+  if (picked) return picked;
+  for (const metadata of metadataSources) {
+    const provider = providerAvatar(metadata);
+    if (provider) return provider;
+  }
+  return null;
 }

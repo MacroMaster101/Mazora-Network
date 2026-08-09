@@ -742,10 +742,18 @@
   box-shadow: 0 22px 48px -28px rgb(49 30 80 / 0.42);
 }
 
+:root[data-theme="light"] .vote-filter-options button {
+  color: rgb(78 60 99 / 0.9);
+}
+
 :root[data-theme="light"] .vote-filter-options button:hover,
 :root[data-theme="light"] .vote-filter-options button.is-selected {
   color: rgb(76 29 149);
   background: rgb(139 92 246 / 0.1);
+}
+
+:root[data-theme="light"] .vote-ref-page-controls > span {
+  color: rgb(76 42 122);
 }
 
 :root[data-theme="light"] .vote-realm-table thead {

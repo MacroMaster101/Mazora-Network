@@ -249,9 +249,9 @@ export function ProfileAvatarEditor({
         {!enabled && <p className="text-xs text-muted">Configure Supabase to enable profile photos.</p>}
       </div>
 
-      <Modal open={showMcModal} onClose={() => !minecraftPending && setShowMcModal(false)} label="Set Minecraft skin avatar">
+      <Modal open={showMcModal} onClose={() => !minecraftPending && setShowMcModal(false)} label="Set Minecraft skin avatar" size="compact">
         <div className="panel mx-auto max-w-md p-6 sm:p-7">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pr-12">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-accent/25 bg-accent/10 text-accent-bright">
               <Gamepad2 size={19} />
             </span>
@@ -428,16 +428,6 @@ export function ProfileAvatarEditor({
             )}
           </div>
 
-          <div className="mt-5 flex justify-end">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              disabled={minecraftPending || skinUploadPending}
-              onClick={() => setShowMcModal(false)}
-            >
-              Close
-            </button>
-          </div>
         </div>
       </Modal>
     </div>

@@ -138,7 +138,18 @@ export const getSession = cache(async (): Promise<Session | null> => {
       // then the photo from their sign-in provider. Without the provider
       // fallback the header and sidebars showed a monogram for members whose
       // Google/Discord photo the Users board was happily displaying.
-      avatarUrl: resolveAvatarUrl(profile?.avatar_url, data.user.user_metadata) ?? undefined,
+      // A password sign-in does not always repopulate account-level metadata
+      // with a linked Google identity's picture. Read the identity directly
+      // first so the same account has the same avatar regardless of how it
+      // authenticated for this session.
+      avatarUrl: resolveAvatarUrl(
+        profile?.avatar_url,
+        googleIdentity?.identity_data,
+        data.user.user_metadata,
+        ...(data.user.identities ?? [])
+          .filter((identity) => identity !== googleIdentity)
+          .map((identity) => identity.identity_data),
+      ) ?? undefined,
       role: safeRole(data.user.app_metadata?.role),
     };
   }

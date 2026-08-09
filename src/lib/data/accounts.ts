@@ -169,7 +169,14 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
         email: user.email ?? "",
         role: toRole(user.app_metadata?.role),
         minecraftUsername,
-        avatarUrl: resolveAvatarUrl(profile?.avatarUrl, user.user_metadata),
+        avatarUrl: resolveAvatarUrl(
+          profile?.avatarUrl,
+          user.identities?.find((identity) => identity.provider === "google")?.identity_data,
+          user.user_metadata,
+          ...(user.identities ?? [])
+            .filter((identity) => identity.provider !== "google")
+            .map((identity) => identity.identity_data),
+        ),
         createdAt: user.created_at ?? null,
         lastSignInAt: user.last_sign_in_at ?? null,
         invitedAt: user.invited_at ?? null,
