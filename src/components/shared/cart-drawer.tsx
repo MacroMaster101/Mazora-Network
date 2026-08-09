@@ -19,7 +19,6 @@ import { storeArtFor } from "@/lib/store-art";
 import { useCart } from "./cart-provider";
 import { OrderRequestForm } from "./order-request-form";
 import { StoreArtwork } from "./store-artwork";
-import "@/styles/overlays.generated.css";
 
 /** Slide-out duration; mirrors .cart-drawer-layer .cart-drawer in globals.css. */
 const CLOSE_MS = 320;
