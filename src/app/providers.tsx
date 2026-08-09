@@ -1,13 +1,12 @@
 "use client";
 
 import { Suspense, type ReactNode } from "react";
-import { ToastProvider } from "@/components/ui";
+import { ToastProvider } from "@/components/ui/toast";
 import { CartProvider } from "@/components/shared/cart-provider";
-import { CartDrawer } from "@/components/shared/cart-drawer";
+import { LazyCartDrawer } from "@/components/shared/lazy-cart-drawer";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { AuthDialogProvider } from "@/components/auth/auth-dialog-provider";
 import { NavigationLoader } from "@/components/shared/navigation-loader";
-import { InitialSiteLoader } from "@/components/shared/initial-site-loader";
 
 export function Providers({
   children,
@@ -29,7 +28,6 @@ export function Providers({
       not.
     */
     <ThemeProvider>
-      <InitialSiteLoader />
       <Suspense fallback={null}>
         <NavigationLoader />
       </Suspense>
@@ -37,7 +35,7 @@ export function Providers({
         <ToastProvider>
           <CartProvider>
             {children}
-            <CartDrawer requestsConfigured={storeRequestsConfigured} />
+            <LazyCartDrawer requestsConfigured={storeRequestsConfigured} />
           </CartProvider>
         </ToastProvider>
       </AuthDialogProvider>

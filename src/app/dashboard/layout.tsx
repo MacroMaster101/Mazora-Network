@@ -5,6 +5,7 @@ import { getSession, isStaff, roleDashboardPath } from "@/lib/auth";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
+import "@/styles/globals.css";
 import "@/styles/dashboard-panels.css";
 
 /**

@@ -7,7 +7,7 @@ import { Bell, CheckCheck, ChevronDown, LayoutDashboard, LogIn, LogOut, Settings
 import type { Session } from "@/lib/auth";
 import { isStaff } from "@/lib/auth/roles";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
-import { UserAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 

@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
 import { site } from "@/lib/site";
 import { Providers } from "./providers";
 import { themeNoFlashScript } from "@/components/theme/theme-provider";
 import { CookieConsent } from "@/components/shared/cookie-consent";
-import "@/styles/globals.css";
-
-const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display", display: "swap" });
-const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 /**
  * The default social card. 1200×630 is the size Discord, X and Facebook all
@@ -76,7 +70,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang="en"
       suppressHydrationWarning
       data-scroll-behavior="smooth"
-      className={`${display.variable} ${sans.variable} ${mono.variable}`}
     >
       <body>
         {/*
