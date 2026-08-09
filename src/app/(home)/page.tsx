@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
 import Link from "next/link";
 import { ArrowRight, MonitorSmartphone, Newspaper, Play, ShieldCheck, UsersRound } from "lucide-react";
-import { CopyIpButton, EmptyState, Reveal, SectionHeader } from "@/components/shared";
+import { CopyIpButton } from "@/components/shared/copy-ip-button";
+import { EmptyState } from "@/components/shared/empty-state";
+import { Reveal } from "@/components/shared/reveal";
+import { SectionHeader } from "@/components/shared/section-header";
 import { DiscordIcon } from "@/components/shared/icon";
 import { NewsBoard } from "@/components/shared/news-board";
 import { getNews } from "@/lib/data/content";
@@ -13,6 +16,14 @@ import { withCommas } from "@/lib/utils";
 import { headers } from "next/headers";
 import { getPreviewNews } from "@/lib/news/preview-fixtures";
 import { jsonLdGraph, organizationSchema, websiteSchema } from "@/lib/seo";
+
+const { props: heroPreloadImageProps } = getImageProps({
+  src: "/images/mazora-community-hero.webp",
+  alt: "",
+  fill: true,
+  sizes: "100vw",
+  quality: 60,
+});
 
 /**
  * The homepage carries the only title on the site that is not templated, so it
@@ -64,7 +75,6 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
             src="/images/mazora-community-hero.webp"
             alt=""
             fill
-            priority
             fetchPriority="high"
             quality={60}
             sizes="100vw"
@@ -256,6 +266,16 @@ export default async function HomePage({
 
   return (
     <>
+      {/* HomeContent waits on cached network data. Emit the exact responsive
+          preload before that async boundary so image discovery does not wait
+          for the server-status/Discord/news requests to finish. */}
+      <link
+        rel="preload"
+        as="image"
+        imageSrcSet={heroPreloadImageProps.srcSet}
+        imageSizes={heroPreloadImageProps.sizes}
+        fetchPriority="high"
+      />
       {/* Outside Suspense so the graph is in the initial HTML rather than a
           streamed chunk — crawlers that do not wait for the stream still see it.
           Inlined rather than via the JsonLd component: see json-ld.tsx for why. */}

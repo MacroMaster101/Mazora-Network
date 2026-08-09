@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminDiagnosticsProvider } from "@/components/admin/admin-diagnostics-context";
 // The staff panel reuses the dashboard's account/avatar panels.
+import "@/styles/globals.css";
 import "@/styles/dashboard-panels.css";
 
 /**

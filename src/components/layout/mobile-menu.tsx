@@ -9,7 +9,7 @@ import { isStaff, roleDashboardPath } from "@/lib/auth/roles";
 import { primaryNav, site } from "@/lib/site";
 import type { Session } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { UserAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 import { NavIcon } from "./nav-icon";
