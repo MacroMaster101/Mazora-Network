@@ -75,7 +75,17 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: "9mb" },
   },
   images: {
-    qualities: [75, 90],
+    /*
+      The defaults jump from 384 -> 640 for fixed artwork and from 1200 ->
+      1920 for viewport-wide artwork. Those gaps made the 390px brand lockup
+      and a typical 1366px hero substantially larger than their rendered size
+      in Lighthouse. Keep candidates close to the layouts we actually ship.
+    */
+    deviceSizes: [360, 420, 640, 750, 828, 1080, 1200, 1366, 1440, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 160, 256, 320, 384],
+    qualities: [60, 70, 75, 90],
+    // Prefer AVIF when supported; WebP remains the automatic fallback.
+    formats: ["image/avif", "image/webp"],
     /*
       Optimised images are content-addressed by (src, width, quality), so a long
       TTL is safe and is what makes routing third-party avatars through the
