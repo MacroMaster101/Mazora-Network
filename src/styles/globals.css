@@ -31,7 +31,7 @@
   --accent-rgb: 124 58 237;
   --gold: 164 106 10;
   --danger: 220 38 38;
-  --warning: 217 119 6;
+  --warning: 161 79 0;
   --success: 22 163 74;
 }
 
@@ -4152,29 +4152,62 @@ html {
   display: grid;
   min-height: calc(100svh - 4.75rem);
   place-items: center;
-  padding-block: clamp(3rem, 8vw, 7rem);
+  padding-block: clamp(2rem, 6vw, 5.5rem);
   padding-inline: 1.25rem;
 }
 
 .launch-status-card {
   position: relative;
-  width: min(100%, 44rem);
+  isolation: isolate;
+  width: min(100%, 46rem);
   overflow: hidden;
   border-radius: 1.75rem;
-  border: 1px solid rgb(var(--accent-rgb) / 0.18);
-  background: rgb(var(--card));
+  border: 1px solid rgb(var(--line-strong) / 0.78);
+  background:
+    radial-gradient(26rem 18rem at 50% 13%, rgb(var(--accent-rgb) / 0.14), transparent 72%),
+    linear-gradient(155deg, rgb(var(--card)), rgb(var(--surface) / 0.94));
   box-shadow:
     0 0 0 1px rgb(var(--line) / 0.5),
-    0 1px 2px rgb(0 0 0 / 0.04),
-    0 30px 80px -30px rgb(var(--accent-rgb) / 0.22);
+    0 34px 90px -42px rgb(49 30 80 / 0.48),
+    inset 0 1px rgb(255 255 255 / 0.84);
+}
+
+.launch-status-card::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(var(--accent-rgb) / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--accent-rgb) / 0.045) 1px, transparent 1px);
+  background-size: 2.5rem 2.5rem;
+  mask-image: linear-gradient(to bottom, black, transparent 56%);
+  content: "";
+  pointer-events: none;
+}
+
+.launch-status-card::after {
+  position: absolute;
+  z-index: -1;
+  right: -8rem;
+  bottom: -10rem;
+  width: 22rem;
+  height: 22rem;
+  border: 1px solid rgb(var(--accent-rgb) / 0.1);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3.2rem rgb(var(--accent-rgb) / 0.035), 0 0 0 6.4rem rgb(var(--accent-rgb) / 0.025);
+  content: "";
+  pointer-events: none;
 }
 
 :root[data-theme="dark"] .launch-status-card {
   border-color: rgb(var(--line-strong) / 0.7);
-  background: linear-gradient(155deg, rgb(var(--card) / 0.96), rgb(var(--surface) / 0.88));
+  background:
+    radial-gradient(28rem 20rem at 50% 12%, rgb(var(--accent-rgb) / 0.2), transparent 72%),
+    linear-gradient(155deg, rgb(var(--card) / 0.98), rgb(var(--surface) / 0.92));
   box-shadow:
     0 0 0 1px rgb(var(--line) / 0.3),
-    0 35px 90px -40px rgb(var(--accent-rgb) / 0.55);
+    0 35px 90px -40px rgb(var(--accent-rgb) / 0.55),
+    inset 0 1px rgb(255 255 255 / 0.06);
 }
 
 .launch-status-content {
@@ -4182,25 +4215,68 @@ html {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: clamp(2.5rem, 7vw, 4.5rem) clamp(2rem, 5vw, 4rem);
+  z-index: 1;
+  padding: clamp(2.5rem, 6vw, 4rem) clamp(2rem, 5vw, 4rem);
   text-align: center;
 }
 
-/* ── Icon wrapper ── */
+/* ── Feature-specific orbital icon ── */
+.launch-status-orbit {
+  position: relative;
+  display: grid;
+  width: 8rem;
+  height: 8rem;
+  place-items: center;
+  color: rgb(var(--accent-bright));
+  margin-bottom: 1.6rem;
+  border: 1px solid rgb(var(--accent-rgb) / 0.3);
+  border-radius: 50%;
+  filter: drop-shadow(0 18px 28px rgb(var(--accent-rgb) / 0.16));
+}
+
+.launch-status-orbit::before,
+.launch-status-orbit::after {
+  position: absolute;
+  inset: 0.8rem -1.35rem;
+  transform: rotate(35deg);
+  border: 1px solid rgb(var(--accent-rgb) / 0.17);
+  border-radius: 50%;
+  content: "";
+}
+
+.launch-status-orbit::after {
+  transform: rotate(-35deg);
+}
+
 .launch-status-icon-wrap {
   display: grid;
-  width: 3.75rem;
-  height: 3.75rem;
+  width: 4.65rem;
+  height: 4.65rem;
   place-items: center;
-  border-radius: 1.15rem;
-  border: 1px solid rgb(var(--accent-rgb) / 0.22);
-  background: rgb(var(--accent-rgb) / 0.08);
-  color: rgb(var(--accent-bright));
-  margin-bottom: 1.5rem;
+  border: 1px solid rgb(var(--accent-rgb) / 0.38);
+  border-radius: 1.35rem;
+  background: linear-gradient(145deg, rgb(var(--accent-rgb) / 0.16), rgb(var(--card) / 0.96));
   box-shadow:
     inset 0 1px rgb(255 255 255 / 0.10),
-    0 12px 32px -16px rgb(var(--accent-rgb) / 0.35);
+    0 18px 36px -20px rgb(var(--accent-rgb) / 0.64);
 }
+
+.launch-status-floating-icon {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid rgb(var(--accent-rgb) / 0.34);
+  border-radius: 0.7rem;
+  background: rgb(var(--card) / 0.96);
+  box-shadow: 0 12px 24px -16px rgb(var(--accent-rgb) / 0.78);
+}
+
+.launch-status-floating-icon.is-one { left: -0.9rem; top: 0.65rem; transform: rotate(-10deg); }
+.launch-status-floating-icon.is-two { right: -1rem; top: 1.35rem; transform: rotate(11deg); }
+.launch-status-floating-icon.is-three { right: 0.8rem; bottom: -0.55rem; transform: rotate(-7deg); }
 
 :root[data-theme="dark"] .launch-status-icon-wrap {
   border-color: rgb(var(--accent-rgb) / 0.35);
@@ -4238,12 +4314,35 @@ html {
   line-height: 1.75;
 }
 
+.launch-status-progress {
+  display: grid;
+  width: min(100%, 9rem);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 1.45rem;
+}
+
+.launch-status-progress span {
+  height: 0.22rem;
+  border-radius: 999px;
+  background: rgb(var(--line-strong) / 0.6);
+}
+
+.launch-status-progress .is-complete {
+  background: rgb(var(--accent-rgb) / 0.68);
+}
+
+.launch-status-progress .is-current {
+  background: rgb(var(--success));
+  box-shadow: 0 0 0.7rem rgb(var(--success) / 0.44);
+}
+
 .launch-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  margin-top: 1.5rem;
-  border: 1px solid rgb(var(--success) / 0.22);
+  margin-top: 0.75rem;
+  border: 1px solid rgb(var(--success) / 0.34);
   border-radius: 999px;
   background: rgb(var(--success) / 0.08);
   padding: 0.4rem 0.85rem;
@@ -4269,25 +4368,43 @@ html {
   margin-top: 1.5rem;
   color: rgb(var(--muted));
   font-size: 0.72rem;
-  opacity: 0.85;
+  opacity: 0.92;
 }
 
 /* ── Responsive: smaller screens ── */
 @media (max-width: 639px) {
+  .launch-status-page {
+    min-height: calc(100svh - 4rem);
+    padding: 1rem;
+  }
+
   .launch-status-card {
     border-radius: 1.25rem;
   }
 
   .launch-status-content {
-    padding: 2rem 1.5rem 2.5rem;
+    padding: 2rem 1.25rem 2.25rem;
   }
 
-  .launch-status-icon-wrap,
-  .launch-status-icon {
-    width: 3.25rem;
-    height: 3.25rem;
-    border-radius: 1rem;
-    margin-bottom: 1.25rem;
+  .launch-status-orbit {
+    width: 6.5rem;
+    height: 6.5rem;
+    margin-bottom: 1.35rem;
+  }
+
+  .launch-status-icon-wrap {
+    width: 3.85rem;
+    height: 3.85rem;
+    border-radius: 1.1rem;
+  }
+
+  .launch-status-floating-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .launch-status-content h1 {
+    font-size: clamp(2rem, 11vw, 2.8rem);
   }
 
   .launch-status-actions {
@@ -10303,6 +10420,41 @@ body:has(.state-error) .site-footer { display: none; }
   box-shadow: 0 24px 58px -40px rgb(49 30 80 / 0.5), inset 0 1px white !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+/* These team cards are converted from dark glass to an opaque light surface
+   above, so their formerly hard-coded pale copy must switch with it too. */
+:root[data-theme="light"] .team-join-card {
+  color: rgb(var(--ink));
+}
+
+:root[data-theme="light"] .team-join-card > div:first-child > p:last-child {
+  color: rgb(var(--muted));
+}
+
+:root[data-theme="light"] .team-join-card .btn-ghost {
+  border-color: rgb(var(--line-strong));
+  background: rgb(var(--surface));
+  color: rgb(var(--ink));
+}
+
+:root[data-theme="light"] .team-join-card .btn-ghost:hover {
+  border-color: rgb(var(--accent-rgb) / 0.52);
+  background: rgb(var(--accent-rgb) / 0.1);
+  color: rgb(var(--accent-bright));
+}
+
+:root[data-theme="light"] .team-member-owner .team-member-tier { color: #92400e; }
+:root[data-theme="light"] .team-member-admin .team-member-tier { color: #991b1b; }
+:root[data-theme="light"] .team-member-senior .team-member-tier { color: #3730a3; }
+:root[data-theme="light"] .team-member-moderator .team-member-tier { color: #6b21a8; }
+:root[data-theme="light"] .team-member-helper .team-member-tier { color: #0f766e; }
+
+/* The shared avatar palette is intentionally vivid enough for dark cards.
+   Darken only the fallback initials in light mode so every monogram remains
+   readable on the pale avatar tile without weakening its dark-theme version. */
+:root[data-theme="light"] .user-avatar-monogram {
+  filter: brightness(0.68) saturate(1.16);
 }
 
 /* Responsive world framing.

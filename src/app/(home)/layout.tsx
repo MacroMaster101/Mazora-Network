@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { RouteContentTransition } from "@/components/shared/route-content-transition";
-import "@/styles/home.generated.css";
+import "@/styles/globals.css";
 
 export default function HomeLayout({ children }: { children: ReactNode }) {
   return (

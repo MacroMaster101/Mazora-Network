@@ -18,53 +18,53 @@ function getModeDisplayName(mode?: GameMode | null) {
   return mode.name === "Survival SMP" ? "Survival" : mode.name;
 }
 
-function renderRoadmapIcon(iconKey: string) {
+function renderRoadmapIcon(iconKey: string, size = 18) {
   switch (iconKey.toLowerCase()) {
     case "sword":
     case "swords":
-      return <Sword size={18} />;
+      return <Sword size={size} />;
     case "wand":
     case "magic":
-      return <Wand2 size={18} />;
+      return <Wand2 size={size} />;
     case "sparkles":
     case "pet":
     case "pets":
-      return <Sparkles size={18} />;
+      return <Sparkles size={size} />;
     case "shield":
     case "armor":
-      return <Shield size={18} />;
+      return <Shield size={size} />;
     case "crown":
     case "vip":
-      return <Crown size={18} />;
+      return <Crown size={size} />;
     case "gem":
     case "key":
-      return <Gem size={18} />;
+      return <Gem size={size} />;
     case "rocket":
     case "booster":
-      return <Rocket size={18} />;
+      return <Rocket size={size} />;
     case "clock":
     case "time":
-      return <Clock3 size={18} />;
+      return <Clock3 size={size} />;
     default:
-      return <Package size={18} />;
+      return <Package size={size} />;
   }
 }
 
 function getStatusBadgeStyle(status: string) {
   const lower = status.toLowerCase();
   if (lower.includes("dev")) {
-    return { badge: "border-purple-500/40 bg-purple-500/15 text-purple-300", dot: "bg-purple-400" };
+    return "is-development";
   }
   if (lower.includes("soon")) {
-    return { badge: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300", dot: "bg-emerald-400" };
+    return "is-coming-soon";
   }
   if (lower.includes("plan")) {
-    return { badge: "border-amber-500/40 bg-amber-500/15 text-amber-300", dot: "bg-amber-400" };
+    return "is-planned";
   }
   if (lower.includes("test")) {
-    return { badge: "border-rose-500/40 bg-rose-500/15 text-rose-300", dot: "bg-rose-400" };
+    return "is-testing";
   }
-  return { badge: "border-violet-500/40 bg-violet-500/15 text-violet-300", dot: "bg-violet-400" };
+  return "is-default";
 }
 
 export function StoreExplorer({
@@ -222,14 +222,17 @@ export function StoreExplorer({
       {selectedMode?.storeStatus !== "live" ? (
         <section className="store-mode-coming-soon">
           <div className="store-mode-coming-soon-orbit" aria-hidden="true">
-            <span />
-            <span />
-            <Gamepad2 size={34} />
+            <span className="store-mode-coming-soon-core">
+              <Icon name={selectedMode?.icon || "Gamepad2"} size={36} />
+            </span>
+            <span className="store-mode-floating-icon is-one"><Icon name={selectedMode?.icon || "Gamepad2"} size={14} /></span>
+            <span className="store-mode-floating-icon is-two"><Icon name={selectedMode?.icon || "Gamepad2"} size={13} /></span>
+            <span className="store-mode-floating-icon is-three"><Icon name={selectedMode?.icon || "Gamepad2"} size={12} /></span>
           </div>
           <p className="eyebrow">Mode marketplace</p>
           <h2>{getModeDisplayName(selectedMode)} shop</h2>
           <p>
-            This mode&apos;s items are still being designed and balanced. The store will open here when
+            This mode&apos;s items are still being designed and balanced. The store will open here when{" "}
             {getModeDisplayName(selectedMode)} rewards are ready.
           </p>
           <div>
@@ -348,15 +351,18 @@ export function StoreExplorer({
 
               <div className="store-home-roadmap-grid">
                 {roadmap.items.filter((item) => item.enabled).map((item) => {
-                  const style = getStatusBadgeStyle(item.status);
+                  const statusClass = getStatusBadgeStyle(item.status);
                   return (
                     <div key={item.id} className="store-home-roadmap-card group">
+                      <span className="store-home-roadmap-float" aria-hidden="true">
+                        {renderRoadmapIcon(item.icon, 54)}
+                      </span>
                       <div className="store-home-roadmap-card-head">
                         <div className="store-home-roadmap-card-icon">
                           {renderRoadmapIcon(item.icon)}
                         </div>
-                        <span className={cn("store-home-roadmap-tag", style.badge)}>
-                          <span className={cn("h-1.5 w-1.5 rounded-full animate-pulse", style.dot)} />
+                        <span className={cn("store-home-roadmap-tag", statusClass)}>
+                          <span className="store-home-roadmap-tag-dot" />
                           {item.status}
                         </span>
                       </div>
