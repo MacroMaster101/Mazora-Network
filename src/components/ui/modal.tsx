@@ -16,7 +16,7 @@ export function Modal({
   onClose: () => void;
   children: ReactNode;
   label?: string;
-  size?: "default" | "wide";
+  size?: "compact" | "default" | "wide";
 }) {
   useEffect(() => {
     if (!open) return;
@@ -45,13 +45,13 @@ export function Modal({
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className={`animate-fade-up relative z-10 max-h-[90vh] w-full overflow-auto ${size === "wide" ? "max-w-6xl" : "max-w-3xl"}`}>
+      <div className={`animate-fade-up relative z-10 max-h-[90vh] w-full overflow-auto ${size === "wide" ? "max-w-6xl" : size === "compact" ? "max-w-md" : "max-w-3xl"}`}>
         <button
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-3 top-3 z-20 grid h-9 w-9 place-items-center rounded-lg border border-line-strong bg-black/50 text-muted hover:text-ink"
+          className="absolute right-3 top-3 z-20 grid h-11 w-11 place-items-center rounded-xl border border-accent/50 bg-base/95 text-ink shadow-lg transition hover:border-accent hover:bg-accent hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card"
         >
-          <X size={18} />
+          <X size={21} strokeWidth={2.6} />
         </button>
         {children}
       </div>

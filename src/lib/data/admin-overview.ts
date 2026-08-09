@@ -90,7 +90,14 @@ export async function getAccountsSnapshot(): Promise<AccountsSnapshot | null> {
     email: u.email ?? "",
     role: toRole(u.app_metadata?.role),
     createdAt: u.created_at ?? "",
-    avatarUrl: resolveAvatarUrl(chosenAvatars.get(u.id), u.user_metadata),
+    avatarUrl: resolveAvatarUrl(
+      chosenAvatars.get(u.id),
+      u.identities?.find((identity) => identity.provider === "google")?.identity_data,
+      u.user_metadata,
+      ...(u.identities ?? [])
+        .filter((identity) => identity.provider !== "google")
+        .map((identity) => identity.identity_data),
+    ),
   }));
 
   const staffRanked: Role[] = ["helper", "moderator", "senior_moderator", "administrator", "owner", "it"];
