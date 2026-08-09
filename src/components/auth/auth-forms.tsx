@@ -32,7 +32,8 @@ import {
   verifyResetCodeAction,
   type AuthResult,
 } from "@/lib/actions/auth";
-import { FormRow, Input, useToast } from "@/components/ui";
+import { FormRow, Input } from "@/components/ui/field";
+import { useToast } from "@/components/ui/toast";
 import {
   authValidationErrors,
   loginSchema,

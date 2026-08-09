@@ -1,17 +1,14 @@
 "use client";
 
 import { createContext, Suspense, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AuthModal } from "./auth-modal";
-import {
-  ConfirmEmailPanel,
-  ForgotPasswordPanel,
-  LoginPanel,
-  RegisterPanel,
-  ResetPasswordPanel,
-  VerifyEmailPanel,
-} from "./auth-panels";
+
+const AuthDialogContent = dynamic(
+  () => import("./auth-dialog-content").then((module) => module.AuthDialogContent),
+  { ssr: false },
+);
 
 export type AuthDialogView = "login" | "register" | "forgot-password" | "verify-email" | "confirm-email" | "reset-password";
 
@@ -30,15 +27,6 @@ type AuthDialogContextValue = {
 };
 
 const AuthDialogContext = createContext<AuthDialogContextValue | null>(null);
-
-const labels: Record<AuthDialogView, string> = {
-  login: "Log in to Mazora Network",
-  register: "Create a Mazora Network account",
-  "forgot-password": "Recover your Mazora Network account",
-  "verify-email": "Verify your Mazora Network email",
-  "confirm-email": "Confirm your Mazora Network email",
-  "reset-password": "Choose a new Mazora Network password",
-};
 
 /**
  * Reads the `?auth=` query param reactively. A plain mount-only effect
@@ -144,17 +132,7 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
       </Suspense>
       {children}
       {dialog && (
-        <AuthModal
-          label={labels[dialog.view]}
-          onClose={value.close}
-        >
-          {dialog.view === "login" && <LoginPanel next={dialog.next} error={dialog.error} />}
-          {dialog.view === "register" && <RegisterPanel />}
-          {dialog.view === "forgot-password" && <ForgotPasswordPanel />}
-          {dialog.view === "verify-email" && <VerifyEmailPanel email={dialog.email} />}
-          {dialog.view === "confirm-email" && <ConfirmEmailPanel tokenHash={dialog.tokenHash} type={dialog.otpType} />}
-          {dialog.view === "reset-password" && <ResetPasswordPanel />}
-        </AuthModal>
+        <AuthDialogContent dialog={dialog} onClose={value.close} />
       )}
     </AuthDialogContext.Provider>
   );

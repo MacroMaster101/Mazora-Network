@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "styles:home": "tsx scripts/build-home-css.ts",
+    "predev": "npm run styles:home",
     "dev": "next dev",
+    "prebuild": "npm run styles:home",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
@@ -42,6 +45,7 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.20",
     "postcss": "^8.5.25",
+    "purgecss": "^8.0.0",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"

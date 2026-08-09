@@ -6,7 +6,7 @@ import type { NewsArticle } from "@/lib/types";
 import { ArticleArt } from "./article-art";
 import { CoverArt } from "./cover-art";
 import { NewsAuthor } from "./news-author";
-import { TonePill } from "@/components/ui";
+import { TonePill } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/utils";
 
 const categoryIcon: Record<string, string> = {
