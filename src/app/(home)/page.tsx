@@ -64,12 +64,13 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
           {/*
             This image is the page's LCP element on both mobile and desktop.
 
-            fetchPriority is set explicitly even though `priority` is already
-            here: `priority` emits the <link rel=preload> into <head>, but Next
-            does not put fetchpriority="high" on the <img> itself, and that
-            attribute is what Lighthouse's "LCP request discovery" audit checks
-            for. Without it the request competes at default priority with the
-            other images the browser has discovered by then.
+            The <link rel=preload> that `priority` would emit is written by
+            hand at the top of HomePage instead, from getImageProps, so that it
+            lands in <head> ahead of this subtree. fetchPriority stays here
+            because Next does not put fetchpriority="high" on the <img> itself,
+            and that attribute is what Lighthouse's "LCP request discovery"
+            audit checks for. Without it the request competes at default
+            priority with the other images the browser has discovered by then.
           */}
           <Image
             src="/images/mazora-community-hero.webp"
@@ -107,11 +108,18 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
             <div className="group order-1 flex animate-fade-up justify-center lg:order-2">
               <div className="hero-logo-wrap relative">
                 <div className="hero-logo-aura absolute inset-[13%] rounded-full blur-3xl transition-colors duration-500" />
+                {/*
+                  Next measures this wordmark — not the backdrop behind it — as
+                  the LCP element and warns about it on every dev load, so it
+                  gets its own preload rather than being discovered once the
+                  hero markup has parsed.
+                */}
                 <Image
                   src="/images/mazora-logo.webp"
                   alt="Mazora Network"
                   width={390}
                   height={260}
+                  priority
                   sizes="(max-width: 640px) 82vw, 390px"
                   className="relative w-[min(82vw,390px)] max-w-none animate-float object-contain drop-shadow-[0_18px_45px_rgba(12,5,28,0.75)] transition-[filter,transform] duration-500 ease-out group-hover:scale-[1.035] group-hover:drop-shadow-[0_18px_55px_rgba(167,110,255,0.55)]"
                 />

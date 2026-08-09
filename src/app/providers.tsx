@@ -7,6 +7,7 @@ import { LazyCartDrawer } from "@/components/shared/lazy-cart-drawer";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { AuthDialogProvider } from "@/components/auth/auth-dialog-provider";
 import { NavigationLoader } from "@/components/shared/navigation-loader";
+import { InitialSiteLoader } from "@/components/shared/initial-site-loader";
 
 export function Providers({
   children,
@@ -28,6 +29,12 @@ export function Providers({
       not.
     */
     <ThemeProvider>
+      {/*
+        The first-load splash. Dropped from this tree by the CSS-split commit
+        (d1fc77f) while the component and its .initial-loader-overlay rules
+        both survived, so it stopped rendering without anything failing.
+      */}
+      <InitialSiteLoader />
       <Suspense fallback={null}>
         <NavigationLoader />
       </Suspense>

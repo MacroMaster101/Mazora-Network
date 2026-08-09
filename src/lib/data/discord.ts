@@ -1,4 +1,5 @@
 import { site } from "@/lib/site";
+import { fetchWithDeadline } from "@/lib/data/upstream";
 
 export interface DiscordStats {
   members: number;
@@ -27,12 +28,15 @@ export async function getDiscordStats(): Promise<DiscordStats> {
   if (!code) return { members: 0, online: 0, live: false };
 
   try {
-    const res = await fetch(`https://discord.com/api/v10/invites/${encodeURIComponent(code)}?with_counts=true`, {
-      headers: { "User-Agent": "MazoraNetworkWebsite/1.0" },
-      next: { revalidate: 300 },
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    });
-    if (!res.ok) return { members: 0, online: 0, live: false };
+    const res = await fetchWithDeadline(
+      `https://discord.com/api/v10/invites/${encodeURIComponent(code)}?with_counts=true`,
+      {
+        headers: { "User-Agent": "MazoraNetworkWebsite/1.0" },
+        next: { revalidate: 300 },
+      },
+      UPSTREAM_TIMEOUT_MS,
+    );
+    if (!res || !res.ok) return { members: 0, online: 0, live: false };
 
     const data = (await res.json()) as DiscordInviteResponse;
     if (typeof data.approximate_member_count !== "number") {

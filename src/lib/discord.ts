@@ -35,7 +35,19 @@ async function botRequest(
   path: string,
   body?: unknown,
   method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE" = "POST",
+  /*
+    Seconds to cache a GET for. Everything here defaults to no-store because
+    most of these calls are writes, and a cached write is nonsense — but a
+    read that renders a public page should not put Discord's REST API on the
+    critical path of every request. Opt in per call site.
+  */
+  revalidateSeconds?: number,
 ): Promise<{ ok: boolean; status: number; json: unknown }> {
+  const cacheOptions =
+    method === "GET" && revalidateSeconds !== undefined
+      ? { next: { revalidate: revalidateSeconds } }
+      : { cache: "no-store" as const };
+
   const response = await fetch(`${DISCORD_API}${path}`, {
     method,
     headers: {
@@ -43,7 +55,7 @@ async function botRequest(
       Authorization: `Bot ${token}`,
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    cache: "no-store",
+    ...cacheOptions,
     signal: AbortSignal.timeout(8_000),
   });
   const json = await response.json().catch(() => null);
@@ -410,11 +422,13 @@ export async function fetchChannelMessages(
   channelId: string,
   afterId?: string,
   limit = 25,
+  /** Page renders should pass a window; incremental cursor reads must not. */
+  revalidateSeconds?: number,
 ): Promise<DiscordMessage[] | null> {
   const params = new URLSearchParams({ limit: String(Math.min(Math.max(limit, 1), 100)) });
   if (afterId) params.set("after", afterId);
   try {
-    const res = await botRequest(token, `/channels/${channelId}/messages?${params}`, undefined, "GET");
+    const res = await botRequest(token, `/channels/${channelId}/messages?${params}`, undefined, "GET", revalidateSeconds);
     if (!res.ok || !Array.isArray(res.json)) return null;
     return res.json as DiscordMessage[];
   } catch {
