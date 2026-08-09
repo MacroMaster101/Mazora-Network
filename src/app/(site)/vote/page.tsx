@@ -14,6 +14,10 @@ import { getVoteSites, getTopVoters } from "@/lib/data/content";
 import { site } from "@/lib/site";
 import { Reveal } from "@/components/shared";
 import { TopVotersTable } from "./top-voters-table";
+// Import order mirrors the order these rules loaded in before they were split
+// out of globals.css / responsive-store-vote.css. Do not reshuffle.
+import "@/styles/vote-pages.css";
+import "@/styles/store-vote-responsive.css";
 import "@/styles/vote.css";
 
 export const metadata: Metadata = {

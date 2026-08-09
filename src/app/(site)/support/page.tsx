@@ -190,7 +190,7 @@ export default function SupportPage() {
               src="/images/mazora-logo.webp"
               alt="Mazora Network Logo"
               width={310}
-              height={200}
+              height={207}
               priority
               className="relative animate-float object-contain drop-shadow-[0_15px_35px_rgba(147,51,234,0.45)] transition-transform duration-300 group-hover:scale-105"
             />

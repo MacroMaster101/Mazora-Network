@@ -260,6 +260,12 @@ function accentFor(slug: string): Accent {
   return NEWS_ACCENTS[hash % NEWS_ACCENTS.length];
 }
 
+/** One canonical automatic estimate for cards, listings, and article pages. */
+function estimateNewsReadMinutes(content: string): number {
+  const words = content.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
+}
+
 /**
  * Live profile fields joined in by authorId. When present for an
  * "author"-mode article, these win over the article's own stored
@@ -313,7 +319,6 @@ export async function profilesByBylineName(
 function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile): NewsArticle {
   const normalised = (row.content ?? "").replace(/\r\n?/g, "\n");
   const body = normalised.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-  const words = normalised.split(/\s+/).filter(Boolean).length;
   const published = row.publishedAt ?? row.createdAt;
   const publisherMode = row.publisherMode === "author" ? "author" : "team";
   const teamByline = publisherMode === "team";
@@ -333,7 +338,7 @@ function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile): NewsArticle {
       ? (row.teamAvatarUrl ?? "/images/mazora-icon.png")
       : (liveAuthor?.avatarUrl ?? row.authorAvatarUrl ?? undefined),
     publisherMode,
-    readMinutes: row.readTimeMinutes ?? Math.max(1, Math.round(words / 200)),
+    readMinutes: row.readTimeMinutes ?? estimateNewsReadMinutes(normalised),
     featuredImage: row.featuredImage ?? undefined,
   };
 }
@@ -383,12 +388,12 @@ export async function getNews(): Promise<NewsArticle[]> {
           const liveProfile = liveById ?? (liveByName
             ? { avatar_url: liveByName.avatarUrl, display_name: liveByName.displayName, username: liveByName.username }
             : undefined);
+          const content = String(row.body ?? row.content ?? "").replace(/\r\n?/g, "\n");
           return {
             slug: String(row.slug),
             title: String(row.title),
             excerpt: String(row.excerpt ?? ""),
-            body: String(row.body ?? row.content ?? "")
-              .replace(/\r\n?/g, "\n")
+            body: content
               .split(/\n{2,}/)
               .map((p) => p.trim())
               .filter(Boolean),
@@ -405,7 +410,9 @@ export async function getNews(): Promise<NewsArticle[]> {
               ? (row.team_avatar_url ?? "/images/mazora-icon.png")
               : (liveProfile?.avatar_url ?? row.author_avatar_url ?? undefined),
             publisherMode,
-            readMinutes: Number(row.read_time_minutes ?? 2),
+            readMinutes: row.read_time_minutes == null
+              ? estimateNewsReadMinutes(content)
+              : Number(row.read_time_minutes),
             featuredImage: row.featured_image ?? undefined,
           };
         });

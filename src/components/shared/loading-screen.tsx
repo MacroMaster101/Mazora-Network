@@ -3,7 +3,21 @@ import Image from "next/image";
 export function LoadingScreen() {
   return (
     <section className="initial-loader" role="status" aria-live="polite" aria-label="Preparing Mazora Network">
-      <Image src="/images/mazora-world-continuation.webp" alt="" fill priority sizes="100vw" className="initial-loader-backdrop" />
+      {/*
+        The backdrop is a CSS background, not an <Image>, and that is a load-order
+        decision rather than a styling one. As a `priority` <Image> it emitted a
+        `<link rel=preload as=image imageSizes=100vw>` into <head> — and because
+        this splash renders before the page content, that preload sat *ahead* of
+        the hero image that actually sets LCP. On a throttled mobile connection
+        the two competed for the same bandwidth and the splash won, which is what
+        Lighthouse reported as "LCP request discovery".
+
+        As a background it is discovered during CSS parse instead, at normal
+        priority, and it resolves to the very same file .site-world-frame::before
+        already paints on every route — so the whole page downloads this artwork
+        once rather than twice.
+      */}
+      <div className="initial-loader-backdrop" aria-hidden="true" />
       <div className="initial-loader-shade" aria-hidden="true" />
       <div className="initial-loader-grid" aria-hidden="true" />
       <div className="initial-loader-glow" aria-hidden="true" />

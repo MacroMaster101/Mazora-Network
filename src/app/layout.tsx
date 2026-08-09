@@ -6,7 +6,6 @@ import { Providers } from "./providers";
 import { themeNoFlashScript } from "@/components/theme/theme-provider";
 import { CookieConsent } from "@/components/shared/cookie-consent";
 import "@/styles/globals.css";
-import "@/styles/responsive-store-vote.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
