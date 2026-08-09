@@ -30,7 +30,17 @@ export function LoadingScreen() {
           <i className="initial-loader-orbit initial-loader-orbit-outer" />
           <i className="initial-loader-orbit initial-loader-orbit-inner" />
           <div className="initial-loader-logo-wrap">
-            <Image priority src="/images/mazora-logo.webp" alt="Mazora Network" width={270} height={180} className="initial-loader-logo" />
+            <Image
+              src="/images/mazora-logo.webp"
+              alt="Mazora Network"
+              width={270}
+              height={180}
+              sizes="(max-width: 639px) 152px, 207px"
+              quality={60}
+              loading="eager"
+              fetchPriority="low"
+              className="initial-loader-logo"
+            />
           </div>
         </div>
         <p className="initial-loader-eyebrow"><span /> Enter the network <span /></p>
