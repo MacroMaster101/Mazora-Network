@@ -7,6 +7,7 @@
  * "Server status temporarily unavailable" rather than fabricate live numbers.
  */
 import { site } from "@/lib/site";
+import { fetchWithDeadline } from "@/lib/data/upstream";
 import type { ServerStatus } from "@/lib/types";
 
 function fallback(): ServerStatus {
@@ -43,12 +44,15 @@ export async function getServerStatus(): Promise<ServerStatus> {
   const url = process.env.MINECRAFT_STATUS_API_URL || `https://api.mcsrvstat.us/3/${encodeURIComponent(site.javaIp)}`;
 
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "MazoraNetworkWebsite/1.0" },
-      next: { revalidate: 300 },
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    });
-    if (!res.ok) return fallback();
+    const res = await fetchWithDeadline(
+      url,
+      {
+        headers: { "User-Agent": "MazoraNetworkWebsite/1.0" },
+        next: { revalidate: 300 },
+      },
+      UPSTREAM_TIMEOUT_MS,
+    );
+    if (!res || !res.ok) return fallback();
     const data = (await res.json()) as UpstreamShape;
 
     const players =

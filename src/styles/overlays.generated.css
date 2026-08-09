@@ -203,6 +203,13 @@ strong {
 4. Correct the odd `em` font sizing in all browsers.
 */
 
+code {
+  font-family: var(--font-mono), ui-monospace, monospace; /* 1 */
+  font-feature-settings: normal; /* 2 */
+  font-variation-settings: normal; /* 3 */
+  font-size: 1em; /* 4 */
+}
+
 /*
 Add the correct font size in all browsers.
 */
@@ -258,7 +265,9 @@ select {
 */
 
 button,
-input:where([type='button']) {
+input:where([type='button']),
+input:where([type='reset']),
+input:where([type='submit']) {
   -webkit-appearance: button; /* 1 */
   background-color: transparent; /* 2 */
   background-image: none; /* 2 */
@@ -311,6 +320,10 @@ Remove the inner padding in Chrome and Safari on macOS.
 /*
 Add the correct display in Chrome and Safari.
 */
+
+summary {
+  display: list-item;
+}
 
 /*
 Removes the default spacing and border for appropriate elements.
@@ -378,7 +391,8 @@ Make sure disabled buttons don't get the pointer cursor.
 */
 
 img,
-svg {
+svg,
+object {
   display: block; /* 1 */
   vertical-align: middle; /* 2 */
 }
@@ -442,6 +456,12 @@ img {
     box-shadow: 0 32px 80px -42px rgb(28 15 49 / 0.5), inset 0 1px rgb(255 255 255 / 0.64);
     -webkit-backdrop-filter: blur(22px) saturate(1.06);
             backdrop-filter: blur(22px) saturate(1.06);
+  }
+
+  :root[data-theme="dark"] .auth-card {
+    border-color: rgb(var(--line-strong) / 0.72);
+    background: linear-gradient(155deg, rgb(25 18 38 / 0.96), rgb(13 9 22 / 0.94));
+    box-shadow: 0 36px 90px -42px rgb(0 0 0 / 0.94), inset 0 1px rgb(255 255 255 / 0.04);
   }
 
   .auth-card-heading {
@@ -512,6 +532,11 @@ img {
     color: rgb(var(--ink));
   }
 
+  :root[data-theme="dark"] .auth-provider-button {
+    background: rgb(255 255 255 / 0.035);
+    color: rgb(244 239 251 / 0.82);
+  }
+
   .auth-provider-button:disabled {
     cursor: wait;
     opacity: 0.65;
@@ -559,6 +584,11 @@ img {
 
   .auth-register-grid>div {
     min-width: 0;
+  }
+
+  .auth-register-grid>div>p[role="alert"] {
+    margin-top: 0.32rem;
+    text-align: right;
   }
 
   .auth-password-rules {
@@ -660,6 +690,12 @@ img {
     box-shadow: 0 0 0 4px rgb(var(--accent-rgb) / 0.11), 0 10px 30px -22px rgb(var(--accent-rgb) / 0.65);
   }
 
+  .auth-card .field.auth-field[aria-invalid="true"] {
+    border-color: rgb(var(--danger) / 0.72);
+    background: rgb(var(--danger) / 0.045);
+    box-shadow: 0 0 0 3px rgb(var(--danger) / 0.08);
+  }
+
   .auth-field-shell:has(.auth-field[aria-invalid="true"]) .auth-field-icon {
     color: rgb(var(--danger));
   }
@@ -715,6 +751,18 @@ img {
     border-radius: 999px;
     background: rgb(var(--line-strong));
     transition: background 180ms ease, box-shadow 180ms ease;
+  }
+
+  .auth-password-strength[data-score="1"] {
+    --strength-color: rgb(var(--danger));
+  }
+
+  .auth-password-strength[data-score="2"] {
+    --strength-color: rgb(234 179 8);
+  }
+
+  .auth-password-strength[data-score="3"] {
+    --strength-color: rgb(34 197 94);
   }
 
   .auth-password-strength i.is-filled {
@@ -1093,6 +1141,12 @@ img {
       rgb(var(--base));
   }
 
+  :root[data-theme="dark"] .auth-modal-form-side {
+    background:
+      radial-gradient(28rem 20rem at 100% 0%, rgb(var(--accent-rgb) / 0.11), transparent 70%),
+      rgb(var(--base));
+  }
+
   .auth-modal-toolbar {
     display: flex;
     height: 4.25rem;
@@ -1171,6 +1225,12 @@ img {
     box-shadow: 0 24px 64px -42px rgb(30 14 56 / 0.52), inset 0 1px rgb(255 255 255 / 0.52);
     -webkit-backdrop-filter: blur(22px) saturate(1.06);
             backdrop-filter: blur(22px) saturate(1.06);
+  }
+
+  :root[data-theme="dark"] .auth-modal-scroll .auth-card {
+    border-color: rgb(var(--line-strong) / 0.72);
+    background: linear-gradient(155deg, rgb(25 18 38 / 0.96), rgb(13 9 22 / 0.94));
+    box-shadow: 0 28px 72px -44px rgb(0 0 0 / 0.9), inset 0 1px rgb(255 255 255 / 0.035);
   }
 
   .auth-modal-scroll .auth-card-heading {
@@ -1259,7 +1319,8 @@ img {
       max-width: 31rem;
     }
 
-    .auth-modal-scroll .auth-card {
+    .auth-modal-scroll .auth-card,
+    :root[data-theme="dark"] .auth-modal-scroll .auth-card {
       overflow: visible;
       border: 0;
       border-radius: 0;
@@ -1320,11 +1381,21 @@ img {
       box-shadow: inset 0 1px rgb(255 255 255 / 0.38), 0 12px 28px -24px rgb(var(--accent-rgb) / 0.72);
     }
 
+    :root[data-theme="dark"] .auth-provider-button {
+      background: rgb(255 255 255 / 0.045);
+      box-shadow: inset 0 1px rgb(255 255 255 / 0.04), 0 12px 28px -24px rgb(0 0 0 / 0.9);
+    }
+
     .auth-card .field.auth-field {
       height: 3.55rem;
       border-radius: 17px;
       background: rgb(var(--card) / 0.68);
       box-shadow: inset 0 1px rgb(255 255 255 / 0.42), 0 14px 30px -28px rgb(var(--accent-rgb) / 0.8);
+    }
+
+    :root[data-theme="dark"] .auth-card .field.auth-field {
+      background: rgb(255 255 255 / 0.035);
+      box-shadow: inset 0 1px rgb(255 255 255 / 0.035);
     }
 
     .auth-password-toggle {
@@ -1693,6 +1764,9 @@ img {
 .pointer-events-auto {
   pointer-events: auto;
 }
+.visible {
+  visibility: visible;
+}
 .fixed {
   position: fixed;
 }
@@ -1860,6 +1934,9 @@ img {
 .max-h-\[85vh\] {
   max-height: 85vh;
 }
+.max-h-\[90vh\] {
+  max-height: 90vh;
+}
 .w-10 {
   width: 2.5rem;
 }
@@ -1892,6 +1969,9 @@ img {
 }
 .w-\[18px\] {
   width: 18px;
+}
+.w-\[min\(24rem\2c calc\(100vw-2\.5rem\)\)\] {
+  width: min(24rem, calc(100vw - 2.5rem));
 }
 .w-fit {
   width: fit-content;
@@ -1996,6 +2076,9 @@ img {
 .grid-cols-\[1fr_auto_1fr\] {
   grid-template-columns: 1fr auto 1fr;
 }
+.grid-cols-\[5\.25rem_minmax\(0\2c 1fr\)_auto\] {
+  grid-template-columns: 5.25rem minmax(0,1fr) auto;
+}
 .flex-col {
   flex-direction: column;
 }
@@ -2013,6 +2096,9 @@ img {
 }
 .items-center {
   align-items: center;
+}
+.justify-end {
+  justify-content: flex-end;
 }
 .justify-center {
   justify-content: center;
@@ -2065,6 +2151,9 @@ img {
   --tw-divide-opacity: 1;
   border-color: rgb(var(--line) / var(--tw-divide-opacity, 1));
 }
+.overflow-auto {
+  overflow: auto;
+}
 .overflow-hidden {
   overflow: hidden;
 }
@@ -2115,8 +2204,20 @@ img {
 .border-accent\/50 {
   border-color: rgb(var(--accent) / 0.5);
 }
+.border-amber-500\/40 {
+  border-color: rgb(245 158 11 / 0.4);
+}
 .border-danger\/25 {
   border-color: rgb(var(--danger) / 0.25);
+}
+.border-emerald-500\/40 {
+  border-color: rgb(16 185 129 / 0.4);
+}
+.border-fuchsia-500\/40 {
+  border-color: rgb(217 70 239 / 0.4);
+}
+.border-indigo-500\/40 {
+  border-color: rgb(99 102 241 / 0.4);
 }
 .border-line {
   --tw-border-opacity: 1;
@@ -2125,6 +2226,13 @@ img {
 .border-line-strong {
   --tw-border-opacity: 1;
   border-color: rgb(var(--line-strong) / var(--tw-border-opacity, 1));
+}
+.border-purple-500\/40 {
+  border-color: rgb(168 85 247 / 0.4);
+}
+.border-slate-300 {
+  --tw-border-opacity: 1;
+  border-color: rgb(203 213 225 / var(--tw-border-opacity, 1));
 }
 .border-success\/25 {
   border-color: rgb(var(--success) / 0.25);
@@ -2138,6 +2246,13 @@ img {
 .border-white\/15 {
   border-color: rgb(255 255 255 / 0.15);
 }
+.bg-\[\#07040d\]\/75 {
+  background-color: rgb(7 4 13 / 0.75);
+}
+.bg-\[\#120a21\] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(18 10 33 / var(--tw-bg-opacity, 1));
+}
 .bg-accent\/10 {
   background-color: rgb(var(--accent) / 0.1);
 }
@@ -2149,6 +2264,9 @@ img {
 }
 .bg-accent\/5 {
   background-color: rgb(var(--accent) / 0.05);
+}
+.bg-amber-500\/20 {
+  background-color: rgb(245 158 11 / 0.2);
 }
 .bg-black\/50 {
   background-color: rgb(0 0 0 / 0.5);
@@ -2162,8 +2280,23 @@ img {
 .bg-danger\/5 {
   background-color: rgb(var(--danger) / 0.05);
 }
+.bg-emerald-500\/15 {
+  background-color: rgb(16 185 129 / 0.15);
+}
+.bg-fuchsia-500\/15 {
+  background-color: rgb(217 70 239 / 0.15);
+}
+.bg-indigo-500\/15 {
+  background-color: rgb(99 102 241 / 0.15);
+}
 .bg-ink\/5 {
   background-color: rgb(var(--ink) / 0.05);
+}
+.bg-purple-500\/15 {
+  background-color: rgb(168 85 247 / 0.15);
+}
+.bg-slate-200\/80 {
+  background-color: rgb(226 232 240 / 0.8);
 }
 .bg-success\/5 {
   background-color: rgb(var(--success) / 0.05);
@@ -2334,6 +2467,9 @@ img {
 .uppercase {
   text-transform: uppercase;
 }
+.lowercase {
+  text-transform: lowercase;
+}
 .leading-relaxed {
   line-height: 1.625;
 }
@@ -2353,13 +2489,37 @@ img {
   --tw-text-opacity: 1;
   color: rgb(var(--accent-bright) / var(--tw-text-opacity, 1));
 }
+.text-amber-900 {
+  --tw-text-opacity: 1;
+  color: rgb(120 53 15 / var(--tw-text-opacity, 1));
+}
 .text-danger {
   --tw-text-opacity: 1;
   color: rgb(var(--danger) / var(--tw-text-opacity, 1));
 }
+.text-emerald-800 {
+  --tw-text-opacity: 1;
+  color: rgb(6 95 70 / var(--tw-text-opacity, 1));
+}
+.text-fuchsia-900 {
+  --tw-text-opacity: 1;
+  color: rgb(112 26 117 / var(--tw-text-opacity, 1));
+}
+.text-indigo-900 {
+  --tw-text-opacity: 1;
+  color: rgb(49 46 129 / var(--tw-text-opacity, 1));
+}
 .text-muted {
   --tw-text-opacity: 1;
   color: rgb(var(--muted) / var(--tw-text-opacity, 1));
+}
+.text-purple-900 {
+  --tw-text-opacity: 1;
+  color: rgb(88 28 135 / var(--tw-text-opacity, 1));
+}
+.text-slate-900 {
+  --tw-text-opacity: 1;
+  color: rgb(15 23 42 / var(--tw-text-opacity, 1));
 }
 .text-success {
   --tw-text-opacity: 1;
@@ -2432,6 +2592,9 @@ img {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+.duration-300 {
+  transition-duration: 300ms;
+}
 
 /* Hide scrollbar for horizontal scroll containers */
 
@@ -2443,7 +2606,8 @@ img {
    ========================================================================== */
 
 /* Light theme (default for :root; also when data-theme="light") */
-:root {
+:root,
+:root[data-theme="light"] {
   color-scheme: light;
   --base: 247 245 251;
   --surface: 240 237 248;
@@ -2464,11 +2628,42 @@ img {
 }
 
 /* Dark theme */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --base: 8 6 14;
+  --surface: 15 11 24;
+  --card: 23 17 35;
+  --line: 48 39 63;
+  --line-strong: 72 58 91;
+  --ink: 249 247 252;
+  --muted: 178 168 194;
+  --accent: 139 92 246;
+  /* #8B5CF6 */
+  --accent-bright: 196 157 255;
+  --accent-rgb: 139 92 246;
+  --gold: 247 201 72;
+  --danger: 239 68 68;
+  --warning: 245 158 11;
+  --success: 34 197 94;
+}
 
 :root {
   --shell: 1200px;
   --radius: 14px;
   --radius-lg: 20px;
+}
+
+/*
+  Font fallbacks only. next/font sets these same --font-* properties from a
+  generated class on <html> (see src/app/layout.tsx), and a class and :root have
+  identical specificity — so whichever stylesheet came last would win. globals.css
+  loads after, which meant these system stacks silently beat the brand faces:
+  the fonts downloaded and nothing ever used them.
+
+  :where() drops the specificity to zero, so next/font always wins when it is
+  present and these still apply if it ever is not.
+*/
+:where(:root) {
   --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
   --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
@@ -2496,6 +2691,12 @@ body {
     radial-gradient(60rem 40rem at 15% -10%, rgb(var(--accent-rgb) / 0.09), transparent 60%),
     radial-gradient(50rem 40rem at 100% 0%, rgb(var(--accent-bright) / 0.05), transparent 55%);
   background-attachment: fixed;
+}
+
+:root[data-theme="dark"] body {
+  background-image:
+    radial-gradient(65rem 45rem at 10% -10%, rgb(var(--accent-rgb) / 0.17), transparent 62%),
+    radial-gradient(55rem 42rem at 100% 4%, rgb(78 45 130 / 0.14), transparent 60%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2533,7 +2734,9 @@ html {
   scrollbar-color: rgba(167, 139, 250, 0.6) #08060e !important;
 }
 
-:root {
+:root,
+:root[data-theme="light"],
+:root[data-theme="dark"] {
   scrollbar-color: rgba(167, 139, 250, 0.6) #08060e !important;
 }
 
@@ -2559,6 +2762,14 @@ html {
 }
 
 ::-webkit-scrollbar-thumb:hover {
+  background: rgba(167, 139, 250, 0.85) !important;
+}
+
+:root[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(167, 139, 250, 0.55) !important;
+}
+
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(167, 139, 250, 0.85) !important;
 }
 
@@ -2909,9 +3120,17 @@ html {
   transition: opacity 240ms ease;
 }
 
+.cart-drawer-layer[data-open="true"] {
+  opacity: 1;
+}
+
 .cart-drawer-layer .cart-drawer {
   transform: translateX(100%);
   transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cart-drawer-layer[data-open="true"] .cart-drawer {
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3054,9 +3273,176 @@ html {
 }
 
 /* Light theme: white drawer, dark text, same violet identity. */
+:root[data-theme="light"] .cart-drawer {
+  border-left-color: rgb(93 67 124 / 0.22);
+  background: rgb(250 248 253);
+  color: rgb(30 23 43);
+  box-shadow: -32px 0 90px rgb(46 26 74 / 0.28);
+}
+
+:root[data-theme="light"] .cart-drawer-head {
+  border-bottom-color: rgb(93 67 124 / 0.16);
+}
+
+:root[data-theme="light"] .cart-drawer-glow {
+  background: rgb(124 58 237 / 0.12);
+}
+
+:root[data-theme="light"] .cart-kicker,
+:root[data-theme="light"] .cart-accent {
+  color: rgb(124 58 237);
+}
+
+:root[data-theme="light"] .cart-muted {
+  color: rgb(93 82 112);
+}
+
+:root[data-theme="light"] .cart-muted-2 {
+  color: rgb(93 82 112 / 0.75);
+}
+
+:root[data-theme="light"] .cart-icon-btn {
+  border-color: rgb(93 67 124 / 0.22);
+  background: white;
+  color: rgb(93 82 112);
+}
+
+:root[data-theme="light"] .cart-icon-btn:hover {
+  border-color: rgb(124 58 237 / 0.4);
+  background: rgb(124 58 237 / 0.08);
+  color: rgb(30 23 43);
+}
+
+:root[data-theme="light"] .cart-step {
+  color: rgb(93 82 112 / 0.6);
+}
+
+:root[data-theme="light"] .cart-step.is-active {
+  color: rgb(109 40 217);
+}
+
+:root[data-theme="light"] .cart-step-dot {
+  background: rgb(93 67 124 / 0.12);
+  color: rgb(93 82 112 / 0.7);
+}
+
+:root[data-theme="light"] .cart-step.is-active .cart-step-dot {
+  background: rgb(124 58 237);
+  color: white;
+}
+
+:root[data-theme="light"] .cart-step-line {
+  background: rgb(93 67 124 / 0.25);
+}
+
+:root[data-theme="light"] .cart-skeleton {
+  background: rgb(93 67 124 / 0.08);
+}
+
+:root[data-theme="light"] .cart-empty-icon {
+  border-color: rgb(124 58 237 / 0.25);
+  background: rgb(124 58 237 / 0.08);
+  color: rgb(124 58 237);
+  box-shadow: 0 0 50px rgb(139 92 246 / 0.14);
+}
+
+:root[data-theme="light"] .cart-item {
+  border-color: rgb(93 67 124 / 0.18);
+  background: white;
+}
+
+:root[data-theme="light"] .cart-item:hover {
+  border-color: rgb(124 58 237 / 0.35);
+  background: rgb(250 248 253);
+}
+
+:root[data-theme="light"] .cart-item-art {
+  background: #09050f;
+}
+
+:root[data-theme="light"] .cart-item-name {
+  color: rgb(30 23 43);
+}
+
+:root[data-theme="light"] .cart-item-name:hover {
+  color: rgb(109 40 217);
+}
+
+:root[data-theme="light"] .cart-qty {
+  border-color: rgb(93 67 124 / 0.22);
+  background: rgb(93 67 124 / 0.06);
+}
+
+:root[data-theme="light"] .cart-qty-btn {
+  color: rgb(93 82 112);
+}
+
+:root[data-theme="light"] .cart-qty-btn:hover {
+  color: rgb(30 23 43);
+}
+
+:root[data-theme="light"] .cart-remove {
+  color: rgb(93 82 112 / 0.6);
+}
+
+:root[data-theme="light"] .cart-remove:hover {
+  background: rgb(220 38 38 / 0.08);
+  color: rgb(185 28 28);
+}
+
+:root[data-theme="light"] .cart-assurance {
+  border-color: rgb(5 150 105 / 0.25);
+  background: rgb(5 150 105 / 0.06);
+}
+
+:root[data-theme="light"] .cart-assurance-ico {
+  color: rgb(5 150 105);
+}
+
+:root[data-theme="light"] .cart-foot {
+  border-top-color: rgb(93 67 124 / 0.16);
+  background: white;
+}
+
+:root[data-theme="light"] .cart-link-muted {
+  color: rgb(93 82 112 / 0.8);
+}
+
+:root[data-theme="light"] .cart-link-muted:hover {
+  color: rgb(30 23 43);
+}
 
 /* The order request form inside a light drawer uses the regular themed field
    styles instead of the store's forced-dark variants. */
+:root[data-theme="light"] .store-request-form {
+  border-color: rgb(93 67 124 / 0.18);
+  color: rgb(30 23 43);
+}
+
+:root[data-theme="light"] .store-request-form .text-muted {
+  color: rgb(93 82 112) !important;
+}
+
+:root[data-theme="light"] .store-request-form .field {
+  border-color: rgb(93 67 124 / 0.28);
+  background: white;
+  color: rgb(30 23 43);
+  caret-color: rgb(124 58 237);
+}
+
+:root[data-theme="light"] .store-request-form .field:hover {
+  border-color: rgb(124 58 237 / 0.4);
+}
+
+:root[data-theme="light"] .store-request-form .field:focus {
+  border-color: rgb(124 58 237 / 0.65);
+  background: white;
+  box-shadow: 0 0 0 3px rgb(124 58 237 / 0.12);
+}
+
+:root[data-theme="light"] .store-request-form .field::placeholder {
+  color: rgb(93 82 112 / 0.55);
+}
 
 /* Request step: pill back button and the order summary card. */
 .cart-back-btn {
@@ -3079,6 +3465,28 @@ html {
 .cart-summary-total {
   border-top: 1px solid rgb(255 255 255 / 0.1);
   background: rgb(0 0 0 / 0.2);
+}
+
+:root[data-theme="light"] .cart-back-btn {
+  border-color: rgb(93 67 124 / 0.24);
+  background: white;
+  color: rgb(93 82 112);
+}
+
+:root[data-theme="light"] .cart-back-btn:hover {
+  border-color: rgb(124 58 237 / 0.4);
+  background: rgb(124 58 237 / 0.08);
+  color: rgb(30 23 43);
+}
+
+:root[data-theme="light"] .cart-summary {
+  border-color: rgb(93 67 124 / 0.18);
+  background: white;
+}
+
+:root[data-theme="light"] .cart-summary-total {
+  border-top-color: rgb(93 67 124 / 0.14);
+  background: rgb(93 67 124 / 0.05);
 }
 
 /* Discord connect block in the order form — Discord's blurple identity in
@@ -3110,6 +3518,17 @@ html {
   fill: white;
 }
 
+:root[data-theme="light"] .cart-discord-card {
+  border-color: rgb(88 101 242 / 0.32);
+  background:
+    radial-gradient(16rem 8rem at 100% 0%, rgb(88 101 242 / 0.1), transparent 72%),
+    rgb(88 101 242 / 0.05);
+}
+
+:root[data-theme="light"] .cart-discord-card strong {
+  color: rgb(30 23 43);
+}
+
 /* Toast alerts — tone-tinted glass cards, themed for light and dark. */
 .toast-card {
   border: 1px solid rgb(var(--line-strong));
@@ -3118,6 +3537,10 @@ html {
   box-shadow: 0 18px 48px -22px rgb(24 12 44 / 0.45), inset 0 1px rgb(255 255 255 / 0.55);
   backdrop-filter: blur(14px) saturate(1.05);
   -webkit-backdrop-filter: blur(14px) saturate(1.05);
+}
+
+:root[data-theme="dark"] .toast-card {
+  box-shadow: 0 18px 48px -22px rgb(0 0 0 / 0.85), inset 0 1px rgb(255 255 255 / 0.05);
 }
 
 .toast-icon {
@@ -3328,6 +3751,9 @@ body:has(.vote-mission-hero) {
 /* Recovery states must sit above public headers, account sidebars, and floating widgets. */
 
 /* Product details follow the selected light theme without hiding store artwork. */
+:root[data-theme="light"]:has(.store-detail-page) body {
+  background-color: rgb(247 245 251);
+}
 
 /* ── Support-page search bar ──────────────────────────────────────────── */
 
@@ -3459,11 +3885,55 @@ body:has(.vote-mission-hero) {
   opacity: 0.7;
 }
 
+.group:hover .group-hover\:scale-105 {
+  --tw-scale-x: 1.05;
+  --tw-scale-y: 1.05;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
 @media (min-width: 640px) {
 
   .sm\:px-7 {
     padding-left: 1.75rem;
     padding-right: 1.75rem;
   }
+}
+
+.dark\:border-purple-500\/30:where([data-theme="dark"], [data-theme="dark"] *) {
+  border-color: rgb(168 85 247 / 0.3);
+}
+
+.dark\:bg-purple-950\/40:where([data-theme="dark"], [data-theme="dark"] *) {
+  background-color: rgb(59 7 100 / 0.4);
+}
+
+.dark\:text-amber-300:where([data-theme="dark"], [data-theme="dark"] *) {
+  --tw-text-opacity: 1;
+  color: rgb(252 211 77 / var(--tw-text-opacity, 1));
+}
+
+.dark\:text-emerald-300:where([data-theme="dark"], [data-theme="dark"] *) {
+  --tw-text-opacity: 1;
+  color: rgb(110 231 183 / var(--tw-text-opacity, 1));
+}
+
+.dark\:text-fuchsia-300:where([data-theme="dark"], [data-theme="dark"] *) {
+  --tw-text-opacity: 1;
+  color: rgb(240 171 252 / var(--tw-text-opacity, 1));
+}
+
+.dark\:text-indigo-300:where([data-theme="dark"], [data-theme="dark"] *) {
+  --tw-text-opacity: 1;
+  color: rgb(165 180 252 / var(--tw-text-opacity, 1));
+}
+
+.dark\:text-purple-200:where([data-theme="dark"], [data-theme="dark"] *) {
+  --tw-text-opacity: 1;
+  color: rgb(233 213 255 / var(--tw-text-opacity, 1));
+}
+
+.dark\:text-purple-300:where([data-theme="dark"], [data-theme="dark"] *) {
+  --tw-text-opacity: 1;
+  color: rgb(216 180 254 / var(--tw-text-opacity, 1));
 }
 

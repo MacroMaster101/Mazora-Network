@@ -85,7 +85,9 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
 
   if (token && channelId) {
     try {
-      const messages = await fetchChannelMessages(token, channelId, undefined, 30);
+      // 300s matches the other upstream feeds (server status, Discord stats).
+      // Without it this Discord round trip ran on every /play render.
+      const messages = await fetchChannelMessages(token, channelId, undefined, 30, 300);
       if (messages && Array.isArray(messages) && messages.length > 0) {
         const livePatches: PatchUpdate[] = [];
 
