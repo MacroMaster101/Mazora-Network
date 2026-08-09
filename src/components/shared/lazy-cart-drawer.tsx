@@ -9,7 +9,7 @@ const CartDrawer = dynamic(
   { ssr: false },
 );
 
-/** Downloads the drawer implementation and its CSS only after the first open. */
+/** Downloads the drawer implementation only after the first open. */
 export function LazyCartDrawer({ requestsConfigured }: { requestsConfigured: boolean }) {
   const { isOpen } = useCart();
   const [requested, setRequested] = useState(false);

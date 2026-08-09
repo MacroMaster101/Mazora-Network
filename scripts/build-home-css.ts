@@ -20,8 +20,11 @@ const overlayEntryFiles = [
 ];
 
 const sourceExtensions = [".ts", ".tsx", ".js", ".jsx"];
-// Dynamic imports are intentionally a chunk boundary: their CSS is generated
-// into overlays.generated.css and must not leak back into the initial home CSS.
+// Dynamic imports are intentionally a component chunk boundary. Their styles
+// are generated separately from the home CSS, then loaded by the root layout
+// before each route's complete stylesheet. Loading this file from the dynamic
+// components would insert its global utility rules late and override responsive
+// classes on the already-rendered page (most visibly the desktop header).
 const importPattern = /(?:import|export)\s+(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["']/g;
 
 async function resolveSourceImport(fromFile: string, specifier: string): Promise<string | null> {
