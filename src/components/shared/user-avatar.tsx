@@ -29,7 +29,7 @@ export function UserAvatar({
   className?: string;
   rounded?: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const bg = accentFor(username);
 
   return (
@@ -38,10 +38,10 @@ export function UserAvatar({
       style={{ width: size, height: size, background: `${bg}22` }}
       aria-hidden
     >
-      <span className="font-display text-xs font-bold" style={{ color: bg }}>
+      <span className="user-avatar-monogram font-display text-xs font-bold" style={{ color: bg }}>
         {username.slice(0, 2).toUpperCase()}
       </span>
-      {avatarUrl && !failed && (
+      {avatarUrl && avatarUrl !== failedUrl && (
         // Stored avatars come from Supabase storage, mc-heads, or a provider
         // CDN. A deleted upload 404s, so failures fall back to the monogram.
         // eslint-disable-next-line @next/next/no-img-element
@@ -52,7 +52,11 @@ export function UserAvatar({
           height={size}
           loading="lazy"
           decoding="async"
-          onError={() => setFailed(true)}
+          referrerPolicy="no-referrer"
+          // Remember the URL that failed rather than a permanent boolean. A
+          // refreshed session can then supply a new provider URL immediately
+          // without waiting for this mounted header/avatar to be recreated.
+          onError={() => setFailedUrl(avatarUrl)}
           className="absolute inset-0 h-full w-full object-cover"
         />
       )}

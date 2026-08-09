@@ -113,7 +113,7 @@ export default async function StorePage({
               </a>
               <CartTrigger
                 label="Open cart"
-                className="h-12 border-white/20 bg-white/10 px-5 text-white shadow-none hover:border-violet-300/45 hover:bg-white/15 hover:text-white"
+                className="store-hero-cart-trigger h-12 border-white/20 bg-white/10 px-5 text-white shadow-none hover:border-violet-300/45 hover:bg-white/15 hover:text-white"
               />
             </div>
 

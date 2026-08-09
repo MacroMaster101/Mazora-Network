@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Clock3, Home, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Home, ShieldCheck } from "lucide-react";
 import { getLaunchGate } from "@/lib/launch";
 import { site } from "@/lib/site";
-import { DiscordIcon } from "@/components/shared/icon";
+import { DiscordIcon, Icon } from "@/components/shared/icon";
 
 export const metadata: Metadata = {
   title: "Coming Soon",
@@ -18,6 +18,7 @@ export default async function LaunchStatusPage({
 }) {
   const from = (await searchParams).from ?? "/";
   const gate = getLaunchGate(from);
+  const gateIcon = gate?.icon ?? "Clock3";
   
   const isSupportRoute = from.startsWith("/support") || from === "/forums" || from.includes("tickets");
   const isAccountRoute = (from.startsWith("/dashboard") || from.startsWith("/admin")) && !isSupportRoute;
@@ -26,14 +27,24 @@ export default async function LaunchStatusPage({
     <div className="launch-status-page">
       <div className="launch-status-card">
         <div className="launch-status-content">
-          <div className="launch-status-icon-wrap" aria-hidden="true">
-            <Clock3 size={28} />
+          <div className="launch-status-orbit" aria-hidden="true">
+            <span className="launch-status-icon-wrap">
+              <Icon name={gateIcon} size={31} />
+            </span>
+            <span className="launch-status-floating-icon is-one"><Icon name={gateIcon} size={13} /></span>
+            <span className="launch-status-floating-icon is-two"><Icon name={gateIcon} size={12} /></span>
+            <span className="launch-status-floating-icon is-three"><Icon name={gateIcon} size={11} /></span>
           </div>
           <p className="launch-status-eyebrow">{gate?.eyebrow ?? "Feature update in progress"}</p>
           <h1 className="launch-status-title">{gate?.title ?? "This page is temporarily reserved."}</h1>
           <p className="launch-status-message">
             {gate?.message ?? "We are completing final checks before making this available to everyone."}
           </p>
+          <div className="launch-status-progress" aria-hidden="true">
+            <span className="is-complete" />
+            <span className="is-complete" />
+            <span className="is-current" />
+          </div>
           <div className="launch-status-badge"><ShieldCheck size={14} /> In final testing</div>
           <div className="launch-status-actions">
             {isSupportRoute ? (

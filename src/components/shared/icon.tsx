@@ -3,6 +3,7 @@ import {
   BookOpen,
   Bug,
   Coins,
+  Clock3,
   Cpu,
   Crown,
   FileText,
@@ -64,6 +65,7 @@ const map: Record<string, React.ComponentType<{ size?: number; className?: strin
   BookOpen,
   Bug,
   Coins,
+  Clock3,
   Cpu,
   Crown,
   FileText,
@@ -98,4 +100,3 @@ export function Icon({ name, size = 20, className }: { name: string; size?: numb
   const Cmp = map[name] ?? HelpCircle;
   return <Cmp size={size} className={className} />;
 }
-
