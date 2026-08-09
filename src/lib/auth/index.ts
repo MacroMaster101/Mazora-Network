@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { DiscordIdentity, Role } from "@/lib/types";
@@ -82,12 +83,33 @@ function cleanUsername(value: string): string {
   return value.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 32) || "player";
 }
 
-export async function getSession(): Promise<Session | null> {
+/**
+ * The authenticated Supabase user for this request, resolved at most once.
+ *
+ * supabase.auth.getUser() is a *network* call — it revalidates the token
+ * against the auth server rather than trusting the cookie. SiteHeader renders
+ * on every route and used to trigger two of them back to back (getSession, then
+ * getSessionUserId), so every page navigation waited on two sequential
+ * round trips to Supabase before any markup could be produced.
+ *
+ * React's cache() memoises per request, so the second and later callers in a
+ * single render reuse the first result. This changes no behaviour: within one
+ * request the answer cannot legitimately differ.
+ */
+const getAuthUser = cache(async () => {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return data.user;
+});
+
+export const getSession = cache(async (): Promise<Session | null> => {
   if (isSupabaseConfigured()) {
-    const supabase = await createSupabaseServerClient();
-    if (!supabase) return null;
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) return null;
+    const user = await getAuthUser();
+    if (!user) return null;
+    const data = { user };
 
     // Prefer the Google identity's metadata for display name so it doesn't
     // flip to the Discord username when signing in with Discord.
@@ -125,7 +147,7 @@ export async function getSession(): Promise<Session | null> {
   const store = await cookies();
   const raw = store.get(SESSION_COOKIE)?.value;
   return raw ? decode(raw) : null;
-}
+});
 
 /**
  * The Supabase auth user id (a UUID) of the signed-in user, or null. Server
@@ -134,12 +156,9 @@ export async function getSession(): Promise<Session | null> {
  * where there is no backing auth user.
  */
 export async function getSessionUserId(): Promise<string | null> {
-  if (!isSupabaseConfigured()) return null;
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-  return data.user.id;
+  // Shares getAuthUser's per-request result with getSession instead of issuing
+  // a second round trip to the auth server for the same answer.
+  return (await getAuthUser())?.id ?? null;
 }
 
 /** Discord identity of the signed-in user, when they authenticated with Discord. */

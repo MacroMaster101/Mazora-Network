@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { eq } from "drizzle-orm";
 import type { Role } from "@/lib/types";
 import type { Session } from "@/lib/auth";
@@ -54,7 +55,14 @@ function normalise(value: unknown, key = NEWS_PERMISSION_KEY): ModulePermissions
   return { roles: Array.from(new Set([...roles, ...ALWAYS_ALLOWED])), userIds };
 }
 
-export async function getModulePermissions(key: string): Promise<ModulePermissions> {
+/*
+  Memoised per request: SiteHeader asks for the news and gallery permission
+  rows on every page render, and admin screens ask repeatedly for the same key
+  within one render. Each miss is a separate site_settings SELECT, and they run
+  sequentially while the header blocks. cache() collapses repeats of the same
+  key; different keys still hit the database once each.
+*/
+export const getModulePermissions = cache(async (key: string): Promise<ModulePermissions> => {
   const db = getDb();
   if (!db) return defaults(key);
   try {
@@ -67,7 +75,7 @@ export async function getModulePermissions(key: string): Promise<ModulePermissio
   } catch {
     return defaults(key);
   }
-}
+});
 
 export async function canManageModule(key: string, session: Session | null, userId?: string | null): Promise<boolean> {
   if (!session) return false;

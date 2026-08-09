@@ -59,6 +59,19 @@
   --shell: 1200px;
   --radius: 14px;
   --radius-lg: 20px;
+}
+
+/*
+  Font fallbacks only. next/font sets these same --font-* properties from a
+  generated class on <html> (see src/app/layout.tsx), and a class and :root have
+  identical specificity — so whichever stylesheet came last would win. globals.css
+  loads after, which meant these system stacks silently beat the brand faces:
+  the fonts downloaded and nothing ever used them.
+
+  :where() drops the specificity to zero, so next/font always wins when it is
+  present and these still apply if it ever is not.
+*/
+:where(:root) {
   --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
   --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
