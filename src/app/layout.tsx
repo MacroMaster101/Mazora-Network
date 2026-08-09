@@ -8,6 +8,22 @@ import { Providers } from "./providers";
 import { themeNoFlashScript } from "@/components/theme/theme-provider";
 import { CookieConsent } from "@/components/shared/cookie-consent";
 
+/*
+  The brand faces. These set the --font-* custom properties that globals.css
+  already reads; the Segoe UI / Cascadia stacks declared there stay on as the
+  fallback list, which is all that rendered while these were missing.
+
+  next/font self-hosts the files and emits no request to Google, and
+  display: "swap" means text paints in the fallback immediately rather than
+  blocking on the download — so the Lighthouse work these were removed for is
+  preserved. Removing them did not just save bytes, it dropped the brand type
+  for everyone: "Segoe UI Variable" exists only on Windows, so Mac, Android and
+  iOS visitors each fell through to a different system face.
+*/
+const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display", display: "swap" });
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
+
 /**
  * The default social card. 1200×630 is the size Discord, X and Facebook all
  * crop to, and Discord in particular is where most Mazora links get shared.
@@ -73,6 +89,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang="en"
       suppressHydrationWarning
       data-scroll-behavior="smooth"
+      className={`${display.variable} ${sans.variable} ${mono.variable}`}
     >
       <body>
         {/*
@@ -98,8 +115,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {children}
           <CookieConsent />
         </Providers>
-        <Analytics />
-        <SpeedInsights />
+        {/*
+          Production only. In dev both components load their script from
+          va.vercel-scripts.com, which the middleware's script-src 'self' CSP
+          correctly refuses — four console errors on every page load, for two
+          scripts that collect nothing locally. In production they are served
+          same-origin from /_vercel/insights, so the CSP is satisfied and
+          reporting is unchanged.
+        */}
+        {process.env.NODE_ENV === "production" ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
       </body>
     </html>
   );

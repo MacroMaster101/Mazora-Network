@@ -17,8 +17,16 @@ export const metadata: Metadata = {
     "Step-by-step connection guide for Java Edition and Bedrock Edition players joining Mazora Network.",
 };
 
+/*
+  force-dynamic already keeps this page off the static path. `revalidate = 0`
+  was additionally pinning the *segment's* revalidate to zero, and Next takes
+  the minimum of the segment and each fetch — which silently overrode the
+  `next: { revalidate: 300 }` on getServerStatus and sent this page to
+  mcsrvstat.us on every single request. That put a third-party API on the
+  critical path of every /play load (measured ~0.6s here versus ~0.26s for the
+  homepage, which reads the same status through the cache).
+*/
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 function Steps({ steps }: { steps: string[] }) {
   return (
