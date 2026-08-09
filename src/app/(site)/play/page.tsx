@@ -44,6 +44,7 @@ export default async function PlayPage() {
   ]);
 
   const online = status.live && status.online;
+  const bedrockAddress = `${playConfig.bedrockIp || site.bedrockIp}:${playConfig.bedrockPort || site.bedrockPort}`;
 
   return (
     <>
@@ -89,7 +90,7 @@ export default async function PlayPage() {
             </div>
           </div>
           <Steps steps={playConfig.bedrockSteps} />
-          <CopyIpButton ip={playConfig.bedrockIp || site.bedrockIp} label="Copy Bedrock IP" className="mt-6 w-full" />
+          <CopyIpButton ip={bedrockAddress} label="Copy Bedrock IP" className="mt-6 w-full" />
         </Reveal>
       </section>
 

@@ -41,7 +41,29 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      {
+        /*
+          Artwork under /public is served with `max-age=0` by default, so every
+          repeat visit re-validates files that have not changed in months — the
+          CSS backdrops in particular, which are fetched on every route.
+
+          30 days rather than a year with `immutable`, because these filenames
+          are not content-hashed: `mazora-logo.webp` keeps its name when the art
+          behind it is replaced. `stale-while-revalidate` still serves instantly
+          from cache for up to a year while a fresh copy is fetched in the
+          background, so the repeat-visit cost is the same without pinning a
+          stale logo into browsers that cannot be reached. Art that must turn
+          over immediately gets a new `-vN` filename, which is already the
+          convention in /public/images.
+        */
+        source: "/images/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=2592000, stale-while-revalidate=31536000" },
+        ],
+      },
+    ];
   },
   // Keep the hot-reload cache separate from production builds. Running
   // `next build` while `next dev` is open can otherwise replace manifests the
@@ -54,6 +76,14 @@ const nextConfig: NextConfig = {
   },
   images: {
     qualities: [75, 90],
+    /*
+      Optimised images are content-addressed by (src, width, quality), so a long
+      TTL is safe and is what makes routing third-party avatars through the
+      optimiser worthwhile: mc-heads.net serves a 1-hour cache lifetime, and
+      anything proxied here is re-served with this one instead. Next's default
+      is 60 seconds, which would have re-fetched avatars on nearly every visit.
+    */
+    minimumCacheTTL: 2592000,
     remotePatterns: [
       { protocol: "https", hostname: "mc-heads.net" },
       { protocol: "https", hostname: "api.dicebear.com" },

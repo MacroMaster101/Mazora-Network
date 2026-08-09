@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { ScrollText } from "lucide-react";
 import { getRules } from "@/lib/data/content";
 import { EmptyState, PageHero, Reveal } from "@/components/shared";
@@ -24,6 +25,18 @@ export default async function RulesPage() {
         eyebrow={updatedLabel}
         title="Play fair. Have fun."
         lead="Our rules exist to keep the network welcoming and competitive. Read them once — they take five minutes and save a lot of headaches."
+        illustration={
+          <div className="group relative p-2">
+            <Image
+              src="/images/mazora-logo.webp"
+              alt="Mazora Network Logo"
+              width={310}
+              height={207}
+              priority
+              className="animate-float relative object-contain drop-shadow-[0_15px_35px_rgba(147,51,234,0.45)] transition-transform duration-300 group-hover:scale-105"
+            />
+          </div>
+        }
       />
       <section className="section shell">
         <Reveal>

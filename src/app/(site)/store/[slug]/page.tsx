@@ -9,6 +9,8 @@ import { TonePill } from "@/components/ui";
 import { AddToCartButton } from "@/components/shared/add-to-cart";
 import { StoreBackButton } from "@/components/shared/store-back-button";
 import { StoreArtwork } from "@/components/shared/store-artwork";
+import "@/styles/store-pages.css";
+import "@/styles/store-vote-responsive.css";
 
 /**
  * Rendered per request rather than prerendered from generateStaticParams.
