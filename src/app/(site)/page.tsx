@@ -66,6 +66,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
             fill
             priority
             fetchPriority="high"
+            quality={60}
             sizes="100vw"
             className="hero-backdrop object-cover object-center"
           />
@@ -101,7 +102,6 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                   alt="Mazora Network"
                   width={390}
                   height={260}
-                  priority
                   sizes="(max-width: 640px) 82vw, 390px"
                   className="relative w-[min(82vw,390px)] max-w-none animate-float object-contain drop-shadow-[0_18px_45px_rgba(12,5,28,0.75)] transition-[filter,transform] duration-500 ease-out group-hover:scale-[1.035] group-hover:drop-shadow-[0_18px_55px_rgba(167,110,255,0.55)]"
                 />
