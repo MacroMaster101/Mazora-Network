@@ -10262,8 +10262,20 @@ body:has(.state-error) .site-footer { display: none; }
   -webkit-backdrop-filter: none !important;
 }
 
+/*
+  .hero-stat is deliberately excluded from this list, unlike the other cards
+  here. Every one of them is a themed content surface with theme-aware
+  (rgb(var(--ink))-style) text, so flipping their background to opaque
+  lilac-white in light mode is exactly the fix the comment above describes.
+  .hero-stat is not that: its own rule block above hardcodes white text
+  (color: white, plus rgba(255,255,255,*) on its icon, telemetry and button)
+  because it's a glass pill floating on the hero photo, which stays the same
+  dark cinematic image in both themes. Including it here flipped the card to
+  this near-white fill while its text stayed hardcoded white, producing an
+  illegible white-on-white pill — this rule must not re-list it without also
+  giving .hero-stat theme-aware text.
+*/
 :root[data-theme="light"] .site-world-main :is(
-  .hero-stat,
   .team-org-chart,
   .team-member-card,
   .team-join-card,
