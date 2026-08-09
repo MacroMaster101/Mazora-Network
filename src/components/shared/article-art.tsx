@@ -67,6 +67,7 @@ export function ArticleArt({
           alt=""
           fill
           sizes={sizes}
+          quality={70}
           priority={priority}
           onError={() => setFailed(true)}
           className={cn(
@@ -86,6 +87,7 @@ export function ArticleArt({
         alt=""
         fill
         sizes={sizes}
+        quality={70}
         priority={priority}
         aria-hidden="true"
         onError={() => setFailed(true)}
@@ -97,6 +99,7 @@ export function ArticleArt({
         alt={`${article.category} article artwork`}
         fill
         sizes={sizes}
+        quality={70}
         priority={priority}
         onError={() => setFailed(true)}
         className={cn(
