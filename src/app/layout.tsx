@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { site } from "@/lib/site";
 import { Providers } from "./providers";
 import { themeNoFlashScript } from "@/components/theme/theme-provider";
@@ -104,6 +105,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <CookieConsent />
         </Providers>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
