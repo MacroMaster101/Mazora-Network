@@ -51,7 +51,7 @@ export default async function StorePage({
       />
       <section className="store-hero store-hero-v2">
         <Image
-          src="/images/store/shop-world-bg-v2.png"
+          src="/images/store/shop-world-bg-v2.webp"
           alt=""
           fill
           priority

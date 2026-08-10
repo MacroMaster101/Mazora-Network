@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { ChevronDown, Clock3, Crown, Flame, Gamepad2, Gem, Heart, House, Package, PackageSearch, Rocket, Shield, Sparkles, Sword, Wand2 } from "lucide-react";
 import type { GameMode, Product, StoreCategoryConfig, StoreRoadmapConfig, StoreWelcomeBannerConfig } from "@/lib/types";
 import { DEFAULT_STORE_ROADMAP, DEFAULT_STORE_WELCOME_BANNER } from "@/lib/types";
 import { ProductCard } from "./product-card";
 import { RankOfferCard } from "./rank-offer-card";
+import { StoreArtwork } from "./store-artwork";
 import { Icon } from "./icon";
 import { cn } from "@/lib/utils";
 import { readStoreReturnState, STORE_RETURN_KEY, STORE_RETURN_PENDING_KEY } from "@/lib/store-navigation";
@@ -291,13 +291,12 @@ export function StoreExplorer({
               <div className="store-home-welcome-media">
                 <div className="store-home-welcome-media-aura" aria-hidden="true" />
                 <div className="store-home-welcome-media-frame group">
-                  <Image
+                  <StoreArtwork
                     src={welcomeBanner.imageUrl}
                     alt={welcomeBanner.title}
-                    fill
                     sizes="(max-width: 900px) 100vw, 480px"
-                    className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
                     priority
+                    imageClassName="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
                   />
                   <div className="store-home-welcome-media-shimmer" aria-hidden="true" />
                   <div className="store-home-welcome-media-overlay" aria-hidden="true" />
