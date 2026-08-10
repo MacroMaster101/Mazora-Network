@@ -7,7 +7,7 @@
 
 **The official community platform for the Mazora Minecraft network.**
 
-`mc.mazora.us` • [discord.gg/ZPrzyGpMyt](https://discord.gg/ZPrzyGpMyt) • [mazora.us](https://mazora.us)
+`mc.mazora.us` • [mazora.us](https://mazora.us)
 
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-149ECA?logo=react)](https://react.dev)
