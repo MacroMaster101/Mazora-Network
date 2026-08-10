@@ -1,6 +1,7 @@
 "use server";
 
 import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import type { Role } from "@/lib/types";
 import { canGrantRank, canManageRank, getSession, hasAtLeast, roleLabel } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -63,8 +64,22 @@ export async function changeUserRole(input: {
     return { ok: false, message: "You cannot change your own role." };
   }
 
+  const wasStaff = hasAtLeast(currentRole, "helper");
+  const becomesStaff = hasAtLeast(newRole, "helper");
+  const wasPublicStaff = wasStaff && currentRole !== "it";
+  const becomesPublicStaff = becomesStaff && newRole !== "it";
   const { error: updErr } = await admin.auth.admin.updateUserById(input.userId, {
-    app_metadata: { ...target.user.app_metadata, role: newRole },
+    app_metadata: {
+      ...target.user.app_metadata,
+      role: newRole,
+      // A first promotion onto the staff ladder automatically publishes the
+      // member. Later staff-to-staff rank changes preserve their chosen state.
+      ...(newRole === "it"
+        ? { staff_public: false }
+        : becomesPublicStaff && !wasPublicStaff
+          ? { staff_public: true }
+          : {}),
+    },
   });
   if (updErr) return { ok: false, message: "Failed to update role." };
 
@@ -91,5 +106,8 @@ export async function changeUserRole(input: {
     });
   }
 
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/staff");
+  revalidatePath("/staff");
   return { ok: true, message: `Role changed to ${roleLabel(newRole)}.` };
 }

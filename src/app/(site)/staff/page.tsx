@@ -1,67 +1,49 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import { BadgeCheck, Crown, Gavel, Handshake, Shield, Sparkles, UsersRound } from "lucide-react";
 import { MinecraftAvatar, Reveal } from "@/components/shared";
+import { roleLabel, STAFF_ROLES } from "@/lib/auth";
+import { listPublicStaffAccounts, type PublicStaffMember } from "@/lib/data/accounts";
+import type { Role } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Our Team",
   description: "Meet the people leading, managing, and supporting the Mazora Network community.",
 };
 
-type TeamMember = {
-  username: string;
-  alias?: string;
-  role: string;
-  tier: "owner" | "admin" | "senior" | "moderator" | "helper";
+const LADDER: Role[] = STAFF_ROLES.filter((role) => role !== "it").reverse();
+
+const rolePresentation: Partial<Record<Role, { tier: string; icon: LucideIcon }>> = {
+  owner: { tier: "owner", icon: Crown },
+  administrator: { tier: "admin", icon: BadgeCheck },
+  senior_moderator: { tier: "senior", icon: Shield },
+  moderator: { tier: "moderator", icon: Gavel },
+  helper: { tier: "helper", icon: Handshake },
 };
 
-const owner: TeamMember = { username: "LilyLuvv", alias: "Mali", role: "Owner & Founder", tier: "owner" };
-const admin: TeamMember = { username: "OshSparkyy", role: "Administrator", tier: "admin" };
-
-const seniorModerators: TeamMember[] = [
-  { username: "Aizenxuc", role: "Senior Moderator", tier: "senior" },
-  { username: "87VX_z", role: "Senior Moderator", tier: "senior" },
-];
-
-const moderators: TeamMember[] = [
-  { username: "Sanda_10", role: "Moderator", tier: "moderator" },
-  { username: "Jester_X_44", role: "Moderator", tier: "moderator" },
-  { username: "Hina1015", role: "Moderator", tier: "moderator" },
-];
-
-const helpers: TeamMember[] = [
-  { username: "NimA391", role: "Helper", tier: "helper" },
-  { username: "RASTHA125", role: "Helper", tier: "helper" },
-  { username: "Chandiya", role: "Helper", tier: "helper" },
-  { username: "RUSHER", role: "Helper", tier: "helper" },
-];
-
-const teamCount = 2 + seniorModerators.length + moderators.length + helpers.length;
-
-/* Rank badge icons; the visible rank text on each card is member.role itself. */
-const tierIcons = {
-  owner: Crown,
-  admin: BadgeCheck,
-  senior: Shield,
-  moderator: Gavel,
-  helper: Handshake,
-};
-
-function TeamMemberCard({ member }: { member: TeamMember }) {
-  const RankIcon = tierIcons[member.tier];
+function TeamMemberCard({ member }: { member: PublicStaffMember }) {
+  const presentation = rolePresentation[member.role] ?? rolePresentation.helper!;
+  const RankIcon = presentation.icon;
+  const minecraftAvatarUrl = member.minecraftSkinUrl ?? member.minecraftAvatarUrl;
+  const minecraftUsername = member.minecraftUsername ?? (minecraftAvatarUrl ? member.username : "Steve");
 
   return (
-    <article className={`team-member-card team-member-${member.tier}`}>
+    <article className={`team-member-card team-member-${presentation.tier}`}>
       <div className="team-member-glow" aria-hidden />
       <div className="team-member-avatar-wrap">
-        <MinecraftAvatar username={member.username} size={76} rounded="rounded-2xl" />
+        <MinecraftAvatar
+          username={minecraftUsername}
+          skinUrl={minecraftAvatarUrl}
+          size={76}
+          rounded="rounded-2xl"
+        />
         <span className="team-member-rank-icon" aria-hidden>
           <RankIcon size={16} />
         </span>
       </div>
-      <p className="team-member-tier">{member.role}</p>
+      <p className="team-member-tier">{roleLabel(member.role)}</p>
       <h3>{member.username}</h3>
-      {member.alias && <p className="team-member-alias">Known as {member.alias}</p>}
     </article>
   );
 }
@@ -74,7 +56,14 @@ function FlowConnector({ className = "" }: { className?: string }) {
   );
 }
 
-export default function StaffPage() {
+export default async function StaffPage() {
+  const members = await listPublicStaffAccounts();
+  const groups = LADDER.map((role) => ({
+    role,
+    members: (members ?? []).filter((member) => member.role === role),
+  })).filter((group) => group.members.length > 0);
+  const teamCount = members?.length ?? 0;
+
   return (
     <>
       <section className="page-hero pb-6 pt-10 sm:pb-8 sm:pt-14">
@@ -133,66 +122,26 @@ export default function StaffPage() {
 
         <Reveal delay={0.05}>
           <div className="team-org-chart" aria-label="Mazora Network team hierarchy">
-            <div className="team-tier team-tier-single">
-              <TeamMemberCard member={owner} />
-            </div>
-
-            <FlowConnector />
-
-            <div className="team-tier team-tier-single">
-              <TeamMemberCard member={admin} />
-            </div>
-
-            <div className="team-branch team-branch-two" aria-hidden>
-              <span className="team-branch-stem" />
-              <span className="team-branch-rail" />
-              <span className="team-branch-drop team-branch-drop-1" />
-              <span className="team-branch-drop team-branch-drop-2" />
-            </div>
-
-            <div className="team-tier team-tier-seniors">
-              {seniorModerators.map((member) => <TeamMemberCard key={member.username} member={member} />)}
-            </div>
-
-            <div className="team-merge team-merge-two" aria-hidden>
-              <span className="team-merge-rise team-merge-rise-1" />
-              <span className="team-merge-rise team-merge-rise-2" />
-              <span className="team-merge-rail" />
-              <span className="team-merge-stem" />
-            </div>
-
-            <div className="team-branch team-branch-three" aria-hidden>
-              <span className="team-branch-stem" />
-              <span className="team-branch-rail" />
-              <span className="team-branch-drop team-branch-drop-1" />
-              <span className="team-branch-drop team-branch-drop-2" />
-              <span className="team-branch-drop team-branch-drop-3" />
-            </div>
-
-            <div className="team-tier team-tier-mods">
-              {moderators.map((member) => <TeamMemberCard key={member.username} member={member} />)}
-            </div>
-
-            <div className="team-merge team-merge-three" aria-hidden>
-              <span className="team-merge-rise team-merge-rise-1" />
-              <span className="team-merge-rise team-merge-rise-2" />
-              <span className="team-merge-rise team-merge-rise-3" />
-              <span className="team-merge-rail" />
-              <span className="team-merge-stem" />
-            </div>
-
-            <div className="team-branch team-branch-four" aria-hidden>
-              <span className="team-branch-stem" />
-              <span className="team-branch-rail" />
-              <span className="team-branch-drop team-branch-drop-1" />
-              <span className="team-branch-drop team-branch-drop-2" />
-              <span className="team-branch-drop team-branch-drop-3" />
-              <span className="team-branch-drop team-branch-drop-4" />
-            </div>
-
-            <div className="team-tier team-tier-helpers">
-              {helpers.map((member) => <TeamMemberCard key={member.username} member={member} />)}
-            </div>
+            {members === null ? (
+              <div className="team-empty-state">
+                <Shield size={26} />
+                <h3>Team directory is temporarily unavailable</h3>
+                <p>Please check back shortly.</p>
+              </div>
+            ) : groups.length === 0 ? (
+              <div className="team-empty-state">
+                <UsersRound size={26} />
+                <h3>Our team profiles are being prepared</h3>
+                <p>Staff members will appear here as their public profiles are enabled.</p>
+              </div>
+            ) : groups.map((group, index) => (
+              <div key={group.role} className="team-rank-group">
+                {index > 0 && <FlowConnector />}
+                <div className="team-tier team-tier-dynamic">
+                  {group.members.map((member) => <TeamMemberCard key={member.userId} member={member} />)}
+                </div>
+              </div>
+            ))}
           </div>
         </Reveal>
 

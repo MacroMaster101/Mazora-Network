@@ -7,6 +7,7 @@ import { site } from "@/lib/site";
 import { Providers } from "./providers";
 import { themeNoFlashScript } from "@/components/theme/theme-provider";
 import { CookieConsent } from "@/components/shared/cookie-consent";
+import "@/styles/globals.css";
 
 /*
   The brand faces. These set the --font-* custom properties that globals.css
