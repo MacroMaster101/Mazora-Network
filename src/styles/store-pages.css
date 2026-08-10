@@ -2220,6 +2220,201 @@ body:has(.store-detail-page) {
     min-height: 7.75rem;
   }
 
+.store-shop-nav-item {
+    width: 100%;
+    min-height: 2.7rem;
+    font-size: 0.63rem;
+    padding-inline: 0.55rem;
+  }
+
+  .store-shop-menu:last-of-type .store-shop-submenu,
+  .store-shop-submenu {
+    right: auto;
+    left: 0;
+    min-width: min(13rem, calc(100vw - 3rem));
+  }
+
+  .store-shop-menu:nth-of-type(2) .store-shop-submenu {
+    right: 0;
+    left: auto;
+  }
+
+  .store-active-category {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+}
+/* The category header is the only catalog control surface and matches Store glass. */
+.store-shop-nav-main > button,
+.store-shop-nav-main > .store-shop-menu {
+  flex: 1 1 0;
+}
+
+.store-shop-menu > summary {
+  width: 100%;
+}
+/* Public storefront home: concise discovery, categories, and release preview. */
+.store-home-view {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  margin-top: clamp(2rem, 4vw, 3rem);
+}
+
+@media (max-width: 599px) {
+  .store-home-view {
+    margin-top: 1.25rem;
+  }
+
+  .store-home-section-head,
+  .store-home-coming {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .store-home-category-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .store-home-category-card {
+    min-height: 12.5rem;
+  }
+
+  .store-home-coming > div:last-child {
+    justify-content: flex-start;
+  }
+}
+
+.store-detail-media-caption {
+  position: absolute;
+  z-index: 3 !important;
+  left: 1.65rem;
+  right: 1.65rem;
+  bottom: 1.5rem;
+  display: grid;
+  gap: 0.2rem;
+  text-shadow: 0 2px 14px rgb(0 0 0 / 0.9);
+}
+
+.store-detail-media-caption small {
+  color: rgb(var(--accent-bright));
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.store-detail-media-caption strong {
+  color: white;
+  font-size: clamp(1.35rem, 3vw, 2.25rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.store-detail-media::after {
+  background:
+    linear-gradient(180deg, rgb(6 3 12 / 0.54), transparent 30%, transparent 54%, rgb(6 3 12 / 0.9)),
+    radial-gradient(24rem 14rem at 50% 112%, rgb(139 92 246 / 0.25), transparent 72%);
+}
+
+.store-detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 3.15rem;
+  padding: 0.42rem 1rem 0.42rem 0.45rem;
+  border: 1px solid rgb(216 180 254 / 0.22);
+  border-radius: 999px;
+  background: rgb(12 7 22 / 0.68);
+  color: white;
+  box-shadow: 0 16px 38px -26px rgb(0 0 0 / 0.9), inset 0 1px rgb(255 255 255 / 0.08);
+  backdrop-filter: blur(16px) saturate(1.12);
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.store-detail-back:hover {
+  transform: translateX(-3px);
+  border-color: rgb(196 146 255 / 0.5);
+  background: rgb(33 18 55 / 0.84);
+}
+
+.store-detail-back-icon {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border: 1px solid rgb(216 180 254 / 0.2);
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgb(139 92 246 / 0.3), rgb(91 33 182 / 0.12));
+  color: rgb(233 213 255);
+}
+
+.store-detail-back-copy {
+  display: grid;
+  gap: 0;
+  text-align: left;
+  line-height: 1;
+}
+
+.store-detail-back-copy small {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: rgb(238 232 248 / 0.54);
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.store-detail-back-copy strong {
+  max-width: 12rem;
+  overflow: hidden;
+  color: white;
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  .store-detail-layout .store-detail-media {
+    position: sticky;
+    top: 7.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .store-detail-layout .store-detail-media {
+    aspect-ratio: 1 / 1;
+    border-radius: 1.35rem;
+  }
+
+  .store-detail-media-caption {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+  }
+}
+/* Keep the complete Store hero inside common 1280x720 laptop screens. */
+@media (min-width: 900px) and (min-height: 701px) and (max-height: 760px) {
+  body:has(.store-hero) .store-hero-stage {
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .store-hero-title {
+    padding-block: 0.15rem 0.5rem;
+  }
+
+  .store-hero-title h1 {
+    font-size: clamp(4.5rem, 15vh, 7rem);
+  }
+
+  .store-hero-offer-inner,
+  .store-hero-offer-art {
+    min-height: 7.75rem;
+  }
+
   .store-hero-offer-copy {
     padding-block: 0.75rem;
   }
@@ -2247,4 +2442,58 @@ body:has(.store-detail-page) {
   color: rgb(80 58 105);
   background: linear-gradient(145deg, rgb(250 248 253), rgb(234 227 243));
   box-shadow: inset 0 1px rgb(255 255 255 / 0.9);
+}
+
+/* Light Theme High-Contrast Polish for Storefront */
+:root[data-theme="light"] .store-category-section h2,
+:root[data-theme="light"] .store-category-section h3,
+:root[data-theme="light"] .store-category-title {
+  color: #0f0a1a !important;
+}
+
+:root[data-theme="light"] .store-category-section p,
+:root[data-theme="light"] .store-category-lead {
+  color: #4a4060 !important;
+}
+
+:root[data-theme="light"] .store-rank-card {
+  background: #ffffff !important;
+  border-color: rgba(109, 40, 217, 0.22) !important;
+  box-shadow: 0 12px 32px -16px rgba(58, 35, 91, 0.25) !important;
+}
+
+:root[data-theme="light"] .store-rank-options {
+  background: #f7f4fc !important;
+}
+
+:root[data-theme="light"] .store-rank-option {
+  border-top: 1px solid rgba(109, 40, 217, 0.12) !important;
+}
+
+:root[data-theme="light"] .store-rank-option a > span {
+  color: #554a6c !important;
+  font-weight: 600 !important;
+}
+
+:root[data-theme="light"] .store-rank-option a > strong {
+  color: #0f0a1a !important;
+  font-weight: 800 !important;
+}
+
+:root[data-theme="light"] .store-rank-option:hover {
+  background: rgba(109, 40, 217, 0.08) !important;
+}
+
+:root[data-theme="light"] .store-product-card {
+  background: #ffffff !important;
+  border-color: rgba(109, 40, 217, 0.2) !important;
+  color: #0f0a1a !important;
+}
+
+:root[data-theme="light"] .store-product-card h4 {
+  color: #0f0a1a !important;
+}
+
+:root[data-theme="light"] .store-product-card p {
+  color: #4a4060 !important;
 }
