@@ -2497,3 +2497,47 @@ body:has(.store-detail-page) {
 :root[data-theme="light"] .store-product-card p {
   color: #4a4060 !important;
 }
+
+/* Light theme high-contrast rules for product & rank card header pill badges */
+:root[data-theme="light"] .store-rank-card-media,
+:root[data-theme="light"] .store-product-media {
+  background: linear-gradient(145deg, #1e1333, #0f0a1a) !important;
+}
+
+:root[data-theme="light"] .store-rank-card-media p,
+:root[data-theme="light"] .store-product-card span[class*="border-"] {
+  font-weight: 800 !important;
+}
+
+:root[data-theme="light"] .store-product-card span[class*="text-purple-"],
+:root[data-theme="light"] .store-product-card span[class*="text-indigo-"],
+:root[data-theme="light"] .store-product-card span[class*="text-fuchsia-"] {
+  color: #581c87 !important;
+  background-color: #f3e8ff !important;
+  border-color: #c084fc !important;
+}
+
+:root[data-theme="light"] .store-product-card span[class*="text-amber-"] {
+  color: #78350f !important;
+  background-color: #fef3c7 !important;
+  border-color: #fcd34d !important;
+}
+
+:root[data-theme="light"] .store-product-card span[class*="text-emerald-"] {
+  color: #064e3b !important;
+  background-color: #d1fae5 !important;
+  border-color: #6ee7b7 !important;
+}
+
+:root[data-theme="light"] .store-product-card span[class*="text-rose-"] {
+  color: #881337 !important;
+  background-color: #ffe4e6 !important;
+  border-color: #fda4af !important;
+}
+
+:root[data-theme="light"] .store-product-card span[class*="text-cyan-"] {
+  color: #164e63 !important;
+  background-color: #cffafe !important;
+  border-color: #67e8f9 !important;
+}
+
