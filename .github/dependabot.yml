@@ -9,6 +9,8 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
     groups:
       development-dependencies:
         dependency-type: development

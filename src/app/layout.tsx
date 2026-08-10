@@ -92,7 +92,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       data-scroll-behavior="smooth"
       className={`${display.variable} ${sans.variable} ${mono.variable}`}
     >
-      <body>
+      <body suppressHydrationWarning>
         {/*
           suppressHydrationWarning is required, not cosmetic. Per the HTML spec
           a browser CLEARS the `nonce` content attribute once the element is
