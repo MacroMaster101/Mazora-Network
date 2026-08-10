@@ -253,7 +253,7 @@ export default async function ControlRoom() {
         )}
       </div>
 
-      <p className="mt-4 flex items-center gap-2 text-xs text-muted font-medium">
+      <p className="admin-editor-heading mt-4 flex items-center gap-2 text-xs text-muted font-medium">
         <Activity size={14} className="text-accent-bright" />{" "}
         {showDiagnostics
           ? "Bracketed figures are live. Anything marked “Standby” has no data source connected yet — it is blank because nothing is being recorded, not because the count is zero."

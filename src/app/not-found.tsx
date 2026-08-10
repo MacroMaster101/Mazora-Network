@@ -1,5 +1,4 @@
 import { ErrorScreen } from "@/components/shared/error-screen";
-import "@/styles/globals.css";
 
 export default function NotFound() {
   return (

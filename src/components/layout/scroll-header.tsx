@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 export function ScrollHeader({ children, world = false }: { children: ReactNode; world?: boolean }) {
   const pathname = usePathname();
   const isHeroPage = pathname === "/" || pathname === "/vote" || pathname === "/store";
+  const isWorkspacePage = pathname.startsWith("/admin") || pathname.startsWith("/dashboard");
   const [hidden, setHidden] = useState(false);
   const [away, setAway] = useState(false);
   const lastY = useRef(0);
@@ -25,7 +26,7 @@ export function ScrollHeader({ children, world = false }: { children: ReactNode;
       const y = window.scrollY;
       setAway(y > 80);
 
-      if (isLegalPage) {
+      if (isLegalPage || isWorkspacePage) {
         setHidden(false);
         lastY.current = y;
         ticking.current = false;
@@ -64,7 +65,7 @@ export function ScrollHeader({ children, world = false }: { children: ReactNode;
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [isHeroPage, pathname]);
+  }, [isHeroPage, isWorkspacePage, pathname]);
 
   return (
     <header
@@ -72,7 +73,8 @@ export function ScrollHeader({ children, world = false }: { children: ReactNode;
       data-away={away}
       className={cn(
         "scroll-header sticky top-0 z-50 w-full",
-        hidden ? "-translate-y-[115%]" : "translate-y-0",
+        hidden && !isWorkspacePage ? "-translate-y-[115%]" : "translate-y-0",
+        isWorkspacePage && "workspace-nav",
         world && "hero-nav",
         isHeroPage && "-mb-[4.75rem]",
       )}

@@ -22,7 +22,17 @@ export function getDb(): Database | null {
     cached = null;
     return cached;
   }
-  const sql = postgres(url, { prepare: false });
+  // Each Vercel worker has its own module cache. Leaving postgres-js at its
+  // default pool size (10) lets a burst of workers exhaust Supabase's shared
+  // pool even though every individual worker appears healthy. Three keeps
+  // build-time page generation concurrent without allowing each serverless
+  // worker to reserve ten connections.
+  const sql = postgres(url, {
+    prepare: false,
+    max: 3,
+    idle_timeout: 20,
+    connect_timeout: 10,
+  });
   cached = drizzle(sql, { schema });
   return cached;
 }

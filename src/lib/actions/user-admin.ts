@@ -133,7 +133,11 @@ export async function inviteUserAction(
   const { error: roleError } = await admin.auth.admin.updateUserById(
     data.user.id,
     {
-      app_metadata: { ...data.user.app_metadata, role },
+      app_metadata: {
+        ...data.user.app_metadata,
+        role,
+        ...(hasAtLeast(role, "helper") ? { staff_public: role !== "it" } : {}),
+      },
     },
   );
   if (roleError) {
@@ -156,9 +160,59 @@ export async function inviteUserAction(
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/staff");
+  revalidatePath("/staff");
   return {
     ok: true,
     message: `Invitation sent to ${email} as ${roleLabel(role)}.`,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Public team visibility
+ * ------------------------------------------------------------------ */
+
+export async function setStaffPublicVisibilityAction(
+  _previous: AdminActionResult,
+  formData: FormData,
+): Promise<AdminActionResult> {
+  const session = await requireOwner();
+  if (!session) return { ok: false, message: "Not authorized." };
+
+  const userId = String(formData.get("userId") ?? "").trim();
+  const visible = String(formData.get("visible") ?? "") === "true";
+  if (!userId) return { ok: false, message: "Missing staff account." };
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return { ok: false, message: "Server is not configured for staff management." };
+
+  const { data: target, error } = await admin.auth.admin.getUserById(userId);
+  if (error || !target?.user) return { ok: false, message: "That staff account no longer exists." };
+
+  const targetRole = target.user.app_metadata?.role;
+  if (typeof targetRole !== "string" || !ROLES.includes(targetRole as Role) || !hasAtLeast(targetRole as Role, "helper")) {
+    return { ok: false, message: "Only staff accounts can appear on the team page." };
+  }
+
+  const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
+    app_metadata: { ...target.user.app_metadata, staff_public: visible },
+  });
+  if (updateError) return { ok: false, message: "Could not update public team visibility." };
+
+  const db = getDb();
+  if (db) {
+    await db.insert(schema.auditLogs).values({
+      action: visible ? "staff.public.enable" : "staff.public.disable",
+      targetType: "user",
+      targetId: userId,
+      metadata: { visible, by: session.username },
+    });
+  }
+
+  revalidatePath("/admin/staff");
+  revalidatePath("/staff");
+  return {
+    ok: true,
+    message: visible ? "Staff member is now visible on Our Team." : "Staff member is now hidden from Our Team.",
   };
 }
 
