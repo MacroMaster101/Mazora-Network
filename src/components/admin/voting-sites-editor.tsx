@@ -76,7 +76,7 @@ export function VotingSitesEditor({ sites }: { sites: AdminVoteSite[] }) {
   return (
     <div className="space-y-6">
       {/* Top Action Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="admin-editor-heading flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-lg font-bold text-ink">Vote Partner Listings</h2>
           <p className="text-xs text-muted font-medium">
@@ -228,7 +228,7 @@ export function VotingSitesEditor({ sites }: { sites: AdminVoteSite[] }) {
                   <span
                     className={`telemetry text-[11px] font-semibold px-2.5 py-0.5 rounded-md border ${
                       site.enabled
-                        ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
+                        ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-300"
                         : "bg-surface border-line text-muted"
                     }`}
                   >
@@ -265,8 +265,8 @@ export function VotingSitesEditor({ sites }: { sites: AdminVoteSite[] }) {
                 disabled={pending}
                 className={`btn btn-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1 font-semibold transition-all ${
                   site.enabled
-                    ? "bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/40"
-                    : "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/40"
+                    ? "bg-rose-500/20 text-rose-700 dark:text-rose-300 hover:bg-rose-500/30 border border-rose-500/40"
+                    : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/40"
                 }`}
                 title={site.enabled ? "Disable site" : "Enable site"}
               >
@@ -290,7 +290,7 @@ export function VotingSitesEditor({ sites }: { sites: AdminVoteSite[] }) {
                 type="button"
                 onClick={() => handleDelete(site.id, site.name)}
                 disabled={pending}
-                className="btn btn-ghost btn-xs border border-line hover:border-rose-500/40 p-2 text-rose-400 hover:text-rose-300 rounded-lg"
+                className="btn btn-ghost btn-xs border border-line hover:border-rose-500/40 p-2 text-rose-700 dark:text-rose-300 hover:text-rose-800 dark:hover:text-rose-200 rounded-lg"
                 title="Delete site"
               >
                 <Trash2 size={14} />

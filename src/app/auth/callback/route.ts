@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { landingPathFor, ROLES } from "@/lib/auth/roles";
 import { safeNext } from "@/lib/safe-redirect";
+import { resolvePublicOrigin } from "@/lib/site";
 
 /**
  * The origin used to build post-login redirects. In production this is the
@@ -13,6 +14,12 @@ import { safeNext } from "@/lib/safe-redirect";
  * non-production (local dev), where NEXT_PUBLIC_SITE_URL may be unset.
  */
 function redirectOrigin(request: NextRequest): string {
+  // Production must use the same hardened canonical-origin resolver as SEO,
+  // Discord, and server actions. This rejects localhost, plain HTTP, www, the
+  // Vercel preview host, paths, and malformed values instead of trusting a
+  // copied or stale deployment variable for an OAuth redirect.
+  if (process.env.NODE_ENV === "production") return resolvePublicOrigin();
+
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (configured) {
     try {
@@ -20,11 +27,6 @@ function redirectOrigin(request: NextRequest): string {
     } catch {
       /* misconfigured env — fall through to request origin */
     }
-  }
-  if (process.env.NODE_ENV === "production") {
-    // No trusted origin available: use the server's own origin, not any
-    // forwarded header, so a crafted host cannot hijack the redirect.
-    return request.nextUrl.origin;
   }
   return request.nextUrl.origin;
 }

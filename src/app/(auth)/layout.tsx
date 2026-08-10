@@ -5,7 +5,6 @@ import { ArrowLeft, Gamepad2, Server, ShieldCheck, Users } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
 import { ThemeCycleButton } from "@/components/theme/theme-toggle";
 import { site } from "@/lib/site";
-import "@/styles/globals.css";
 
 /**
  * Sign-in surfaces carry no content worth ranking and every one of them is a

@@ -50,3 +50,20 @@ export function resolveAvatarUrl(
   }
   return null;
 }
+
+/** Whether a chosen profile image is specifically a Minecraft head.
+ * Public team cards use this to accept a saved skin choice without allowing
+ * Google, Discord, or ordinary uploaded profile photos into the roster. */
+export function isMinecraftAvatarUrl(value: string | null | undefined): boolean {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    const isMcHeads =
+      (url.hostname === "mc-heads.net" || url.hostname.endsWith(".mc-heads.net")) &&
+      url.pathname.startsWith("/avatar/");
+    const isUploadedSkin = url.protocol === "https:" && url.pathname.includes("/skin-head-");
+    return isMcHeads || isUploadedSkin;
+  } catch {
+    return false;
+  }
+}
