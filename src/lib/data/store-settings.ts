@@ -68,7 +68,10 @@ export async function getStoreWelcomeBanner(): Promise<StoreWelcomeBannerConfig>
       paragraph1: typeof v.paragraph1 === "string" ? v.paragraph1 : DEFAULT_STORE_WELCOME_BANNER.paragraph1,
       paragraph2: typeof v.paragraph2 === "string" ? v.paragraph2 : DEFAULT_STORE_WELCOME_BANNER.paragraph2,
       supportNote: typeof v.supportNote === "string" ? v.supportNote : DEFAULT_STORE_WELCOME_BANNER.supportNote,
-      imageUrl: typeof v.imageUrl === "string" && v.imageUrl.trim() ? v.imageUrl : DEFAULT_STORE_WELCOME_BANNER.imageUrl,
+      imageUrl: (function() {
+        const raw = typeof v.imageUrl === "string" && v.imageUrl.trim() ? v.imageUrl.trim() : DEFAULT_STORE_WELCOME_BANNER.imageUrl;
+        return raw.startsWith("/images/store/") && raw.endsWith(".png") ? raw.replace(/\.png$/, ".webp") : raw;
+      })(),
       enabled: typeof v.enabled === "boolean" ? v.enabled : DEFAULT_STORE_WELCOME_BANNER.enabled,
     };
   } catch {

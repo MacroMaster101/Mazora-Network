@@ -8,10 +8,10 @@ import type { StoreSettingsActionResult } from "@/lib/actions/store-settings";
 import { Input, Textarea, useToast } from "@/components/ui";
 
 const IMAGE_PRESETS = [
-  { label: "Purple Citadel", desc: "Dark obsidian citadel with glowing amethyst crystals", url: "/images/store/survival-purple-citadel.png" },
-  { label: "Crystal Biome", desc: "Fantasy survival biome with bioluminescent violet trees", url: "/images/store/survival-crystal-biome.png" },
-  { label: "Dungeon Realm", desc: "RPG boss dungeon portal with medieval knight armor", url: "/images/store/survival-dungeon-realm.png" },
-  { label: "Sanctuary Town", desc: "Medieval spawn town surrounded by crystal mountains", url: "/images/store/survival-sanctuary-town.png" },
+  { label: "Purple Citadel", desc: "Dark obsidian citadel with glowing amethyst crystals", url: "/images/store/survival-purple-citadel.webp" },
+  { label: "Crystal Biome", desc: "Fantasy survival biome with bioluminescent violet trees", url: "/images/store/survival-crystal-biome.webp" },
+  { label: "Dungeon Realm", desc: "RPG boss dungeon portal with medieval knight armor", url: "/images/store/survival-dungeon-realm.webp" },
+  { label: "Sanctuary Town", desc: "Medieval spawn town surrounded by crystal mountains", url: "/images/store/survival-sanctuary-town.webp" },
 ];
 
 export function StoreWelcomeEditor({
