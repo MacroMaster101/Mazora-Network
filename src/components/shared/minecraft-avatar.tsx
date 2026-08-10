@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
 import { cn } from "@/lib/utils";
 import { accentFor } from "@/lib/utils";
 
@@ -33,7 +34,11 @@ export function MinecraftAvatar({
 }) {
   const [failed, setFailed] = useState(false);
   const bg = accentFor(username);
-  const src = skinUrl || `https://mc-heads.net/avatar/${encodeURIComponent(username)}/${size * 2}`;
+  // Old/imported rows may contain a username rather than a URL in skin_head_url.
+  // Passing that value straight to <img> turns it into a same-origin request
+  // such as /LilyLuvv and produces a visible fallback plus a noisy 404.
+  const safeSkinUrl = isMinecraftAvatarUrl(skinUrl) ? skinUrl : null;
+  const src = safeSkinUrl || `https://mc-heads.net/avatar/${encodeURIComponent(username)}/${size * 2}`;
 
   return (
     <span

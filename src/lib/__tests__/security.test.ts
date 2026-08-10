@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 
 import { canGrantRank, canManageRank, hasAtLeast, isAdmin, isStaff, ROLES, TOP_ROLE } from "@/lib/auth/roles";
 import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
+import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
 import { safeNext } from "@/lib/safe-redirect";
 import { resolvePublicOrigin } from "@/lib/site";
 
@@ -201,5 +202,21 @@ describe("resolvePublicOrigin (canonical domain)", () => {
     withEnv("production", "https://mazora.us/some/path?x=1", () => {
       assert.equal(resolvePublicOrigin(), "https://mazora.us");
     });
+  });
+});
+
+describe("isMinecraftAvatarUrl", () => {
+  test("accepts Minecraft head URLs used by public staff cards", () => {
+    assert.equal(isMinecraftAvatarUrl("https://mc-heads.net/avatar/JesteR_X_44/256"), true);
+    assert.equal(
+      isMinecraftAvatarUrl("https://project.supabase.co/storage/v1/object/public/profile-avatars/id/skin-head-1.png"),
+      true,
+    );
+  });
+
+  test("rejects legacy usernames, relative paths, and unrelated provider photos", () => {
+    assert.equal(isMinecraftAvatarUrl("LilyLuvv"), false);
+    assert.equal(isMinecraftAvatarUrl("/avatar/LilyLuvv"), false);
+    assert.equal(isMinecraftAvatarUrl("https://lh3.googleusercontent.com/avatar.png"), false);
   });
 });

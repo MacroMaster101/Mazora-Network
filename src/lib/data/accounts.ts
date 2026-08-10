@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { ROLES, hasAtLeast } from "@/lib/auth/roles";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getDb, schema } from "@/lib/db/client";
-import { resolveAvatarUrl } from "@/lib/avatar-source";
+import { isMinecraftAvatarUrl, resolveAvatarUrl } from "@/lib/avatar-source";
 import type { Role } from "@/lib/types";
 
 /**
@@ -27,6 +27,8 @@ export interface AccountSummary {
   email: string;
   role: Role;
   minecraftUsername: string | null;
+  /** Processed head from an uploaded Minecraft skin, when one exists. */
+  minecraftSkinUrl: string | null;
   /**
    * The avatar this member actually chose: an uploaded photo, or the mc-heads
    * skin URL written when they pick "Minecraft skin". Falls back to the photo
@@ -39,7 +41,14 @@ export interface AccountSummary {
   invitedAt: string | null;
   /** Invited, but the link has not been used yet — no sign-in, no confirmation. */
   pendingInvite: boolean;
+  /** Whether this staff account appears in the public team hierarchy. */
+  publicStaffVisible: boolean;
 }
+
+export type PublicStaffMember = Pick<
+  AccountSummary,
+  "userId" | "username" | "role" | "minecraftUsername" | "minecraftSkinUrl"
+> & { minecraftAvatarUrl: string | null };
 
 function toRole(value: unknown): Role {
   return typeof value === "string" && ROLES.includes(value as Role) ? (value as Role) : "member";
@@ -117,19 +126,20 @@ async function profileNames(): Promise<Map<string, ProfileName>> {
   return map;
 }
 
-async function minecraftUsernames(): Promise<Map<string, string>> {
+async function minecraftProfiles(): Promise<Map<string, { username: string; skinUrl: string | null }>> {
   const db = getDb();
-  const map = new Map<string, string>();
+  const map = new Map<string, { username: string; skinUrl: string | null }>();
   if (!db) return map;
   try {
     const rows = await db
       .select({
         userId: schema.minecraftAccounts.userId,
         minecraftUsername: schema.minecraftAccounts.minecraftUsername,
+        skinHeadUrl: schema.minecraftAccounts.skinHeadUrl,
       })
       .from(schema.minecraftAccounts);
     for (const row of rows) {
-      map.set(row.userId, row.minecraftUsername);
+      map.set(row.userId, { username: row.minecraftUsername, skinUrl: row.skinHeadUrl });
     }
   } catch (error) {
     console.error("Failed to load minecraft usernames:", error);
@@ -150,7 +160,7 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
     }
 
     const names = await profileNames();
-    const mcNames = await minecraftUsernames();
+    const minecraft = await minecraftProfiles();
 
     return (data?.users ?? []).map((user) => {
       const profile = names.get(user.id);
@@ -160,7 +170,8 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
         email: user.email,
       });
       const displayName = profile?.displayName ?? null;
-      const minecraftUsername = mcNames.get(user.id) ?? null;
+      const minecraftProfile = minecraft.get(user.id);
+      const minecraftUsername = minecraftProfile?.username ?? null;
 
       return {
         userId: user.id,
@@ -169,6 +180,7 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
         email: user.email ?? "",
         role: toRole(user.app_metadata?.role),
         minecraftUsername,
+        minecraftSkinUrl: minecraftProfile?.skinUrl ?? null,
         avatarUrl: resolveAvatarUrl(
           profile?.avatarUrl,
           user.identities?.find((identity) => identity.provider === "google")?.identity_data,
@@ -181,6 +193,9 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
         lastSignInAt: user.last_sign_in_at ?? null,
         invitedAt: user.invited_at ?? null,
         pendingInvite: Boolean(user.invited_at) && !user.last_sign_in_at && !user.email_confirmed_at,
+        // Existing staff and newly promoted accounts are public by default.
+        // Only an explicit protected metadata flag hides someone.
+        publicStaffVisible: user.app_metadata?.staff_public !== false,
       };
     });
   } catch (error) {
@@ -194,4 +209,25 @@ export async function listStaffAccounts(): Promise<AccountSummary[] | null> {
   const accounts = await listAccounts();
   if (!accounts) return null;
   return accounts.filter((account) => hasAtLeast(account.role, "helper"));
+}
+
+/** Public-safe team data: no email, sign-in timestamps, or invitation details. */
+export async function listPublicStaffAccounts(): Promise<PublicStaffMember[] | null> {
+  const staff = await listStaffAccounts();
+  if (!staff) return null;
+  return staff
+    // IT is an internal systems role, never a public team rank. Keep this
+    // guard in the repository so no public caller can accidentally expose it.
+    .filter((account) => account.role !== "it" && !account.pendingInvite && account.publicStaffVisible)
+    .map(({ userId, username, role, minecraftUsername, minecraftSkinUrl, avatarUrl }) => {
+      const safeSkinUrl = isMinecraftAvatarUrl(minecraftSkinUrl) ? minecraftSkinUrl : null;
+      return {
+        userId,
+        username,
+        role,
+        minecraftUsername,
+        minecraftSkinUrl: safeSkinUrl,
+        minecraftAvatarUrl: safeSkinUrl ?? (isMinecraftAvatarUrl(avatarUrl) ? avatarUrl : null),
+      };
+    });
 }

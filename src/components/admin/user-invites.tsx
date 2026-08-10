@@ -11,7 +11,7 @@ import {
   type AdminActionResult,
 } from "@/lib/actions/user-admin";
 import { RankChip } from "@/components/admin/rank-chip";
-import { FormRow, Input, useToast } from "@/components/ui";
+import { FormRow, Input, Modal, Select, useToast } from "@/components/ui";
 import { fmtDate } from "@/lib/utils";
 
 const initial: AdminActionResult = { ok: false, message: "" };
@@ -62,22 +62,9 @@ export function InviteUserButton({
         <UserPlus size={15} /> {label}
       </button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="invite-staff-title"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setOpen(false);
-          }}
-        >
-          {/* The width sits on this wrapper, not on the .panel: a global rule
-              (.account-content .panel { max-width: 100% }) wraps every admin
-              page and would otherwise stretch the dialog to the full viewport. */}
-          <div className="w-full max-w-md">
+      <Modal open={open} onClose={() => setOpen(false)} label="Invite a staff member" size="compact">
             <div className="panel p-6">
-              <div className="flex items-start justify-between gap-4">
+              <div className="pr-12">
                 <div>
                   <h2
                     id="invite-staff-title"
@@ -91,14 +78,6 @@ export function InviteUserButton({
                     on the team.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  aria-label="Close"
-                  className="cart-link-muted shrink-0 rounded-lg p-1 hover:text-ink"
-                >
-                  <X size={18} />
-                </button>
               </div>
 
               <form action={formAction} className="mt-5 space-y-4">
@@ -114,10 +93,9 @@ export function InviteUserButton({
                 </FormRow>
 
                 <FormRow label="Starting rank" htmlFor="invite-role">
-                  <select
+                  <Select
                     id="invite-role"
                     name="role"
-                    className="input"
                     defaultValue={assignable[0]}
                     required
                   >
@@ -126,7 +104,7 @@ export function InviteUserButton({
                         {roleLabel(role)}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </FormRow>
 
                 <p className="text-[11px] leading-relaxed text-muted">
@@ -157,9 +135,7 @@ export function InviteUserButton({
                 </div>
               </form>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </>
   );
 }
