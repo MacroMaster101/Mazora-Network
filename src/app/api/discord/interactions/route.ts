@@ -627,7 +627,13 @@ export async function POST(request: Request) {
   const signature = request.headers.get("x-signature-ed25519");
   const timestamp = request.headers.get("x-signature-timestamp");
   const rawBody = await request.text();
-  if (!signature || !timestamp || !verifyDiscordSignature(publicKey, timestamp, rawBody, signature)) {
+  const timestampSeconds = Number(timestamp);
+  const freshTimestamp = Number.isInteger(timestampSeconds)
+    && Math.abs(Math.floor(Date.now() / 1000) - timestampSeconds) <= 5 * 60;
+  // The signature authenticates Discord, while timestamp freshness prevents a
+  // previously valid button click from being replayed later to duplicate an
+  // order decision, ticket, or public purchase announcement.
+  if (!signature || !timestamp || !freshTimestamp || !verifyDiscordSignature(publicKey, timestamp, rawBody, signature)) {
     return json({ error: "invalid request signature" }, 401);
   }
 

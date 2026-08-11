@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -20,6 +20,15 @@ export interface DrawerNavGroup {
   items: { label: string; href: string; exact: boolean }[];
 }
 
+const focusableSelector = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
 export function MobileMenu({
   session,
   adminNav = null,
@@ -29,6 +38,8 @@ export function MobileMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
 
   // Inside the staff area the drawer becomes the admin menu: on small screens
@@ -38,9 +49,39 @@ export function MobileMenu({
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const trigger = triggerRef.current;
+    document.body.style.overflow = "hidden";
+    const frame = requestAnimationFrame(() => panelRef.current?.focus());
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(focusableSelector));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = "";
+      cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      (previousFocus ?? trigger)?.focus();
     };
   }, [open]);
 
@@ -57,6 +98,7 @@ export function MobileMenu({
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open menu"
@@ -72,7 +114,11 @@ export function MobileMenu({
         createPortal(
           <div className="fixed inset-0 z-[150] min-[1200px]:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
             <div aria-hidden="true" className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity" onClick={() => setOpen(false)} />
-            <aside className="mobile-menu-panel absolute right-0 top-0 flex h-dvh w-[min(88vw,390px)] flex-col border-l border-slate-200/80 dark:border-purple-900/40 bg-white dark:bg-[#0c0618] text-slate-900 dark:text-white shadow-2xl">
+            <aside
+              ref={panelRef}
+              tabIndex={-1}
+              className="mobile-menu-panel absolute right-0 top-0 flex h-dvh w-[min(88vw,390px)] flex-col border-l border-slate-200/80 dark:border-purple-900/40 bg-white dark:bg-[#0c0618] text-slate-900 dark:text-white shadow-2xl outline-none"
+            >
               {/* Drawer Header */}
               <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-purple-900/40 px-5 py-4 bg-slate-50/50 dark:bg-purple-950/20">
                 <div>
@@ -84,6 +130,7 @@ export function MobileMenu({
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setOpen(false)}
                   aria-label="Close menu"
                   className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200/80 dark:border-purple-800/40 bg-white dark:bg-purple-950/40 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-purple-400 transition-all shadow-sm"

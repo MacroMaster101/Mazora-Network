@@ -19,10 +19,17 @@ export default async function AdminStoreSubcategoryItemsPage({ params }: { param
   if (!mode) notFound();
   const categoryConfigs = await getStoreCategoryConfigs(modes);
   const config = categoryConfigs.find((item) => item.gameModeSlug === mode.slug && storeCategorySlug(item.key) === categorySlug);
-  if (!config?.useSubcategories) notFound();
-  const subcategory = config.subcategories.find((item) => storeCategorySlug(item.key) === subcategorySlug);
+  if (!config) notFound();
+
+  const isAll = subcategorySlug === "all";
+  const subcategory = isAll
+    ? { key: "all", label: `All ${config.label}`, description: `All ${config.label} products`, sortOrder: -1, enabled: true }
+    : config.subcategories.find((item) => storeCategorySlug(item.key) === subcategorySlug);
   if (!subcategory) notFound();
-  const itemCount = products.filter((product) => (product.gameModeSlug ?? "survival-smp") === mode.slug && product.category === config.key && (product.subcategory ?? product.billing) === subcategory.key).length;
+
+  const itemCount = isAll
+    ? products.filter((product) => (product.gameModeSlug ?? "survival-smp") === mode.slug && product.category === config.key).length
+    : products.filter((product) => (product.gameModeSlug ?? "survival-smp") === mode.slug && product.category === config.key && (product.subcategory ?? product.billing) === subcategory.key).length;
 
   return (
     <div className="admin-store-page">
@@ -31,7 +38,7 @@ export default async function AdminStoreSubcategoryItemsPage({ params }: { param
         subtitle={`${itemCount} products in ${config.label}`}
         action={<div className="store-admin-page-actions"><Link href={`/admin/store/catalog/${mode.slug}/${storeCategorySlug(config.key)}`} className="btn btn-secondary btn-sm"><ArrowLeft size={15} /> Subcategories</Link><Link href="/store" className="btn btn-ghost btn-sm"><ExternalLink size={15} /> Public store</Link></div>}
       />
-      <StoreCatalogManager products={products} modes={modes} categoryConfigs={categoryConfigs} view="items" initialModeSlug={mode.slug} initialCategory={config.key} initialSubcategory={subcategory.key} />
+      <StoreCatalogManager products={products} modes={modes} categoryConfigs={categoryConfigs} view="items" initialModeSlug={mode.slug} initialCategory={config.key} initialSubcategory={isAll ? undefined : subcategory.key} />
     </div>
   );
 }

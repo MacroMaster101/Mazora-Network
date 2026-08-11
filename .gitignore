@@ -40,6 +40,13 @@ next-env.d.ts
 .vscode
 .idea
 *.swp
+*.swo
+*~
+*.bak
+*.tmp
+*.temp
+*.orig
+*.rej
 
 # OS junk
 .DS_Store

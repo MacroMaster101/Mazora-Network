@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getSession, isStaff } from "@/lib/auth";
+import { z } from "zod";
+import { getSession, hasAtLeast } from "@/lib/auth";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -12,29 +13,40 @@ export interface VotingActionResult {
   errors?: Record<string, string>;
 }
 
-export async function saveVoteSiteAction(formData: FormData): Promise<VotingActionResult> {
+const voteSiteSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().trim().min(2, "Site name must be at least 2 characters.").max(100, "Site name must be 100 characters or fewer."),
+  url: z.string().trim().max(1000, "The site URL is too long.").url("Enter a valid site URL.").refine((value) => {
+    const protocol = new URL(value).protocol;
+    return protocol === "https:" || protocol === "http:";
+  }, "The site URL must use http:// or https://."),
+  rewardDescription: z.string().trim().max(300, "The reward description is too long."),
+  cooldownHours: z.coerce.number().int().min(1).max(720),
+  enabled: z.boolean(),
+});
+
+async function canManageVoting(): Promise<boolean> {
   const session = await getSession();
-  if (!session || !isStaff(session.role)) {
+  return Boolean(session && hasAtLeast(session.role, "administrator"));
+}
+
+export async function saveVoteSiteAction(formData: FormData): Promise<VotingActionResult> {
+  if (!(await canManageVoting())) {
     return { ok: false, message: "Unauthorized staff action." };
   }
 
-  const id = (formData.get("id") as string)?.trim();
-  const name = (formData.get("name") as string)?.trim();
-  const url = (formData.get("url") as string)?.trim();
-  const rewardDescription = (formData.get("rewardDescription") as string)?.trim();
-  const cooldownHoursRaw = (formData.get("cooldownHours") as string)?.trim();
-  const enabledRaw = formData.get("enabled");
-
-  if (!name || name.length < 2) {
-    return { ok: false, message: "Site name must be at least 2 characters." };
+  const parsed = voteSiteSchema.safeParse({
+    id: String(formData.get("id") ?? "").trim() || undefined,
+    name: formData.get("name"),
+    url: formData.get("url"),
+    rewardDescription: formData.get("rewardDescription") ?? "",
+    cooldownHours: formData.get("cooldownHours") || 24,
+    enabled: ["on", "true", "1"].includes(String(formData.get("enabled") ?? "")),
+  });
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Check the vote site details." };
   }
-
-  if (!url || !url.startsWith("http")) {
-    return { ok: false, message: "A valid site URL starting with http:// or https:// is required." };
-  }
-
-  const cooldownHours = Math.max(1, parseInt(cooldownHoursRaw || "24", 10) || 24);
-  const enabled = enabledRaw === "on" || enabledRaw === "true" || enabledRaw === "1";
+  const { id, name, url, rewardDescription, cooldownHours, enabled } = parsed.data;
 
   const db = getDb();
   if (!db) {
@@ -77,10 +89,10 @@ export async function saveVoteSiteAction(formData: FormData): Promise<VotingActi
 }
 
 export async function toggleVoteSiteAction(id: string, enabled: boolean): Promise<VotingActionResult> {
-  const session = await getSession();
-  if (!session || !isStaff(session.role)) {
+  if (!(await canManageVoting())) {
     return { ok: false, message: "Unauthorized staff action." };
   }
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, message: "Invalid vote site." };
 
   const db = getDb();
   if (!db) return { ok: false, message: "Database connection unavailable." };
@@ -102,10 +114,10 @@ export async function toggleVoteSiteAction(id: string, enabled: boolean): Promis
 }
 
 export async function deleteVoteSiteAction(id: string): Promise<VotingActionResult> {
-  const session = await getSession();
-  if (!session || !isStaff(session.role)) {
+  if (!(await canManageVoting())) {
     return { ok: false, message: "Unauthorized staff action." };
   }
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, message: "Invalid vote site." };
 
   const db = getDb();
   if (!db) return { ok: false, message: "Database connection unavailable." };

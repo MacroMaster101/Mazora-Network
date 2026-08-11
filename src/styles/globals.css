@@ -10311,6 +10311,34 @@ body:has(.vote-mission-hero) {
 */
 body:has(.state-error) .site-footer { display: none; }
 
+/*
+  Admin recovery routes render inside the two-column staff layout. Lift them
+  into a viewport-sized layer so the sidebar and header cannot constrain the
+  recovery artwork, and freeze the page behind it to prevent a stray scrollbar.
+*/
+.admin-recovery-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  width: 100vw;
+  height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  color: white;
+  background: rgb(5 2 11);
+}
+
+body:has(.admin-recovery-overlay) {
+  overflow: hidden;
+}
+
+.admin-recovery-overlay .state-error.state-error-compact {
+  min-height: 100%;
+  height: 100%;
+  margin-top: 0;
+  padding-top: clamp(2rem, 5vh, 3.5rem);
+}
+
 @media (max-width: 800px) {
   .state-error,
   .state-error.state-error-compact { padding: clamp(4.5rem, 9vh, 6rem) 1.25rem clamp(1.75rem, 4vh, 2.5rem); }

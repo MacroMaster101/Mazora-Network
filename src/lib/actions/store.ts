@@ -3,7 +3,8 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getDiscordIdentity, getSessionUserId } from "@/lib/auth";
-import { getProducts } from "@/lib/data/content";
+import { getGameModes, getProducts } from "@/lib/data/content";
+import { getStoreCategoryConfigs } from "@/lib/data/store-categories";
 import { getDb, schema } from "@/lib/db/client";
 import {
   getDiscordBotConfig,
@@ -142,13 +143,25 @@ export async function submitStoreRequest(
     return { ok: false, message: "Discord order requests are not configured yet. Please contact Mazora staff." };
   }
 
-  const products = await getProducts();
+  const [products, modes] = await Promise.all([getProducts(), getGameModes()]);
+  const categoryConfigs = await getStoreCategoryConfigs(modes);
   const productBySlug = new Map(products.map((product) => [product.slug, product]));
   const orderItems = [];
 
   for (const submitted of submittedItems.data) {
     const product = productBySlug.get(submitted.slug);
     if (!product) return { ok: false, message: "One of the products in your cart is no longer available." };
+    const modeSlug = product.gameModeSlug ?? "survival-smp";
+    const mode = modes.find((item) => item.slug === modeSlug);
+    const category = categoryConfigs.find(
+      (item) => item.gameModeSlug === modeSlug && item.key === product.category && item.enabled,
+    );
+    const subcategoryKey = product.subcategory ?? product.billing;
+    const subcategoryAvailable = !category?.useSubcategories
+      || Boolean(subcategoryKey && category.subcategories.some((item) => item.key === subcategoryKey && item.enabled));
+    if (!mode || mode.storeStatus !== "live" || !category || !subcategoryAvailable) {
+      return { ok: false, message: "One of the products in your cart is not currently available." };
+    }
     const price = product.salePrice ?? product.price;
     orderItems.push({
       productId: product.id,
@@ -285,33 +298,35 @@ async function persistOrder(input: PersistOrderInput): Promise<void> {
     const userId = await getSessionUserId();
     if (!db || !userId) return;
 
-    const [order] = await db
-      .insert(schema.orders)
-      .values({
-        userId,
-        reference: input.reference,
-        totalAmount: input.total.toFixed(2),
-        status: "pending",
-        minecraftUsername: input.minecraftUsername,
-        discordId: input.discordId,
-        discordUsername: input.discordUsername,
-        notes: input.notes || null,
-      })
-      .returning({ id: schema.orders.id });
+    await db.transaction(async (tx) => {
+      const [order] = await tx
+        .insert(schema.orders)
+        .values({
+          userId,
+          reference: input.reference,
+          totalAmount: input.total.toFixed(2),
+          status: "pending",
+          minecraftUsername: input.minecraftUsername,
+          discordId: input.discordId,
+          discordUsername: input.discordUsername,
+          notes: input.notes || null,
+        })
+        .returning({ id: schema.orders.id });
 
-    if (!order) return;
+      if (!order) throw new Error("Order insert returned no row.");
 
-    await db.insert(schema.orderItems).values(
-      input.items.map((item) => ({
-        orderId: order.id,
-        // A product deleted later nulls this column but keeps the line item,
-        // so the name snapshot is what history actually renders.
-        productId: item.productId ?? null,
-        productName: item.name,
-        quantity: item.quantity,
-        price: item.price.toFixed(2),
-      })),
-    );
+      await tx.insert(schema.orderItems).values(
+        input.items.map((item) => ({
+          orderId: order.id,
+          // A product deleted later nulls this column but keeps the line item,
+          // so the name snapshot is what history actually renders.
+          productId: item.productId ?? null,
+          productName: item.name,
+          quantity: item.quantity,
+          price: item.price.toFixed(2),
+        })),
+      );
+    });
   } catch (error) {
     console.error("Failed to record store order", error);
   }

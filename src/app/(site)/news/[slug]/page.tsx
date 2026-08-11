@@ -154,14 +154,14 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </div>
 
         <div className="shell news-detail-content">
-          <main className="news-detail-reading">
+          <div className="news-detail-reading">
             <div className="news-detail-reading-label">From the newsroom</div>
             <div className="news-article-body">
               {article.body.map((paragraph, index) => (
                 <p key={index} className={index === 0 ? "news-article-lead" : undefined}>{paragraph}</p>
               ))}
             </div>
-          </main>
+          </div>
 
           <aside className="news-detail-aside">
             <div className="news-detail-aside-card">

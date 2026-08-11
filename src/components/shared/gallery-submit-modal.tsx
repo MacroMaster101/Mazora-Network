@@ -8,6 +8,15 @@ import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
 import { Input, Textarea, useToast } from "@/components/ui";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
 
+const focusableSelector = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
 export function GallerySubmitModal({
   isOpen,
   onClose,
@@ -26,12 +35,46 @@ export function GallerySubmitModal({
   const [mode, setMode] = useState<"upload" | "url">("upload");
   const [fileName, setFileName] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    const frame = requestAnimationFrame(() => {
+      const first = dialogRef.current?.querySelector<HTMLElement>(focusableSelector);
+      (first ?? dialogRef.current)?.focus();
+    });
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", handler);
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      previousFocus?.focus();
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -43,6 +86,8 @@ export function GallerySubmitModal({
         onClick={onClose}
       >
         <div
+          ref={dialogRef}
+          tabIndex={-1}
           role="dialog"
           aria-modal="true"
           aria-labelledby="gallery-auth-title"
@@ -145,6 +190,8 @@ export function GallerySubmitModal({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="gallery-submit-title"
@@ -174,10 +221,11 @@ export function GallerySubmitModal({
           </p>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted">
+            <label htmlFor="gallery-artwork-title" className="block text-xs font-semibold uppercase tracking-wider text-muted">
               Artwork Title <span className="text-accent-bright">*</span>
             </label>
             <Input
+              id="gallery-artwork-title"
               name="title"
               placeholder="e.g. Dragon Citadel Fortress"
               required
@@ -187,10 +235,11 @@ export function GallerySubmitModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted">
+              <label htmlFor="gallery-artwork-category" className="block text-xs font-semibold uppercase tracking-wider text-muted">
                 Category
               </label>
               <select
+                id="gallery-artwork-category"
                 name="category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -245,6 +294,7 @@ export function GallerySubmitModal({
                 <button
                   type="button"
                   onClick={() => setMode("upload")}
+                  aria-pressed={mode === "upload"}
                   className={`px-2.5 py-1 text-[0.7rem] font-semibold rounded-md flex items-center gap-1.5 transition-all outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                     mode === "upload" ? "bg-accent text-white shadow-sm" : "text-muted hover:text-ink"
                   }`}
@@ -254,6 +304,7 @@ export function GallerySubmitModal({
                 <button
                   type="button"
                   onClick={() => setMode("url")}
+                  aria-pressed={mode === "url"}
                   className={`px-2.5 py-1 text-[0.7rem] font-semibold rounded-md flex items-center gap-1.5 transition-all outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                     mode === "url" ? "bg-accent text-white shadow-sm" : "text-muted hover:text-ink"
                   }`}
@@ -282,6 +333,8 @@ export function GallerySubmitModal({
               </div>
             ) : (
               <Input
+                id="gallery-artwork-url"
+                aria-label="Artwork image URL"
                 placeholder="Paste image link or Google/Imgur URL..."
                 value={imageUrl && !imageUrl.startsWith("data:image/") ? imageUrl : ""}
                 onChange={(e) => {
@@ -319,10 +372,11 @@ export function GallerySubmitModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted">
+            <label htmlFor="gallery-artwork-description" className="block text-xs font-semibold uppercase tracking-wider text-muted">
               Description (Optional)
             </label>
             <Textarea
+              id="gallery-artwork-description"
               name="description"
               rows={2}
               placeholder="Tell us about this build or artwork..."

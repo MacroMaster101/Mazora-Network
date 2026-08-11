@@ -4,7 +4,7 @@ import { ErrorScreen } from "@/components/shared/error-screen";
 
 export default function AdminError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <div className="fixed inset-0 z-[100] min-h-svh overflow-y-auto bg-[rgb(var(--base))]">
+    <div className="admin-recovery-overlay">
       <ErrorScreen
         error={error}
         reset={reset}
