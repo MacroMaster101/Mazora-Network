@@ -27,6 +27,19 @@ if (supabaseUrl) {
   }
 }
 
+const configuredMapUrl = process.env.NEXT_PUBLIC_SERVER_MAP_URL?.trim();
+let serverMapOrigin = "";
+if (configuredMapUrl) {
+  try {
+    const parsed = new URL(configuredMapUrl);
+    if (parsed.protocol === "https:" || process.env.NODE_ENV === "development") {
+      serverMapOrigin = parsed.origin;
+    }
+  } catch {
+    // The homepage falls back to its coming-soon state for invalid map URLs.
+  }
+}
+
 export function buildContentSecurityPolicy(nonce: string, isDev: boolean): string {
   // 'strict-dynamic' lets the nonced Next bootstrap load its own chunks without
   // each one needing a nonce. CSP3 browsers ignore host allowlists in
@@ -53,8 +66,8 @@ export function buildContentSecurityPolicy(nonce: string, isDev: boolean): strin
     "form-action 'self'",
     "base-uri 'self'",
     "object-src 'none'",
-    // Only the Discord server widget embedded on /discord.
-    "frame-src https://discord.com",
+    // The Discord widget plus the optional server map embedded on the homepage.
+    `frame-src https://discord.com${serverMapOrigin ? ` ${serverMapOrigin}` : ""}`,
     "upgrade-insecure-requests",
   ].join("; ");
 }
