@@ -79,11 +79,27 @@ export function GameModesTable({ modes }: { modes: GameMode[] }) {
     { header: "Players", cell: (m) => <span className="telemetry">{m.players}</span> },
     {
       header: "Status",
-      cell: (m) => (
-        <span className={`inline-flex items-center gap-1.5 ${m.enabled === false ? "text-muted" : "text-emerald-400"}`}>
-          <span className="dot" /> {m.enabled === false ? "Hidden" : m.storeStatus === "live" ? "Live" : "Coming soon"}
-        </span>
-      ),
+      cell: (m) => {
+        if (m.enabled === false) {
+          return (
+            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+              <EyeOff size={11} /> Hidden
+            </span>
+          );
+        }
+        if (m.storeStatus === "live") {
+          return (
+            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 animate-pulse" /> Live
+            </span>
+          );
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+            Coming soon
+          </span>
+        );
+      },
     },
     {
       header: "Actions",

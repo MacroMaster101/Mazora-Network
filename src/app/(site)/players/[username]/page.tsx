@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;
   const player = await getPlayer(username);
-  if (!player) return { title: "Player not found" };
+  if (!player) return { title: "Player not found", robots: { index: false, follow: false } };
   return {
     title: `${player.username} — Profile`,
     description: `${player.username} · ${player.rank} · Level ${player.level} · ${playtime(player.playtimeHours)} playtime on the network.`,

@@ -117,14 +117,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <CookieConsent />
         </Providers>
         {/*
-          Production only. In dev both components load their script from
-          va.vercel-scripts.com, which the middleware's script-src 'self' CSP
-          correctly refuses — four console errors on every page load, for two
-          scripts that collect nothing locally. In production they are served
-          same-origin from /_vercel/insights, so the CSP is satisfied and
-          reporting is unchanged.
+          Vercel only. Development and local production previews do not expose
+          the same-origin /_vercel endpoints, so mounting these components there
+          produces console noise for scripts that cannot collect anything.
+          Vercel sets VERCEL_ENV for preview and production deployments.
         */}
-        {process.env.NODE_ENV === "production" ? (
+        {process.env.VERCEL_ENV === "production" || process.env.VERCEL_ENV === "preview" ? (
           <>
             <Analytics />
             <SpeedInsights />

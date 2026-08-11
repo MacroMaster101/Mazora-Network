@@ -1,6 +1,7 @@
 /**
  * Seed script to populate 14 high quality demo gallery items using local Mazora artwork assets.
- * Usage: npx tsx --env-file=.env scripts/seed-gallery.ts
+ * Replaces every existing gallery image and like.
+ * Usage: npx tsx --env-file=.env scripts/seed-gallery.ts --confirm-replace
  */
 import postgres from "postgres";
 
@@ -148,6 +149,11 @@ const DEMO_GALLERY = [
 ];
 
 async function seed() {
+  if (!process.argv.includes("--confirm-replace")) {
+    console.error("Refusing to replace gallery data without --confirm-replace.");
+    process.exit(1);
+  }
+
   const url = process.env.DATABASE_URL?.trim();
   if (!url) {
     console.error("DATABASE_URL environment variable is missing.");

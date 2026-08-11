@@ -186,12 +186,13 @@ export async function saveStoreRoadmapAction(formData: FormData): Promise<StoreS
 
 const storeCategorySchema = z.object({
   gameModeSlug: z.string().trim().min(1).max(100),
-  key: z.string().trim().min(2, "Enter a category key.").max(60),
-  label: z.string().trim().min(2, "Enter a category name.").max(60),
-  eyebrow: z.string().trim().min(2, "Enter a short category type.").max(60),
-  description: z.string().trim().min(5, "Add a category description.").max(500),
-  accent: z.enum(["green", "gold", "cyan", "rose", "violet", "orange"]),
-  sortOrder: z.coerce.number().int().min(-10000).max(10000),
+  key: z.string().trim().min(1).max(60),
+  label: z.string().trim().min(2, "Enter a category display name.").max(60),
+  eyebrow: z.string().trim().min(1, "Enter a category label.").max(60),
+  description: z.string().trim().min(3, "Add a category description.").max(500),
+  accent: z.enum(["green", "gold", "cyan", "rose", "violet", "orange"]).default("violet"),
+  sortOrder: z.coerce.number().int().min(-10000).max(10000).default(0),
+  icon: z.string().trim().default("Gem"),
   enabled: z.boolean(),
   useSubcategories: z.boolean(),
 });
@@ -203,6 +204,7 @@ const storeSubcategorySchema = z.object({
   label: z.string().trim().min(2, "Enter a subcategory name.").max(60),
   description: z.string().trim().min(3, "Add a short description.").max(300),
   sortOrder: z.coerce.number().int().min(-10000).max(10000),
+  icon: z.string().trim().min(1).max(60).default("Layers"),
   enabled: z.boolean(),
 });
 
@@ -239,22 +241,162 @@ export async function saveStoreCategoryAction(formData: FormData): Promise<Store
   if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to manage Store categories." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
+
+  const gameModeSlug = String(formData.get("gameModeSlug") ?? "").trim();
+  const label = String(formData.get("label") ?? "").trim();
+  const rawKey = String(formData.get("key") ?? "").trim();
+  const key = rawKey.length > 0 ? rawKey : label;
+  const eyebrow = String(formData.get("eyebrow") ?? "").trim() || "Collection";
+  const icon = String(formData.get("icon") ?? "").trim() || "Gem";
+  const accent = String(formData.get("accent") ?? "").trim() || "violet";
+  const sortOrder = formData.get("sortOrder") !== null && formData.get("sortOrder") !== "" ? Number(formData.get("sortOrder")) : 0;
+
+  const hasUseSubcategoriesInForm = formData.has("useSubcategories");
+  const formUseSubcategories = formData.get("useSubcategories") === "on" || formData.get("useSubcategories") === "true";
+
+  const modes = await getAdminGameModes();
+  if (!modes.some((mode) => mode.slug === gameModeSlug)) return { ok: false, message: "That game mode no longer exists." };
+  const [before, state] = await Promise.all([getStoreCategoryConfigs(modes), getStoreCategorySettingState()]);
+  const id = categoryConfigId(gameModeSlug, key);
+  const previous = before.find((item) => categoryConfigId(item.gameModeSlug, item.key) === id);
+
+  const resolvedUseSubcategories = hasUseSubcategoriesInForm ? formUseSubcategories : (previous?.useSubcategories ?? false);
+
   const parsed = storeCategorySchema.safeParse({
-    gameModeSlug: formData.get("gameModeSlug"), key: formData.get("key"), label: formData.get("label"), eyebrow: formData.get("eyebrow"),
-    description: formData.get("description"), accent: formData.get("accent"), sortOrder: formData.get("sortOrder"),
-    enabled: formData.get("enabled") === "on", useSubcategories: formData.get("useSubcategories") === "on",
+    gameModeSlug,
+    key,
+    label,
+    eyebrow,
+    description: formData.get("description"),
+    accent,
+    sortOrder,
+    icon,
+    enabled: formData.get("enabled") === "on" || formData.get("enabled") === "true",
+    useSubcategories: resolvedUseSubcategories,
   });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Check the category fields." };
-  const modes = await getAdminGameModes();
-  if (!modes.some((mode) => mode.slug === parsed.data.gameModeSlug)) return { ok: false, message: "That game mode no longer exists." };
-  const [before, state] = await Promise.all([getStoreCategoryConfigs(modes), getStoreCategorySettingState()]);
-  const id = categoryConfigId(parsed.data.gameModeSlug, parsed.data.key);
-  const previous = before.find((item) => categoryConfigId(item.gameModeSlug, item.key) === id);
+
   const nextCategory = { ...parsed.data, subcategories: previous?.subcategories ?? [] };
   await persistCategoryState(withCategoryOverride(state, nextCategory));
   await db.insert(schema.auditLogs).values({ action: previous ? "store.category.update" : "store.category.create", targetType: "setting", targetId: id, metadata: { before: previous ?? null, after: nextCategory, by: session.username } });
   refreshCategoryPaths(parsed.data.gameModeSlug);
   return { ok: true, message: previous ? `${parsed.data.label} category updated.` : `${parsed.data.label} category created.` };
+}
+
+export async function reorderStoreCategoriesAction(formData: FormData): Promise<StoreSettingsActionResult> {
+  const session = await getSession();
+  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to reorder Store categories." };
+  const db = getDb();
+  if (!db) return { ok: false, message: "The database is not connected." };
+
+  const gameModeSlug = String(formData.get("gameModeSlug") ?? "").trim();
+  const key = String(formData.get("key") ?? "").trim();
+  const direction = String(formData.get("direction") ?? "").trim() as "up" | "down" | "drag";
+  const rawTarget = formData.get("targetIndex");
+
+  if (!gameModeSlug || !key) {
+    return { ok: false, message: "Invalid reorder parameters." };
+  }
+
+  const modes = await getAdminGameModes();
+  const configs = await getStoreCategoryConfigs(modes);
+  const modeCategories = configs
+    .filter((item) => item.gameModeSlug === gameModeSlug)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const index = modeCategories.findIndex((item) => item.key === key);
+  if (index === -1) return { ok: false, message: "Category not found." };
+
+  let targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (direction === "drag" && rawTarget !== null && rawTarget !== undefined) {
+    targetIndex = Number(rawTarget);
+  }
+
+  if (targetIndex < 0 || targetIndex >= modeCategories.length || targetIndex === index) {
+    return { ok: true, message: "Category is already at the position." };
+  }
+
+  const reordered = [...modeCategories];
+  const [moved] = reordered.splice(index, 1);
+  reordered.splice(targetIndex, 0, moved);
+
+  const updatedCategories = reordered.map((cat, i) => ({ ...cat, sortOrder: i * 10 }));
+
+  const state = await getStoreCategorySettingState();
+  let updatedState = { ...state };
+  for (const cat of updatedCategories) {
+    updatedState = withCategoryOverride(updatedState, cat);
+  }
+
+  await persistCategoryState(updatedState);
+  refreshCategoryPaths(gameModeSlug);
+  return { ok: true, message: "Category order updated." };
+}
+
+export async function toggleStoreCategoryAction(formData: FormData): Promise<StoreSettingsActionResult> {
+  const session = await getSession();
+  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to toggle Store categories." };
+  const db = getDb();
+  if (!db) return { ok: false, message: "The database is not connected." };
+
+  const gameModeSlug = String(formData.get("gameModeSlug") ?? "").trim();
+  const key = String(formData.get("key") ?? "").trim();
+  const enabled = formData.get("enabled") === "true" || formData.get("enabled") === "on";
+
+  if (!gameModeSlug || !key) {
+    return { ok: false, message: "Invalid category parameters." };
+  }
+
+  const modes = await getAdminGameModes();
+  const configs = await getStoreCategoryConfigs(modes);
+  const category = configs.find((item) => item.gameModeSlug === gameModeSlug && item.key === key);
+  if (!category) return { ok: false, message: "That category no longer exists." };
+
+  const updatedCategory = { ...category, enabled };
+  const state = await getStoreCategorySettingState();
+  await persistCategoryState(withCategoryOverride(state, updatedCategory));
+  await db.insert(schema.auditLogs).values({
+    action: "store.category.toggle",
+    targetType: "setting",
+    targetId: categoryConfigId(gameModeSlug, key),
+    metadata: { before: category, after: updatedCategory, by: session.username },
+  });
+
+  refreshCategoryPaths(gameModeSlug);
+  return { ok: true, message: enabled ? `${category.label} category enabled.` : `${category.label} category hidden.` };
+}
+
+export async function toggleStoreCategorySubcategoriesAction(formData: FormData): Promise<StoreSettingsActionResult> {
+  const session = await getSession();
+  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to manage Store subcategories." };
+  const db = getDb();
+  if (!db) return { ok: false, message: "The database is not connected." };
+
+  const gameModeSlug = String(formData.get("gameModeSlug") ?? "").trim();
+  const key = String(formData.get("key") ?? "").trim();
+  const useSubcategories = formData.get("useSubcategories") === "true" || formData.get("useSubcategories") === "on";
+
+  if (!gameModeSlug || !key) {
+    return { ok: false, message: "Invalid category parameters." };
+  }
+
+  const modes = await getAdminGameModes();
+  const configs = await getStoreCategoryConfigs(modes);
+  const category = configs.find((item) => item.gameModeSlug === gameModeSlug && item.key === key);
+  if (!category) return { ok: false, message: "That category no longer exists." };
+
+  const updatedCategory = { ...category, useSubcategories };
+  const state = await getStoreCategorySettingState();
+  await persistCategoryState(withCategoryOverride(state, updatedCategory));
+  await db.insert(schema.auditLogs).values({
+    action: "store.category.use_subcategories.toggle",
+    targetType: "setting",
+    targetId: categoryConfigId(gameModeSlug, key),
+    metadata: { before: category, after: updatedCategory, by: session.username },
+  });
+
+  refreshCategoryPaths(gameModeSlug);
+  return { ok: true, message: useSubcategories ? `${category.label} subcategories enabled.` : `${category.label} subcategories disabled.` };
 }
 
 export async function deleteStoreCategoryAction(formData: FormData): Promise<StoreSettingsActionResult> {
@@ -283,17 +425,30 @@ export async function saveStoreSubcategoryAction(formData: FormData): Promise<St
   if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to manage Store subcategories." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
-  const parsed = storeSubcategorySchema.safeParse({
-    gameModeSlug: formData.get("gameModeSlug"), categoryKey: formData.get("categoryKey"), key: formData.get("key"),
-    label: formData.get("label"), description: formData.get("description"), sortOrder: formData.get("sortOrder"), enabled: formData.get("enabled") === "on",
-  });
-  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Check the subcategory fields." };
+  const gameModeSlug = String(formData.get("gameModeSlug") ?? "").trim();
+  const categoryKey = String(formData.get("categoryKey") ?? "").trim();
+  const label = String(formData.get("label") ?? "").trim();
+  const rawKey = String(formData.get("key") ?? "").trim();
   const modes = await getAdminGameModes();
   const configs = await getStoreCategoryConfigs(modes);
-  const category = configs.find((item) => item.gameModeSlug === parsed.data.gameModeSlug && item.key === parsed.data.categoryKey);
+  const category = configs.find((item) => item.gameModeSlug === gameModeSlug && item.key === categoryKey);
   if (!category) return { ok: false, message: "That category no longer exists." };
-  const previous = category.subcategories.find((item) => item.key === parsed.data.key);
-  const nextSubcategory = { key: parsed.data.key, label: parsed.data.label, description: parsed.data.description, sortOrder: parsed.data.sortOrder, enabled: parsed.data.enabled };
+  const key = rawKey || label;
+  const previous = category.subcategories.find((item) => item.key === key);
+  if (!rawKey && previous) return { ok: false, message: "A subcategory with that name already exists." };
+  const nextSortOrder = previous?.sortOrder ?? (category.subcategories.reduce((highest, item) => Math.max(highest, item.sortOrder), -10) + 10);
+  const parsed = storeSubcategorySchema.safeParse({
+    gameModeSlug,
+    categoryKey,
+    key,
+    label,
+    description: formData.get("description"),
+    sortOrder: nextSortOrder,
+    icon: formData.get("icon"),
+    enabled: formData.get("enabled") === "on",
+  });
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Check the subcategory fields." };
+  const nextSubcategory = { key: parsed.data.key, label: parsed.data.label, description: parsed.data.description, sortOrder: parsed.data.sortOrder, enabled: parsed.data.enabled, icon: parsed.data.icon };
   const nextCategory = { ...category, useSubcategories: true, subcategories: [...category.subcategories.filter((item) => item.key !== parsed.data.key), nextSubcategory].sort((a, b) => a.sortOrder - b.sortOrder) };
   const state = await getStoreCategorySettingState();
   await persistCategoryState(withCategoryOverride(state, nextCategory));
@@ -341,4 +496,52 @@ export async function deleteStoreSubcategoryAction(formData: FormData): Promise<
   await db.insert(schema.auditLogs).values({ action: "store.subcategory.delete", targetType: "setting", targetId: `${categoryConfigId(gameModeSlug, categoryKey)}:${key}`, metadata: { before, by: session.username } });
   refreshCategoryPaths(gameModeSlug);
   return { ok: true, message: `${before.label} deleted.` };
+}
+
+export async function reorderStoreSubcategoriesAction(formData: FormData): Promise<StoreSettingsActionResult> {
+  const session = await getSession();
+  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to reorder Store subcategories." };
+  const db = getDb();
+  if (!db) return { ok: false, message: "The database is not connected." };
+
+  const gameModeSlug = String(formData.get("gameModeSlug") ?? "").trim();
+  const categoryKey = String(formData.get("categoryKey") ?? "").trim();
+  const key = String(formData.get("key") ?? "").trim();
+  const direction = String(formData.get("direction") ?? "").trim() as "up" | "down" | "drag";
+  const rawTarget = formData.get("targetIndex");
+
+  if (!gameModeSlug || !categoryKey || !key) {
+    return { ok: false, message: "Invalid reorder parameters." };
+  }
+
+  const modes = await getAdminGameModes();
+  const configs = await getStoreCategoryConfigs(modes);
+  const category = configs.find((item) => item.gameModeSlug === gameModeSlug && item.key === categoryKey);
+  if (!category) return { ok: false, message: "Category not found." };
+
+  const subcategories = [...category.subcategories].sort((a, b) => a.sortOrder - b.sortOrder);
+  const index = subcategories.findIndex((item) => item.key === key);
+  if (index === -1) return { ok: false, message: "Subcategory not found." };
+
+  let targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (direction === "drag" && rawTarget !== null && rawTarget !== undefined) {
+    targetIndex = Number(rawTarget);
+  }
+
+  if (targetIndex < 0 || targetIndex >= subcategories.length || targetIndex === index) {
+    return { ok: true, message: "Subcategory is already at the position." };
+  }
+
+  const reordered = [...subcategories];
+  const [moved] = reordered.splice(index, 1);
+  reordered.splice(targetIndex, 0, moved);
+
+  const updatedSubcategories = reordered.map((sub, i) => ({ ...sub, sortOrder: i * 10 }));
+
+  const updatedCategory = { ...category, subcategories: updatedSubcategories };
+  const state = await getStoreCategorySettingState();
+  await persistCategoryState(withCategoryOverride(state, updatedCategory));
+
+  refreshCategoryPaths(gameModeSlug);
+  return { ok: true, message: "Subcategory order updated." };
 }

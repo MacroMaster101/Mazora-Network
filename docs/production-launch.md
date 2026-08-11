@@ -14,15 +14,13 @@ When launch mode is on, unfinished URLs keep their original address but render t
 
 ## Routes held for a later phase
 
-- Store, product details and cart
 - Forums
 - Player directory and player profiles
 - Leaderboards
-- Voting and rewards
-- Appeal, report, suggestion and staff-application forms
-- Every dashboard subpage; the dashboard overview remains available
+- Player reports, bug reports and suggestions
+- Dashboard subpages except settings, Minecraft linking, statistics and purchases; the dashboard overview remains available
 
-Home, Play, Status, Game Modes, Gallery, News, Events, Team, Rules, Discord, Support Center, legal pages, authentication and the dashboard overview remain available.
+Home, Play, Status, Game Modes, Gallery, News, Events, Team, Rules, Discord, voting, Store, Support Center, appeals, staff applications, content-creator applications, legal pages, authentication and the dashboard overview remain available.
 
 The launch list lives in `src/lib/launch.ts`. To release one feature, remove only its entry from `launchGates`, run the checks below, commit and deploy. Other unfinished features stay protected.
 
@@ -50,12 +48,11 @@ Set these in the hosting provider, not in Git:
 
 ```env
 MAZORA_LAUNCH_MODE=on
-NEXT_PUBLIC_SITE_URL=https://your-production-domain.example
+NEXT_PUBLIC_SITE_URL=https://mazora.us
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
 DATABASE_URL=...
-MINECRAFT_PLUGIN_SECRET=...
 NEXT_PUBLIC_DISCORD_INVITE_URL=...
 ```
 
@@ -66,15 +63,16 @@ Keep `AUTH_DEMO_MODE` empty or remove it in production. Confirm Supabase redirec
 ```bash
 npm run lint
 npm run typecheck
+npm test
 npm run build
 ```
 
 After deployment, check:
 
 1. Home, Play, Gallery, Rules and legal pages.
-2. Store and Forums show the launch-status screen.
+2. Store and voting open normally; Forums, Players and Leaderboards show the launch-status screen.
 3. A signed-out dashboard URL sends the visitor to login.
-4. A signed-in dashboard subpage shows the account launch-status screen.
+4. A signed-in gated dashboard subpage shows the account launch-status screen, while settings, Minecraft linking, statistics and purchases remain available.
 5. Login, logout, password reset and email verification use production Supabase.
 6. `/sitemap.xml` excludes gated routes.
 7. The Java status, Discord invite and production canonical URL are correct.

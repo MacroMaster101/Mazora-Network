@@ -16,7 +16,7 @@ export function Modal({
   onClose: () => void;
   children: ReactNode;
   label?: string;
-  size?: "compact" | "default" | "wide";
+  size?: "compact" | "default" | "editor" | "wide";
 }) {
   useEffect(() => {
     if (!open) return;
@@ -24,10 +24,14 @@ export function Modal({
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
     };
   }, [open, onClose]);
 
@@ -45,7 +49,7 @@ export function Modal({
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className={`animate-fade-up relative z-10 max-h-[90vh] w-full overflow-auto ${size === "wide" ? "max-w-6xl" : size === "compact" ? "max-w-md" : "max-w-3xl"}`}>
+      <div className={`modal-frame animate-fade-up relative z-10 w-full ${size === "wide" ? "max-w-6xl" : size === "editor" ? "max-w-4xl" : size === "compact" ? "max-w-md" : "max-w-3xl"}`}>
         <button
           onClick={onClose}
           aria-label="Close"
@@ -53,7 +57,9 @@ export function Modal({
         >
           <X size={21} strokeWidth={2.6} />
         </button>
-        {children}
+        <div className="modal-scroll-shell max-h-[90vh] w-full overflow-x-hidden overflow-y-auto rounded-[1.5rem]">
+          {children}
+        </div>
       </div>
     </div>,
     document.body,

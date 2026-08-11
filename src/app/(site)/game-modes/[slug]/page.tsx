@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const mode = await getGameMode(slug);
-  if (!mode) return { title: "Game mode not found" };
+  if (!mode) return { title: "Game mode not found", robots: { index: false, follow: false } };
   return { title: mode.name, description: mode.description };
 }
 

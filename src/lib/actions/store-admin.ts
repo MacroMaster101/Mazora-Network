@@ -18,7 +18,6 @@ const accents = ["green", "gold", "cyan", "rose", "violet", "orange"] as const;
 const productSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().trim().min(2, "Enter a product name.").max(100),
-  slug: z.string().trim().min(2).max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase words separated by hyphens."),
   description: z.string().trim().min(5, "Add a short description.").max(1000),
   category: z.string().trim().min(1, "Choose a category.").max(60),
   price: z.coerce.number().min(0).max(100000),
@@ -27,12 +26,19 @@ const productSchema = z.object({
   features: z.string().max(3000),
   accent: z.enum(accents),
   badge: z.string().trim().max(50),
-  family: z.string().trim().max(80),
   billing: z.enum(["", "Monthly", "Permanent"]),
   subcategory: z.string().trim().max(60),
   gameModeSlug: z.string().trim().min(1).max(100),
   sortOrder: z.coerce.number().int().min(-10000).max(10000),
   enabled: z.boolean(),
+}).superRefine((value, context) => {
+  if (value.salePrice !== "" && value.salePrice > value.price) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["salePrice"],
+      message: "Sale price cannot be higher than the regular price.",
+    });
+  }
 });
 
 const modeSchema = z.object({
@@ -69,6 +75,33 @@ function errors(error: z.ZodError): Record<string, string> {
     output[key] ??= issue.message;
   }
   return output;
+}
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 100)
+    .replace(/-$/g, "");
+}
+
+function productSlug(value: z.infer<typeof productSchema>): string {
+  return slugify([
+    value.gameModeSlug,
+    value.category,
+    value.subcategory || value.billing,
+    value.name,
+  ].filter(Boolean).join(" "));
+}
+
+function rankFamily(name: string): string {
+  const family = name
+    .replace(/\s*\((?:monthly|permanent)\)\s*$/i, "")
+    .replace(/\s+(?:monthly|permanent)\s*$/i, "")
+    .trim();
+  return family || name.trim();
 }
 
 function refreshStore(slug?: string) {
@@ -121,7 +154,6 @@ function productInput(formData: FormData) {
   return productSchema.safeParse({
     id: text(formData, "id") || undefined,
     name: text(formData, "name"),
-    slug: text(formData, "slug"),
     description: text(formData, "description"),
     category: text(formData, "category"),
     price: text(formData, "price"),
@@ -130,12 +162,11 @@ function productInput(formData: FormData) {
     features: text(formData, "features"),
     accent: text(formData, "accent"),
     badge: text(formData, "badge"),
-    family: text(formData, "family"),
     billing: text(formData, "billing"),
     subcategory: text(formData, "subcategory"),
     gameModeSlug: text(formData, "gameModeSlug"),
     sortOrder: text(formData, "sortOrder") || "0",
-    enabled: formData.get("enabled") === "on",
+    enabled: formData.get("enabled") === "on" || formData.get("enabled") === "true",
   });
 }
 
@@ -166,22 +197,23 @@ export async function saveStoreProductAction(formData: FormData): Promise<StoreA
   const parsed = productInput(formData);
   if (!parsed.success) return { ok: false, message: "Check the highlighted product fields.", errors: errors(parsed.error) };
   const value = parsed.data;
-  const [duplicate] = await db
-    .select({ id: schema.products.id })
-    .from(schema.products)
-    .where(value.id ? and(eq(schema.products.slug, value.slug), ne(schema.products.id, value.id)) : eq(schema.products.slug, value.slug))
-    .limit(1);
-  if (duplicate) return { ok: false, message: "Another product already uses that slug.", errors: { slug: "Slug already in use." } };
-
   const before = value.id
     ? (await db.select().from(schema.products).where(eq(schema.products.id, value.id)).limit(1))[0]
     : null;
-  const artwork = await resolveStoreArtwork(formData, value.id ?? value.slug, before?.imageUrl ?? null);
+  const slug = before?.slug ?? productSlug(value);
+  const [duplicate] = await db
+    .select({ id: schema.products.id })
+    .from(schema.products)
+    .where(value.id ? and(eq(schema.products.slug, slug), ne(schema.products.id, value.id)) : eq(schema.products.slug, slug))
+    .limit(1);
+  if (duplicate) return { ok: false, message: "Another product in this catalog already uses that name.", errors: { name: "Choose a different product name." } };
+
+  const artwork = await resolveStoreArtwork(formData, value.id ?? slug, before?.imageUrl ?? null);
   if (artwork.error) return { ok: false, message: artwork.error, errors: { imageFile: artwork.error } };
 
   const patch = {
     name: value.name,
-    slug: value.slug,
+    slug,
     description: value.description,
     category: value.category,
     price: value.price.toFixed(2),
@@ -190,7 +222,7 @@ export async function saveStoreProductAction(formData: FormData): Promise<StoreA
     features: value.features.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
     accent: value.accent,
     badge: value.badge || null,
-    family: value.category === "Ranks" ? value.family || null : null,
+    family: value.category === "Ranks" ? rankFamily(value.name) : null,
     billing: value.category === "Ranks" ? value.billing || null : null,
     subcategory: value.category === "Ranks" ? null : value.subcategory || null,
     gameModeSlug: value.gameModeSlug,
@@ -311,6 +343,55 @@ export async function toggleStoreModeAction(formData: FormData): Promise<StoreAd
   return { ok: true, message: enabled ? "Game mode shown in the Store." : "Game mode hidden from the Store." };
 }
 
+export async function reorderStoreModesAction(formData: FormData): Promise<StoreAdminActionResult> {
+  const session = await admin();
+  if (!session) return { ok: false, message: "You do not have permission to reorder Store modes." };
+  const db = getDb();
+  if (!db) return { ok: false, message: "The database is not connected." };
+
+  const id = text(formData, "id");
+  const direction = text(formData, "direction") as "up" | "down" | "drag";
+  const rawTarget = formData.get("targetIndex");
+  const modes = (await db.select().from(schema.gameModes))
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const index = modes.findIndex((mode) => mode.id === id);
+  if (index === -1) return { ok: false, message: "That game mode no longer exists." };
+
+  let targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (direction === "drag" && rawTarget !== null && rawTarget !== undefined) {
+    targetIndex = Number(rawTarget);
+  }
+  if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= modes.length || targetIndex === index) {
+    return { ok: true, message: "Game mode is already at that position." };
+  }
+
+  const reordered = [...modes];
+  const [moved] = reordered.splice(index, 1);
+  reordered.splice(targetIndex, 0, moved);
+
+  await db.transaction(async (tx) => {
+    for (let position = 0; position < reordered.length; position += 1) {
+      const mode = reordered[position];
+      const sortOrder = position * 10;
+      if (mode.sortOrder !== sortOrder) {
+        await tx.update(schema.gameModes)
+          .set({ sortOrder, updatedAt: new Date() })
+          .where(eq(schema.gameModes.id, mode.id));
+      }
+    }
+  });
+
+  await db.insert(schema.auditLogs).values({
+    actorId: await getSessionUserId(),
+    action: "store.mode.reorder",
+    targetType: "game_mode",
+    targetId: moved.id,
+    metadata: { by: session.username, from: index, to: targetIndex, slug: moved.slug },
+  });
+  refreshStore();
+  return { ok: true, message: "Game mode order updated." };
+}
+
 
 export async function deleteStoreProductAction(formData: FormData): Promise<StoreAdminActionResult> {
   const session = await admin();
@@ -355,5 +436,63 @@ export async function deleteStoreModeAction(formData: FormData): Promise<StoreAd
   return { ok: true, message: `${before.name} deleted.` };
 }
 
+export async function reorderStoreProductAction(formData: FormData): Promise<StoreAdminActionResult> {
+  const session = await admin();
+  if (!session) return { ok: false, message: "You do not have permission to manage Store products." };
+  const db = getDb();
+  if (!db) return { ok: false, message: "The database is not connected." };
 
+  const id = text(formData, "id");
+  const direction = text(formData, "direction") as "up" | "down" | "drag";
+  const rawTarget = formData.get("targetIndex");
 
+  const [product] = await db.select().from(schema.products).where(eq(schema.products.id, id)).limit(1);
+  if (!product) return { ok: false, message: "Product not found." };
+
+  const allModeProducts = await db
+    .select()
+    .from(schema.products)
+    .where(
+      and(
+        eq(schema.products.gameModeSlug, product.gameModeSlug ?? "survival-smp"),
+        eq(schema.products.category, product.category)
+      )
+    );
+
+  const subcat = product.subcategory ?? product.billing;
+  const filteredProducts = subcat
+    ? allModeProducts.filter((p) => (p.subcategory ?? p.billing) === subcat)
+    : allModeProducts;
+
+  const sorted = filteredProducts.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const index = sorted.findIndex((p) => p.id === id);
+  if (index === -1) return { ok: false, message: "Product not found in list." };
+
+  let targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (direction === "drag" && rawTarget !== null && rawTarget !== undefined) {
+    targetIndex = Number(rawTarget);
+  }
+
+  if (targetIndex < 0 || targetIndex >= sorted.length || targetIndex === index) {
+    return { ok: true, message: "Product is already at the position." };
+  }
+
+  // Swap position in sorted array and re-assign clean 10-step sortOrder values
+  const reordered = [...sorted];
+  const [moved] = reordered.splice(index, 1);
+  reordered.splice(targetIndex, 0, moved);
+
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < reordered.length; i++) {
+      const item = reordered[i];
+      const newOrder = i * 10;
+      if (item.sortOrder !== newOrder) {
+        await tx.update(schema.products).set({ sortOrder: newOrder, updatedAt: new Date() }).where(eq(schema.products.id, item.id));
+      }
+    }
+  });
+
+  refreshStore(product.slug);
+  revalidatePath(`/admin/store/catalog/${product.gameModeSlug}`);
+  return { ok: true, message: "Product order updated." };
+}

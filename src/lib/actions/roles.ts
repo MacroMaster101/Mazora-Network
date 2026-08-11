@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { Role } from "@/lib/types";
-import { canGrantRank, canManageRank, getSession, hasAtLeast, roleLabel } from "@/lib/auth";
+import { canGrantRank, canManageRank, getSession, getSessionUserId, hasAtLeast, roleLabel } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getDb, schema } from "@/lib/db/client";
 
@@ -42,6 +42,15 @@ export async function changeUserRole(input: {
   const newRole = safeRole(input.newRole);
   if (!newRole) return { ok: false, message: "Invalid role." };
 
+  // Account ids are immutable; usernames are not. Comparing the target's
+  // user_metadata username with session.username allowed the top rank to
+  // change its own role whenever its editable profile username differed from
+  // the auth metadata (or the metadata had no username at all).
+  const actorId = await getSessionUserId();
+  if (!actorId || actorId === input.userId) {
+    return { ok: false, message: actorId ? "You cannot change your own role." : "Your session has expired." };
+  }
+
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false, message: "Server is not configured for role changes." };
 
@@ -59,11 +68,6 @@ export async function changeUserRole(input: {
   if (!canGrantRank(session.role, newRole)) {
     return { ok: false, message: "You cannot assign a role at or above your own rank." };
   }
-  // Cannot change your own role here.
-  if (session.username && target.user.user_metadata?.username === session.username) {
-    return { ok: false, message: "You cannot change your own role." };
-  }
-
   const wasStaff = hasAtLeast(currentRole, "helper");
   const becomesStaff = hasAtLeast(newRole, "helper");
   const wasPublicStaff = wasStaff && currentRole !== "it";
