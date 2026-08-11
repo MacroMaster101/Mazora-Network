@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { getSession, isStaff } from "@/lib/auth";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
@@ -10,6 +11,16 @@ export interface FormActionState {
   ok: boolean;
   message?: string;
 }
+
+const googleFormUrlSchema = z
+  .string()
+  .trim()
+  .max(500, "The form link is too long.")
+  .url("Enter a valid Google Forms link.")
+  .refine((value) => {
+    const url = new URL(value);
+    return url.protocol === "https:" && (url.hostname === "forms.gle" || url.hostname === "docs.google.com");
+  }, "Use an HTTPS forms.gle or docs.google.com link.");
 
 export async function toggleFormStatusAction(
   formId: "appeals" | "staff" | "creator",
@@ -69,12 +80,17 @@ export async function updateFormUrlAction(
     return { ok: false, message: "Unauthorized staff action." };
   }
 
+  const parsedUrl = googleFormUrlSchema.safeParse(publicUrl);
+  if (!parsedUrl.success) {
+    return { ok: false, message: parsedUrl.error.issues[0]?.message ?? "Enter a valid Google Forms link." };
+  }
+
   const current = await getFormsConfig();
   const updated: Record<string, FormConfigItem> = {
     ...current,
     [formId]: {
       ...current[formId],
-      publicUrl,
+      publicUrl: parsedUrl.data,
     },
   };
 
@@ -108,4 +124,3 @@ export async function updateFormUrlAction(
     message: `${current[formId]?.title ?? formId} link updated successfully.`,
   };
 }
-

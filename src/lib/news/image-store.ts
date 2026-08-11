@@ -110,15 +110,37 @@ function isBlockedAddress(ip: string): boolean {
     if (a === 172 && b >= 16 && b <= 31) return true;
     if (a === 192 && b === 168) return true;
     if (a === 100 && b >= 64 && b <= 127) return true;
+    // Non-routable/documentation ranges must fail closed too. They are often
+    // routed internally by development networks and cloud sidecars even
+    // though they are not ordinary RFC1918 space.
+    if (a === 192 && b === 0) return true;
+    if (a === 198 && (b === 18 || b === 19)) return true;
+    if (a === 198 && b === 51) return true;
+    if (a === 203 && b === 0) return true;
+    if (a >= 224) return true; // multicast, reserved, and limited broadcast
     return false;
   }
   if (isIPv6(ip)) {
     const low = ip.toLowerCase();
     if (low === "::1" || low === "::") return true;
     if (low.startsWith("fc") || low.startsWith("fd")) return true; // unique-local
-    if (low.startsWith("fe80")) return true; // link-local
-    const mapped = low.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) return isBlockedAddress(mapped[1]);
+    const firstHextet = Number.parseInt(low.split(":", 1)[0] || "0", 16);
+    if (firstHextet >= 0xfe80 && firstHextet <= 0xfebf) return true; // fe80::/10 link-local
+    if (firstHextet >= 0xff00 && firstHextet <= 0xffff) return true; // multicast
+    if (low.startsWith("2001:db8:")) return true; // documentation prefix
+
+    // IPv4-mapped IPv6 can be emitted in dotted or hexadecimal form. Checking
+    // only ::ffff:127.0.0.1 misses the canonical ::ffff:7f00:1 spelling.
+    const dotted = low.match(/^::(?:ffff:)?(\d+\.\d+\.\d+\.\d+)$/);
+    if (dotted) return isBlockedAddress(dotted[1]);
+    const mappedHex = low.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (mappedHex) {
+      const high = Number.parseInt(mappedHex[1], 16);
+      const lowWord = Number.parseInt(mappedHex[2], 16);
+      return isBlockedAddress(
+        `${high >>> 8}.${high & 0xff}.${lowWord >>> 8}.${lowWord & 0xff}`,
+      );
+    }
     return false;
   }
   return true; // unparseable — fail closed

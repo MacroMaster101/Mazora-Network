@@ -11,21 +11,29 @@ export interface StoreCategorySettingState {
 }
 
 const rankSubcategories: StoreSubcategoryConfig[] = [
-  { key: "Monthly", label: "Monthly Ranks", description: "Recurring supporter ranks billed monthly.", sortOrder: 0, enabled: true },
-  { key: "Permanent", label: "Permanent Ranks", description: "One-time permanent supporter ranks.", sortOrder: 10, enabled: true },
+  { key: "Monthly", label: "Monthly Ranks", description: "Recurring supporter ranks billed monthly.", sortOrder: 0, enabled: true, icon: "Clock3" },
+  { key: "Permanent", label: "Permanent Ranks", description: "One-time permanent supporter ranks.", sortOrder: 10, enabled: true, icon: "Crown" },
 ];
 
 const addonSubcategories: StoreSubcategoryConfig[] = [
-  { key: "XP Boosts", label: "XP Boosts", description: "Experience boosts for faster progression.", sortOrder: 0, enabled: true },
-  { key: "Claim Blocks", label: "Claim Blocks", description: "Additional land protection capacity.", sortOrder: 10, enabled: true },
-  { key: "Player Points", label: "Player Points", description: "Points for the in-game rewards economy.", sortOrder: 20, enabled: true },
+  { key: "XP Boosts", label: "XP Boosts", description: "Experience boosts for faster progression.", sortOrder: 0, enabled: true, icon: "Activity" },
+  { key: "Claim Blocks", label: "Claim Blocks", description: "Additional land protection capacity.", sortOrder: 10, enabled: true, icon: "Shield" },
+  { key: "Player Points", label: "Player Points", description: "Points for the in-game rewards economy.", sortOrder: 20, enabled: true, icon: "Coins" },
 ];
 
+const SUBCATEGORY_ICONS: Record<string, string> = {
+  Monthly: "Clock3",
+  Permanent: "Crown",
+  "XP Boosts": "Activity",
+  "Claim Blocks": "Shield",
+  "Player Points": "Coins",
+};
+
 const DEFAULTS: Record<(typeof STORE_CATEGORY_KEYS)[number], Omit<StoreCategoryConfig, "gameModeSlug" | "key">> = {
-  Ranks: { label: "Ranks", eyebrow: "Progression", description: "Monthly support or a permanent place in the server hierarchy.", accent: "violet", sortOrder: 0, enabled: true, useSubcategories: true, subcategories: rankSubcategories },
-  "Crate Keys": { label: "Crate Keys", eyebrow: "Rewards", description: "Curated reward pools ranging from useful boosts to legendary drops.", accent: "gold", sortOrder: 10, enabled: true, useSubcategories: false, subcategories: [] },
-  Battlepass: { label: "Battlepass", eyebrow: "Seasonal", description: "Season access, missions, and collectible rewards.", accent: "rose", sortOrder: 20, enabled: true, useSubcategories: false, subcategories: [] },
-  "Add-ons": { label: "Add-ons", eyebrow: "Utility", description: "Progression boosts and convenience upgrades for this game mode.", accent: "cyan", sortOrder: 30, enabled: true, useSubcategories: true, subcategories: addonSubcategories },
+  Ranks: { label: "Ranks", eyebrow: "Progression", description: "Monthly support or a permanent place in the server hierarchy.", accent: "violet", sortOrder: 0, enabled: true, useSubcategories: true, subcategories: rankSubcategories, icon: "Crown" },
+  "Crate Keys": { label: "Crate Keys", eyebrow: "Rewards", description: "Curated reward pools ranging from useful boosts to legendary drops.", accent: "gold", sortOrder: 10, enabled: true, useSubcategories: false, subcategories: [], icon: "Gem" },
+  Battlepass: { label: "Battlepass", eyebrow: "Seasonal", description: "Season access, missions, and collectible rewards.", accent: "rose", sortOrder: 20, enabled: true, useSubcategories: false, subcategories: [], icon: "Sparkles" },
+  "Add-ons": { label: "Add-ons", eyebrow: "Utility", description: "Progression boosts and convenience upgrades for this game mode.", accent: "cyan", sortOrder: 30, enabled: true, useSubcategories: true, subcategories: addonSubcategories, icon: "Layers" },
 };
 
 export function categoryConfigId(gameModeSlug: string, key: string): string {
@@ -45,9 +53,23 @@ function isSubcategoryConfig(value: unknown): value is StoreSubcategoryConfig {
 function normalizeCategoryConfig(value: unknown): StoreCategoryConfig | null {
   if (!value || typeof value !== "object") return null;
   const item = value as Partial<StoreCategoryConfig>;
-  if (typeof item.gameModeSlug !== "string" || typeof item.key !== "string" || item.key.trim().length < 2 || typeof item.label !== "string" || typeof item.description !== "string" || typeof item.eyebrow !== "string" || typeof item.sortOrder !== "number" || typeof item.enabled !== "boolean") return null;
-  const subcategories = Array.isArray(item.subcategories) ? item.subcategories.filter(isSubcategoryConfig) : [];
-  return { ...item, accent: item.accent ?? "violet", useSubcategories: item.useSubcategories ?? subcategories.length > 0, subcategories } as StoreCategoryConfig;
+  if (typeof item.gameModeSlug !== "string" || typeof item.key !== "string" || item.key.trim().length < 1 || typeof item.label !== "string") return null;
+  const defaultIcon = DEFAULTS[item.key as keyof typeof DEFAULTS]?.icon ?? "Gem";
+  const subcategories = Array.isArray(item.subcategories)
+    ? item.subcategories.filter(isSubcategoryConfig).map((subcategory) => ({ ...subcategory, icon: subcategory.icon ?? SUBCATEGORY_ICONS[subcategory.key] ?? defaultIcon }))
+    : [];
+  const useSubcategories = item.useSubcategories ?? subcategories.length > 0;
+  return {
+    ...item,
+    eyebrow: item.eyebrow ?? "Collection",
+    description: item.description ?? "Store products for this game mode.",
+    sortOrder: typeof item.sortOrder === "number" ? item.sortOrder : 0,
+    enabled: typeof item.enabled === "boolean" ? item.enabled : true,
+    accent: item.accent ?? "violet",
+    useSubcategories,
+    icon: item.icon ?? defaultIcon,
+    subcategories,
+  } as StoreCategoryConfig;
 }
 
 export function parseStoreCategorySetting(value: unknown): StoreCategorySettingState {

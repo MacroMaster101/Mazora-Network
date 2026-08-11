@@ -169,7 +169,7 @@ If a development cache produces route-type errors after route groups or slots ch
 
 ## 🔒 Dependency security
 
-Run `npm audit --audit-level=moderate` for the complete dependency tree and `npm audit --omit=dev --audit-level=high` for production-only risk. Both current audits report zero vulnerabilities. Review automated upgrades deliberately; never use `npm audit fix --force` without checking framework and Drizzle compatibility.
+Run `npm audit --audit-level=moderate` for the complete dependency tree and `npm audit --omit=dev --audit-level=high` for production-only risk. As of 2026-08-11, the production-only audit reports zero vulnerabilities; the complete tree reports four moderate development-only findings through `drizzle-kit -> @esbuild-kit/* -> esbuild <=0.24.2`. npm's suggested remediation downgrades Drizzle Kit to `0.18.1`, so it is not a safe automatic fix. Recheck on each Drizzle release and review automated upgrades deliberately; never use `npm audit fix --force` without checking framework and Drizzle compatibility.
 
 Next.js may print an Edge-runtime compatibility warning from `@supabase/supabase-js` while bundling the session-refresh middleware. The optimized build still succeeds. Do not silence it by forcing middleware to the Node.js runtime: with the current broad matcher, that makes public routes dynamic. Recheck the warning after Supabase or Next.js upgrades.
 

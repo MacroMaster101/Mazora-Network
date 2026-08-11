@@ -253,6 +253,7 @@ export interface StoreSubcategoryConfig {
   description: string;
   sortOrder: number;
   enabled: boolean;
+  icon?: string;
 }
 
 export interface StoreCategoryConfig {
@@ -266,6 +267,7 @@ export interface StoreCategoryConfig {
   enabled: boolean;
   useSubcategories: boolean;
   subcategories: StoreSubcategoryConfig[];
+  icon?: string;
 }
 
 export interface VoteSite {
@@ -313,4 +315,3 @@ export interface PatchUpdate {
   changes: string[];
   discordChannel?: string;
 }
-

@@ -1,10 +1,15 @@
 /**
  * Clear all dummy/seed data from the gallery_images and gallery_likes tables.
- * Usage: npx tsx scripts/clear-gallery.ts
+ * Usage: npx tsx --env-file=.env scripts/clear-gallery.ts --confirm
  */
 import postgres from "postgres";
 
 async function main() {
+  if (!process.argv.includes("--confirm")) {
+    console.error("Refusing to delete gallery data without --confirm.");
+    process.exit(1);
+  }
+
   const url = process.env.DATABASE_URL?.trim();
   if (!url) {
     console.error("DATABASE_URL is not set in .env.");

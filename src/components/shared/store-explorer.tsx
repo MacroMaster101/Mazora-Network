@@ -248,7 +248,7 @@ export function StoreExplorer({
             <House size={15} /> Store Home
           </button>
 
-          {activeCategories.map((config) => config.useSubcategories && config.subcategories.some((item) => item.enabled) ? (
+          {activeCategories.map((config) => config.useSubcategories ? (
             <details key={config.key} className={cn("store-shop-menu", active === config.key && "is-active")}>
               <summary className="store-shop-nav-item">{config.label} <ChevronDown size={14} /></summary>
               <div className="store-shop-submenu">

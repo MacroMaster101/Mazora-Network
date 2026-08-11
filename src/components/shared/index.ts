@@ -19,6 +19,7 @@ export { ProductCard } from "./product-card";
 export { LeaderboardTable } from "./leaderboard-table";
 export { accentStyles, coverGradient } from "./accent";
 export { LegalToc, LegalMobileToc } from "./legal-toc";
+export { LegalHeroIllustration } from "./legal-hero-illustration";
 export { NewsAuthor } from "./news-author";
 export { UnifiedServerStatsCard } from "./unified-server-stats-card";
 export { GoogleFormEmbed } from "./google-form-embed";

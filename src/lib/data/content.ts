@@ -353,11 +353,20 @@ export async function getNews(): Promise<NewsArticle[]> {
         .eq("status", "published")
         .order("published_at", { ascending: false });
       if (!error && data) {
+        // The service-role client bypasses RLS, so the application must apply
+        // the same publication embargo as the Drizzle path below. A row is
+        // public only once its scheduled time arrives (null means publish now).
+        const now = Date.now();
+        const publicRows = data.filter((row) => {
+          if (!row.published_at) return true;
+          const publishedAt = Date.parse(String(row.published_at));
+          return Number.isFinite(publishedAt) && publishedAt <= now;
+        });
         // Live profile lookup, same reasoning as toArticle: author_name/
         // author_avatar_url are a one-time snapshot that goes stale the
         // moment the author changes their photo, so the current profile wins
         // whenever the article is linked to one.
-        const authorIds = [...new Set(data.map((row) => row.author_id).filter(Boolean))];
+        const authorIds = [...new Set(publicRows.map((row) => row.author_id).filter(Boolean))];
         const profileById = new Map<string, { avatar_url: string | null; display_name: string | null; username: string | null }>();
         if (authorIds.length) {
           const { data: profiles } = await admin
@@ -370,12 +379,12 @@ export async function getNews(): Promise<NewsArticle[]> {
         // Discord imports have no author_id, so the lookup above misses them
         // entirely. Fall back to matching their byline name against a username.
         const byName = await profilesByBylineName(
-          data
+          publicRows
             .filter((row) => row.publisher_mode === "author" && !profileById.has(String(row.author_id ?? "")))
             .map((row) => String(row.author_name ?? "")),
         );
 
-        return data.map((row) => {
+        return publicRows.map((row) => {
           // This hardcoded "team" used to ignore the row's real publisher_mode
           // entirely, so every article's byline read "Mazora Team" here even
           // when getArticle() (below, via toArticle) correctly showed the
