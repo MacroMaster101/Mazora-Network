@@ -4,12 +4,15 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
+  Clock3,
+  Coins,
   Crown,
   Gamepad2,
   Gem,
   Hammer,
   Layers,
   Pickaxe,
+  RotateCcw,
   Save,
   Shield,
   Sparkles,
@@ -38,6 +41,8 @@ export const MODE_ICON_OPTIONS = [
   { value: "Sparkles", label: "Creative", icon: Sparkles },
   { value: "Users", label: "Community", icon: Users },
   { value: "Activity", label: "Events", icon: Activity },
+  { value: "Clock3", label: "Timed", icon: Clock3 },
+  { value: "Coins", label: "Currency", icon: Coins },
 ] as const;
 const MODE_ICON_VALUES = new Set(MODE_ICON_OPTIONS.map((option) => option.value));
 
@@ -96,8 +101,8 @@ export function GameModeFormModal({
   }
 
   return (
-    <Modal open={draft !== undefined} onClose={onClose} label={draft ? "Edit game mode" : "Create game mode"} size="wide">
-      <form action={submit} className="store-admin-modal panel overflow-hidden">
+    <Modal open={draft !== undefined} onClose={onClose} label={draft ? "Edit game mode" : "Create game mode"} size="editor">
+      <form key={draft?.id ?? "new-game-mode"} action={submit} className="store-admin-modal panel overflow-hidden">
         <div className="store-admin-modal-head border-b border-line px-6 py-5">
           <div>
             <p className="eyebrow">{showDetails ? (draft ? "Edit game mode" : "New game mode") : (draft ? "Edit marketplace" : "New marketplace")}</p>
@@ -111,7 +116,7 @@ export function GameModeFormModal({
         <div className="store-admin-form-body grid gap-5 p-6 md:grid-cols-2">
           {draft?.id && <input type="hidden" name="id" value={draft.id} />}
           <input type="hidden" name="slug" value={slug} />
-          <input type="hidden" name="tagline" value="" />
+          <input type="hidden" name="tagline" value={draft?.tagline ?? ""} />
           <input type="hidden" name="accent" value={draft?.accent ?? "violet"} />
           <input type="hidden" name="sortOrder" value={draft?.sortOrder ?? modesCount * 10} />
           <input type="hidden" name="icon" value={icon} />
@@ -215,6 +220,12 @@ export function GameModeFormModal({
         </div>
 
         <div className="store-admin-modal-actions flex justify-end gap-2 border-t border-line px-6 py-4">
+          {draft && <button type="reset" className="btn btn-secondary mr-auto" onClick={() => {
+            setName(draft.name);
+            setSlug(draft.slug);
+            setSlugTouched(true);
+            setIcon(draft.icon && MODE_ICON_VALUES.has(draft.icon as never) ? draft.icon : "Gamepad2");
+          }}><RotateCcw size={15} /> Reset changes</button>}
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" disabled={busy} className="btn btn-primary"><Save size={15} /> {busy ? "Saving…" : "Save game mode"}</button>
         </div>

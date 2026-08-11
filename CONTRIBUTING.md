@@ -9,7 +9,7 @@ Never commit `.env`, `.env.local`, service-role keys, Discord tokens, database c
 ## Changes
 
 - Create a focused branch and keep each pull request limited to one coherent change.
-- Preserve the canonical production origin (`https://mazora.us`) and the intentional HTTP, `www`, and Vercel-domain redirects.
+- Preserve the canonical production origin (`https://mazora.us`) and verify the HTTP, `www`, and Vercel-domain redirects configured in the Vercel project.
 - Enforce authentication, authorization, and input validation inside server actions and API routes; a hidden button or protected page alone is not a security boundary.
 - Add or update targeted tests when changing authorization, redirects, URL validation, uploads, or other security-sensitive behavior.
 - Do not mutate production data from tests or seed scripts.

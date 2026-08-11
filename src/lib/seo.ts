@@ -104,6 +104,36 @@ export function newsArticleSchema(input: ArticleSchemaInput) {
   };
 }
 
+export interface ProductSchemaInput {
+  slug: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  price: number;
+}
+
+/** Product details that are visible on the public Store page. */
+export function productSchema(input: ProductSchemaInput) {
+  const url = absoluteUrl(`/store/${input.slug}`);
+  const image = /^https?:\/\//.test(input.imageUrl) ? input.imageUrl : absoluteUrl(input.imageUrl);
+  return {
+    "@type": "Product",
+    "@id": `${url}#product`,
+    name: input.name,
+    description: input.description,
+    image: [image],
+    url,
+    offers: {
+      "@type": "Offer",
+      url,
+      priceCurrency: "USD",
+      price: input.price.toFixed(2),
+      availability: "https://schema.org/InStock",
+      seller: { "@id": ORGANIZATION_ID },
+    },
+  };
+}
+
 /**
  * Wraps nodes in a single @graph document. One script tag per page keeps the
  * nodes cross-referencing each other by @id rather than repeating themselves.

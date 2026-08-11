@@ -36,6 +36,11 @@ async function requireUser(): Promise<{ userId: string | null } | ActionResult> 
     return { ok: false, message: "You need to be logged in to submit this form." };
   }
 
+  const userId = isSupabaseConfigured() ? await getSessionUserId() : null;
+  if (isSupabaseConfigured() && !userId) {
+    return { ok: false, message: "Your session has expired. Please sign in again." };
+  }
+
   // Signing in is not on its own a brake: without this one account could file
   // unlimited tickets/appeals/reports, flooding the staff queue and amplifying
   // database writes. One shared budget across every support form, bucketed per
@@ -43,47 +48,56 @@ async function requireUser(): Promise<{ userId: string | null } | ActionResult> 
   const throttled = await throttleAuthAction("support-submit", {
     limit: 6,
     windowMs: 10 * 60_000,
-    identity: session.username,
+    // Supabase id is immutable; an editable display/IGN-derived username is
+    // not a stable per-account throttle key.
+    identity: userId ?? session.username,
   });
   if (throttled) return { ok: false, message: throttled };
 
-  if (isSupabaseConfigured()) {
-    const userId = await getSessionUserId();
-    if (!userId) {
-      return { ok: false, message: "Your session has expired. Please sign in again." };
-    }
-    return { userId };
-  }
-  return { userId: null };
+  return { userId };
 }
 
+const optionalHttpUrl = z
+  .string()
+  .trim()
+  .max(1000, "Keep the evidence link under 1,000 characters.")
+  .refine((value) => {
+    if (!value) return true;
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" || url.protocol === "http:";
+    } catch {
+      return false;
+    }
+  }, "Enter a valid http:// or https:// URL.");
+
 const ticketSchema = z.object({
-  subject: z.string().min(4, "Give your ticket a clear subject."),
-  category: z.string().min(1, "Choose a category."),
-  priority: z.string().min(1, "Choose a priority."),
-  message: z.string().min(10, "Describe your issue in a little more detail."),
+  subject: z.string().trim().min(4, "Give your ticket a clear subject.").max(160, "Keep the subject under 160 characters."),
+  category: z.string().trim().min(1, "Choose a category.").max(60, "That category is too long."),
+  priority: z.string().trim().min(1, "Choose a priority.").max(20, "That priority is invalid."),
+  message: z.string().trim().min(10, "Describe your issue in a little more detail.").max(10_000, "Keep the message under 10,000 characters."),
 });
 
 const reportPlayerSchema = z.object({
-  reportedUsername: z.string().min(3, "Enter the reported player's username."),
-  category: z.string().min(1, "Choose a category."),
-  description: z.string().min(20, "Describe what happened (min 20 chars)."),
-  evidenceUrl: z.string().url("Enter a valid URL.").optional().or(z.literal("")),
+  reportedUsername: z.string().trim().min(3, "Enter the reported player's username.").max(32, "That username is too long."),
+  category: z.string().trim().min(1, "Choose a category.").max(60, "That category is too long."),
+  description: z.string().trim().min(20, "Describe what happened (min 20 chars).").max(10_000, "Keep the description under 10,000 characters."),
+  evidenceUrl: optionalHttpUrl,
 });
 
 const bugSchema = z.object({
-  title: z.string().min(4, "Give the bug a short title."),
-  gameMode: z.string().optional(),
-  description: z.string().min(20, "Describe the bug (min 20 chars)."),
-  reproductionSteps: z.string().optional(),
-  minecraftVersion: z.string().optional(),
-  evidenceUrl: z.string().url("Enter a valid URL.").optional().or(z.literal("")),
+  title: z.string().trim().min(4, "Give the bug a short title.").max(160, "Keep the title under 160 characters."),
+  gameMode: z.string().trim().max(80, "That game mode is too long."),
+  description: z.string().trim().min(20, "Describe the bug (min 20 chars).").max(10_000, "Keep the description under 10,000 characters."),
+  reproductionSteps: z.string().trim().max(10_000, "Keep the reproduction steps under 10,000 characters."),
+  minecraftVersion: z.string().trim().max(60, "That version is too long."),
+  evidenceUrl: optionalHttpUrl,
 });
 
 const suggestionSchema = z.object({
-  title: z.string().min(4, "Give your idea a short title."),
-  category: z.string().min(1, "Choose a category."),
-  description: z.string().min(20, "Explain your idea (min 20 chars)."),
+  title: z.string().trim().min(4, "Give your idea a short title.").max(160, "Keep the title under 160 characters."),
+  category: z.string().trim().min(1, "Choose a category.").max(60, "That category is too long."),
+  description: z.string().trim().min(20, "Explain your idea (min 20 chars).").max(10_000, "Keep the description under 10,000 characters."),
 });
 
 function fields(formData: FormData): Record<string, string> {
@@ -120,13 +134,14 @@ export async function submitTicket(_prev: ActionResult, formData: FormData): Pro
   if (!parsed.success) return { ok: false, errors: zodErrors(parsed.error) };
   const saved = await persist(async () => {
     const db = getDb()!;
-    const [ticket] = await db
-      .insert(schema.supportTickets)
-      .values({ userId: auth.userId!, subject: parsed.data.subject, category: parsed.data.category, priority: parsed.data.priority })
-      .returning();
-    if (ticket) {
-      await db.insert(schema.ticketMessages).values({ ticketId: ticket.id, senderId: auth.userId!, message: parsed.data.message });
-    }
+    await db.transaction(async (tx) => {
+      const [ticket] = await tx
+        .insert(schema.supportTickets)
+        .values({ userId: auth.userId!, subject: parsed.data.subject, category: parsed.data.category, priority: parsed.data.priority })
+        .returning();
+      if (!ticket) throw new Error("Ticket insert returned no row.");
+      await tx.insert(schema.ticketMessages).values({ ticketId: ticket.id, senderId: auth.userId!, message: parsed.data.message });
+    });
   });
   if (!saved) return { ok: false, message: SAVE_FAILED };
   return { ok: true, message: "Ticket opened. Our team will reply soon." };

@@ -2,6 +2,7 @@
 
 import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageGallery } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
@@ -167,6 +168,9 @@ export async function submitGalleryAction(formData: FormData): Promise<GalleryAc
 export async function toggleGalleryLikeAction(imageId: string): Promise<GalleryActionResult> {
   const userId = await getSessionUserId();
   if (!userId) return { ok: false, message: "Please log in to like artworks." };
+  if (!z.string().uuid().safeParse(imageId).success) {
+    return { ok: false, message: "That artwork is not available." };
+  }
 
   // Generous enough for real toggling, low enough that scripted like/unlike
   // cannot hammer the likes table.
@@ -182,53 +186,63 @@ export async function toggleGalleryLikeAction(imageId: string): Promise<GalleryA
   if (!imageId) return { ok: false, message: "Missing artwork ID." };
 
   const [image] = await db
-    .select({ authorId: schema.galleryImages.authorId })
+    .select({ authorId: schema.galleryImages.authorId, status: schema.galleryImages.status })
     .from(schema.galleryImages)
     .where(eq(schema.galleryImages.id, imageId))
     .limit(1);
 
+  if (!image || image.status !== "published") {
+    return { ok: false, message: "That artwork is not available." };
+  }
   if (image && image.authorId && image.authorId === userId) {
     return { ok: false, message: "You cannot react to your own artwork." };
   }
 
-  const [existingLike] = await db
-    .select({ id: schema.galleryLikes.id })
-    .from(schema.galleryLikes)
-    .where(and(eq(schema.galleryLikes.imageId, imageId), eq(schema.galleryLikes.userId, userId)))
-    .limit(1);
-
-  let nowLiked = false;
-
-  if (existingLike) {
-    await db
+  // Delete-first makes one request a true toggle. The unique index plus
+  // onConflictDoNothing keeps concurrent requests from duplicating likes or
+  // incrementing the denormalized counter twice.
+  const outcome = await db.transaction(async (tx) => {
+    const [deleted] = await tx
       .delete(schema.galleryLikes)
-      .where(and(eq(schema.galleryLikes.imageId, imageId), eq(schema.galleryLikes.userId, userId)));
-    await db
-      .update(schema.galleryImages)
-      .set({ likesCount: sql`GREATEST(${schema.galleryImages.likesCount} - 1, 0)` })
-      .where(eq(schema.galleryImages.id, imageId));
-    nowLiked = false;
-  } else {
-    await db.insert(schema.galleryLikes).values({ imageId, userId, createdAt: new Date() });
-    await db
-      .update(schema.galleryImages)
-      .set({ likesCount: sql`${schema.galleryImages.likesCount} + 1` })
-      .where(eq(schema.galleryImages.id, imageId));
-    nowLiked = true;
-  }
+      .where(and(eq(schema.galleryLikes.imageId, imageId), eq(schema.galleryLikes.userId, userId)))
+      .returning({ id: schema.galleryLikes.id });
 
-  const [updatedRow] = await db
-    .select({ likesCount: schema.galleryImages.likesCount })
-    .from(schema.galleryImages)
-    .where(eq(schema.galleryImages.id, imageId))
-    .limit(1);
+    let liked: boolean;
+    if (deleted) {
+      await tx
+        .update(schema.galleryImages)
+        .set({ likesCount: sql`GREATEST(${schema.galleryImages.likesCount} - 1, 0)` })
+        .where(eq(schema.galleryImages.id, imageId));
+      liked = false;
+    } else {
+      const [inserted] = await tx
+        .insert(schema.galleryLikes)
+        .values({ imageId, userId, createdAt: new Date() })
+        .onConflictDoNothing()
+        .returning({ id: schema.galleryLikes.id });
+      if (inserted) {
+        await tx
+          .update(schema.galleryImages)
+          .set({ likesCount: sql`${schema.galleryImages.likesCount} + 1` })
+          .where(eq(schema.galleryImages.id, imageId));
+      }
+      liked = true;
+    }
+
+    const [updated] = await tx
+      .select({ likesCount: schema.galleryImages.likesCount })
+      .from(schema.galleryImages)
+      .where(eq(schema.galleryImages.id, imageId))
+      .limit(1);
+    return { liked, likesCount: updated?.likesCount ?? 0 };
+  });
 
   refresh();
   return {
     ok: true,
-    message: nowLiked ? "Liked artwork!" : "Unliked artwork.",
-    liked: nowLiked,
-    likesCount: updatedRow?.likesCount ?? 0,
+    message: outcome.liked ? "Liked artwork!" : "Unliked artwork.",
+    liked: outcome.liked,
+    likesCount: outcome.likesCount,
   };
 }
 

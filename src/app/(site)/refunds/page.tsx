@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PageHero, Reveal, LegalToc, LegalMobileToc } from "@/components/shared";
+import { PageHero, Reveal, LegalToc, LegalMobileToc, LegalHeroIllustration } from "@/components/shared";
 import { site } from "@/lib/site";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Refund Policy",
@@ -35,113 +36,167 @@ export default function RefundsPage() {
         eyebrow={`Last updated ${updated}`}
         title="Refund Policy"
         lead={`This page explains when purchases made through the ${site.name} store are eligible for a refund.`}
+        illustration={<LegalHeroIllustration />}
       />
       <section className="section shell">
         <Reveal>
-          <div className="grid gap-8 lg:grid-cols-[240px_1fr] items-start">
+          <div className="grid gap-8 lg:grid-cols-[260px_1fr] items-start">
+            {/* Sidebar Table of Contents */}
             <LegalToc sections={SECTIONS} />
 
-            <div className="glass p-6 sm:p-10 rounded-2xl">
+            {/* Right Side: Separate Section Cards */}
+            <div className="space-y-4 min-w-0">
               <LegalMobileToc sections={SECTIONS} />
-              <div className="legal-prose mx-auto">
-                <h2 id="overview">1. Overview</h2>
-                <p>
-                  All store purchases are for digital virtual items only — ranks, crate keys,
-                  cosmetics, packages, and other in-game perks. These items exist only within{" "}
-                  {site.name} servers and have no real-world monetary value. {site.name} operates
-                  a strict no-refund policy with the limited exceptions listed below.
-                </p>
-                <p>
-                  Store requests are handled manually: submitting a request does not take payment.
-                  A staff member confirms availability and arranges payment with you before any
-                  item is delivered, as described in our{" "}
-                  <Link href="/terms#purchases">Terms of Service</Link>.
-                </p>
 
-                <h2 id="ranks">2. Ranks</h2>
-                <ul>
+              {/* Card 1 */}
+              <article id="overview" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
+                <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
+                  <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">01</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">1. Overview</h2>
+                </div>
+                <div className="space-y-3 text-muted text-sm sm:text-base leading-relaxed">
+                  <p>
+                    All store purchases are for digital virtual items only — ranks, crate keys,
+                    cosmetics, packages, and other in-game perks. These items exist only within{" "}
+                    {site.name} servers and have no real-world monetary value. {site.name} operates
+                    a strict no-refund policy with limited exceptions.
+                  </p>
+                  <p>
+                    Store requests are handled manually: submitting a request does not take payment.
+                    A staff member confirms availability and arranges payment with you before any
+                    item is delivered, as described in our{" "}
+                    <Link href="/terms#purchases" className="text-accent-bright font-semibold hover:underline">Terms of Service</Link>.
+                  </p>
+                </div>
+              </article>
+
+              {/* Card 2 */}
+              <article id="ranks" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
+                <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
+                  <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">02</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">2. Ranks</h2>
+                </div>
+                <ul className="legal-prose text-muted text-sm sm:text-base space-y-2">
                   <li>Refunds are available only if requested within 24 hours of purchase.</li>
                   <li>Once a rank has been activated and used, it is no longer refundable.</li>
                   <li>Payments made by bank transfer are non-refundable under any circumstance.</li>
                   <li>Monthly subscription ranks are non-refundable once activated and expire automatically at the end of the purchased duration.</li>
                 </ul>
+              </article>
 
-                <h2 id="keys-packages">3. Crate keys, packages & cosmetics</h2>
-                <p>The following are non-refundable under any circumstance once delivered:</p>
-                <ul>
-                  <li>Crate keys</li>
-                  <li>Packages and bundles</li>
-                  <li>Cosmetics and other digital goods</li>
-                </ul>
-                <p>
-                  Exception: if a package is purchased and the server resets within 7 days of
-                  that purchase, the player will receive the same package on the new server at no
-                  extra cost.
-                </p>
+              {/* Card 3 */}
+              <article id="keys-packages" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
+                <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
+                  <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">03</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">3. Crate keys, packages & cosmetics</h2>
+                </div>
+                <div className="space-y-3">
+                  <p className="text-muted text-sm sm:text-base">The following are non-refundable under any circumstance once delivered:</p>
+                  <ul className="legal-prose text-muted text-sm sm:text-base space-y-1">
+                    <li>Crate keys</li>
+                    <li>Packages and bundles</li>
+                    <li>Cosmetics and other digital goods</li>
+                  </ul>
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs sm:text-sm text-emerald-900 dark:text-emerald-200">
+                    <CheckCircle2 size={18} className="text-emerald-500 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block font-bold mb-0.5">7-Day Server Reset Guarantee</strong>
+                      If a package is purchased and the server resets within 7 days of that purchase, the player will receive the same package reissued on the new server at no extra cost.
+                    </div>
+                  </div>
+                </div>
+              </article>
 
-                <h2 id="gameplay-loss">4. Loss through gameplay</h2>
-                <p>
+              {/* Card 4 */}
+              <article id="gameplay-loss" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
+                <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
+                  <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">04</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">4. Loss through gameplay</h2>
+                </div>
+                <p className="text-muted text-sm sm:text-base leading-relaxed">
                   Items lost through PvP deaths, gameplay design, or normal in-game risk are
                   non-refundable under any circumstance. This is considered part of normal
                   gameplay, not a fault of the service.
                 </p>
+              </article>
 
-                <h2 id="resets">5. Server resets</h2>
-                <p>
-                  {site.name} may reset a server with at least a week&apos;s notice. When a reset
-                  happens:
-                </p>
-                <ul>
-                  <li>
-                    Permanent ranks purchased within the last 5 months are carried over to the
-                    new server. This does not guarantee identical kits or permissions, since perks
-                    may change between resets.
-                  </li>
-                  <li>
-                    Permanent ranks purchased more than 5 months before the reset receive a 50%
-                    store credit voucher based on the original purchase value, instead of a
-                    transfer.
-                  </li>
-                  <li>Items, inventories, and progress may be wiped unless otherwise stated.</li>
-                </ul>
+              {/* Card 5 */}
+              <article id="resets" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
+                <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
+                  <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">05</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">5. Server resets</h2>
+                </div>
+                <div className="space-y-2 text-muted text-sm sm:text-base">
+                  <p>When a server reset occurs with advance notice:</p>
+                  <ul className="legal-prose space-y-1.5">
+                    <li>Permanent ranks purchased within the last 5 months are carried over to the new server.</li>
+                    <li>Permanent ranks purchased more than 5 months before reset receive a 50% store credit voucher based on original purchase value.</li>
+                    <li>Items, inventories, and progress may be wiped unless stated otherwise.</li>
+                  </ul>
+                </div>
+              </article>
 
-                <h2 id="bans">6. Bans and forfeiture</h2>
-                <p>
+              {/* Card 6 */}
+              <article id="bans" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
+                <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
+                  <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">06</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">6. Bans and forfeiture</h2>
+                </div>
+                <p className="text-muted text-sm sm:text-base leading-relaxed">
                   If a player receives a temporary or permanent ban, all purchases tied to that
                   account are forfeited. No refunds or compensation are issued for items or ranks
                   lost as a result of a ban.
                 </p>
+              </article>
 
-                <h2 id="delivery">7. Non-delivery</h2>
-                <p>
+              {/* Card 7 */}
+              <article id="delivery" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
+                <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
+                  <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">07</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">7. Non-delivery</h2>
+                </div>
+                <p className="text-muted text-sm sm:text-base leading-relaxed">
                   If {site.name} fails to deliver a paid-for item within 24 hours of a confirmed
                   payment, you are entitled to a full refund. Contact{" "}
-                  <Link href="/support">support</Link> with your order details if this happens.
+                  <Link href="/support" className="text-accent-bright font-semibold hover:underline">support</Link> with your order details if this happens.
                 </p>
+              </article>
 
-                <h2 id="chargebacks">8. Chargebacks & payment disputes</h2>
-                <p>
-                  Opening a chargeback or payment dispute instead of contacting us directly will
-                  result in a permanent ban from all {site.name} services, immediate removal of
-                  all purchased items and ranks, and blacklisting from future purchases. We
-                  reserve the right to submit proof of purchase and delivery to the relevant
-                  payment provider to contest a dispute.
-                </p>
+              {/* Card 8 */}
+              <article id="chargebacks" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm border-l-4 border-l-amber-500 hover:border-accent/40 transition-colors">
+                <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
+                  <span className="telemetry text-xs font-mono font-bold text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/30">08</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">8. Chargebacks & payment disputes</h2>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs sm:text-sm text-amber-900 dark:text-amber-200">
+                    <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block font-bold mb-0.5">Permanent Network Ban Warning</strong>
+                      Opening a chargeback or payment dispute instead of contacting support results in an immediate permanent ban from all {site.name} services, rank removal, and blacklisting.
+                    </div>
+                  </div>
+                  <p className="text-muted text-sm sm:text-base leading-relaxed">
+                    We reserve the right to submit proof of purchase and delivery to payment providers to contest fraudulent disputes.
+                  </p>
+                </div>
+              </article>
 
-                <h2 id="how-to-request">9. How to request a refund</h2>
-                <p>
+              {/* Card 9 */}
+              <article id="how-to-request" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
+                <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
+                  <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">09</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">9. How to request a refund</h2>
+                </div>
+                <p className="text-muted text-sm sm:text-base leading-relaxed">
                   To request a refund, contact us through our{" "}
-                  <Link href="/support">support center</Link> or open a ticket on our{" "}
-                  <a href={site.discord} target="_blank" rel="noreferrer">
-                    Discord
+                  <Link href="/support" className="text-accent-bright font-semibold hover:underline">support center</Link> or open a ticket on our{" "}
+                  <a href={site.discord} target="_blank" rel="noreferrer" className="text-accent-bright font-semibold hover:underline">
+                    Discord server
                   </a>{" "}
-                  with your Minecraft username, order reference, and the reason for your request.
-                  Never send passwords or full payment credentials through a support form or
-                  Discord message. Refund eligibility outside the cases above is reviewed case by
-                  case at our discretion. See also our{" "}
-                  <Link href="/terms">Terms of Service</Link>.
+                  with your Minecraft username, order reference, and reason for request. Never send passwords or full payment credentials. See also our <Link href="/terms" className="text-accent-bright hover:underline">Terms of Service</Link>.
                 </p>
-              </div>
+              </article>
             </div>
           </div>
         </Reveal>

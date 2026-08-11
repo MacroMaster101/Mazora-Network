@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const event = await getEvent(slug);
-  if (!event) return { title: "Event not found" };
+  if (!event) return { title: "Event not found", robots: { index: false, follow: false } };
   return { title: event.title, description: event.description };
 }
 
