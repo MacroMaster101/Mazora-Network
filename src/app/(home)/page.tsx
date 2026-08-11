@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image, { getImageProps } from "next/image";
 import Link from "next/link";
-import { ArrowRight, MonitorSmartphone, Newspaper, Play, ShieldCheck, UsersRound } from "lucide-react";
+import { ArrowRight, ExternalLink, Map, MapPin, MonitorSmartphone, Newspaper, Play, Radio, ShieldCheck, UsersRound } from "lucide-react";
 import { CopyIpButton } from "@/components/shared/copy-ip-button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Reveal } from "@/components/shared/reveal";
@@ -47,6 +47,19 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
     getNews(),
   ]);
   const news = previewEmpty ? [] : previewNews ? getPreviewNews() : publishedNews;
+  const configuredMapUrl = process.env.NEXT_PUBLIC_SERVER_MAP_URL?.trim();
+  let mapUrl: string | null = null;
+
+  if (configuredMapUrl) {
+    try {
+      const parsed = new URL(configuredMapUrl);
+      if (parsed.protocol === "https:" || (process.env.NODE_ENV === "development" && parsed.protocol === "http:")) {
+        mapUrl = parsed.toString();
+      }
+    } catch {
+      // Keep the intentional coming-soon state when the configured URL is invalid.
+    }
+  }
 
   return (
     <>
@@ -191,6 +204,70 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                 cta={{ label: "Join the Discord", href: "/discord" }}
               />
             )}
+          </Reveal>
+        </section>
+
+        <section className="home-map-section shell pb-10 pt-8 sm:pb-14 sm:pt-12" aria-labelledby="world-map-title">
+          <Reveal className="home-section-heading">
+            <SectionHeader eyebrow="Explore Mazora" title="See the world from above." />
+          </Reveal>
+
+          <Reveal className="mt-8">
+            <div className="home-map-shell">
+              <div className="home-map-toolbar">
+                <div className="home-map-title-group">
+                  <span className="home-map-icon" aria-hidden="true"><Map size={18} /></span>
+                  <div>
+                    <h2 id="world-map-title">Mazora live world map</h2>
+                    <p>{mapUrl ? "Live terrain and player activity from across the network." : "The map portal is being prepared for launch."}</p>
+                  </div>
+                </div>
+                <span className={mapUrl ? "home-map-status is-live" : "home-map-status"}>
+                  <span aria-hidden="true" /> {mapUrl ? "Live" : "Coming soon"}
+                </span>
+              </div>
+
+              {mapUrl ? (
+                <div className="home-map-frame-wrap">
+                  <iframe
+                    src={mapUrl}
+                    title="Mazora Network live Minecraft world map"
+                    className="home-map-frame"
+                    loading="lazy"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                  <a className="home-map-open" href={mapUrl} target="_blank" rel="noreferrer">
+                    Open full map <ExternalLink size={15} />
+                  </a>
+                </div>
+              ) : (
+                <div className="home-map-preview">
+                  <div className="home-map-terrain" aria-hidden="true">
+                    <Image
+                      src="/images/mazora-live-map-preview-v1.webp"
+                      alt=""
+                      fill
+                      loading="lazy"
+                      quality={70}
+                      sizes="(max-width: 640px) calc(100vw - 40px), 1136px"
+                      className="home-map-terrain-image"
+                    />
+                    <span className="home-map-route home-map-route-one" />
+                    <span className="home-map-route home-map-route-two" />
+                    <span className="home-map-marker home-map-marker-spawn"><MapPin size={22} /></span>
+                    <span className="home-map-marker home-map-marker-north"><MapPin size={17} /></span>
+                    <span className="home-map-marker home-map-marker-east"><MapPin size={17} /></span>
+                  </div>
+                  <div className="home-map-coming-soon">
+                    <span className="home-map-signal" aria-hidden="true"><Radio size={22} /></span>
+                    <p className="eyebrow">Map connection pending</p>
+                    <h3>Our world is almost online.</h3>
+                    <p>Explore builds, landmarks and live player locations here once the server map plugin launches.</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </Reveal>
         </section>
 
