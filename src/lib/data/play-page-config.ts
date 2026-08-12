@@ -1,53 +1,55 @@
-export interface PlayPageConfig {
-  javaIp: string;
-  bedrockIp: string;
-  bedrockPort: string;
-  supportedVersion: string;
-  discordChannelId: string;
-  heroTitle: string;
-  heroLead: string;
-  statusOverride: "live" | "degraded" | "offline";
-  telemetryMessage?: string;
-  javaSteps: string[];
-  bedrockSteps: string[];
+import "server-only";
+import { eq } from "drizzle-orm";
+import { getDb, schema } from "@/lib/db/client";
+import type { PlayPageConfig } from "@/lib/types";
+import { DEFAULT_PLAY_CONFIG } from "@/lib/types";
+
+export type { PlayPageConfig };
+export { DEFAULT_PLAY_CONFIG };
+
+export const PLAY_PAGE_CONFIG_KEY = "play.page";
+
+
+function mergeConfig(value: unknown): PlayPageConfig {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { ...DEFAULT_PLAY_CONFIG };
+  const stored = value as Partial<PlayPageConfig>;
+  return {
+    ...DEFAULT_PLAY_CONFIG,
+    ...stored,
+    javaSteps: Array.isArray(stored.javaSteps) ? stored.javaSteps : DEFAULT_PLAY_CONFIG.javaSteps,
+    bedrockSteps: Array.isArray(stored.bedrockSteps) ? stored.bedrockSteps : DEFAULT_PLAY_CONFIG.bedrockSteps,
+  };
 }
 
-export const DEFAULT_PLAY_CONFIG: PlayPageConfig = {
-  javaIp: "mc.mazora.us",
-  bedrockIp: "mc.mazora.us",
-  bedrockPort: "8876",
-  supportedVersion: "Leaf 1.21.11",
-  discordChannelId: "1193207365906997379",
-  heroTitle: "Joining takes about a minute.",
-  heroLead: "Copy the address, add the server, and you're in. Here's exactly how on both editions.",
-  statusOverride: "live",
-  telemetryMessage: "No downtime recorded during this hour.",
-  javaSteps: [
-    "Open Minecraft Java Edition.",
-    "Click Multiplayer, then Add Server.",
-    "Enter Server Name: Mazora Network and Server Address: mc.mazora.us",
-    "Click Done, select Mazora Network, and click Join Server.",
-  ],
-  bedrockSteps: [
-    "Open Minecraft on your mobile device, Windows PC, or console.",
-    "Tap Play, then choose the Servers tab.",
-    "Scroll down and tap Add Server.",
-    "Server Name: Mazora Network, Server Address: mc.mazora.us",
-    "Enter the port: 8876",
-    "Save, then tap the server to join.",
-  ],
-};
-
-let currentPlayConfig: PlayPageConfig = { ...DEFAULT_PLAY_CONFIG };
-
 export async function getPlayPageConfig(): Promise<PlayPageConfig> {
-  return currentPlayConfig;
+  try {
+    const db = getDb();
+    if (!db) return { ...DEFAULT_PLAY_CONFIG };
+    const [row] = await db
+      .select({ value: schema.siteSettings.settingValue })
+      .from(schema.siteSettings)
+      .where(eq(schema.siteSettings.settingKey, PLAY_PAGE_CONFIG_KEY))
+      .limit(1);
+    return mergeConfig(row?.value);
+  } catch {
+    return { ...DEFAULT_PLAY_CONFIG };
+  }
 }
 
 export async function updatePlayPageConfig(newConfig: Partial<PlayPageConfig>): Promise<PlayPageConfig> {
-  currentPlayConfig = {
-    ...currentPlayConfig,
+  const db = getDb();
+  if (!db) throw new Error("The database is not connected.");
+  const current = await getPlayPageConfig();
+  const next = {
+    ...current,
     ...newConfig,
   };
-  return currentPlayConfig;
+  await db
+    .insert(schema.siteSettings)
+    .values({ settingKey: PLAY_PAGE_CONFIG_KEY, settingValue: next })
+    .onConflictDoUpdate({
+      target: schema.siteSettings.settingKey,
+      set: { settingValue: next, updatedAt: new Date() },
+    });
+  return next;
 }
