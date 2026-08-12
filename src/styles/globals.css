@@ -5785,6 +5785,158 @@ html {
   line-height: 1.45;
 }
 
+.team-hero-lead {
+  color: rgb(245 239 251 / 0.82) !important;
+  text-shadow: 0 2px 18px rgb(3 1 8 / 0.92);
+}
+
+.team-ranks-help {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+}
+
+.team-ranks-help summary {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  cursor: pointer;
+  list-style: none;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 999px;
+  background: rgb(10 6 20 / 0.76);
+  color: rgb(244 238 250 / 0.88);
+  box-shadow: 0 12px 28px -18px rgb(0 0 0 / 0.9), inset 0 1px rgb(255 255 255 / 0.08);
+  backdrop-filter: blur(14px);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.team-ranks-help summary::-webkit-details-marker {
+  display: none;
+}
+
+.team-ranks-help summary:hover,
+.team-ranks-help summary:focus-visible,
+.team-ranks-help[open] summary {
+  transform: translateY(-1px);
+  border-color: rgb(var(--accent-rgb) / 0.62);
+  outline: none;
+  background: rgb(var(--accent-rgb) / 0.22);
+  color: white;
+}
+
+.team-ranks-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.7rem);
+  width: min(24rem, calc(100vw - 3rem));
+  border: 1px solid rgb(var(--accent-rgb) / 0.38);
+  border-radius: 1rem;
+  background: rgb(10 6 20 / 0.97);
+  padding: 1rem;
+  color: white;
+  box-shadow: 0 20px 48px -22px rgb(0 0 0 / 0.96), inset 0 1px rgb(255 255 255 / 0.06);
+  text-align: left;
+}
+
+.team-ranks-popover::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  right: 0.72rem;
+  border-bottom: 0.45rem solid rgb(10 6 20 / 0.97);
+  border-right: 0.4rem solid transparent;
+  border-left: 0.4rem solid transparent;
+}
+
+.team-ranks-popover-heading {
+  display: grid;
+  gap: 0.12rem;
+  padding: 0 0.15rem 0.75rem;
+}
+
+.team-ranks-popover-heading strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 0.95rem;
+}
+
+.team-ranks-popover-heading span {
+  color: rgb(244 238 250 / 0.76);
+  font-size: 0.68rem;
+}
+
+.team-ranks-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.team-rank-guide-row {
+  display: grid;
+  align-items: start;
+  gap: 0.65rem;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  border: 1px solid rgb(var(--team-tone) / 0.2);
+  border-radius: 0.75rem;
+  background: rgb(var(--team-tone) / 0.08);
+  padding: 0.65rem;
+}
+
+.team-rank-guide-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid rgb(var(--team-tone) / 0.38);
+  border-radius: 0.6rem;
+  background: rgb(var(--team-tone) / 0.16);
+  color: rgb(var(--team-tone-soft));
+}
+
+.team-rank-guide-row h3 {
+  color: rgb(var(--team-tone-soft));
+  font-family: var(--font-display), sans-serif;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.team-rank-guide-row p {
+  margin-top: 0.12rem;
+  color: rgb(244 238 250 / 0.72);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+:root[data-theme="light"] .team-ranks-help summary {
+  border-color: rgb(101 74 137 / 0.32);
+  background: rgb(255 255 255 / 0.94);
+  color: rgb(76 48 112);
+}
+
+:root[data-theme="light"] .team-ranks-help summary:hover,
+:root[data-theme="light"] .team-ranks-help summary:focus-visible,
+:root[data-theme="light"] .team-ranks-help[open] summary {
+  color: rgb(76 29 149);
+}
+
+@media (max-width: 767px) {
+  .team-ranks-popover {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    left: 1rem;
+    top: auto;
+    width: auto;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+  }
+
+  .team-ranks-popover::after {
+    display: none;
+  }
+}
+
 .team-empty-state {
   position: relative;
   z-index: 1;
