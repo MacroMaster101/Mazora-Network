@@ -33,11 +33,11 @@ import {
   Zap,
   ShieldCheck,
 } from "lucide-react";
-import type { PatchUpdate } from "@/lib/types";
+import type { PatchUpdate, PlayPageConfig } from "@/lib/types";
+import { DEFAULT_PLAY_CONFIG } from "@/lib/types";
 import type { FaqItem } from "@/lib/data/faqs";
-import type { PlayPageConfig } from "@/lib/data/play-page-config";
-import { DEFAULT_PLAY_CONFIG } from "@/lib/data/play-page-config";
 import { saveFaqsAction } from "@/lib/actions/faqs";
+
 import { savePlayConfigAction } from "@/lib/actions/play-config";
 import { Input, Textarea, useToast } from "@/components/ui";
 
