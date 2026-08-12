@@ -208,7 +208,7 @@ export function UnifiedServerStatsCard({
         </div>
 
         <div className="telemetry text-xs text-muted font-medium">
-          Updated {status.lastUpdate ? new Date(status.lastUpdate).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" }) : "just now"}
+          Updated {status.lastUpdate ? new Date(status.lastUpdate).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "just now"}
         </div>
       </div>
 
@@ -535,6 +535,7 @@ export function UnifiedServerStatsCard({
               day: "numeric",
               month: "short",
               year: "numeric",
+              timeZone: "UTC",
             });
 
             return (

@@ -2562,13 +2562,24 @@ html {
     width: 100%;
     height: clamp(420px, 62vw, 720px);
     border: 0;
+    pointer-events: auto;
+    touch-action: auto;
     background: rgb(8 6 14);
   }
 
-  .home-map-open {
+  .home-map-actions {
     position: absolute;
     right: 1rem;
     bottom: 1rem;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    pointer-events: none;
+  }
+
+  .home-map-open,
+  .home-map-reset {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
@@ -2581,6 +2592,34 @@ html {
     backdrop-filter: blur(12px);
     font-size: 0.75rem;
     font-weight: 800;
+    pointer-events: auto;
+    transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+  }
+
+  .home-map-open:hover,
+  .home-map-reset:hover {
+    transform: translateY(-1px);
+    border-color: rgba(216, 180, 254, 0.52);
+    background: rgba(31, 16, 53, 0.92);
+  }
+
+  .home-map-reset {
+    cursor: pointer;
+  }
+
+  @media (max-width: 520px) {
+    .home-map-actions {
+      right: 0.65rem;
+      bottom: 0.65rem;
+      left: 0.65rem;
+      justify-content: flex-end;
+    }
+
+    .home-map-open,
+    .home-map-reset {
+      padding: 0.58rem 0.68rem;
+      font-size: 0.68rem;
+    }
   }
 
   .home-map-terrain {
@@ -5238,6 +5277,36 @@ html {
   -webkit-backdrop-filter: none;
 }
 
+/* Public pages use the same fixed world artwork as the account area. Keep the
+   shared sticky navigation out of its own moving/blurred compositor layers so
+   Chromium cannot retain a stale header frame while scrolling or navigating.
+   The header still receives data-away for its readable scrolled colours, but
+   it stays spatially stable just like the dashboard navigation. */
+.stable-nav {
+  transform: none !important;
+  transition: none;
+  will-change: auto;
+}
+
+.stable-nav[data-hidden="true"] {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.stable-nav .header-shell,
+.stable-nav[data-away="true"] .header-shell {
+  height: 4.75rem !important;
+  transition: none;
+}
+
+.stable-nav::before,
+.stable-nav .desktop-nav-shell,
+.stable-nav .desktop-account-dock {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 .admin-area .admin-sidebar > nav,
 .admin-area .admin-sidebar > div:first-child {
   backdrop-filter: none;
@@ -5657,6 +5726,63 @@ html {
 .team-rank-group {
   position: relative;
   z-index: 1;
+}
+
+.team-rank-label {
+  display: flex;
+  width: min(100%, 42rem);
+  align-items: center;
+  gap: 0.85rem;
+  margin: 0 auto 1rem;
+  border: 1px solid rgb(var(--team-tone) / 0.28);
+  border-radius: 1rem;
+  background: rgb(10 6 20 / 0.72);
+  padding: 0.85rem 1rem;
+  color: white;
+  box-shadow: 0 16px 38px -30px rgb(var(--team-tone) / 0.9), inset 0 1px rgb(255 255 255 / 0.06);
+}
+
+.team-rank-label-icon {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(var(--team-tone) / 0.42);
+  border-radius: 0.8rem;
+  background: rgb(var(--team-tone) / 0.18);
+  color: rgb(var(--team-tone-soft));
+}
+
+.team-rank-label > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.team-rank-label-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.team-rank-label-title h3 {
+  font-family: var(--font-display), sans-serif;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.team-rank-label-title span {
+  color: rgb(244 238 250 / 0.62);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.team-rank-label p {
+  margin-top: 0.2rem;
+  color: rgb(244 238 250 / 0.68);
+  font-size: 0.72rem;
+  line-height: 1.45;
 }
 
 .team-empty-state {
@@ -6080,6 +6206,16 @@ html {
 
   .team-org-chart {
     padding: 1rem;
+  }
+
+  .team-rank-label {
+    align-items: flex-start;
+  }
+
+  .team-rank-label-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.15rem;
   }
 
   .team-tier-seniors,

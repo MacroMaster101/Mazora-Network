@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { Shield, Sparkles, UsersRound } from "lucide-react";
-import { GoogleFormEmbed, PageHero } from "@/components/shared";
+import { FloatingBrandLogo, GoogleFormEmbed, PageHero } from "@/components/shared";
 import { getFormsConfig } from "@/lib/data/forms-config";
+import { getSupportCard } from "@/lib/data/support-settings";
 
 export const metadata: Metadata = {
   title: "Staff Application",
@@ -10,28 +10,18 @@ export const metadata: Metadata = {
 };
 
 export default async function StaffApplicationPage() {
-  const config = await getFormsConfig();
+  const [config, supportCard] = await Promise.all([getFormsConfig(), getSupportCard("staff")]);
   const form = config.staff;
+  const page = supportCard.page!;
 
   return (
     <>
       <PageHero
         backLink={{ href: "/support", label: "Back to Support" }}
-        eyebrow="Join the Crew"
-        title="Staff Application"
-        lead="Mazora is community-run. If you are patient, dependable, and excited to help players, we would love to hear from you."
-        illustration={
-          <div className="relative group">
-            <Image
-              src="/images/mazora-logo.webp"
-              alt="Mazora Network Logo"
-              width={240}
-              height={160}
-              priority
-              className="h-auto w-32 md:w-[240px] animate-float object-contain drop-shadow-[0_15px_35px_rgba(139,92,246,0.35)] transition-transform duration-500 group-hover:scale-105"
-            />
-          </div>
-        }
+        eyebrow={page.eyebrow}
+        title={page.title}
+        lead={page.lead}
+        illustration={<FloatingBrandLogo />}
       />
       <section className="shell pt-4 pb-20 space-y-8">
         <div className="grid gap-6 sm:grid-cols-3">
@@ -71,12 +61,7 @@ export default async function StaffApplicationPage() {
           description={form.enabled ? "Click below to open the official Google Form and apply for a staff position on Mazora Network." : "Staff applications are currently closed. Please check back later."}
           buttonText={form.enabled ? "Open Staff Application" : "Recruitment Closed"}
           disabled={!form.enabled}
-          bulletPoints={[
-            "Provide your exact Minecraft username, age, timezone, and weekly available hours.",
-            "Select your target role (Helper, Moderator, Builder, or Developer).",
-            "Detail your past server moderation, staff, or community building experience.",
-            "Explain your motivation for joining the team and how you will assist players.",
-          ]}
+          bulletPoints={page.details}
         />
       </section>
     </>

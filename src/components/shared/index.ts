@@ -23,3 +23,5 @@ export { LegalHeroIllustration } from "./legal-hero-illustration";
 export { NewsAuthor } from "./news-author";
 export { UnifiedServerStatsCard } from "./unified-server-stats-card";
 export { GoogleFormEmbed } from "./google-form-embed";
+export { DiscordTicketGuide } from "./discord-ticket-guide";
+export { FloatingBrandLogo } from "./floating-brand-logo";

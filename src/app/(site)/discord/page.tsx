@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { Bell, Gift, LifeBuoy, MessagesSquare, Users2, Swords } from "lucide-react";
 import { site } from "@/lib/site";
 import { getDiscordStats } from "@/lib/data/discord";
 import { withCommas } from "@/lib/utils";
-import { PageHero, Reveal } from "@/components/shared";
+import { FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";
 import { DiscordIcon } from "@/components/shared/icon";
 
 export const metadata: Metadata = {
@@ -33,18 +32,7 @@ export default async function DiscordPage() {
         eyebrow={eyebrow}
         title="The community lives on Discord."
         lead="It's where the network really comes alive. Announcements, giveaways, teammates and support — all in one place."
-        illustration={
-          <div className="relative group">
-            <Image
-              src="/images/mazora-logo.webp"
-              alt="Mazora Network Logo"
-              width={240}
-              height={160}
-              priority
-              className="h-auto w-32 md:w-[240px] animate-float object-contain drop-shadow-[0_15px_35px_rgba(139,92,246,0.35)] transition-transform duration-500 group-hover:scale-105"
-            />
-          </div>
-        }
+        illustration={<FloatingBrandLogo />}
       />
       <section className="section shell">
         <Reveal className="glass relative overflow-hidden p-8 text-center sm:p-14">

@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { Blocks } from "lucide-react";
 import { getGameModes } from "@/lib/data/content";
 import { getServerStatus } from "@/lib/data/status";
-import { EmptyState, PageHero, GameModeCard, Reveal } from "@/components/shared";
+import { EmptyState, FloatingBrandLogo, PageHero, GameModeCard, Reveal } from "@/components/shared";
 
 export const metadata: Metadata = {
   title: "Game Modes",
@@ -25,18 +24,7 @@ export default async function GameModesPage() {
         eyebrow={eyebrow}
         title="Pick a world. Make it yours."
         lead="One shared account across every mode. Jump between them freely and carry your rank everywhere."
-        illustration={
-          <div className="relative group p-2">
-            <Image
-              src="/images/mazora-logo.webp"
-              alt="Mazora Network Logo"
-              width={260}
-              height={173}
-              priority
-              className="relative animate-float object-contain drop-shadow-[0_15px_35px_rgba(147,51,234,0.45)] transition-transform duration-300 group-hover:scale-105"
-            />
-          </div>
-        }
+        illustration={<FloatingBrandLogo />}
       />
       <section className="section shell">
         {modes.length > 0 ? (

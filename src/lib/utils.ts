@@ -20,7 +20,12 @@ export function usd(n: number): string {
 
 /** Human date, e.g. "Jul 8, 2026". */
 export function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 /** "3 days ago" / "just now" style relative time. */

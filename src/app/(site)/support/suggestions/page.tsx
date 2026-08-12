@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { PageHero } from "@/components/shared";
+import { FloatingBrandLogo, PageHero } from "@/components/shared";
 import { RequireLogin } from "@/components/shared/require-login";
 import { SupportForm, type FieldConfig } from "@/components/shared/support-form";
 import { submitSuggestion } from "@/lib/actions/support";
+import { getSupportCard } from "@/lib/data/support-settings";
 
 export const metadata: Metadata = {
   title: "Suggest a Feature",
@@ -15,10 +16,11 @@ const fields: FieldConfig[] = [
   { name: "description", label: "Describe your idea", type: "textarea", required: true, placeholder: "What should we add or change, and why?" },
 ];
 
-export default function SuggestionsPage() {
+export default async function SuggestionsPage() {
+  const page = (await getSupportCard("suggestions")).page!;
   return (
     <>
-      <PageHero backLink={{ href: "/support", label: "Back to Support" }} eyebrow="Shape the network" title="Suggest a feature" lead="The best ideas come from players. Share yours — the community can upvote suggestions and staff review the favourites." />
+      <PageHero backLink={{ href: "/support", label: "Back to Support" }} eyebrow={page.eyebrow} title={page.title} lead={page.lead} illustration={<FloatingBrandLogo />} />
       <section className="section shell max-w-2xl">
         <RequireLogin next="/support/suggestions">
           <SupportForm action={submitSuggestion} fields={fields} submitLabel="Submit suggestion" />
