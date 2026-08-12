@@ -16,6 +16,7 @@ export default function PrivacyPage() {
     month: "long",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   });
 
   const SECTIONS = [

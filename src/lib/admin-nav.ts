@@ -2,7 +2,6 @@ import {
   Bell,
   BellRing,
   Blocks,
-  Bug,
   CalendarDays,
   FileText,
   Gamepad2,
@@ -13,10 +12,8 @@ import {
   Lightbulb,
   ScrollText,
   Settings,
-  ShieldAlert,
   ShieldCheck,
   ShoppingBag,
-  Ticket,
   UserCog,
   Users,
   UsersRound,
@@ -80,11 +77,8 @@ export function buildAdminNav({
     {
       heading: "Support",
       items: [
-        { label: "Tickets", href: "/admin/tickets", icon: Ticket, minRole: "helper" },
-        { label: "Appeals", href: "/admin/appeals", icon: Gavel, minRole: "helper" },
-        { label: "Reports", href: "/admin/reports", icon: ShieldAlert, minRole: "helper" },
-        { label: "Bug Reports", href: "/admin/bugs", icon: Bug, minRole: "helper" },
-        { label: "Suggestions", href: "/admin/suggestions", icon: Lightbulb, minRole: "helper" },
+        { label: "Support Pages", href: "/admin/support", icon: Lightbulb, minRole: "administrator" },
+        { label: "Application Forms", href: "/admin/appeals", icon: Gavel, minRole: "administrator" },
       ],
     },
     {

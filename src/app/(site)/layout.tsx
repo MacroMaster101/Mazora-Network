@@ -6,7 +6,7 @@ import { RouteContentTransition } from "@/components/shared/route-content-transi
 export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <>
-      <SiteHeader world />
+      <SiteHeader world stable />
       <div className="site-world-frame">
         <main id="main" className="site-world-main">
           <div className="site-world-content">

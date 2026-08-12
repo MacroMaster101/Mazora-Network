@@ -46,7 +46,9 @@ export default async function StatusPage() {
             <span className={online ? "dot animate-pulse" : "dot dot-off"} style={{ width: 12, height: 12 }} />
             <div>
               <p className="font-display text-xl font-bold">{online ? "Server online" : "Status unavailable"}</p>
-              <p className="telemetry text-sm text-muted">Last updated {new Date(status.lastUpdate).toLocaleTimeString("en")}</p>
+              <p className="telemetry text-sm text-muted">
+                Last updated {new Date(status.lastUpdate).toLocaleTimeString("en", { timeZone: "UTC", timeZoneName: "short" })}
+              </p>
             </div>
           </div>
           <CopyIpButton ip={site.javaIp} label="Copy server IP" />
