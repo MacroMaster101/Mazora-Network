@@ -1,6 +1,7 @@
 /**
- * Live Minecraft server status. Fetched server-side and cached so we never hit
- * the upstream API from every browser. The provider defaults to mcsrvstat.us
+ * Live Minecraft server status. Fetched server-side with a short process cache
+ * so concurrent page loads share one result without serving Next's expired
+ * persistent-cache snapshot to the first visitor. The provider defaults to mcsrvstat.us
  * for the configured Java address and can be overridden with
  * MINECRAFT_STATUS_API_URL. When the request fails, we return a non-live
  * fallback — callers must show
@@ -34,13 +35,17 @@ interface UpstreamShape {
   ping?: number;
 }
 const UPSTREAM_TIMEOUT_MS = 2500;
+const LIVE_CACHE_MS = 15_000;
+
+let cachedStatus: { value: ServerStatus; expiresAt: number } | null = null;
+let pendingStatus: Promise<ServerStatus> | null = null;
 
 
 /**
  * Normalises a few common status-API shapes (mcsrvstat-like / mcstatus-like)
  * into our ServerStatus.
  */
-export async function getServerStatus(): Promise<ServerStatus> {
+async function fetchServerStatus(): Promise<ServerStatus> {
   const url = process.env.MINECRAFT_STATUS_API_URL || `https://api.mcsrvstat.us/3/${encodeURIComponent(site.javaIp)}`;
 
   try {
@@ -48,7 +53,7 @@ export async function getServerStatus(): Promise<ServerStatus> {
       url,
       {
         headers: { "User-Agent": "MazoraNetworkWebsite/1.0" },
-        next: { revalidate: 300 },
+        cache: "no-store",
       },
       UPSTREAM_TIMEOUT_MS,
     );
@@ -72,7 +77,7 @@ export async function getServerStatus(): Promise<ServerStatus> {
       version,
       motd,
       ping: data.ping ?? 0,
-      uptime: "99.9%",
+      uptime: "—",
       lastUpdate: new Date().toISOString(),
       java: { online: data.online ?? true, address: site.javaIp },
       bedrock: { online: data.online ?? true, address: site.bedrockIp, port: site.bedrockPort },
@@ -81,4 +86,19 @@ export async function getServerStatus(): Promise<ServerStatus> {
   } catch {
     return fallback();
   }
+}
+
+export async function getServerStatus(): Promise<ServerStatus> {
+  const now = Date.now();
+  if (cachedStatus && cachedStatus.expiresAt > now) return cachedStatus.value;
+  if (pendingStatus) return pendingStatus;
+
+  pendingStatus = fetchServerStatus().then((value) => {
+    cachedStatus = { value, expiresAt: Date.now() + LIVE_CACHE_MS };
+    return value;
+  }).finally(() => {
+    pendingStatus = null;
+  });
+
+  return pendingStatus;
 }
