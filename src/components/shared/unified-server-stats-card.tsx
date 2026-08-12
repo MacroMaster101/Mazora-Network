@@ -28,6 +28,7 @@ interface BarData {
   maxPlayers: number;
   ping: number;
   health: "operational" | "degraded" | "offline";
+  estimated: boolean;
   outageDuration?: string;
 }
 
@@ -80,6 +81,7 @@ const generateTelemetry = (status: ServerStatus): BarData[] => {
         maxPlayers: maxSlots,
         ping: basePing,
         health: !isServerOnline ? "offline" : basePing > 120 ? "degraded" : "operational",
+        estimated: false,
         outageDuration: !isServerOnline ? "Active Outage" : undefined,
       });
       continue;
@@ -90,21 +92,12 @@ const generateTelemetry = (status: ServerStatus): BarData[] => {
     else if (hour >= 12 && hour < 16) curve = 0.9 + Math.cos(hour) * 0.2;
     else if (hour >= 1 && hour <= 7) curve = 0.4;
 
-    let health: "operational" | "degraded" | "offline" = "operational";
-    let outageDuration: string | undefined;
-
-    if (i === 7) {
-      health = "degraded";
-      outageDuration = "0 hrs 12 mins";
-    } else if (i === 14) {
-      health = "degraded";
-      outageDuration = "0 hrs 08 mins";
-    }
+    const health: "operational" = "operational";
 
     const players = !isServerOnline && i < 2
       ? 0
       : Math.max(0, Math.round(basePlayers * curve + ((i * 2) % 3)));
-    const ping = health === "degraded" ? 145 : Math.max(10, basePing + Math.round((i % 4) * 1.5 - 1));
+    const ping = 0;
 
     bars.push({
       timeLabel,
@@ -112,7 +105,7 @@ const generateTelemetry = (status: ServerStatus): BarData[] => {
       maxPlayers: maxSlots,
       ping,
       health,
-      outageDuration,
+      estimated: true,
     });
   }
   return bars;
@@ -129,8 +122,10 @@ export function UnifiedServerStatsCard({
   patches: PatchUpdate[];
   customTelemetryMessage?: string;
 }) {
-  const onlineState: "online" | "degraded" | "offline" =
-    !status.live || !status.online
+  const onlineState: "online" | "degraded" | "offline" | "unavailable" =
+    !status.live
+      ? "unavailable"
+      : !status.online
       ? "offline"
       : status.ping > 120
       ? "degraded"
@@ -141,7 +136,7 @@ export function UnifiedServerStatsCard({
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const activeBar = hoveredIndex !== null ? bars[hoveredIndex] : bars[bars.length - 1];
-  const peakPlayers = Math.max(...bars.map((b) => b.players));
+  const peakPlayers = Math.max(1, ...bars.map((b) => b.players));
 
   // Pagination calculations
   const totalPages = Math.ceil((patches.length || 1) / PATCHES_PER_PAGE);
@@ -155,7 +150,7 @@ export function UnifiedServerStatsCard({
       dot: "bg-emerald-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] animate-pulse",
       badge: "border-success/30 bg-success/10 text-success font-bold",
       text: "text-success",
-      title: "99.9% Operational",
+      title: "Server Online",
       icon: CheckCircle2,
     },
     degraded: {
@@ -164,6 +159,14 @@ export function UnifiedServerStatsCard({
       badge: "border-warning/30 bg-warning/10 text-warning font-bold",
       text: "text-warning",
       title: "Degraded Connection",
+      icon: AlertTriangle,
+    },
+    unavailable: {
+      border: "border-line-strong/50 shadow-sm",
+      dot: "bg-slate-400",
+      badge: "border-line-strong bg-surface text-muted font-bold",
+      text: "text-muted",
+      title: "Status Unavailable",
       icon: AlertTriangle,
     },
     offline: {
@@ -203,7 +206,7 @@ export function UnifiedServerStatsCard({
             </span>
           </div>
           <p className="mt-1 text-sm text-muted">
-            Live player activity, server health, and official Discord patch notes.
+            Live player activity when available, clearly labelled estimates, and official Discord patch notes.
           </p>
         </div>
 
@@ -225,6 +228,16 @@ export function UnifiedServerStatsCard({
         </div>
       )}
 
+      {onlineState === "unavailable" && (
+        <div className="rounded-2xl border border-line-strong bg-surface/70 p-5 flex items-start gap-3.5 text-muted">
+          <AlertTriangle size={22} className="shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-bold text-ink text-base">Live status temporarily unavailable</h4>
+            <p className="mt-1 text-xs leading-relaxed">The status provider did not answer this check. This does not mean the Minecraft server is offline.</p>
+          </div>
+        </div>
+      )}
+
       {/* 2. FIRST: 24-HOUR PLAYER COMMUNITY GRAPH WITH FLOATING STATUSPAGE TOOLTIPS */}
       <div className="rounded-2xl border border-line-strong/40 bg-surface/60 p-5 sm:p-6 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4">
@@ -233,18 +246,18 @@ export function UnifiedServerStatsCard({
               <Activity size={20} />
             </span>
             <div>
-              <h3 className="font-display text-lg font-bold text-ink">24-Hour Active Player Community</h3>
-              <p className="text-xs text-muted">Hover over any bar to view detailed hourly downtime & latency logs.</p>
+              <h3 className="font-display text-lg font-bold text-ink">24-Hour Player Activity Estimate</h3>
+              <p className="text-xs text-muted">Earlier bars are estimates; Right Now comes from the live status feed.</p>
             </div>
           </div>
 
           {/* Legend */}
           <div className="flex items-center gap-3 text-xs font-semibold">
-            <span className="flex items-center gap-1.5 text-success">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Optimal
+            <span className="flex items-center gap-1.5 text-accent-bright">
+              <span className="h-2.5 w-2.5 rounded-full bg-accent" /> Estimated
             </span>
-            <span className="flex items-center gap-1.5 text-warning">
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Degraded
+            <span className="flex items-center gap-1.5 text-success">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Live
             </span>
             <span className="flex items-center gap-1.5 text-danger">
               <span className="h-2.5 w-2.5 rounded-full bg-rose-500" /> Offline
@@ -261,7 +274,7 @@ export function UnifiedServerStatsCard({
             <p className="telemetry mt-1 text-base font-bold text-ink">{activeBar.timeLabel}</p>
           </div>
           <div className="rounded-xl border border-line/60 bg-card/80 p-3 shadow-2xs">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Active Players</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{activeBar.estimated ? "Estimated Players" : "Active Players"}</span>
             <p className="telemetry mt-1 text-base font-extrabold text-ink">
               {activeBar.players} <span className="text-xs font-normal text-muted">/ {activeBar.maxPlayers}</span>
             </p>
@@ -273,7 +286,7 @@ export function UnifiedServerStatsCard({
             <p className={`telemetry mt-1 text-base font-bold ${
               activeBar.health === "operational" ? "text-success" : activeBar.health === "degraded" ? "text-warning" : "text-danger"
             }`}>
-              {activeBar.ping}ms
+              {activeBar.estimated ? "—" : activeBar.ping ? `${activeBar.ping}ms` : "Not reported"}
             </p>
           </div>
           <div className="rounded-xl border border-line/60 bg-card/80 p-3 shadow-2xs">
@@ -283,7 +296,7 @@ export function UnifiedServerStatsCard({
             <p className={`telemetry mt-1 text-base font-bold ${
               activeBar.health === "operational" ? "text-success" : activeBar.health === "degraded" ? "text-warning" : "text-danger"
             }`}>
-              {activeBar.health === "operational" ? "Optimal" : activeBar.health === "degraded" ? "Fair" : "Offline"}
+              {activeBar.estimated ? "Estimate" : !status.live ? "Unavailable" : activeBar.health === "operational" ? "Online" : activeBar.health === "degraded" ? "Degraded" : "Offline"}
             </p>
           </div>
         </div>
@@ -309,7 +322,15 @@ export function UnifiedServerStatsCard({
                       <span className="text-[10px] text-muted font-normal">Today</span>
                     </div>
 
-                    {bar.health === "operational" ? (
+                    {bar.estimated ? (
+                      <div className="mt-2 text-[11px] text-accent-bright font-medium flex items-center gap-1.5">
+                        <Activity size={13} /> Illustrative estimate — historical monitoring is not connected yet.
+                      </div>
+                    ) : !status.live ? (
+                      <div className="mt-2 text-[11px] text-muted font-medium flex items-center gap-1.5">
+                        <AlertTriangle size={13} /> The live status provider did not answer this check.
+                      </div>
+                    ) : bar.health === "operational" ? (
                       <div className="mt-2 text-[11px] text-success font-medium flex items-center gap-1.5">
                         <CheckCircle2 size={13} /> {customTelemetryMessage || "No downtime recorded during this hour."}
                       </div>
@@ -338,7 +359,7 @@ export function UnifiedServerStatsCard({
                       </div>
                       <div>
                         <span className="text-muted block text-[9px] uppercase font-bold">Connection</span>
-                        <span className="font-bold text-ink">{bar.ping}ms ping</span>
+                        <span className="font-bold text-ink">{bar.estimated ? "Not measured" : bar.ping ? `${bar.ping}ms ping` : "Not reported"}</span>
                       </div>
                     </div>
                   </div>
@@ -346,7 +367,7 @@ export function UnifiedServerStatsCard({
 
                 <div
                   style={{ height: `${heightPercent}%` }}
-                  className={`w-full rounded-t transition-all duration-200 ${getBarColor(bar.health, isHovered)}`}
+                  className={`w-full rounded-t transition-all duration-200 ${bar.estimated ? "bg-gradient-to-t from-accent/45 to-accent-bright/70" : !status.live ? "bg-slate-500/55" : getBarColor(bar.health, isHovered)}`}
                 />
               </div>
             );
@@ -381,8 +402,8 @@ export function UnifiedServerStatsCard({
               </span>
             </div>
             <div className="telemetry mt-3 text-3xl font-bold text-ink">
-              {status.live && status.online ? status.players : 0}
-              <span className="text-sm font-normal text-muted"> / {status.max}</span>
+              {status.live && status.online ? status.players : "—"}
+              {status.live && <span className="text-sm font-normal text-muted"> / {status.max}</span>}
             </div>
             <div className="mt-3.5 h-2 w-full overflow-hidden rounded-full bg-line/60">
               <div
@@ -395,7 +416,7 @@ export function UnifiedServerStatsCard({
               />
             </div>
             <span className="mt-2 block text-[11px] font-medium text-muted">
-              {onlineState === "offline" ? "Server currently offline" : `Capacity: ${Math.round((status.players / (status.max || 1)) * 100)}% Full`}
+              {!status.live ? "Live count unavailable" : onlineState === "offline" ? "Server currently offline" : `Capacity: ${Math.round((status.players / (status.max || 1)) * 100)}% Full`}
             </span>
           </div>
 
@@ -408,7 +429,7 @@ export function UnifiedServerStatsCard({
               </span>
             </div>
             <div className="telemetry mt-3 text-2xl font-bold text-ink truncate">
-              {status.version || "1.21.11"}
+              {status.live ? status.version : "Unavailable"}
             </div>
             <div className="mt-3 flex items-center gap-1.5">
               <span className="inline-block h-2 w-2 rounded-full bg-cyan-500" />
@@ -433,11 +454,11 @@ export function UnifiedServerStatsCard({
               </span>
             </div>
             <div className={`telemetry mt-3 text-3xl font-bold ${stateTheme.text}`}>
-              {status.live && status.ping ? `${status.ping}ms` : onlineState === "offline" ? "Offline" : "< 20ms"}
+              {status.live && status.ping ? `${status.ping}ms` : onlineState === "offline" ? "Offline" : "Not reported"}
             </div>
             <div className="mt-3 flex items-center gap-1.5">
               <span className={`inline-block h-2 w-2 rounded-full ${onlineState === "offline" ? "bg-rose-500" : "bg-emerald-500"}`} />
-              <span className="text-xs text-muted font-medium">Ultra-Low Latency Network</span>
+              <span className="text-xs text-muted font-medium">{status.ping ? "Reported by the live status feed" : "The provider does not expose latency"}</span>
             </div>
           </div>
 
@@ -456,11 +477,11 @@ export function UnifiedServerStatsCard({
               </span>
             </div>
             <div className="telemetry mt-3 text-3xl font-bold text-gold">
-              {status.live ? status.uptime : "99.9%"}
+              {status.live && status.uptime !== "—" ? status.uptime : "Not tracked"}
             </div>
             <div className="mt-3 flex items-center gap-1.5">
               <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-              <span className="text-xs text-muted font-medium">99.9% High Availability</span>
+              <span className="text-xs text-muted font-medium">Historical uptime monitoring not connected</span>
             </div>
           </div>
         </div>
