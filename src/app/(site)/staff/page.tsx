@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { BadgeCheck, Crown, Gavel, Handshake, Shield, Sparkles, UsersRound } from "lucide-react";
+import { BadgeCheck, CircleHelp, Crown, Gavel, Handshake, Shield, Sparkles, UsersRound } from "lucide-react";
 import { FloatingBrandLogo, MinecraftAvatar, Reveal } from "@/components/shared";
 import { roleLabel, STAFF_ROLES } from "@/lib/auth";
 import { listPublicStaffAccounts, type PublicStaffMember } from "@/lib/data/accounts";
@@ -87,7 +87,7 @@ export default async function StaffPage() {
             </div>
             <p className="eyebrow mb-2 mt-1">Our Team</p>
             <h1 className="text-3xl font-extrabold sm:text-4xl lg:text-5xl">Meet the Mazora Team</h1>
-            <p className="mt-4 max-w-2xl text-sm font-medium leading-relaxed text-white/75 sm:text-base">
+            <p className="team-hero-lead mt-4 max-w-2xl text-sm font-medium leading-relaxed sm:text-base">
               The people behind every update, event, support request, and safe adventure across the Mazora Network.
             </p>
           </div>
@@ -145,6 +145,33 @@ export default async function StaffPage() {
 
         <Reveal delay={0.05}>
           <div className="team-org-chart" aria-label="Mazora Network team hierarchy">
+            <details className="team-ranks-help">
+              <summary aria-label="View all staff ranks" title="View all staff ranks">
+                <CircleHelp size={20} />
+              </summary>
+              <div className="team-ranks-popover">
+                <div className="team-ranks-popover-heading">
+                  <strong>Staff rank guide</strong>
+                  <span>Leadership to community support</span>
+                </div>
+                <div className="team-ranks-list">
+                  {LADDER.map((role) => {
+                    const rank = rolePresentation[role] ?? rolePresentation.helper!;
+                    const RankIcon = rank.icon;
+
+                    return (
+                      <div key={role} className={`team-rank-guide-row team-member-${rank.tier}`}>
+                        <span className="team-rank-guide-icon" aria-hidden><RankIcon size={16} /></span>
+                        <div>
+                          <h3>{roleLabel(role)}</h3>
+                          <p>{roleSummary[role]}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </details>
             {members === null ? (
               <div className="team-empty-state">
                 <Shield size={26} />
@@ -159,21 +186,10 @@ export default async function StaffPage() {
               </div>
             ) : groups.map((group, index) => {
               const presentation = rolePresentation[group.role] ?? rolePresentation.helper!;
-              const RankIcon = presentation.icon;
 
               return (
                 <div key={group.role} className={`team-rank-group team-member-${presentation.tier}`}>
                   {index > 0 && <FlowConnector />}
-                  <div className="team-rank-label">
-                    <span className="team-rank-label-icon" aria-hidden><RankIcon size={17} /></span>
-                    <div>
-                      <div className="team-rank-label-title">
-                        <h3>{roleLabel(group.role)}</h3>
-                        <span>{group.members.length} {group.members.length === 1 ? "member" : "members"}</span>
-                      </div>
-                      <p>{roleSummary[group.role]}</p>
-                    </div>
-                  </div>
                   <div className="team-tier team-tier-dynamic">
                     {group.members.map((member) => <TeamMemberCard key={member.userId} member={member} />)}
                   </div>
