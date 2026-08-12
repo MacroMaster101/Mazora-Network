@@ -5,15 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
-  Gavel,
   LayoutDashboard,
   Receipt,
   Settings,
-  ShieldAlert,
-  Ticket,
-  Trophy,
-  Vote,
-  CalendarDays,
   ChevronDown,
   LogOut,
   Shield,
@@ -26,12 +20,6 @@ import { cn } from "@/lib/utils";
 
 const items = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Statistics", href: "/dashboard/statistics", icon: Trophy },
-  { label: "Voting", href: "/dashboard/votes", icon: Vote },
-  { label: "Tickets", href: "/dashboard/tickets", icon: Ticket },
-  { label: "Appeals", href: "/dashboard/appeals", icon: Gavel },
-  { label: "Reports", href: "/dashboard/reports", icon: ShieldAlert },
-  { label: "Events", href: "/dashboard/events", icon: CalendarDays },
   { label: "Purchases", href: "/dashboard/purchases", icon: Receipt },
   { label: "Notifications", href: "/dashboard/notifications", icon: Bell },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },

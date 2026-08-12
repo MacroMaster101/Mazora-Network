@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Image, { getImageProps } from "next/image";
 import Link from "next/link";
-import { ArrowRight, ExternalLink, Map, MapPin, MonitorSmartphone, Newspaper, Play, Radio, ShieldCheck, UsersRound } from "lucide-react";
+import { ArrowRight, Map, MapPin, MonitorSmartphone, Newspaper, Play, Radio, ShieldCheck, UsersRound } from "lucide-react";
 import { CopyIpButton } from "@/components/shared/copy-ip-button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Reveal } from "@/components/shared/reveal";
 import { SectionHeader } from "@/components/shared/section-header";
 import { DiscordIcon } from "@/components/shared/icon";
 import { NewsBoard } from "@/components/shared/news-board";
+import { LiveWorldMap } from "@/components/shared/live-world-map";
 import { getNews } from "@/lib/data/content";
 import { getDiscordStats } from "@/lib/data/discord";
 import { getServerStatus } from "@/lib/data/status";
@@ -228,19 +229,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
               </div>
 
               {mapUrl ? (
-                <div className="home-map-frame-wrap">
-                  <iframe
-                    src={mapUrl}
-                    title="Mazora Network live Minecraft world map"
-                    className="home-map-frame"
-                    loading="lazy"
-                    allowFullScreen
-                    referrerPolicy="strict-origin-when-cross-origin"
-                  />
-                  <a className="home-map-open" href={mapUrl} target="_blank" rel="noreferrer">
-                    Open full map <ExternalLink size={15} />
-                  </a>
-                </div>
+                <LiveWorldMap mapUrl={mapUrl} />
               ) : (
                 <div className="home-map-preview">
                   <div className="home-map-terrain" aria-hidden="true">

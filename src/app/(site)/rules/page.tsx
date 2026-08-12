@@ -14,7 +14,7 @@ export default async function RulesPage() {
   const latest = categories.reduce((acc, c) => (c.updated > acc ? c.updated : acc), categories[0]?.updated ?? "");
   const updatedLabel =
     latest && !Number.isNaN(new Date(latest).getTime())
-      ? `Last updated ${new Date(latest).toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" })}`
+      ? `Last updated ${new Date(latest).toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}`
       : "Community rules";
 
   return (

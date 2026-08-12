@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bell, Receipt, Ticket, Shield, ArrowRight } from "lucide-react";
+import { Bell, Receipt, Shield, ArrowRight } from "lucide-react";
 import { requireSession, isStaff } from "@/lib/auth";
 import { StatTile } from "@/components/dashboard/dash-ui";
 import { UserAvatar } from "@/components/shared";
@@ -78,9 +78,8 @@ export default async function DashboardOverview() {
       </div>
 
       {/* Quick Action Tiles */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {[
-          { icon: Ticket, label: "Open Tickets", value: "0", href: "/dashboard/tickets", detail: "Support requests" },
           { icon: Receipt, label: "Recent Purchases", value: "0", href: "/dashboard/purchases", detail: "Store history" },
           { icon: Bell, label: "Notifications", value: "0", href: "/dashboard/notifications", detail: "Unread alerts" },
         ].map((card) => (

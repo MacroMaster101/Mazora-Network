@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { SupportSettingsProvider } from "@/components/shared/support-settings-provider";
+import { getSupportCards, getSupportMainSettings } from "@/lib/data/support-settings";
 
 /**
  * The support index is a Client Component, so it cannot export `metadata`
@@ -12,6 +14,7 @@ export const metadata: Metadata = {
     "Get help from the Mazora Network team — open a ticket, appeal a punishment, report a player or bug, or send a suggestion.",
 };
 
-export default function SupportLayout({ children }: { children: ReactNode }) {
-  return <>{children}</>;
+export default async function SupportLayout({ children }: { children: ReactNode }) {
+  const [main, cards] = await Promise.all([getSupportMainSettings(), getSupportCards()]);
+  return <SupportSettingsProvider main={main} cards={cards}>{children}</SupportSettingsProvider>;
 }

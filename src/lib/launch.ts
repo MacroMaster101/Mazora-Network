@@ -31,20 +31,6 @@ export const launchGates: LaunchGate[] = [
     message: "Rankings will open when live server statistics replace preview data.",
   },
   {
-    path: "/support/report-player",
-    icon: "Shield",
-    eyebrow: "Support launch",
-    title: "Player reports will open soon.",
-    message: "Private evidence storage and moderator workflows are being verified before reports are accepted.",
-  },
-  {
-    path: "/support/report-bug",
-    icon: "Bug",
-    eyebrow: "Support launch",
-    title: "Bug reporting will open soon.",
-    message: "The tracked support workflow is in final testing. For urgent help, contact the team on Discord.",
-  },
-  {
     path: "/support/suggestions",
     icon: "Sparkles",
     eyebrow: "Community launch",

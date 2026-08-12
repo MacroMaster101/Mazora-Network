@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Sparkles } from "lucide-react";
 import type { GalleryImage } from "@/lib/types";
-import { PageHero, Reveal } from "@/components/shared";
+import { FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";
 import { GalleryGrid } from "./gallery-grid";
 import { GallerySubmitModal } from "./gallery-submit-modal";
 
@@ -25,18 +24,7 @@ export function GalleryPageClient({
         eyebrow="Gallery"
         title="Have a peek at what our community is up to!"
         lead="Player builds, events, and community moments and more! Click on the image to view it in full-size."
-        illustration={
-          <div className="relative group">
-            <Image
-              src="/images/mazora-logo.webp"
-              alt="Mazora Network Logo"
-              width={240}
-              height={160}
-              priority
-              className="h-auto w-32 md:w-[240px] animate-float object-contain drop-shadow-[0_15px_35px_rgba(139,92,246,0.35)] transition-transform duration-500 group-hover:scale-105"
-            />
-          </div>
-        }
+        illustration={<FloatingBrandLogo />}
       >
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <button

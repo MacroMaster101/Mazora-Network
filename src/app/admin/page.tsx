@@ -2,13 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import {
   Activity,
-  Bug,
-  Gavel,
-  Lightbulb,
   ScrollText,
-  ShieldAlert,
   ShoppingBag,
-  Ticket,
   UsersRound,
   Radio,
 } from "lucide-react";
@@ -24,20 +19,11 @@ import {
   Board,
   BoardNotice,
   Metric,
-  StandbyQueue,
   WatchBar,
   ago,
 } from "@/components/admin/control-room";
 
 export const metadata: Metadata = { title: "Control room · Admin" };
-
-const QUEUES = [
-  { label: "Tickets", href: "/admin/tickets", icon: <Ticket size={15} /> },
-  { label: "Appeals", href: "/admin/appeals", icon: <Gavel size={15} /> },
-  { label: "Player reports", href: "/admin/reports", icon: <ShieldAlert size={15} /> },
-  { label: "Bug reports", href: "/admin/bugs", icon: <Bug size={15} /> },
-  { label: "Suggestions", href: "/admin/suggestions", icon: <Lightbulb size={15} /> },
-];
 
 export default async function ControlRoom() {
   const session = await getSession();
@@ -107,21 +93,6 @@ export default async function ControlRoom() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        {/* Staff queues */}
-        <Board
-          title="Your queues"
-          icon={<Ticket size={16} />}
-          tag={showDiagnostics ? "Standby" : "Coming soon"}
-          className={!canModerate ? "xl:col-span-2" : undefined}
-        >
-          <StandbyQueue items={QUEUES} showDiagnostics={showDiagnostics} />
-          <p className="border-t border-line/60 px-5 py-3 text-xs text-muted font-medium bg-ink/5">
-            {showDiagnostics
-              ? "Submissions are not stored yet. These open once the support tables are connected — until then the queues are empty by design, not because there is nothing waiting."
-              : "These staff queues are coming soon. They will appear here as each workflow becomes available."}
-          </p>
-        </Board>
-
         {canModerate && (
           <Board
             title="Player roster"

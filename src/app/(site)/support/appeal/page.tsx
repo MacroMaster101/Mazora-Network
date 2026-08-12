@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { CheckCircle2, Clock, ShieldAlert } from "lucide-react";
-import { GoogleFormEmbed, PageHero } from "@/components/shared";
+import { FloatingBrandLogo, GoogleFormEmbed, PageHero } from "@/components/shared";
 import { getFormsConfig } from "@/lib/data/forms-config";
+import { getSupportCard } from "@/lib/data/support-settings";
 
 export const metadata: Metadata = {
   title: "Ban & Mute Appeal",
@@ -10,28 +10,18 @@ export const metadata: Metadata = {
 };
 
 export default async function AppealPage() {
-  const config = await getFormsConfig();
+  const [config, supportCard] = await Promise.all([getFormsConfig(), getSupportCard("appeal")]);
   const form = config.appeals;
+  const page = supportCard.page!;
 
   return (
     <>
       <PageHero
         backLink={{ href: "/support", label: "Back to Support" }}
-        eyebrow="Support & Moderation"
-        title="Ban & Mute Appeal"
-        lead="Made a mistake, or think a punishment was issued in error? Submit an official appeal form below for moderator review."
-        illustration={
-          <div className="relative group">
-            <Image
-              src="/images/mazora-logo.webp"
-              alt="Mazora Network Logo"
-              width={240}
-              height={160}
-              priority
-              className="h-auto w-32 md:w-[240px] animate-float object-contain drop-shadow-[0_15px_35px_rgba(139,92,246,0.35)] transition-transform duration-500 group-hover:scale-105"
-            />
-          </div>
-        }
+        eyebrow={page.eyebrow}
+        title={page.title}
+        lead={page.lead}
+        illustration={<FloatingBrandLogo />}
       />
       <section className="shell pt-4 pb-20 space-y-8">
         <div className="grid gap-6 sm:grid-cols-3">
@@ -71,12 +61,7 @@ export default async function AppealPage() {
           description={form.enabled ? "Click below to open the official Google Form and submit your punishment review request." : "Appeals intake is currently paused. Please check back later."}
           buttonText={form.enabled ? "Open Appeal Form" : "Intake Paused"}
           disabled={!form.enabled}
-          bulletPoints={[
-            "State your exact Minecraft username and punishment type (Ban, Temp-ban, Mute, or Warning).",
-            "Provide the exact punishment reason shown on your disconnect or mute screen.",
-            "Write a detailed explanation describing why the punishment should be lifted or reduced.",
-            "Include unedited screenshot or video proof links (Imgur, Streamable, YouTube) if available.",
-          ]}
+          bulletPoints={page.details}
         />
       </section>
     </>

@@ -9,7 +9,7 @@ import { MobileMenu } from "./mobile-menu";
 import { ThemeCycleButton } from "@/components/theme/theme-toggle";
 import { CartTrigger } from "@/components/shared/cart-trigger";
 
-export async function SiteHeader({ world = false }: { world?: boolean }) {
+export async function SiteHeader({ world = false, stable = false }: { world?: boolean; stable?: boolean }) {
   const session = await getSession();
   const userId = session ? await getSessionUserId() : null;
 
@@ -27,7 +27,7 @@ export async function SiteHeader({ world = false }: { world?: boolean }) {
       : null;
 
   return (
-    <ScrollHeader world={world}>
+    <ScrollHeader world={world} stable={stable}>
       <div className="header-shell shell grid h-[4.75rem] grid-cols-[1fr_auto] items-center gap-3 min-[1200px]:grid-cols-[1fr_auto_1fr]">
         <div className="justify-self-start min-[1200px]:hidden">
           <Logo height={84} className="mobile-header-logo" priority />
