@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Check, Clock3, Sparkles, Terminal, Users } from "lucide-react";
 import { getGameMode } from "@/lib/data/content";
 import { getServerStatus } from "@/lib/data/status";
 import { site } from "@/lib/site";
-import { CopyIpButton, Icon, PageHero, Reveal } from "@/components/shared";
+import { CopyIpButton, FloatingBrandLogo, Icon, PageHero, Reveal } from "@/components/shared";
 import { accentStyles } from "@/components/shared/accent";
 
 // Per-request so an unknown slug returns a real 404 instead of a soft 200. See
@@ -35,18 +34,7 @@ export default async function GameModeDetail({ params }: { params: Promise<{ slu
         eyebrow={mode.tagline || (isLive ? "Store live" : "Coming soon")}
         title={mode.name}
         lead={mode.description}
-        illustration={
-          <div className="relative group p-2">
-            <Image
-              src="/images/mazora-logo.webp"
-              alt="Mazora Network Logo"
-              width={260}
-              height={173}
-              priority
-              className="relative animate-float object-contain drop-shadow-[0_15px_35px_rgba(147,51,234,0.45)] transition-transform duration-300 group-hover:scale-105"
-            />
-          </div>
-        }
+        illustration={<FloatingBrandLogo />}
       >
         <div className="flex flex-wrap items-center gap-3">
           <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-line-strong bg-black/30 ${accent.text}`}>

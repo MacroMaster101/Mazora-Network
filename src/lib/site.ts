@@ -59,6 +59,9 @@ export const site = {
   region: "Asia Pacific",
   launchDate: "2023-10-01",
   discord: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt",
+  discordSupportTickets:
+    process.env.NEXT_PUBLIC_DISCORD_SUPPORT_TICKETS_URL ??
+    "https://discord.com/channels/805453071261237286/1311727859672547478",
   url: resolvePublicOrigin(),
   socials: [
     { label: "Discord", href: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt", icon: "Discord" },

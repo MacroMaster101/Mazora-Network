@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, CheckCheck, ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, Sparkles, Ticket, User } from "lucide-react";
+import { Bell, CheckCheck, ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, Sparkles, User } from "lucide-react";
 import type { Session } from "@/lib/auth";
 import { isStaff } from "@/lib/auth/roles";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
@@ -20,7 +20,6 @@ import {
 /** Account menu for regular members — personal account screens under /dashboard. */
 const MEMBER_MENU = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Tickets", href: "/dashboard/tickets", icon: Ticket },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
