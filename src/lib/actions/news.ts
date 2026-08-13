@@ -167,6 +167,9 @@ async function attachImage(
 
   let url: string | null = null;
   if (file instanceof File && file.size > 0) {
+    // Size-check BEFORE buffering — storeImageBytes re-checks, but only after
+    // the whole body has been read into memory.
+    if (file.size > 8 * 1024 * 1024) return { ok: false, message: "use a JPEG, PNG, WebP or GIF under 8 MB." };
     const bytes = new Uint8Array(await file.arrayBuffer());
     const stored = await storeImageBytes(bytes, `custom/${id}-${Date.now()}`);
     if (!stored) return { ok: false, message: "use a JPEG, PNG, WebP or GIF under 8 MB." };
@@ -511,6 +514,11 @@ export async function uploadArticleImageAction(formData: FormData): Promise<News
     const file = formData.get("imageFile");
     if (!(file instanceof File) || file.size === 0) {
       return { ok: false, message: "Choose an image to upload." };
+    }
+    // Size-check BEFORE buffering — storeImageBytes re-checks, but only after
+    // the whole body has been read into memory.
+    if (file.size > 8 * 1024 * 1024) {
+      return { ok: false, message: "That file was not accepted. Use a JPEG, PNG, WebP or GIF under 8 MB." };
     }
 
     const bytes = new Uint8Array(await file.arrayBuffer());

@@ -95,35 +95,32 @@ export const canManageNews = (s: Session | null, u?: string | null) => canManage
 export const getGalleryPermissions = () => getModulePermissions(GALLERY_PERMISSION_KEY);
 export const canManageGallery = (s: Session | null, u?: string | null) => canManageModule(GALLERY_PERMISSION_KEY, s, u);
 
+/*
+  Only the modules whose admin surfaces actually branch on a canManageX check
+  keep a wrapper (News, Gallery, Minecraft below). The other modules gate on
+  role via requireRole in their pages/actions; their unused canManageX
+  wrappers were removed — the getXPermissions readers remain because
+  /admin/permissions renders every module's grant list.
+*/
 export const getTicketsPermissions = () => getModulePermissions(TICKETS_PERMISSION_KEY);
-export const canManageTickets = (s: Session | null, u?: string | null) => canManageModule(TICKETS_PERMISSION_KEY, s, u);
 
 export const getAppealsPermissions = () => getModulePermissions(APPEALS_PERMISSION_KEY);
-export const canManageAppeals = (s: Session | null, u?: string | null) => canManageModule(APPEALS_PERMISSION_KEY, s, u);
 
 export const getReportsPermissions = () => getModulePermissions(REPORTS_PERMISSION_KEY);
-export const canManageReports = (s: Session | null, u?: string | null) => canManageModule(REPORTS_PERMISSION_KEY, s, u);
 
 export const getBugsPermissions = () => getModulePermissions(BUGS_PERMISSION_KEY);
-export const canManageBugs = (s: Session | null, u?: string | null) => canManageModule(BUGS_PERMISSION_KEY, s, u);
 
 export const getSuggestionsPermissions = () => getModulePermissions(SUGGESTIONS_PERMISSION_KEY);
-export const canManageSuggestions = (s: Session | null, u?: string | null) => canManageModule(SUGGESTIONS_PERMISSION_KEY, s, u);
 
 export const getEventsPermissions = () => getModulePermissions(EVENTS_PERMISSION_KEY);
-export const canManageEvents = (s: Session | null, u?: string | null) => canManageModule(EVENTS_PERMISSION_KEY, s, u);
 
 export const getGameModesPermissions = () => getModulePermissions(GAMEMODES_PERMISSION_KEY);
-export const canManageGameModes = (s: Session | null, u?: string | null) => canManageModule(GAMEMODES_PERMISSION_KEY, s, u);
 
 export const getStorePermissions = () => getModulePermissions(STORE_PERMISSION_KEY);
-export const canManageStore = (s: Session | null, u?: string | null) => canManageModule(STORE_PERMISSION_KEY, s, u);
 
 export const getRulesPermissions = () => getModulePermissions(RULES_PERMISSION_KEY);
-export const canManageRules = (s: Session | null, u?: string | null) => canManageModule(RULES_PERMISSION_KEY, s, u);
 
 export const getNotificationsPermissions = () => getModulePermissions(NOTIFICATIONS_PERMISSION_KEY);
-export const canManageNotifications = (s: Session | null, u?: string | null) => canManageModule(NOTIFICATIONS_PERMISSION_KEY, s, u);
 
 export const getMinecraftPermissions = () => getModulePermissions(MINECRAFT_PERMISSION_KEY);
 export const canManageMinecraft = (s: Session | null, u?: string | null) => canManageModule(MINECRAFT_PERMISSION_KEY, s, u);

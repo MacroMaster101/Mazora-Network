@@ -21,21 +21,21 @@ export default function TermsPage() {
   });
 
   const SECTIONS = [
-    { id: "acceptance", title: "1. Acceptance of terms" },
-    { id: "accounts", title: "2. Accounts" },
-    { id: "use", title: "3. Acceptable use" },
-    { id: "purchases", title: "4. Purchases and virtual items" },
-    { id: "refunds", title: "5. Refunds" },
-    { id: "resets", title: "6. Server resets and data wipes" },
-    { id: "rank-types", title: "7. Rank types" },
-    { id: "transfers", title: "8. Account and rank transfers" },
-    { id: "chargebacks", title: "9. Chargebacks and payment abuse" },
-    { id: "conduct", title: "10. Content and conduct" },
-    { id: "availability", title: "11. Service availability" },
-    { id: "termination", title: "12. Termination" },
-    { id: "liability", title: "13. Disclaimer and liability" },
-    { id: "changes", title: "14. Changes to these terms" },
-    { id: "contact", title: "15. Contact" },
+    { id: "acceptance", title: "Acceptance of terms" },
+    { id: "accounts", title: "Accounts" },
+    { id: "use", title: "Acceptable use" },
+    { id: "purchases", title: "Purchases and virtual items" },
+    { id: "refunds", title: "Refunds" },
+    { id: "resets", title: "Server resets and data wipes" },
+    { id: "rank-types", title: "Rank types" },
+    { id: "transfers", title: "Account and rank transfers" },
+    { id: "chargebacks", title: "Chargebacks and payment abuse" },
+    { id: "conduct", title: "Content and conduct" },
+    { id: "availability", title: "Service availability" },
+    { id: "termination", title: "Termination" },
+    { id: "liability", title: "Disclaimer and liability" },
+    { id: "changes", title: "Changes to these terms" },
+    { id: "contact", title: "Contact" },
   ];
 
   return (
@@ -60,7 +60,7 @@ export default function TermsPage() {
               <article id="acceptance" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">01</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">1. Acceptance of terms</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Acceptance of terms</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   By accessing {site.name} — including our website at{" "}
@@ -73,7 +73,7 @@ export default function TermsPage() {
               <article id="accounts" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">02</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">2. Accounts</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Accounts</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   You are responsible for keeping your account credentials secure and for all activity
@@ -87,7 +87,7 @@ export default function TermsPage() {
               <article id="use" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">03</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">3. Acceptable use</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Acceptable use</h2>
                 </div>
                 <ul className="legal-prose text-muted text-sm sm:text-base space-y-2">
                   <li>Follow the <Link href="/rules">community rules</Link> at all times.</li>
@@ -105,7 +105,7 @@ export default function TermsPage() {
               <article id="purchases" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">04</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">4. Purchases and virtual items</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Purchases and virtual items</h2>
                 </div>
                 <div className="legal-prose text-muted text-sm sm:text-base space-y-3">
                   <p>
@@ -132,7 +132,7 @@ export default function TermsPage() {
               <article id="refunds" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">05</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">5. Refunds</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Refunds</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   {site.name} maintains a strict no-refund policy with limited exceptions. In short:
@@ -150,7 +150,7 @@ export default function TermsPage() {
               <article id="resets" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">06</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">6. Server resets and data wipes</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Server resets and data wipes</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   We reserve the right to reset a server at any time, with at least a week&apos;s
@@ -164,7 +164,7 @@ export default function TermsPage() {
               <article id="rank-types" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">07</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">7. Rank types</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Rank types</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   {site.name} offers permanent ranks and monthly subscription ranks. Permanent ranks
@@ -177,7 +177,7 @@ export default function TermsPage() {
               <article id="transfers" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">08</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">8. Account and rank transfers</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Account and rank transfers</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   Rank transfers between accounts are granted at our discretion. A transfer request requires valid proof of purchase, original transaction reference, and staff approval. Transfers are only processed from a cracked (offline-mode) account to a premium (Java-authenticated) account.
@@ -188,7 +188,7 @@ export default function TermsPage() {
               <article id="chargebacks" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm border-l-4 border-l-amber-500 hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/30">09</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">9. Chargebacks and payment abuse</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Chargebacks and payment abuse</h2>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs sm:text-sm text-amber-900 dark:text-amber-200">
@@ -208,7 +208,7 @@ export default function TermsPage() {
               <article id="conduct" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">10</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">10. Content and conduct</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Content and conduct</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   You retain ownership of content you submit (such as builds, screenshots, and forum
@@ -221,7 +221,7 @@ export default function TermsPage() {
               <article id="availability" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">11</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">11. Service availability</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Service availability</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   We aim to keep the service running smoothly but do not guarantee uninterrupted
@@ -233,7 +233,7 @@ export default function TermsPage() {
               <article id="termination" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">12</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">12. Termination</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Termination</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   We may suspend or terminate your access at any time for violations of these terms or our
@@ -245,7 +245,7 @@ export default function TermsPage() {
               <article id="liability" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">13</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">13. Disclaimer and liability</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Disclaimer and liability</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   The service is provided &ldquo;as is&rdquo; without warranties of any kind. To the
@@ -258,7 +258,7 @@ export default function TermsPage() {
               <article id="changes" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">14</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">14. Changes to these terms</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Changes to these terms</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   We may update these terms from time to time. By purchasing from or using {site.name}, you confirm you are at least 13 years old (or have parental permission) and agree to these terms.
@@ -269,7 +269,7 @@ export default function TermsPage() {
               <article id="contact" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">15</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">15. Contact</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Contact</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   Questions about these terms? Reach us through our{" "}

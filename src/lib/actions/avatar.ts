@@ -171,6 +171,20 @@ export async function useMinecraftAvatarAction(
     return { ok: false, message: `The Minecraft name "${targetUsername}" is already claimed by another user.` };
   }
 
+  // profiles.username is UNIQUE and is a separate namespace from
+  // minecraft_accounts: a name can be free as an IGN yet taken as a website
+  // handle. Without this pre-check the profiles update below failed on the
+  // constraint while the action still reported success (same guard as
+  // linkMinecraftUsernameAction in minecraft.ts).
+  const { data: existingProfile } = await admin
+    .from("profiles")
+    .select("user_id")
+    .ilike("username", targetUsername)
+    .maybeSingle();
+  if (existingProfile && String(existingProfile.user_id) !== auth.user.id) {
+    return { ok: false, message: `The website handle "${targetUsername}" is already used by another user account.` };
+  }
+
   const now = new Date().toISOString();
 
   // Upsert the minecraft_accounts link for this user
@@ -196,11 +210,16 @@ export async function useMinecraftAvatarAction(
   }
 
   const skinAvatarUrl = `https://mc-heads.net/avatar/${encodeURIComponent(targetUsername)}/256`;
-  await admin.from("profiles").update({
+  const { error: profileError } = await admin.from("profiles").update({
     username: targetUsername,
     avatar_url: skinAvatarUrl,
     updated_at: now,
   }).eq("user_id", auth.user.id);
+  if (profileError) {
+    // Do NOT update auth metadata here: it would record a username the
+    // profile row does not actually hold.
+    return { ok: false, message: "Your profile could not be updated. Please try again." };
+  }
 
   await auth.supabase.auth.updateUser({ data: { username: targetUsername, avatar_url: skinAvatarUrl } });
   // Both shells must be refreshed, not just the member one: staff manage their

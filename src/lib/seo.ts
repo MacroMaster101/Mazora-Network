@@ -174,6 +174,26 @@ export function productSchema(input: ProductSchemaInput) {
 }
 
 /**
+ * FAQ markup for a page that visibly answers these exact questions.
+ *
+ * Google requires every Q and A here to be present in the rendered page and
+ * fully visible to the user — collapsed <details> counts, hidden or
+ * paraphrased text does not. Keep the strings below and the JSX generated from
+ * them fed by one array so they cannot drift apart.
+ */
+export function faqPageSchema(path: string, faqs: { question: string; answer: string }[]) {
+  return {
+    "@type": "FAQPage",
+    "@id": `${absoluteUrl(path)}#faq`,
+    mainEntity: faqs.map(({ question, answer }) => ({
+      "@type": "Question",
+      name: question,
+      acceptedAnswer: { "@type": "Answer", text: answer },
+    })),
+  };
+}
+
+/**
  * Wraps nodes in a single @graph document. One script tag per page keeps the
  * nodes cross-referencing each other by @id rather than repeating themselves.
  */

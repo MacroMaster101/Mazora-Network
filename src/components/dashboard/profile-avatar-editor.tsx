@@ -289,7 +289,7 @@ export function ProfileAvatarEditor({
                     placeholder="e.g. KaviYa"
                     maxLength={16}
                     required
-                    className="w-full rounded-lg border border-line bg-base px-3 py-2 text-sm font-semibold text-ink focus:border-accent focus:outline-none"
+                    className="w-full rounded-lg border border-line bg-page px-3 py-2 text-sm font-semibold text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
               </div>
@@ -376,7 +376,7 @@ export function ProfileAvatarEditor({
                     <Upload size={13} /> Choose skin file
                   </label>
                   {skinFile && (
-                    <span className="flex items-center gap-1.5 rounded-lg border border-line-strong bg-base px-2.5 py-1 text-xs font-semibold text-ink">
+                    <span className="flex items-center gap-1.5 rounded-lg border border-line-strong bg-page px-2.5 py-1 text-xs font-semibold text-ink">
                       <span className="min-w-0 truncate">{skinFile.name}</span>
                       <button
                         type="button"
