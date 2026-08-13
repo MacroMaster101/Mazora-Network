@@ -21,15 +21,15 @@ export default function RefundsPage() {
   });
 
   const SECTIONS = [
-    { id: "overview", title: "1. Overview" },
-    { id: "ranks", title: "2. Ranks" },
-    { id: "keys-packages", title: "3. Crate keys, packages & cosmetics" },
-    { id: "gameplay-loss", title: "4. Loss through gameplay" },
-    { id: "resets", title: "5. Server resets" },
-    { id: "bans", title: "6. Bans and forfeiture" },
-    { id: "delivery", title: "7. Non-delivery" },
-    { id: "chargebacks", title: "8. Chargebacks & payment disputes" },
-    { id: "how-to-request", title: "9. How to request a refund" },
+    { id: "overview", title: "Overview" },
+    { id: "ranks", title: "Ranks" },
+    { id: "keys-packages", title: "Crate keys, packages & cosmetics" },
+    { id: "gameplay-loss", title: "Loss through gameplay" },
+    { id: "resets", title: "Server resets" },
+    { id: "bans", title: "Bans and forfeiture" },
+    { id: "delivery", title: "Non-delivery" },
+    { id: "chargebacks", title: "Chargebacks & payment disputes" },
+    { id: "how-to-request", title: "How to request a refund" },
   ];
 
   return (
@@ -54,7 +54,7 @@ export default function RefundsPage() {
               <article id="overview" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">01</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">1. Overview</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Overview</h2>
                 </div>
                 <div className="space-y-3 text-muted text-sm sm:text-base leading-relaxed">
                   <p>
@@ -76,7 +76,7 @@ export default function RefundsPage() {
               <article id="ranks" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">02</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">2. Ranks</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Ranks</h2>
                 </div>
                 <ul className="legal-prose text-muted text-sm sm:text-base space-y-2">
                   <li>Refunds are available only if requested within 24 hours of purchase.</li>
@@ -90,7 +90,7 @@ export default function RefundsPage() {
               <article id="keys-packages" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">03</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">3. Crate keys, packages & cosmetics</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Crate keys, packages & cosmetics</h2>
                 </div>
                 <div className="space-y-3">
                   <p className="text-muted text-sm sm:text-base">The following are non-refundable under any circumstance once delivered:</p>
@@ -113,7 +113,7 @@ export default function RefundsPage() {
               <article id="gameplay-loss" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">04</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">4. Loss through gameplay</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Loss through gameplay</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   Items lost through PvP deaths, gameplay design, or normal in-game risk are
@@ -126,7 +126,7 @@ export default function RefundsPage() {
               <article id="resets" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">05</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">5. Server resets</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Server resets</h2>
                 </div>
                 <div className="space-y-2 text-muted text-sm sm:text-base">
                   <p>When a server reset occurs with advance notice:</p>
@@ -142,7 +142,7 @@ export default function RefundsPage() {
               <article id="bans" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">06</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">6. Bans and forfeiture</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Bans and forfeiture</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   If a player receives a temporary or permanent ban, all purchases tied to that
@@ -155,7 +155,7 @@ export default function RefundsPage() {
               <article id="delivery" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">07</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">7. Non-delivery</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Non-delivery</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   If {site.name} fails to deliver a paid-for item within 24 hours of a confirmed
@@ -168,7 +168,7 @@ export default function RefundsPage() {
               <article id="chargebacks" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm border-l-4 border-l-amber-500 hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/30">08</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">8. Chargebacks & payment disputes</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Chargebacks & payment disputes</h2>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs sm:text-sm text-amber-900 dark:text-amber-200">
@@ -188,7 +188,7 @@ export default function RefundsPage() {
               <article id="how-to-request" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">09</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">9. How to request a refund</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">How to request a refund</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   To request a refund, contact us through our{" "}

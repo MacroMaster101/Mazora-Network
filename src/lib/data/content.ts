@@ -7,7 +7,8 @@
  * does not have. Today the store and vote sites read from the database; the
  * remaining sections fill in as their tables are populated.
  */
-import { and, asc, desc, eq, getTableColumns, isNull, lte, or, sql } from "drizzle-orm";
+import { cache } from "react";
+import { and, asc, desc, eq, getTableColumns, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type {
   Accent,
   EventItem,
@@ -50,7 +51,15 @@ function toProduct(row: ProductRow): Product {
   };
 }
 
-export async function getProducts(): Promise<Product[]> {
+/*
+  The public readers below are wrapped in React cache() so that
+  generateMetadata and the page body share one query per request instead of
+  each running their own — the same pattern already used in
+  src/lib/data/players.ts. Function declarations hoist, so the cached export
+  can precede its implementation.
+*/
+export const getProducts = cache(loadProducts);
+async function loadProducts(): Promise<Product[]> {
   const admin = getSupabaseAdmin();
   if (admin) {
     try {
@@ -100,7 +109,8 @@ export async function getProducts(): Promise<Product[]> {
   }
 }
 
-export async function getProduct(slug: string): Promise<Product | null> {
+export const getProduct = cache(loadProduct);
+async function loadProduct(slug: string): Promise<Product | null> {
   const products = await getProducts();
   return products.find((p) => p.slug === slug) ?? null;
 }
@@ -213,7 +223,8 @@ function toGameMode(row: GameModeRow): GameMode {
   };
 }
 
-export async function getGameModes(): Promise<GameMode[]> {
+export const getGameModes = cache(loadGameModes);
+async function loadGameModes(): Promise<GameMode[]> {
   const db = getDb();
   if (!db) return [];
   try {
@@ -237,7 +248,8 @@ export async function getAdminGameModes(): Promise<GameMode[]> {
   }
 }
 
-export async function getGameMode(slug: string): Promise<GameMode | null> {
+export const getGameMode = cache(loadGameMode);
+async function loadGameMode(slug: string): Promise<GameMode | null> {
   const db = getDb();
   if (!db) return null;
   try {
@@ -344,7 +356,8 @@ function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile): NewsArticle {
   };
 }
 
-export async function getNews(): Promise<NewsArticle[]> {
+export const getNews = cache(loadNews);
+async function loadNews(): Promise<NewsArticle[]> {
   const admin = getSupabaseAdmin();
   if (admin) {
     try {
@@ -467,7 +480,8 @@ export async function getNews(): Promise<NewsArticle[]> {
   }
 }
 
-export async function getArticle(slug: string): Promise<NewsArticle | null> {
+export const getArticle = cache(loadArticle);
+async function loadArticle(slug: string): Promise<NewsArticle | null> {
   const db = getDb();
   if (!db) return null;
   try {
@@ -504,9 +518,52 @@ export async function getArticle(slug: string): Promise<NewsArticle | null> {
   }
 }
 
-export async function getRelatedArticles(slug: string, category: string): Promise<NewsArticle[]> {
-  const all = await getNews();
-  return all.filter((a) => a.slug !== slug && a.category === category).slice(0, 3);
+export const getRelatedArticles = cache(loadRelatedArticles);
+/**
+ * Three most recent published articles in the same category, excluding the
+ * article being read. Previously this loaded the ENTIRE news table via
+ * getNews() and filtered in JS — every article page paid for a full-table
+ * read to render three sidebar links. Query for exactly what is shown
+ * instead, mirroring loadArticle's join and embargo clauses.
+ */
+async function loadRelatedArticles(slug: string, category: string): Promise<NewsArticle[]> {
+  const db = getDb();
+  if (!db) return [];
+  try {
+    const rows = await db
+      .select({
+        ...getTableColumns(schema.newsArticles),
+        liveAvatarUrl: schema.profiles.avatarUrl,
+        liveDisplayName: schema.profiles.displayName,
+        liveUsername: schema.profiles.username,
+      })
+      .from(schema.newsArticles)
+      .leftJoin(schema.profiles, eq(schema.newsArticles.authorId, schema.profiles.userId))
+      .where(and(
+        eq(schema.newsArticles.status, "published"),
+        eq(schema.newsArticles.category, category),
+        ne(schema.newsArticles.slug, slug),
+        or(isNull(schema.newsArticles.publishedAt), lte(schema.newsArticles.publishedAt, new Date())),
+      ))
+      .orderBy(sql`coalesce(${schema.newsArticles.publishedAt}, ${schema.newsArticles.createdAt}) desc`)
+      .limit(3);
+    // Discord-imported articles carry no authorId; resolve by byline name,
+    // same as loadNews above.
+    const byName = await profilesByBylineName(
+      rows.filter((r) => r.publisherMode === "author" && !r.liveAvatarUrl).map((r) => String(r.authorName ?? "")),
+    );
+    return rows.map((row) => {
+      const fallback = byName.get(String(row.authorName ?? "").trim().toLowerCase());
+      return toArticle(row, {
+        avatarUrl: row.liveAvatarUrl ?? fallback?.avatarUrl ?? null,
+        displayName: row.liveDisplayName ?? fallback?.displayName ?? null,
+        username: row.liveUsername ?? fallback?.username ?? null,
+      });
+    });
+  } catch (error) {
+    console.error("Failed to load related articles:", error);
+    return [];
+  }
 }
 
 export async function getEvents(): Promise<EventItem[]> {

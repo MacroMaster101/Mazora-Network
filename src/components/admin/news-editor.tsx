@@ -65,7 +65,7 @@ function Thumb({ src }: { src: string | null }) {
     );
   }
   return (
-    <span className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-line bg-base/60">
+    <span className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-line bg-page/60">
       {src.startsWith("blob:") ? (
         // A just-picked file is a local object URL, which next/image cannot take.
         // eslint-disable-next-line @next/next/no-img-element
@@ -454,7 +454,7 @@ function ArticleRow({
           </div>
 
           <div className="news-image-panel">
-            <span className="relative block aspect-video w-full max-w-[16rem] shrink-0 overflow-hidden rounded-lg border border-line bg-base/60">
+            <span className="relative block aspect-video w-full max-w-[16rem] shrink-0 overflow-hidden rounded-lg border border-line bg-page/60">
               {shownImage ? (
                 // Plain <img> for the local object URL: next/image cannot optimise
                 // a blob:, and the preview must appear the instant a file is picked.
@@ -464,7 +464,7 @@ function ArticleRow({
                 <span className="grid h-full w-full place-items-center text-xs text-muted">No image</span>
               )}
               {uploading && (
-                <span className="absolute inset-0 grid place-items-center bg-base/70 text-xs font-semibold text-ink">
+                <span className="absolute inset-0 grid place-items-center bg-page/70 text-xs font-semibold text-ink">
                   <span className="flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin" /> Saving…
                   </span>
@@ -1010,7 +1010,7 @@ export function NewsEditor({
 
                 {/* Featured Image Panel */}
                 <div className="news-image-panel">
-                  <span className="relative block aspect-video w-full max-w-[16rem] shrink-0 overflow-hidden rounded-lg border border-line bg-base/60 flex items-center justify-center group">
+                  <span className="relative block aspect-video w-full max-w-[16rem] shrink-0 overflow-hidden rounded-lg border border-line bg-page/60 flex items-center justify-center group">
                     {newImage || pastedUrl ? (
                       <>
                         <button

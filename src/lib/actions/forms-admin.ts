@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getSession, isStaff } from "@/lib/auth";
+import { getSession, hasAtLeast } from "@/lib/auth";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { FORMS_CONFIG_KEY, getFormsConfig, FormConfigItem } from "@/lib/data/forms-config";
@@ -22,13 +22,26 @@ const googleFormUrlSchema = z
     return url.protocol === "https:" && (url.hostname === "forms.gle" || url.hostname === "docs.google.com");
   }, "Use an HTTPS forms.gle or docs.google.com link.");
 
+/*
+  The TS union on `formId` is not enforced at runtime (server actions are
+  public POST endpoints), so re-check it — a crafted value would otherwise
+  plant an arbitrary key in the forms config.
+*/
+const formIdSchema = z.enum(["appeals", "staff", "creator"]);
+
 export async function toggleFormStatusAction(
   formId: "appeals" | "staff" | "creator",
   enabled: boolean
 ): Promise<FormActionState> {
+  // These links are where every public ban appeal / staff application lands.
+  // Gate at administrator like every other site-content mutation — helper+
+  // (isStaff) could previously repoint them at a form they controlled.
   const session = await getSession();
-  if (!session || !isStaff(session.role)) {
+  if (!session || !hasAtLeast(session.role, "administrator")) {
     return { ok: false, message: "Unauthorized staff action." };
+  }
+  if (!formIdSchema.safeParse(formId).success) {
+    return { ok: false, message: "Unknown form." };
   }
 
   const current = await getFormsConfig();
@@ -75,9 +88,13 @@ export async function updateFormUrlAction(
   formId: "appeals" | "staff" | "creator",
   publicUrl: string
 ): Promise<FormActionState> {
+  // Same administrator gate as toggleFormStatusAction — see the comment there.
   const session = await getSession();
-  if (!session || !isStaff(session.role)) {
+  if (!session || !hasAtLeast(session.role, "administrator")) {
     return { ok: false, message: "Unauthorized staff action." };
+  }
+  if (!formIdSchema.safeParse(formId).success) {
+    return { ok: false, message: "Unknown form." };
   }
 
   const parsedUrl = googleFormUrlSchema.safeParse(publicUrl);

@@ -61,7 +61,7 @@ export function ArticleArt({
 
   if (fit === "cover") {
     return (
-      <span className={cn("news-art relative block overflow-hidden bg-base/60", height, className)}>
+      <span className={cn("news-art relative block overflow-hidden bg-page/60", height, className)}>
         <Image
           src={article.featuredImage}
           alt=""
@@ -81,7 +81,7 @@ export function ArticleArt({
   }
 
   return (
-    <span className={cn("news-art news-art-contain relative block overflow-hidden bg-base/60", height, className)}>
+    <span className={cn("news-art news-art-contain relative block overflow-hidden bg-page/60", height, className)}>
       <Image
         src={article.featuredImage}
         alt=""
