@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { Role } from "@/lib/types";
-import { canGrantRank, canManageRank, getSession, getSessionUserId, hasAtLeast, roleLabel } from "@/lib/auth";
+import { canGrantRank, canManageRank, getSession, getSessionUserId, hasAtLeast, roleLabel, ROLES } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getDb, schema } from "@/lib/db/client";
 
@@ -53,11 +53,25 @@ export async function changeUserRole(input: {
 
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false, message: "Server is not configured for role changes." };
+  const db = getDb();
+  if (!db) return { ok: false, message: "The role database is not configured. No changes were made." };
 
   const { data: target, error: getErr } = await admin.auth.admin.getUserById(input.userId);
   if (getErr || !target?.user) return { ok: false, message: "User not found." };
 
   const currentRole = safeRole(target.user.app_metadata?.role) ?? "member";
+  const [profile] = await db
+    .select({ role: schema.profiles.role })
+    .from(schema.profiles)
+    .where(eq(schema.profiles.userId, input.userId))
+    .limit(1);
+  const profileRole = safeRole(profile?.role);
+  if (!profileRole || profileRole !== currentRole) {
+    return {
+      ok: false,
+      message: "This account's role records are out of sync. Reconcile them before changing the role.",
+    };
+  }
 
   // Rank rules live in canManageRank/canGrantRank so the Users board, the Staff
   // board and the invite flow cannot drift apart. The top rank may act on its
@@ -72,7 +86,7 @@ export async function changeUserRole(input: {
   const becomesStaff = hasAtLeast(newRole, "helper");
   const wasPublicStaff = wasStaff && currentRole !== "it";
   const becomesPublicStaff = becomesStaff && newRole !== "it";
-  const { error: updErr } = await admin.auth.admin.updateUserById(input.userId, {
+  const authUpdate = {
     app_metadata: {
       ...target.user.app_metadata,
       role: newRole,
@@ -84,31 +98,48 @@ export async function changeUserRole(input: {
           ? { staff_public: true }
           : {}),
     },
-  });
-  if (updErr) return { ok: false, message: "Failed to update role." };
+  };
 
-  // Mirror to profiles.role (best-effort) and write audit log.
-  const db = getDb();
-  if (db) {
+  const auditValues = {
+    action: "role.change",
+    targetType: "user",
+    targetId: input.userId,
+    metadata: {
+      username:
+        target.user.user_metadata?.username ?? target.user.email?.split("@")[0] ?? null,
+      email: target.user.email ?? null,
+      from: currentRole,
+      to: newRole,
+      by: session.username,
+    },
+  };
+
+  const isDemotion = ROLES.indexOf(newRole) < ROLES.indexOf(currentRole);
+  if (isDemotion) {
+    // Revoke database/RLS privileges first. If Auth then fails, restore the DB
+    // record so the two stores never silently report a successful divergence.
     await db.update(schema.profiles).set({ role: newRole }).where(eq(schema.profiles.userId, input.userId));
-    await db.insert(schema.auditLogs).values({
-      action: "role.change",
-      targetType: "user",
-      targetId: input.userId,
-      metadata: {
-        // Falls back to the email local part: accounts created through OAuth
-        // often carry no username in user_metadata, and the audit entries for
-        // those were logging "username: null", which makes the record far less
-        // useful when reading back who was actually changed.
-        username:
-          target.user.user_metadata?.username ?? target.user.email?.split("@")[0] ?? null,
-        email: target.user.email ?? null,
-        from: currentRole,
-        to: newRole,
-        by: session.username,
-      },
-    });
+    const { error: authError } = await admin.auth.admin.updateUserById(input.userId, authUpdate);
+    if (authError) {
+      await db.update(schema.profiles).set({ role: currentRole }).where(eq(schema.profiles.userId, input.userId));
+      return { ok: false, message: "Failed to update role. No changes were kept." };
+    }
+  } else {
+    // Update Auth first for promotions, then grant matching RLS privileges. A
+    // DB failure rolls Auth back to the original role.
+    const { error: authError } = await admin.auth.admin.updateUserById(input.userId, authUpdate);
+    if (authError) return { ok: false, message: "Failed to update role." };
+    try {
+      await db.update(schema.profiles).set({ role: newRole }).where(eq(schema.profiles.userId, input.userId));
+    } catch {
+      await admin.auth.admin.updateUserById(input.userId, {
+        app_metadata: { ...target.user.app_metadata, role: currentRole },
+      });
+      return { ok: false, message: "Failed to update role. No changes were kept." };
+    }
   }
+
+  await db.insert(schema.auditLogs).values(auditValues);
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/staff");

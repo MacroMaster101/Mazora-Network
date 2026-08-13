@@ -36,8 +36,8 @@ export default function SupportPage() {
 
     <section className="section shell">
       <Reveal><div className="support-controls mb-10"><div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-        <div className="support-search"><Search size={18} className="support-search-icon" /><input type="text" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={main.searchPlaceholder} /></div>
-        <div className="flex flex-wrap items-center gap-2">{categories.map((category) => <button key={category.id} onClick={() => setActiveCategory(category.id)} className={`rounded-full px-5 py-2.5 text-xs font-bold transition-all sm:text-sm ${activeCategory === category.id ? "scale-105 bg-purple-600 text-white shadow-lg shadow-purple-600/30" : "border border-slate-300 bg-white/90 text-slate-800 hover:border-purple-600 hover:bg-purple-600 hover:text-white dark:border-purple-500/30 dark:bg-purple-950/50 dark:text-purple-200"}`}>{category.label}</button>)}</div>
+        <div className="support-search"><Search size={18} className="support-search-icon" /><label htmlFor="support-search" className="sr-only">Search support topics</label><input id="support-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={main.searchPlaceholder} /></div>
+        <div className="flex flex-wrap items-center gap-2">{categories.map((category) => <button key={category.id} aria-pressed={activeCategory === category.id} onClick={() => setActiveCategory(category.id)} className={`rounded-full px-5 py-2.5 text-xs font-bold transition-all sm:text-sm ${activeCategory === category.id ? "scale-105 bg-purple-600 text-white shadow-lg shadow-purple-600/30" : "border border-slate-300 bg-white/90 text-slate-800 hover:border-purple-600 hover:bg-purple-600 hover:text-white dark:border-purple-500/30 dark:bg-purple-950/50 dark:text-purple-200"}`}>{category.label}</button>)}</div>
       </div></div></Reveal>
 
       {filteredCards.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filteredCards.map((card, index) => {

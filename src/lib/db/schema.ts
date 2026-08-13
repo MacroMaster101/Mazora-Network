@@ -302,7 +302,9 @@ export const products = pgTable(
 
 export const orders = pgTable("orders", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
+  // Null after account deletion so operational order history can be retained
+  // without retaining an auth identifier for the deleted account.
+  userId: uuid("user_id"),
   totalAmount: numeric("total_amount").notNull(),
   // Reserved for a future card provider. The manual Discord flow uses `status`.
   paymentStatus: text("payment_status").notNull().default("pending"),

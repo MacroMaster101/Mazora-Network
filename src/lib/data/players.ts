@@ -1,8 +1,9 @@
 import "server-only";
+import { cache } from "react";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Player } from "@/lib/types";
 
-export async function getPlayers(): Promise<Player[]> {
+export const getPlayers = cache(async (): Promise<Player[]> => {
   const admin = getSupabaseAdmin();
   if (!admin) return [];
 
@@ -54,7 +55,7 @@ export async function getPlayers(): Promise<Player[]> {
     console.error("Failed to fetch players:", error);
     return [];
   }
-}
+});
 
 export async function getPlayer(username: string): Promise<Player | null> {
   const players = await getPlayers();
@@ -97,8 +98,7 @@ export const leaderboardTabs: { key: LeaderboardKey; label: string }[] = (
   Object.keys(LABELS) as LeaderboardKey[]
 ).map((key) => ({ key, label: LABELS[key] }));
 
-export async function getLeaderboard(key: LeaderboardKey): Promise<LeaderboardEntry[]> {
-  const players = await getPlayers();
+export function buildLeaderboard(players: Player[], key: LeaderboardKey): LeaderboardEntry[] {
   if (!players.length) return [];
 
   const getValue = (p: Player): number => {
@@ -145,4 +145,8 @@ export async function getLeaderboard(key: LeaderboardKey): Promise<LeaderboardEn
       display: formatDisplay(val),
     };
   });
+}
+
+export async function getLeaderboard(key: LeaderboardKey): Promise<LeaderboardEntry[]> {
+  return buildLeaderboard(await getPlayers(), key);
 }

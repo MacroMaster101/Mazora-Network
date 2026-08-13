@@ -1,16 +1,18 @@
-import type { Metadata } from "next";
 import { Trophy } from "lucide-react";
-import { getLeaderboard, leaderboardTabs, type LeaderboardEntry, type LeaderboardKey } from "@/lib/data/players";
+import { buildLeaderboard, getPlayers, leaderboardTabs, type LeaderboardEntry, type LeaderboardKey } from "@/lib/data/players";
 import { EmptyState, PageHero, Reveal } from "@/components/shared";
 import { LeaderboardExplorer } from "@/components/shared/leaderboard-explorer";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Leaderboards",
   description: "The best of the network — ranked by playtime, kills, K/D, balance, level, wins, blocks and more.",
-};
+  path: "/leaderboards",
+});
 
 export default async function LeaderboardsPage() {
-  const entries = await Promise.all(leaderboardTabs.map((t) => getLeaderboard(t.key)));
+  const players = await getPlayers();
+  const entries = leaderboardTabs.map((tab) => buildLeaderboard(players, tab.key));
   const data: Record<string, LeaderboardEntry[]> = {};
   const labels: Record<string, string> = {};
   leaderboardTabs.forEach((t, i) => {

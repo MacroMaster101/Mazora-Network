@@ -85,13 +85,13 @@ The drawer starts with all dropdown groups collapsed. Its backdrop is not an acc
 https://api.mcsrvstat.us/3/mc.mazora.us
 ```
 
-Set `MINECRAFT_STATUS_API_URL` to use a custom proxy or plugin API. Responses are cached for 300 seconds. Errors return `live: false` and zero/unavailable display states.
+Set `MINECRAFT_STATUS_API_URL` to use a custom proxy or plugin API. Successful responses are cached for 15 seconds. The default integration falls back to mcstatus.io, keeps a last-known live result through transient failures, and retries stale/failure states quickly rather than inventing counts.
 
 The `/api/status` route exposes the normalized site status for same-origin clients.
 
 ## 💬 Live Discord counts
 
-`src/lib/data/discord.ts` extracts the invite code from `site.discord` and requests Discord's invite endpoint with `with_counts=true`. It returns approximate member and presence counts and caches them for 300 seconds.
+`src/lib/data/discord.ts` extracts the invite code from `site.discord` and requests Discord's invite endpoint with `with_counts=true`. It returns approximate member and presence counts and caches successful responses for 15 seconds.
 
 The default invite is:
 

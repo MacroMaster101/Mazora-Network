@@ -1,12 +1,13 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { ArrowRight, Blocks, CalendarDays, Lightbulb, MessageSquareText, ShieldCheck, Sparkles } from "lucide-react";
 import { PageHero } from "@/components/shared";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Community Forums",
   description: "Discuss Mazora updates, game modes, builds and community ideas.",
-};
+  path: "/forums",
+});
 
 const categories = [
   { icon: Sparkles, title: "Announcements", copy: "Network news, releases and maintenance updates from the Mazora team.", topics: 18 },
