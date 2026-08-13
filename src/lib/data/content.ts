@@ -291,8 +291,8 @@ type LiveAuthorProfile = { avatarUrl: string | null; displayName: string | null;
  */
 export async function profilesByBylineName(
   names: string[],
-): Promise<Map<string, { avatarUrl: string | null; displayName: string | null; username: string }>> {
-  const map = new Map<string, { avatarUrl: string | null; displayName: string | null; username: string }>();
+): Promise<Map<string, { avatarUrl: string | null; displayName: string | null; username: string; role: string | null }>> {
+  const map = new Map<string, { avatarUrl: string | null; displayName: string | null; username: string; role: string | null }>();
   const wanted = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
   if (wanted.length === 0) return map;
 
@@ -301,13 +301,14 @@ export async function profilesByBylineName(
   try {
     const { data } = await admin
       .from("profiles")
-      .select("username, display_name, avatar_url")
+      .select("username, display_name, avatar_url, role")
       .in("username", wanted);
     for (const row of data ?? []) {
       map.set(String(row.username).toLowerCase(), {
         avatarUrl: row.avatar_url ?? null,
         displayName: row.display_name ?? null,
         username: String(row.username),
+        role: row.role ?? null,
       });
     }
   } catch {
