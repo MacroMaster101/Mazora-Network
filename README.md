@@ -122,6 +122,7 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `NEXT_PUBLIC_DISCORD_SUPPORT_TICKETS_URL` | No | Direct public Discord channel URL opened by support ticket buttons. |
 | `NEXT_PUBLIC_SERVER_MAP_URL` | No | HTTPS URL for Dynmap, BlueMap, or squaremap; otherwise the map preview remains in coming-soon mode. |
 | `MINECRAFT_STATUS_API_URL` | No | Custom Minecraft status JSON endpoint. The site otherwise queries mcsrvstat.us for `mc.mazora.us`. |
+| `DISCORD_PRESENCE_HEALTH_URL` | No | Server-only health endpoint for the standalone Render presence bot. Site traffic sends a throttled background wake request. |
 | `REMOTE_IMAGE_HOST_ALLOWLIST` | No | Additional trusted hostnames, comma-separated, from which the server may import images. |
 | `DATABASE_URL` | No | Supabase PostgreSQL connection string (use the connection pooler URL). Database-backed pages show empty states when absent. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Production auth | Supabase project URL. |
