@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero, Reveal, LegalToc, LegalMobileToc, LegalHeroIllustration } from "@/components/shared";
 import { site } from "@/lib/site";
+import { publicPageMetadata } from "@/lib/seo";
 import { AlertTriangle, Info } from "lucide-react";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Terms of Service",
   description: `The terms and conditions for using the ${site.name} website, servers, and store.`,
-};
+  path: "/terms",
+});
 
 const LAST_UPDATED = "2026-07-21";
 

@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { Shield, Sparkles, UsersRound } from "lucide-react";
 import { FloatingBrandLogo, GoogleFormEmbed, PageHero } from "@/components/shared";
 import { getFormsConfig } from "@/lib/data/forms-config";
 import { getSupportCard } from "@/lib/data/support-settings";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Staff Application",
   description: "Apply to join the Mazora Network staff team.",
-};
+  path: "/support/staff-application",
+});
 
 export default async function StaffApplicationPage() {
   const [config, supportCard] = await Promise.all([getFormsConfig(), getSupportCard("staff")]);

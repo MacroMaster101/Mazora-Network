@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
 import { site } from "@/lib/site";
+import { publicPageMetadata } from "@/lib/seo";
 import { getServerStatus } from "@/lib/data/status";
 import { getPatchUpdates } from "@/lib/data/patches";
 import { getFaqs } from "@/lib/data/faqs";
@@ -11,11 +11,12 @@ import { Reveal } from "@/components/shared/reveal";
 import { Monitor, Smartphone } from "lucide-react";
 import { UnifiedServerStatsCard } from "@/components/shared/unified-server-stats-card";
 
-export const metadata: Metadata = {
-  title: "How to Play · Connect Java & Bedrock",
+export const metadata = publicPageMetadata({
+  title: "How to Play — Connect Java & Bedrock",
   description:
     "Step-by-step connection guide for Java Edition and Bedrock Edition players joining Mazora Network.",
-};
+  path: "/play",
+});
 
 /*
   force-dynamic already keeps this page off the static path. `revalidate = 0`

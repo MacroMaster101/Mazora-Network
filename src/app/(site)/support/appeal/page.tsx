@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { CheckCircle2, Clock, ShieldAlert } from "lucide-react";
 import { FloatingBrandLogo, GoogleFormEmbed, PageHero } from "@/components/shared";
 import { getFormsConfig } from "@/lib/data/forms-config";
 import { getSupportCard } from "@/lib/data/support-settings";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Ban & Mute Appeal",
   description: "Appeal a punishment on the Mazora Network.",
-};
+  path: "/support/appeal",
+});
 
 export default async function AppealPage() {
   const [config, supportCard] = await Promise.all([getFormsConfig(), getSupportCard("appeal")]);

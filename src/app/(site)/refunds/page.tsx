@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero, Reveal, LegalToc, LegalMobileToc, LegalHeroIllustration } from "@/components/shared";
 import { site } from "@/lib/site";
+import { publicPageMetadata } from "@/lib/seo";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Refund Policy",
   description: `The refund policy for purchases made through the ${site.name} store.`,
-};
+  path: "/refunds",
+});
 
 const LAST_UPDATED = "2026-07-21";
 

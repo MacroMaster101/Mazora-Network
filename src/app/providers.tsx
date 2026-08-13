@@ -29,12 +29,12 @@ export function Providers({
       not.
     */
     <ThemeProvider>
+      <InitialSiteLoader />
       {/*
         The first-load splash. Dropped from this tree by the CSS-split commit
         (d1fc77f) while the component and its .initial-loader-overlay rules
         both survived, so it stopped rendering without anything failing.
       */}
-      <InitialSiteLoader />
       <Suspense fallback={null}>
         <NavigationLoader />
       </Suspense>

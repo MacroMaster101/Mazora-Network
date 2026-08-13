@@ -1,15 +1,16 @@
-import type { Metadata } from "next";
 import { Bell, Gift, LifeBuoy, MessagesSquare, Users2, Swords } from "lucide-react";
 import { site } from "@/lib/site";
+import { publicPageMetadata } from "@/lib/seo";
 import { getDiscordStats } from "@/lib/data/discord";
 import { withCommas } from "@/lib/utils";
 import { FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";
 import { DiscordIcon } from "@/components/shared/icon";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Discord",
   description: `Join the ${site.name} Discord — announcements, giveaways, event info, support and a great community.`,
-};
+  path: "/discord",
+});
 
 const benefits = [
   { icon: Bell, title: "Announcements first", copy: "Updates, patch notes and maintenance windows land here before anywhere else." },

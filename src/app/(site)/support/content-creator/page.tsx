@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { Camera, Radio, Video } from "lucide-react";
 import { FloatingBrandLogo, GoogleFormEmbed, PageHero } from "@/components/shared";
 import { getFormsConfig } from "@/lib/data/forms-config";
 import { getSupportCard } from "@/lib/data/support-settings";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Content Creator Program",
   description: "Create videos, streams, guides, and community media with the Mazora Network.",
-};
+  path: "/support/content-creator",
+});
 
 const paths = [
   { icon: Video, title: "Video creators", copy: "Server showcases, progression series, tutorials, challenges, and polished short-form edits." },

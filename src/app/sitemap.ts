@@ -17,7 +17,6 @@ import { isRouteLaunchGated } from "@/lib/launch";
  *
  * Excluded on purpose:
  *  - /admin, /dashboard, /cart and the auth routes — private or user-specific.
- *  - /help — an alias that renders /support, and canonicalises to it.
  *  - /launch-status — the rewrite target of the pre-launch gate, not a page.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

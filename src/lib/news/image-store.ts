@@ -20,6 +20,48 @@ export const NEWS_IMAGE_BUCKET = "news-images";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
+const DEFAULT_REMOTE_IMAGE_HOSTS = new Set([
+  "cdn.discordapp.com",
+  "media.discordapp.net",
+  "i.imgur.com",
+]);
+
+function approvedRemoteImageHost(hostname: string): boolean {
+  const configured = (process.env.REMOTE_IMAGE_HOST_ALLOWLIST ?? "")
+    .split(",")
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean);
+  return DEFAULT_REMOTE_IMAGE_HOSTS.has(hostname.toLowerCase()) || configured.includes(hostname.toLowerCase());
+}
+
+async function readLimitedBody(response: Response): Promise<Uint8Array | null> {
+  if (!response.body) return null;
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_IMAGE_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
 const MIME_EXTENSIONS = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -191,6 +233,7 @@ export async function rehostImageFromUrl(url: string, keyBase: string): Promise<
 
     for (let hop = 0; hop < 4; hop++) {
       if (current.protocol !== "https:" && current.protocol !== "http:") return null;
+      if (!approvedRemoteImageHost(current.hostname)) return null;
       if (!(await resolvesToPublicAddress(current))) return null;
 
       res = await fetch(current.toString(), {
@@ -221,7 +264,8 @@ export async function rehostImageFromUrl(url: string, keyBase: string): Promise<
     const declared = Number(res.headers.get("content-length") ?? 0);
     if (declared > MAX_IMAGE_BYTES) return null;
 
-    const bytes = new Uint8Array(await res.arrayBuffer());
+    const bytes = await readLimitedBody(res);
+    if (!bytes) return null;
     return await storeImageBytes(bytes, keyBase);
   } catch {
     return null;

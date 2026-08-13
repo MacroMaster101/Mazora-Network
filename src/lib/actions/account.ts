@@ -170,20 +170,7 @@ export async function deleteAccountAction(
       .remove(avatarObjects.map((item) => `${auth.user.id}/${item.name}`));
   }
 
-  let { error: deleteError } = await admin.auth.admin.deleteUser(auth.user.id);
-  if (deleteError && !/database error deleting user/i.test(deleteError.message)) {
-    return { ok: false, message: "Your account could not be deleted. Please try again or contact support." };
-  }
-
-  // Older installations used ON DELETE RESTRICT for orders. A failed first
-  // attempt is atomic, so only then remove that blocking user-owned data and
-  // retry. Migration 002 makes this compatibility branch unnecessary on
-  // current installations.
-  if (deleteError) {
-    const { error: orderError } = await admin.from("orders").delete().eq("user_id", auth.user.id);
-    if (orderError) return { ok: false, message: "Your account data could not be removed. Please contact support." };
-    ({ error: deleteError } = await admin.auth.admin.deleteUser(auth.user.id));
-  }
+  const { error: deleteError } = await admin.auth.admin.deleteUser(auth.user.id);
 
   if (deleteError) return { ok: false, message: "Your account could not be deleted. Please try again or contact support." };
 
