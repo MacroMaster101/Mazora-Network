@@ -14,6 +14,16 @@ export const metadata = publicPageMetadata({
   path: "/staff",
 });
 
+/*
+  Never prerender — same reason as /vote. The layout's cookie read marks this
+  dynamic only after rendering has begun, so `next build` still executes
+  listPublicStaffAccounts() from the build machine and can hang on a saturated
+  Supabase pooler past the 60s export budget. The roster is live data besides:
+  a prerendered copy would keep showing staff who have since changed rank or
+  left until the next deploy.
+*/
+export const dynamic = "force-dynamic";
+
 /**
  * Rendered as visible <details> below *and* emitted as FAQPage markup. Google
  * drops FAQ rich results whose answers are not present on the page, so these
