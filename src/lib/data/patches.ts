@@ -1,7 +1,78 @@
 import { getDb, schema } from "@/lib/db/client";
 import type { PatchUpdate } from "@/lib/types";
 import { eq, desc } from "drizzle-orm";
-import { fetchChannelMessages, getDiscordBotToken } from "@/lib/discord";
+import {
+  fetchChannelMessages,
+  fetchGuildRoles,
+  getDiscordBotToken,
+  getDiscordGuildId,
+  type DiscordMessage,
+  type DiscordRole,
+} from "@/lib/discord";
+import { profilesByBylineName } from "@/lib/data/content";
+
+function discordAvatarUrl(message: DiscordMessage, guildId?: string | null): string | undefined {
+  const userId = message.author?.id;
+  if (!userId) return undefined;
+  if (guildId && message.member?.avatar) {
+    return `https://cdn.discordapp.com/guilds/${guildId}/users/${userId}/avatars/${message.member.avatar}.webp?size=128`;
+  }
+  if (message.author.avatar) {
+    return `https://cdn.discordapp.com/avatars/${userId}/${message.author.avatar}.webp?size=128`;
+  }
+  try {
+    const defaultIndex = Number((BigInt(userId) >> BigInt(22)) % BigInt(6));
+    return `https://cdn.discordapp.com/embed/avatars/${defaultIndex}.png`;
+  } catch {
+    return undefined;
+  }
+}
+
+function discordRoleLabel(message: DiscordMessage, roles: DiscordRole[]): string {
+  const roleIds = new Set(message.member?.roles ?? []);
+  const highestRole = roles
+    .filter((role) => role.name !== "@everyone" && roleIds.has(role.id))
+    .sort((a, b) => b.position - a.position)[0];
+  return highestRole?.name || (message.author.bot ? "Discord Bot" : "Owner");
+}
+
+/** Remove Discord Markdown fences without losing text placed beside a fence. */
+function cleanDiscordPatchLine(line: string): string {
+  return line
+    .trim()
+    .replace(/^```\s*/, "")
+    .replace(/\s*```$/, "")
+    .trim();
+}
+
+function profileRoleLabel(role?: string | null): string | undefined {
+  if (!role) return undefined;
+  return role
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+async function enrichPatchAuthors(
+  patches: PatchUpdate[],
+  preferWebsiteProfile = false,
+): Promise<PatchUpdate[]> {
+  const profiles = await profilesByBylineName(patches.map((patch) => patch.author));
+  return patches.map((patch) => {
+    const profile = profiles.get(patch.author.trim().toLowerCase());
+    if (!profile) return patch;
+    return {
+      ...patch,
+      author: preferWebsiteProfile ? (profile.displayName || profile.username) : patch.author,
+      authorAvatar: preferWebsiteProfile
+        ? (profile.avatarUrl ?? patch.authorAvatar)
+        : (patch.authorAvatar ?? profile.avatarUrl ?? undefined),
+      authorRole: preferWebsiteProfile
+        ? (profileRoleLabel(profile.role) ?? patch.authorRole)
+        : patch.authorRole,
+    };
+  });
+}
 
 /** Fallback patch updates imported from Discord #PATCH-UPDATE channel */
 const DISCORD_PATCH_UPDATES: PatchUpdate[] = [
@@ -85,15 +156,22 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
 
   if (token && channelId) {
     try {
+      const guildId = getDiscordGuildId();
       // 300s matches the other upstream feeds (server status, Discord stats).
       // Without it this Discord round trip ran on every /play render.
-      const messages = await fetchChannelMessages(token, channelId, undefined, 30, 300);
+      const [messages, guildRoles] = await Promise.all([
+        fetchChannelMessages(token, channelId, undefined, 30, 300),
+        guildId ? fetchGuildRoles(token, guildId, 300) : Promise.resolve(null),
+      ]);
       if (messages && Array.isArray(messages) && messages.length > 0) {
         const livePatches: PatchUpdate[] = [];
 
         for (const msg of messages) {
           const rawContent = msg.content || "";
-          const lines = rawContent.split("\n").map((l) => l.trim()).filter(Boolean);
+          const lines = rawContent
+            .split("\n")
+            .map(cleanDiscordPatchLine)
+            .filter(Boolean);
           if (lines.length === 0) continue;
 
           const lowerRaw = rawContent.toLowerCase();
@@ -141,14 +219,15 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
             targetMode: modeLine,
             date: msg.timestamp,
             author,
-            authorRole: "Owner",
+            authorRole: discordRoleLabel(msg, guildRoles ?? []),
+            authorAvatar: discordAvatarUrl(msg, guildId),
             changes: changeLines.length > 0 ? changeLines : [rawContent.slice(0, 150)],
             discordChannel: "#PATCH-UPDATE",
           });
         }
 
         if (livePatches.length > 0) {
-          return livePatches;
+          return enrichPatchAuthors(livePatches);
         }
       }
     } catch (err) {
@@ -167,8 +246,11 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
         .orderBy(desc(schema.newsArticles.publishedAt));
 
       if (rows.length > 0) {
-        return rows.map((r) => {
-          const lines = (r.content ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
+        const storedPatches = rows.map((r) => {
+          const lines = (r.content ?? "")
+            .split("\n")
+            .map(cleanDiscordPatchLine)
+            .filter(Boolean);
           const targetMode = lines.find((l) => l.includes("Survival") || l.includes("Mode")) || "Survival - 1.21.11";
           const changes = lines.filter((l) => l.startsWith("-") || l.startsWith("*")).map((l) => l.replace(/^[-*]\s*/, ""));
 
@@ -179,15 +261,17 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
             date: (r.publishedAt ?? r.createdAt).toISOString(),
             author: r.authorName || r.discordAuthor || "LilyLuvv",
             authorRole: r.authorRole || r.discordAuthorRole || "Owner",
+            authorAvatar: r.authorAvatarUrl || r.discordAuthorAvatarUrl || undefined,
             changes: changes.length > 0 ? changes : [r.excerpt || r.title],
             discordChannel: "#PATCH-UPDATE",
           };
         });
+        return enrichPatchAuthors(storedPatches, true);
       }
     } catch {
       // Fallback below
     }
   }
 
-  return DISCORD_PATCH_UPDATES;
+  return enrichPatchAuthors(DISCORD_PATCH_UPDATES, true);
 }
