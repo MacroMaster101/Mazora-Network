@@ -92,7 +92,7 @@ export function Modal({
         <button
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-3 top-3 z-20 grid h-11 w-11 place-items-center rounded-xl border border-accent/50 bg-base/95 text-ink shadow-lg transition hover:border-accent hover:bg-accent hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+          className="absolute right-3 top-3 z-20 grid h-11 w-11 place-items-center rounded-xl border border-accent/50 bg-page/95 text-ink shadow-lg transition hover:border-accent hover:bg-accent hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card"
         >
           <X size={21} strokeWidth={2.6} />
         </button>

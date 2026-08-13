@@ -13,7 +13,6 @@ import "@/styles/news-pages.css";
 import "@/styles/newsroom-redesign.css";
 import "@/styles/newsroom-world.css";
 import "@/styles/newsroom-world-finish.css";
-import "@/styles/newsroom-scrollbar.css";
 import "@/styles/newsroom-vertical-world.css";
 import "@/styles/newsroom-responsive.css";
 

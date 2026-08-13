@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET, ensureAvatarBucket } from "@/lib/storage/avatar-bucket";
+import { removeStoredSkinFiles } from "@/lib/storage/skin-files";
 import { SKIN_MAX_BYTES, cropAndCompositeHead, validateSkinBytes } from "@/lib/skins/process";
 
 /**
@@ -153,29 +154,6 @@ export async function linkMinecraftUsernameAction(
 export interface SkinUploadActionState {
   ok: boolean;
   message?: string;
-}
-
-/**
- * Deletes stored skin files for this user, optionally keeping specific paths.
- * Scoped to filenames starting with "skin-" specifically — the
- * profile-avatars bucket also holds this user's general photo uploads under
- * "avatar-*", which must survive a skin upload/removal untouched.
- *
- * Called two ways: with no `keepPaths` to remove everything (Minecraft
- * disconnect — no skin should remain), or with the two paths just uploaded
- * to remove only the now-stale previous files (re-upload).
- */
-export async function removeStoredSkinFiles(userId: string, keepPaths: string[] = []): Promise<void> {
-  const admin = getSupabaseAdmin();
-  if (!admin) return;
-  const { data } = await admin.storage.from(AVATAR_BUCKET).list(userId, { limit: 100 });
-  const keepNames = new Set(keepPaths.map((path) => path.split("/").pop()));
-  const skinFiles = (data ?? []).filter(
-    (item) => /^skin-(raw|head)-/.test(item.name) && !keepNames.has(item.name),
-  );
-  if (skinFiles.length) {
-    await admin.storage.from(AVATAR_BUCKET).remove(skinFiles.map((item) => `${userId}/${item.name}`));
-  }
 }
 
 /**

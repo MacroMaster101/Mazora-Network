@@ -53,7 +53,7 @@ export default async function PlayerProfile({ params }: { params: Promise<{ user
             <div className="relative w-fit">
               <MinecraftAvatar username={player.username} skinUrl={player.customSkinUrl} size={104} rounded="rounded-2xl" />
               <span
-                className={`absolute -bottom-1.5 -right-1.5 h-5 w-5 rounded-full border-4 border-base ${online ? "bg-success" : "bg-muted"}`}
+                className={`absolute -bottom-1.5 -right-1.5 h-5 w-5 rounded-full border-4 border-page ${online ? "bg-success" : "bg-muted"}`}
                 title={online ? "Online" : "Offline"}
               />
             </div>

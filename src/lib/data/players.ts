@@ -146,7 +146,3 @@ export function buildLeaderboard(players: Player[], key: LeaderboardKey): Leader
     };
   });
 }
-
-export async function getLeaderboard(key: LeaderboardKey): Promise<LeaderboardEntry[]> {
-  return buildLeaderboard(await getPlayers(), key);
-}

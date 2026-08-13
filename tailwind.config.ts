@@ -11,7 +11,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        base: withAlpha("--base"),
+        /* Named `page`, NOT `base`, and it must stay that way. A colour named
+           `base` makes Tailwind emit `text-base` as a text-COLOUR utility,
+           which collides with the built-in `text-base` font-size utility.
+           Both are generated, the colour one is emitted later, and it wins —
+           so every `text-base` in the codebase silently painted its text
+           rgb(var(--base)), i.e. the page background, and disappeared.
+           The CSS variable is still --base; only the utility name changed. */
+        page: withAlpha("--base"),
         surface: withAlpha("--surface"),
         card: withAlpha("--card"),
         line: withAlpha("--line"),

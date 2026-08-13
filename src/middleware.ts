@@ -50,6 +50,16 @@ export async function middleware(request: NextRequest) {
   const { response: initial, requestHeaders } = withCsp(request, nonce, csp);
   let response = initial;
   const supabase = createServerClient(config.url, config.key, {
+    /*
+      Must match src/lib/supabase/server.ts: no browser Supabase client exists,
+      so the refreshed auth cookie is httpOnly (see the comment there).
+    */
+    cookieOptions: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    },
     cookies: {
       getAll() {
         return request.cookies.getAll();

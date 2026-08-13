@@ -7,7 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET } from "@/lib/storage/avatar-bucket";
-import { removeStoredSkinFiles } from "@/lib/actions/minecraft";
+import { removeStoredSkinFiles } from "@/lib/storage/skin-files";
 
 export interface AccountActionResult {
   ok: boolean;
