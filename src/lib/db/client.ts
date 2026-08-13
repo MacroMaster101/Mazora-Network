@@ -32,6 +32,24 @@ export function getDb(): Database | null {
     max: 3,
     idle_timeout: 20,
     connect_timeout: 10,
+    connection: {
+      /*
+        connect_timeout above only bounds *opening* a connection; a query that
+        has already started has no deadline of its own, so a slow or blocked
+        statement holds one of the three slots indefinitely and every later
+        query queues behind it with nothing to time it out. That is how a
+        single page stalled past Next's 60s export budget and failed a
+        production build.
+
+        statement_timeout is enforced by Postgres itself, so it applies no
+        matter which caller is waiting: a stuck query is cancelled, its slot is
+        returned, and the caller gets an error its existing catch handles
+        (every data function already falls back to an empty list). Fifteen
+        seconds is far above the normal range for these queries — this is a
+        backstop against hanging, not a performance budget.
+      */
+      statement_timeout: 15_000,
+    },
   });
   cached = drizzle(sql, { schema });
   return cached;
