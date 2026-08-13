@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import Image from "next/image";
 import {
   ArrowDown,
@@ -19,10 +19,11 @@ import "@/styles/store-pages.css";
 import "@/styles/store-vote-responsive.css";
 import "@/styles/store-header.css";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Store",
   description: "Survival ranks, crate keys, battlepass upgrades and progression add-ons for the Mazora Network.",
-};
+  path: "/store",
+});
 
 export default async function StorePage({
   searchParams,

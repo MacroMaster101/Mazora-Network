@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { CalendarDays } from "lucide-react";
 import { getEvents } from "@/lib/data/content";
 import { EmptyState, PageHero, Reveal } from "@/components/shared";
 import { EventsExplorer } from "@/components/shared/events-explorer";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Events",
   description: "Tournaments, build competitions and community nights — upcoming, live and completed.",
-};
+  path: "/events",
+});
 
 export default async function EventsPage() {
   const events = await getEvents();

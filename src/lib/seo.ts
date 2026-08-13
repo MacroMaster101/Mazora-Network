@@ -9,9 +9,48 @@
  * Every `@id` is an absolute https://mazora.us URL so the graph nodes join up
  * across pages instead of each page declaring an unrelated Organization.
  */
+import type { Metadata } from "next";
 import { site } from "@/lib/site";
 
 const base = site.url.replace(/\/$/, "");
+
+const DEFAULT_SOCIAL_IMAGE = {
+  url: absoluteUrl("/images/og-default.webp"),
+  width: 1200,
+  height: 630,
+  alt: `${site.name} — Minecraft survival, skyblock and minigame worlds`,
+};
+
+/** Complete metadata for a public page; nested OG fields do not inherit title/description in Next.js. */
+export function publicPageMetadata(input: {
+  title: string;
+  description: string;
+  path: string;
+  robots?: Metadata["robots"];
+}): Metadata {
+  const url = absoluteUrl(input.path);
+  return {
+    title: input.title,
+    description: input.description,
+    alternates: { canonical: input.path },
+    openGraph: {
+      type: "website",
+      siteName: site.name,
+      locale: "en_US",
+      title: `${input.title} · ${site.name}`,
+      description: input.description,
+      url,
+      images: [DEFAULT_SOCIAL_IMAGE],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${input.title} · ${site.name}`,
+      description: input.description,
+      images: [DEFAULT_SOCIAL_IMAGE.url],
+    },
+    ...(input.robots ? { robots: input.robots } : {}),
+  };
+}
 
 export const ORGANIZATION_ID = `${base}/#organization`;
 export const WEBSITE_ID = `${base}/#website`;

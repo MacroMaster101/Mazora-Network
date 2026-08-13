@@ -52,13 +52,13 @@ backed by real data today.
 | Database driver | postgres-js driver against Supabase PostgreSQL |
 | Validation | Zod |
 | Authentication | Supabase SSR cookies, PKCE callbacks, email/password, Google, and Discord OAuth; local demo fallback |
-| Quality | ESLint, TypeScript, Next.js production builds, npm audit |
+| Quality | ESLint, TypeScript, unit tests, Next.js production builds, and reviewed npm security audits |
 
 ## 🚀 Quick start
 
 Requirements:
 
-- Node.js 22 or newer
+- Node.js 24
 - npm 10 or newer
 
 ```bash
@@ -75,7 +75,7 @@ Open [http://localhost:3000](http://localhost:3000). Environment variables and a
 | `npm run dev` | Start the local development server |
 | `npm run lint` | Run ESLint with zero warnings allowed |
 | `npm run typecheck` | Run strict TypeScript checking without emitting files |
-| `npm test` | Run the unit tests (kept local — see repository hygiene) |
+| `npm test` | Run the tracked unit tests |
 | `npm run build` | Create and validate the production build |
 | `npm run start` | Serve a completed production build |
 | `npm run db:generate` | Generate SQL migrations from the Drizzle schema |
@@ -119,7 +119,10 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 |---|---:|---|
 | `NEXT_PUBLIC_SITE_URL` | No | Canonical public URL. Defaults to `http://localhost:3000`. |
 | `NEXT_PUBLIC_DISCORD_INVITE_URL` | No | Public Discord invite override. The Mazora invite is used by default. |
+| `NEXT_PUBLIC_DISCORD_SUPPORT_TICKETS_URL` | No | Direct public Discord channel URL opened by support ticket buttons. |
+| `NEXT_PUBLIC_SERVER_MAP_URL` | No | HTTPS URL for Dynmap, BlueMap, or squaremap; otherwise the map preview remains in coming-soon mode. |
 | `MINECRAFT_STATUS_API_URL` | No | Custom Minecraft status JSON endpoint. The site otherwise queries mcsrvstat.us for `mc.mazora.us`. |
+| `REMOTE_IMAGE_HOST_ALLOWLIST` | No | Additional trusted hostnames, comma-separated, from which the server may import images. |
 | `DATABASE_URL` | No | Supabase PostgreSQL connection string (use the connection pooler URL). Database-backed pages show empty states when absent. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Production auth | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production auth | Browser-safe Supabase publishable key for new projects. |
@@ -143,8 +146,8 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 
 The live integrations fail safely:
 
-- Minecraft status is fetched server-side and cached for five minutes. Failed requests return an unavailable state instead of invented player counts.
-- Discord counts are fetched from Discord's invite API and cached for five minutes. A failed or invalid invite returns a join prompt instead of a fabricated count.
+- Minecraft status is fetched server-side and cached for 15 seconds. A backup provider and short stale/failure retries keep transient upstream errors from replacing the last known live result with invented data.
+- Discord counts are fetched from Discord's invite API and cached for 15 seconds. A failed or invalid invite returns a join prompt instead of a fabricated count.
 
 ## 🛒 Store orders and Discord tickets
 

@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero, Reveal, LegalToc, LegalMobileToc, LegalHeroIllustration } from "@/components/shared";
 import { site } from "@/lib/site";
+import { publicPageMetadata } from "@/lib/seo";
 import { Lock } from "lucide-react";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Privacy Policy",
   description: `How ${site.name} collects, uses, and protects your personal information.`,
-};
+  path: "/privacy",
+});
 
 const LAST_UPDATED = "2026-07-21";
 
@@ -135,7 +136,7 @@ export default function PrivacyPage() {
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   We use essential cookies to keep you signed in. We also use your browser&apos;s local
-                  storage to remember your theme and the items in your cart. These technologies are purely functional and are not used for third-party advertising.
+                  storage to remember your theme, cart, in-app notification state, device-only notification preferences, and support-card interactions. These technologies are purely functional and are not used for third-party advertising.
                 </p>
               </article>
 
