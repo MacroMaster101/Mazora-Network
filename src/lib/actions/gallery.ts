@@ -20,6 +20,16 @@ export interface GalleryActionResult {
 const DENIED: GalleryActionResult = { ok: false, message: "You do not have permission." };
 const NO_DB: GalleryActionResult = { ok: false, message: "Database is not connected." };
 
+/*
+  The TypeScript signatures promise a uuid and one of these statuses, but a
+  server action is a public POST endpoint — nothing enforces the types at
+  runtime. A malformed id or status previously reached Postgres (uuid casts
+  throw) or was written verbatim (status), leaving rows invisible to both the
+  public gallery and the moderation queue.
+*/
+const galleryStatusSchema = z.enum(["published", "pending", "rejected"]);
+const galleryIdSchema = z.string().uuid();
+
 function clean(value: FormDataEntryValue | null, max: number): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
@@ -63,6 +73,11 @@ async function resolveGalleryImage(
 
   // 1. File upload takes priority
   if (file instanceof File && file.size > 0) {
+    // Reject oversized files BEFORE buffering: storeImageBytes enforces the
+    // same 8 MB ceiling, but only after the whole body is already in memory.
+    if (file.size > 8 * 1024 * 1024) {
+      return { url: null, error: "Please use a JPEG, PNG, WebP or GIF under 8 MB." };
+    }
     const bytes = new Uint8Array(await file.arrayBuffer());
     const stored = await storeImageBytes(bytes, `gallery/${keyBase}`);
     if (!stored) return { url: null, error: "Please use a JPEG, PNG, WebP or GIF under 8 MB." };
@@ -254,7 +269,8 @@ export async function adminApproveGalleryAction(id: string, status: "published" 
 
   const db = getDb();
   if (!db) return NO_DB;
-  if (!id) return { ok: false, message: "Missing artwork ID." };
+  if (!galleryIdSchema.safeParse(id).success) return { ok: false, message: "Missing artwork ID." };
+  if (!galleryStatusSchema.safeParse(status).success) return { ok: false, message: "Unknown artwork status." };
 
   await db
     .update(schema.galleryImages)
@@ -285,6 +301,8 @@ export async function adminSaveGalleryAction(formData: FormData): Promise<Galler
   const status = clean(formData.get("status"), 20) || "published";
   const featured = formData.get("featured") === "true" || formData.get("featured") === "on";
 
+  if (id && !galleryIdSchema.safeParse(id).success) return { ok: false, message: "Missing artwork ID." };
+  if (!galleryStatusSchema.safeParse(status).success) return { ok: false, message: "Unknown artwork status." };
   if (!title) return { ok: false, message: "Please provide a title." };
 
   const { url: imageUrl, error } = await resolveGalleryImage(formData, id || `admin-${Date.now()}`);
@@ -335,7 +353,7 @@ export async function adminDeleteGalleryAction(id: string): Promise<GalleryActio
 
   const db = getDb();
   if (!db) return NO_DB;
-  if (!id) return { ok: false, message: "Missing artwork ID." };
+  if (!galleryIdSchema.safeParse(id).success) return { ok: false, message: "Missing artwork ID." };
 
   await db.delete(schema.galleryImages).where(eq(schema.galleryImages.id, id));
   refresh();

@@ -21,16 +21,16 @@ export default function PrivacyPage() {
   });
 
   const SECTIONS = [
-    { id: "identity", title: "1. Who we are" },
-    { id: "collection", title: "2. Information we collect" },
-    { id: "usage", title: "3. How we use information" },
-    { id: "auth", title: "4. Authentication & third parties" },
-    { id: "cookies", title: "5. Cookies & local storage" },
-    { id: "retention", title: "6. Data retention" },
-    { id: "rights", title: "7. Your rights" },
-    { id: "children", title: "8. Children" },
-    { id: "changes", title: "9. Policy updates" },
-    { id: "contact", title: "10. Contact information" },
+    { id: "identity", title: "Who we are" },
+    { id: "collection", title: "Information we collect" },
+    { id: "usage", title: "How we use information" },
+    { id: "auth", title: "Authentication & third parties" },
+    { id: "cookies", title: "Cookies & local storage" },
+    { id: "retention", title: "Data retention" },
+    { id: "rights", title: "Your rights" },
+    { id: "children", title: "Children" },
+    { id: "changes", title: "Policy updates" },
+    { id: "contact", title: "Contact information" },
   ];
 
   return (
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
               <article id="identity" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">01</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">1. Who we are</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Who we are</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   {site.name} (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) operates the
@@ -69,7 +69,7 @@ export default function PrivacyPage() {
               <article id="collection" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">02</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">2. Information we collect</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Information we collect</h2>
                 </div>
                 <ul className="legal-prose text-muted text-sm sm:text-base space-y-2.5">
                   <li>
@@ -94,7 +94,7 @@ export default function PrivacyPage() {
               <article id="usage" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">03</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">3. How we use information</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">How we use information</h2>
                 </div>
                 <ul className="legal-prose text-muted text-sm sm:text-base space-y-2">
                   <li>To create and manage your account and authenticate logins.</li>
@@ -112,7 +112,7 @@ export default function PrivacyPage() {
               <article id="auth" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">04</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">4. Authentication & third parties</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Authentication & third parties</h2>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-500/10 border border-purple-500/30 text-xs sm:text-sm text-purple-900 dark:text-purple-200">
@@ -132,7 +132,7 @@ export default function PrivacyPage() {
               <article id="cookies" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">05</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">5. Cookies & local storage</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Cookies & local storage</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   We use essential cookies to keep you signed in. We also use your browser&apos;s local
@@ -144,7 +144,7 @@ export default function PrivacyPage() {
               <article id="retention" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">06</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">6. Data retention</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Data retention</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   We keep account information while your account is active. Store requests, support
@@ -157,7 +157,7 @@ export default function PrivacyPage() {
               <article id="rights" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">07</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">7. Your rights</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Your rights</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   You can access, correct, or delete your personal information from your{" "}
@@ -169,7 +169,7 @@ export default function PrivacyPage() {
               <article id="children" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">08</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">8. Children</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Children</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   Our service is not directed to children under 13. If you believe a child has provided
@@ -181,7 +181,7 @@ export default function PrivacyPage() {
               <article id="changes" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">09</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">9. Policy updates</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Policy updates</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   We may update this policy from time to time. We will update the date at the top of this
@@ -193,7 +193,7 @@ export default function PrivacyPage() {
               <article id="contact" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
                   <span className="telemetry text-xs font-mono font-bold text-muted bg-surface/60 px-2.5 py-1 rounded-md border border-line/50">10</span>
-                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">10. Contact information</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Contact information</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   Questions about this policy? Reach us through our{" "}

@@ -118,7 +118,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
         >
           <Bell size={16} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-extrabold text-white shadow-md border border-base animate-pulse">
+            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-extrabold text-white shadow-md border border-page animate-pulse">
               {unreadCount}
             </span>
           )}

@@ -304,20 +304,14 @@ export function getPurchaseBannerUrl(): string | null {
   }
 }
 
-const CLOSED_PREFIX = "closed-";
+/*
+  closedChannelName / reopenedChannelName / renameChannel /
+  setTicketMemberAccess were removed: they belonged to a ticket rename+reopen
+  flow that was superseded by the archival flow the interactions route uses.
+  None of them had a caller anywhere in the codebase.
+*/
 
-/** The closed counterpart of a ticket name, within Discord's 100-char limit. */
-export function closedChannelName(name: string): string {
-  if (name.startsWith(CLOSED_PREFIX)) return name;
-  return `${CLOSED_PREFIX}${name}`.slice(0, 100);
-}
-
-/** The live name for a closed ticket, so reopening restores the original. */
-export function reopenedChannelName(name: string): string {
-  return name.startsWith(CLOSED_PREFIX) ? name.slice(CLOSED_PREFIX.length) : name;
-}
-
-/** A single channel, used to read a ticket's current name before renaming it. */
+/** A single channel, used to read a ticket's current name. */
 export async function fetchChannel(
   token: string,
   channelId: string,
@@ -329,44 +323,6 @@ export async function fetchChannel(
     return null;
   }
   return { id: data.id, name: data.name };
-}
-
-/** Renames a channel. */
-export async function renameChannel(
-  token: string,
-  channelId: string,
-  name: string,
-): Promise<boolean> {
-  const res = await botRequest(token, `/channels/${channelId}`, { name }, "PATCH");
-  if (!res.ok) console.error("Discord channel rename failed", res.status, res.json);
-  return res.ok;
-}
-
-/**
- * Grants or revokes a single member's access to a ticket.
- *
- * Edits only that member's overwrite rather than rewriting the channel's whole
- * permission set, so closing a ticket cannot accidentally drop the staff role's
- * or the bot's access along with the buyer's.
- */
-export async function setTicketMemberAccess(
-  token: string,
-  channelId: string,
-  userId: string,
-  allowed: boolean,
-): Promise<boolean> {
-  const res = await botRequest(
-    token,
-    `/channels/${channelId}/permissions/${userId}`,
-    {
-      type: 1, // member
-      allow: allowed ? TICKET_MEMBER_PERMISSIONS : "0",
-      deny: allowed ? "0" : VIEW_CHANNEL,
-    },
-    "PUT",
-  );
-  if (!res.ok) console.error("Discord ticket access change failed", res.status, res.json);
-  return res.ok;
 }
 
 /** Bot token on its own — news sync must not require the orders channel to be set. */

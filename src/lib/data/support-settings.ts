@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { site } from "@/lib/site";
@@ -95,10 +96,14 @@ export async function getSupportMainSettings() {
   return { ...DEFAULT_SUPPORT_MAIN, ...value, faqs: Array.isArray(value.faqs) ? value.faqs : DEFAULT_SUPPORT_MAIN.faqs };
 }
 
-export async function getSupportCards() {
+/*
+  cache() so generateMetadata and the page body on /support/[cardId] (and the
+  hub layout) share one settings read per request instead of re-querying.
+*/
+export const getSupportCards = cache(async () => {
   const value = await readSetting<SupportCardSettings[]>(SUPPORT_CARDS_KEY, DEFAULT_SUPPORT_CARDS);
   return Array.isArray(value) && value.length > 0 ? value : DEFAULT_SUPPORT_CARDS;
-}
+});
 
 export async function getSupportCard(id: string) {
   const cards = await getSupportCards();
