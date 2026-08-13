@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { ScrollText } from "lucide-react";
 import { getRules } from "@/lib/data/content";
 import { EmptyState, PageHero, Reveal, LegalHeroIllustration } from "@/components/shared";
 import { RuleBook } from "@/components/shared/rule-book";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Rules",
   description: "The community rules that keep the network fair, friendly and fun for everyone.",
-};
+  path: "/rules",
+});
 
 export default async function RulesPage() {
   const categories = await getRules();

@@ -42,8 +42,12 @@ function defaults(key = NEWS_PERMISSION_KEY): ModulePermissions {
   return { roles: defaultRolesForModule(key), userIds: [] };
 }
 
-function normalise(value: unknown, key = NEWS_PERMISSION_KEY): ModulePermissions {
-  if (!value || typeof value !== "object") return defaults(key);
+function failClosed(): ModulePermissions {
+  return { roles: [...ALWAYS_ALLOWED], userIds: [] };
+}
+
+function normalise(value: unknown): ModulePermissions {
+  if (!value || typeof value !== "object") return failClosed();
   const raw = value as { roles?: unknown; userIds?: unknown };
   const roles = Array.isArray(raw.roles)
     ? raw.roles.filter((r): r is Role => typeof r === "string" && ROLES.includes(r as Role))
@@ -51,7 +55,6 @@ function normalise(value: unknown, key = NEWS_PERMISSION_KEY): ModulePermissions
   const userIds = Array.isArray(raw.userIds)
     ? raw.userIds.filter((u): u is string => typeof u === "string" && u.length > 0).slice(0, 100)
     : [];
-  if (roles.length === 0 && userIds.length === 0) return defaults(key);
   return { roles: Array.from(new Set([...roles, ...ALWAYS_ALLOWED])), userIds };
 }
 
@@ -71,9 +74,9 @@ export const getModulePermissions = cache(async (key: string): Promise<ModulePer
       .from(schema.siteSettings)
       .where(eq(schema.siteSettings.settingKey, key))
       .limit(1);
-    return normalise(row?.settingValue, key);
+    return row ? normalise(row.settingValue) : defaults(key);
   } catch {
-    return defaults(key);
+    return failClosed();
   }
 });
 
@@ -124,4 +127,3 @@ export const canManageNotifications = (s: Session | null, u?: string | null) => 
 
 export const getMinecraftPermissions = () => getModulePermissions(MINECRAFT_PERMISSION_KEY);
 export const canManageMinecraft = (s: Session | null, u?: string | null) => canManageModule(MINECRAFT_PERMISSION_KEY, s, u);
-

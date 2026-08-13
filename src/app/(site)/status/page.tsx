@@ -1,14 +1,15 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { Activity, Signal, Server, Clock, Gauge } from "lucide-react";
 import { getServerStatus } from "@/lib/data/status";
 import { site } from "@/lib/site";
 import { PageHero, CopyIpButton, Reveal } from "@/components/shared";
 import { fmtDate } from "@/lib/utils";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Server Status",
   description: `Live status for ${site.name} — player count, version, MOTD, ping and uptime for Java and Bedrock.`,
-};
+  path: "/status",
+});
 
 export const dynamic = "force-dynamic";
 

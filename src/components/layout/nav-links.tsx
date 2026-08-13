@@ -71,7 +71,6 @@ export function NavLinks() {
             >
               <button
                 type="button"
-                aria-haspopup="menu"
                 aria-expanded={menuOpen}
                 aria-controls={menuId}
                 data-active={active}
@@ -97,7 +96,6 @@ export function NavLinks() {
               </button>
               <div
                 id={menuId}
-                role="menu"
                 className={cn(
                   "nav-dropdown absolute top-[calc(100%-1px)] z-[80] w-80 rounded-2xl border border-line-strong bg-card/95 p-2 shadow-2xl backdrop-blur-xl transition-all duration-200",
                   menuOpen ? "visible translate-y-0 opacity-100" : "invisible translate-y-1 opacity-0",
@@ -113,7 +111,6 @@ export function NavLinks() {
                   <Link
                     key={child.href}
                     href={child.href}
-                    role="menuitem"
                     onClick={() => {
                       setOpenMenu(null);
                       setHoveredMenu(null);

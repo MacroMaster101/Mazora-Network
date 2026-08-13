@@ -64,7 +64,7 @@ export function NotificationPreferences({ role }: { role?: Role | string }) {
     };
 
     toast(
-      `${labelMap[key]} ${nextState ? "enabled (ON)" : "disabled (OFF)"}.`,
+      `${labelMap[key]} preference saved on this device.`,
       nextState ? "success" : "info"
     );
   };
@@ -74,23 +74,23 @@ export function NotificationPreferences({ role }: { role?: Role | string }) {
       id: "email" as const,
       label: "Email Notifications (Store & Account)",
       icon: Mail,
-      desc: "Receive email notifications for store orders, purchase receipts, and password resets.",
-      tooltip: "Turn ON if you would like email receipts and order confirmations sent to your email inbox.",
+      desc: "Save your preferred email-notification setting on this browser. Email delivery is not connected yet.",
+      tooltip: "This is a device-only preference and does not currently subscribe you to email delivery.",
       adminNote: "Staff & Admin Note: Welcome email is automatically sent on account registration.",
     },
     {
       id: "events" as const,
       label: "Event & Realm Alerts",
       icon: Calendar,
-      desc: "Get notifications for community events, double XP weekend drops, and realm announcements.",
-      tooltip: "Turn ON to receive email alerts for server events and double XP weekends.",
+      desc: "Save your preferred event-alert setting on this browser. Event email delivery is not connected yet.",
+      tooltip: "This is a device-only preference and does not currently subscribe you to event emails.",
     },
     {
       id: "support" as const,
       label: "Support Ticket & Appeal Emails",
       icon: LifeBuoy,
-      desc: "Receive email updates when staff members reply to your support tickets or ban appeals.",
-      tooltip: "Turn ON to receive an email alert whenever staff reply to your ticket.",
+      desc: "Save your preferred support-alert setting on this browser. Support email delivery is not connected yet.",
+      tooltip: "This is a device-only preference and does not currently subscribe you to support emails.",
     },
   ];
 
@@ -103,13 +103,13 @@ export function NotificationPreferences({ role }: { role?: Role | string }) {
           <span>Notification Delivery Preferences</span>
         </div>
         <p className="text-xs text-ink/80 dark:text-gray-300 font-medium leading-relaxed">
-          Manage your notification channel preferences. <strong className="text-accent-bright font-extrabold">Website In-App Notifications</strong> are active by default so you stay updated while browsing. External email and event alerts can be enabled below anytime.
+          These optional controls are saved only on this device and do not currently activate email delivery. <strong className="text-accent-bright font-extrabold">Website In-App Notifications</strong> remain available while browsing.
         </p>
       </div>
 
       {saved && (
         <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl animate-fade-in">
-          <Check size={14} /> Notification preferences updated live!
+          <Check size={14} /> Preference saved on this device.
         </div>
       )}
 

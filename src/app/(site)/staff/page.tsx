@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { BadgeCheck, CircleHelp, Crown, Gavel, Handshake, Shield, Sparkles, UsersRound } from "lucide-react";
@@ -7,10 +7,11 @@ import { roleLabel, STAFF_ROLES } from "@/lib/auth";
 import { listPublicStaffAccounts, type PublicStaffMember } from "@/lib/data/accounts";
 import type { Role } from "@/lib/types";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Our Team",
   description: "Meet the people leading, managing, and supporting the Mazora Network community.",
-};
+  path: "/staff",
+});
 
 const LADDER: Role[] = STAFF_ROLES.filter((role) => role !== "it").reverse();
 

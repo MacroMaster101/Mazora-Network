@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { Blocks } from "lucide-react";
 import { getGameModes } from "@/lib/data/content";
 import { getServerStatus } from "@/lib/data/status";
 import { EmptyState, FloatingBrandLogo, PageHero, GameModeCard, Reveal } from "@/components/shared";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Game Modes",
   description: "Explore every game mode on the network — Survival, Skyblock, Lifesteal, OneBlock, KitPvP and Creative.",
-};
+  path: "/game-modes",
+});
 
 export default async function GameModesPage() {
   const [modes, status] = await Promise.all([getGameModes(), getServerStatus()]);

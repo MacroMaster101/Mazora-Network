@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Image from "next/image";
 import {
   ArrowDown,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import { getVoteSites, getTopVoters } from "@/lib/data/content";
 import { site } from "@/lib/site";
+import { publicPageMetadata } from "@/lib/seo";
 import { Reveal } from "@/components/shared";
 import { TopVotersTable } from "./top-voters-table";
 // Import order mirrors the order these rules loaded in before they were split
@@ -20,10 +20,11 @@ import "@/styles/vote-pages.css";
 import "@/styles/store-vote-responsive.css";
 import "@/styles/vote.css";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Vote",
   description: `Vote for ${site.name} every day to earn coins, crate keys and rewards — and help more players find us.`,
-};
+  path: "/vote",
+});
 
 export default async function VotePage() {
   const [sites, voters] = await Promise.all([getVoteSites(), getTopVoters()]);

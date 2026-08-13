@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     siteName: site.name,
     title: `${site.name} — ${site.tagline}`,
     description: site.description,
-    url: site.url,
+    url: "./",
     locale: "en_US",
     images: [OG_IMAGE],
   },

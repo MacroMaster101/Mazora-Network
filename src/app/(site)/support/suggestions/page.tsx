@@ -1,14 +1,15 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { FloatingBrandLogo, PageHero } from "@/components/shared";
 import { RequireLogin } from "@/components/shared/require-login";
 import { SupportForm, type FieldConfig } from "@/components/shared/support-form";
 import { submitSuggestion } from "@/lib/actions/support";
 import { getSupportCard } from "@/lib/data/support-settings";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "Suggest a Feature",
   description: "Share an idea to make the network better. The community can vote on suggestions.",
-};
+  path: "/support/suggestions",
+});
 
 const fields: FieldConfig[] = [
   { name: "title", label: "Title", required: true, placeholder: "Your idea in one line" },

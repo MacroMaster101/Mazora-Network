@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Image from "next/image";
 import { BookOpenText, Newspaper, Radio, Sparkles } from "lucide-react";
 import { getNews } from "@/lib/data/content";
@@ -7,6 +6,7 @@ import { NewsExplorer } from "@/components/shared/news-explorer";
 import { NewsVisitorStat } from "@/components/shared/news-visitor-stat";
 import { getPreviewNews } from "@/lib/news/preview-fixtures";
 import { getNewsVisitorCount } from "@/lib/data/news-visitors";
+import { publicPageMetadata } from "@/lib/seo";
 // news-pages.css holds rules split out of globals.css and must load first, which
 // is the order they cascaded in there. Do not reshuffle.
 import "@/styles/news-pages.css";
@@ -17,10 +17,11 @@ import "@/styles/newsroom-scrollbar.css";
 import "@/styles/newsroom-vertical-world.css";
 import "@/styles/newsroom-responsive.css";
 
-export const metadata: Metadata = {
+export const metadata = publicPageMetadata({
   title: "News",
   description: "Server updates, patch notes, announcements and community stories from the network.",
-};
+  path: "/news",
+});
 
 export default async function NewsPage({
   searchParams,

@@ -2,7 +2,7 @@
 
 ## Local setup
 
-Use Node.js 22 or newer and npm. Clone the repository, run `npm ci`, copy `.env.example` to `.env.local` when integrations are needed, and start the app with `npm run dev`. The public UI boots without secrets and shows safe empty states for unconfigured services.
+Use Node.js 24 and npm. Clone the repository, run `npm ci`, copy `.env.example` to `.env.local` when integrations are needed, and start the app with `npm run dev`. The public UI boots without secrets and shows safe empty states for unconfigured services.
 
 Never commit `.env`, `.env.local`, service-role keys, Discord tokens, database credentials, generated Next.js output, or local logs.
 

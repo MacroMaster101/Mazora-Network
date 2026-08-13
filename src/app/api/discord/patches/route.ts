@@ -8,8 +8,8 @@ export const revalidate = 0;
 
 /**
  * Reads recent messages from a Discord channel and renders them as patch notes.
- * Only reachable by administrators, and only ever called from the Play page
- * editor in the admin panel.
+ * Only reachable by administrators, only for a server-approved channel, and
+ * only ever called from the Play page editor in the admin panel.
  *
  * The role check is not optional. `channelId` is caller-supplied and is handed
  * to the Discord API using the *bot* token, so an unauthenticated caller could
@@ -36,8 +36,20 @@ export async function GET(request: Request) {
     );
   }
 
+  const approvedChannelIds = new Set(
+    [process.env.DISCORD_PATCH_CHANNEL_ID, process.env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID]
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value)),
+  );
+  if (!requested || !approvedChannelIds.has(requested)) {
+    return NextResponse.json(
+      { ok: false, error: "channel_not_approved" },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   try {
-    const patches = await getPatchUpdates(requested || undefined);
+    const patches = await getPatchUpdates(requested);
     revalidatePath("/play");
     revalidatePath("/admin/play");
     revalidatePath("/admin/pages");
