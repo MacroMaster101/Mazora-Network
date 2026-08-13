@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -7,6 +8,7 @@ import { site } from "@/lib/site";
 import { Providers } from "./providers";
 import { themeNoFlashScript } from "@/components/theme/theme-provider";
 import { CookieConsent } from "@/components/shared/cookie-consent";
+import { pingDiscordPresence } from "@/lib/data/discord-presence-health";
 import "@/styles/globals.css";
 
 /*
@@ -81,6 +83,10 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Real site traffic is a secondary wake signal for the Discord presence
+  // worker. The request runs after the response and is throttled server-side,
+  // so it neither delays rendering nor exposes a visitor's browser to Render.
+  after(pingDiscordPresence);
   // Nonce is minted per request in middleware. Reading it here makes the root
   // layout dynamic, which is already true of nearly every route on this site.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
