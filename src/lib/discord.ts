@@ -402,9 +402,13 @@ export interface DiscordRole {
 }
 
 /** Guild roles used to turn Discord role ids on an announcement into a public label. */
-export async function fetchGuildRoles(token: string, guildId: string): Promise<DiscordRole[] | null> {
+export async function fetchGuildRoles(
+  token: string,
+  guildId: string,
+  revalidateSeconds?: number,
+): Promise<DiscordRole[] | null> {
   try {
-    const res = await botRequest(token, "/guilds/" + guildId + "/roles", undefined, "GET");
+    const res = await botRequest(token, "/guilds/" + guildId + "/roles", undefined, "GET", revalidateSeconds);
     if (!res.ok || !Array.isArray(res.json)) return null;
     return (res.json as DiscordRole[]).filter((role) => role && typeof role.id === "string");
   } catch {

@@ -302,6 +302,8 @@ export interface ServerStatus {
   bedrock: { online: boolean; address: string; port: string };
   /** true only when a real status API is configured */
   live: boolean;
+  /** The most recent successful reading is being served while providers recover. */
+  stale?: boolean;
 }
 
 export interface PatchUpdate {
@@ -355,4 +357,3 @@ export const DEFAULT_PLAY_CONFIG: PlayPageConfig = {
     "Save, then tap the server to join.",
   ],
 };
-
