@@ -3,8 +3,9 @@ services:
     name: mazora-discord-presence
     runtime: node
     plan: free
+    branch: discord-bot-presence
     buildCommand: npm ci
-    startCommand: npm run bot:presence:render
+    startCommand: npm start
     healthCheckPath: /health
     autoDeployTrigger: commit
     envVars:
