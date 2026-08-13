@@ -128,7 +128,9 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production auth | Browser-safe Supabase publishable key for new projects. |
 | `DISCORD_STORE_WEBHOOK_URL` | Manual store orders | Private webhook URL for the staff order channel. Never expose it as a public variable. |
 | `DISCORD_STORE_STAFF_ROLE_ID` | Store orders | Role(s) permitted to action orders and read every ticket. Accepts one ID or several comma-separated (`<staff>,<management>,<owner>`); only the first is @mentioned on a new order. Order actions are refused entirely while this is unset. |
-| `DISCORD_BOT_TOKEN` | Order buttons, news sync | Bot token. Enables Confirm/Reject buttons, order tickets, buyer DMs, and the announcement importer. |
+| `DISCORD_BOT_TOKEN` | Order buttons, news sync, presence | Bot token. Enables Confirm/Reject buttons, order tickets, buyer DMs, the announcement importer, and the persistent live-status presence worker. |
+| `DISCORD_PRESENCE_REFRESH_MS` | No | How often the presence worker refreshes Minecraft and Discord counts. Defaults to 60 seconds; minimum 30 seconds. |
+| `DISCORD_PRESENCE_ROTATE_MS` | No | How often the visible bot activity rotates. Defaults to 20 seconds; minimum 15 seconds. |
 | `DISCORD_APP_PUBLIC_KEY` | Order buttons | Developer Portal → General Information → Public Key. Verifies that button clicks genuinely came from Discord. |
 | `DISCORD_ORDERS_CHANNEL_ID` | Order buttons | Staff channel the bot posts order requests into. |
 | `DISCORD_GUILD_ID` | Order tickets | Your Discord server ID. Used to verify a buyer has joined before checkout and to create their ticket. Also links imported news back to the original message. |
@@ -148,6 +150,11 @@ The live integrations fail safely:
 
 - Minecraft status is fetched server-side and cached for 15 seconds. A backup provider and short stale/failure retries keep transient upstream errors from replacing the last known live result with invented data.
 - Discord counts are fetched from Discord's invite API and cached for 15 seconds. A failed or invalid invite returns a join prompt instead of a fabricated count.
+
+## 🤖 Discord live presence
+
+The standalone worker and Render deployment guide are documented in
+[`docs/DISCORD_PRESENCE_BOT.md`](docs/DISCORD_PRESENCE_BOT.md).
 
 ## 🛒 Store orders and Discord tickets
 
