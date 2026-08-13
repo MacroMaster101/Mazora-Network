@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: mazora-discord-presence
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm run bot:presence:render
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://mazora.us
+      - key: NEXT_PUBLIC_DISCORD_INVITE_URL
+        sync: false
+      - key: DISCORD_PRESENCE_REFRESH_MS
+        value: "60000"
+      - key: DISCORD_PRESENCE_ROTATE_MS
+        value: "20000"
