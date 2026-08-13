@@ -1,69 +1,23 @@
 {
-  "name": "mazora-network",
+  "name": "mazora-discord-presence",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "engines": {
     "node": "24.x"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint . --max-warnings=0",
-    "typecheck": "tsc --noEmit",
-    "test": "tsx --test \"src/**/*.test.ts\"",
-    "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
-    "db:apply": "tsx --env-file=.env scripts/apply-sql.ts",
-    "db:seed:store": "tsx --env-file=.env scripts/seed-store.ts",
-    "db:seed:rules": "tsx --env-file=.env scripts/seed-rules.ts",
-    "role:set": "tsx --env-file=.env scripts/set-role.ts",
-    "db:rehost:news-images": "tsx --env-file=.env scripts/rehost-news-images.ts",
+    "start": "tsx scripts/discord-presence.ts",
     "bot:presence": "tsx --env-file=.env scripts/discord-presence.ts",
-    "bot:presence:render": "tsx scripts/discord-presence.ts"
+    "bot:presence:once": "tsx --env-file=.env scripts/discord-presence.ts --once",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.49.4",
-    "@vercel/analytics": "^2.0.1",
-    "@vercel/speed-insights": "^2.0.0",
     "discord.js": "^14.27.0",
-    "drizzle-orm": "^0.45.2",
-    "lucide-react": "^0.468.0",
-    "next": "^15.5.20",
-    "postgres": "^3.4.9",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "server-only": "^0.0.1",
-    "sharp": "^0.35.3",
-    "tsx": "^4.19.2",
-    "zod": "^3.24.2"
+    "tsx": "^4.19.2"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.6",
     "@types/node": "^22.10.2",
-    "@types/react": "^19.0.3",
-    "@types/react-dom": "^19.0.2",
-    "autoprefixer": "^10.4.20",
-    "drizzle-kit": "^0.31.10",
-    "eslint": "^9.39.5",
-    "eslint-config-next": "^15.5.20",
-    "postcss": "^8.5.25",
-    "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2"
-  },
-  "overrides": {
-    "next": {
-      "postcss": "^8.5.25"
-    },
-    "sharp": "^0.35.3"
-  },
-  "browserslist": [
-    "chrome >= 111",
-    "edge >= 111",
-    "firefox >= 121",
-    "safari >= 16.4",
-    "ios_saf >= 16.4",
-    "not dead"
-  ]
+  }
 }

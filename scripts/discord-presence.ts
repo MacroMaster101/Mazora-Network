@@ -8,6 +8,14 @@ type MinecraftStatus = {
   max?: number;
 };
 
+type MinecraftFallbackStatus = {
+  online?: boolean;
+  players?: {
+    online?: number;
+    max?: number;
+  };
+};
+
 type DiscordInviteStats = {
   approximate_presence_count?: number;
   approximate_member_count?: number;
@@ -73,18 +81,35 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 }
 
 async function refreshSnapshot(): Promise<void> {
-  const [minecraft, discord] = await Promise.all([
+  const [primaryMinecraft, discord] = await Promise.all([
     fetchJson<MinecraftStatus>(`${siteOrigin}/api/status`),
     fetchJson<DiscordInviteStats>(
       `https://discord.com/api/v10/invites/${encodeURIComponent(inviteCode)}?with_counts=true`,
     ),
   ]);
 
+  const primaryIsLive =
+    primaryMinecraft?.live === true && typeof primaryMinecraft.players === "number";
+  const fallbackMinecraft = primaryIsLive
+    ? null
+    : await fetchJson<MinecraftFallbackStatus>("https://api.mcsrvstat.us/3/mc.mazora.us");
+
+  const minecraftPlayers = primaryIsLive
+    ? primaryMinecraft.players ?? null
+    : fallbackMinecraft?.online && typeof fallbackMinecraft.players?.online === "number"
+      ? fallbackMinecraft.players.online
+      : null;
+  const minecraftMax = primaryIsLive
+    ? typeof primaryMinecraft.max === "number"
+      ? primaryMinecraft.max
+      : null
+    : fallbackMinecraft?.online && typeof fallbackMinecraft.players?.max === "number"
+      ? fallbackMinecraft.players.max
+      : null;
+
   snapshot = {
-    minecraftPlayers:
-      minecraft?.live && typeof minecraft.players === "number" ? minecraft.players : snapshot.minecraftPlayers,
-    minecraftMax:
-      minecraft?.live && typeof minecraft.max === "number" ? minecraft.max : snapshot.minecraftMax,
+    minecraftPlayers: minecraftPlayers ?? snapshot.minecraftPlayers,
+    minecraftMax: minecraftMax ?? snapshot.minecraftMax,
     discordOnline:
       typeof discord?.approximate_presence_count === "number"
         ? discord.approximate_presence_count
