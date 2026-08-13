@@ -87,6 +87,8 @@ https://api.mcsrvstat.us/3/mc.mazora.us
 
 Set `MINECRAFT_STATUS_API_URL` to use a custom proxy or plugin API. Successful responses are cached for 15 seconds. The default integration falls back to mcstatus.io, keeps a last-known live result through transient failures, and retries stale/failure states quickly rather than inventing counts.
 
+The standalone Discord presence worker exposes a health endpoint configured by `DISCORD_PRESENCE_HEALTH_URL`. Normal site requests and `/api/status` schedule a non-blocking, process-throttled health request after the response. Because the worker itself reads `/api/status`, the two services maintain a lightweight keep-awake loop while Render is running; real site traffic and the external monitor provide recovery signals after a restart or cold stop.
+
 The `/api/status` route exposes the normalized site status for same-origin clients.
 
 ## 💬 Live Discord counts
