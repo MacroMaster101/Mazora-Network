@@ -26,6 +26,24 @@ export const metadata = publicPageMetadata({
   path: "/vote",
 });
 
+/*
+  Never prerender. The site layout makes this page dynamic anyway (it reads
+  cookies for the header), but that bail-out happens *after* the render has
+  already started — so during `next build` Next still executes the body below
+  and runs both queries from the build machine. getTopVoters() is an unbounded
+  aggregate over vote_history, and the driver is capped at three connections
+  per worker with no query timeout, so a saturated Supabase pooler blocks the
+  query indefinitely and the page blows Next's 60s export budget. That is what
+  broke the production build while preview and local builds passed: it depends
+  on pooler contention, not on the code path.
+
+  force-dynamic keeps the page out of the prerender pass entirely. It is also
+  the correct mode on its own merits — the leaderboard is live data, and a
+  prerendered copy would sit frozen until the next deploy. /play and /status
+  read live data through the same driver and already do this.
+*/
+export const dynamic = "force-dynamic";
+
 export default async function VotePage() {
   const [sites, voters] = await Promise.all([getVoteSites(), getTopVoters()]);
 

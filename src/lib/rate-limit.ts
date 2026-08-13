@@ -3,15 +3,25 @@ import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 
 /**
- * Small in-process fixed-window rate limiter for the public, unauthenticated
- * API routes.
+ * Fixed-window rate limiting with two tiers:
  *
- * Scope and limits, stated plainly: state lives in this process's memory, so on
- * a multi-instance/serverless deployment each instance keeps its own window and
- * the effective ceiling is `limit x instances`. That is fine for what this
- * guards — counter inflation and DB write amplification on the news analytics
- * endpoints — but it is NOT a security control for anything that needs a hard
- * global bound. Move to a shared store (Redis/Upstash) if that changes.
+ * - `rateLimit` — in-process memory. Each serverless instance keeps its own
+ *   window, so the effective ceiling is `limit x instances`. Fine for what it
+ *   guards directly (counter inflation on the news analytics endpoints), and
+ *   it is the always-available fallback for the tier below.
+ *
+ * - `rateLimitShared` — a global window in Upstash Redis (plain REST, no SDK),
+ *   used automatically when `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`
+ *   (or the Vercel KV aliases `KV_REST_API_URL`/`KV_REST_API_TOKEN`) are set.
+ *   This is what `throttleAuthAction` — login, registration, the 6-digit
+ *   reset code, support/gallery/store submissions — goes through, because
+ *   those need a bound an attacker cannot multiply by fanning out across
+ *   lambda instances or waiting for cold starts.
+ *
+ * When Redis is unconfigured or unreachable the shared tier degrades to the
+ * per-instance window rather than failing the request: sign-in must not go
+ * down with the rate limiter, and the in-memory window still brakes
+ * single-instance abuse in the meantime.
  */
 
 type Window = { count: number; resetAt: number };
@@ -57,6 +67,64 @@ export function rateLimit(
     remaining: Math.max(0, limit - existing.count),
     retryAfter: ok ? 0 : Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
   };
+}
+
+/** Upstash/Vercel-KV REST credentials, when a shared store is provisioned. */
+function sharedStoreConfig(): { url: string; token: string } | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim() || process.env.KV_REST_API_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim() || process.env.KV_REST_API_TOKEN?.trim();
+  if (!url || !token || !url.startsWith("https://")) return null;
+  return { url: url.replace(/\/+$/, ""), token };
+}
+
+/**
+ * Fixed-window verdict backed by the shared store, falling back to the
+ * in-process window when no store is configured or the call fails.
+ *
+ * Windows are aligned to wall-clock buckets (`floor(now / windowMs)`) so every
+ * instance increments the same key without coordination. One round trip:
+ * INCR + PEXPIRE pipelined. The TTL is 2x the window purely as garbage
+ * collection — the bucket index in the key is what actually rolls the window.
+ */
+export async function rateLimitShared(
+  key: string,
+  { limit, windowMs }: { limit: number; windowMs: number },
+): Promise<RateLimitVerdict> {
+  const config = sharedStoreConfig();
+  if (!config) return rateLimit(key, { limit, windowMs });
+
+  const now = Date.now();
+  const redisKey = `rl:${key}:${Math.floor(now / windowMs)}`;
+  try {
+    const res = await fetch(`${config.url}/pipeline`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify([
+        ["INCR", redisKey],
+        ["PEXPIRE", redisKey, String(windowMs * 2)],
+      ]),
+      cache: "no-store",
+      // Short deadline: a slow limiter must not stall sign-in; the fallback
+      // below still provides per-instance braking.
+      signal: AbortSignal.timeout(1500),
+    });
+    if (!res.ok) throw new Error(`rate-limit store responded ${res.status}`);
+    const data = (await res.json()) as Array<{ result?: unknown; error?: string }>;
+    if (data?.[0]?.error) throw new Error(data[0].error);
+    const count = Number(data?.[0]?.result);
+    if (!Number.isFinite(count) || count < 1) throw new Error("rate-limit store returned no count");
+
+    const ok = count <= limit;
+    return {
+      ok,
+      remaining: Math.max(0, limit - count),
+      retryAfter: ok ? 0 : Math.max(1, Math.ceil((windowMs - (now % windowMs)) / 1000)),
+    };
+  } catch (error) {
+    // Never printed with the key's identity content — `key` holds only hashes.
+    console.error("Shared rate limit unavailable; using per-instance window:", error);
+    return rateLimit(key, { limit, windowMs });
+  }
 }
 
 /**
@@ -111,7 +179,7 @@ export async function throttleAuthAction(
   scope: string,
   { limit, windowMs, identity }: { limit: number; windowMs: number; identity?: string },
 ): Promise<string | null> {
-  const verdict = rateLimit(await actionClientKey(scope, identity), { limit, windowMs });
+  const verdict = await rateLimitShared(await actionClientKey(scope, identity), { limit, windowMs });
   if (verdict.ok) return null;
   const minutes = Math.ceil(verdict.retryAfter / 60);
   return minutes > 1
