@@ -19,28 +19,34 @@ html:has(.admin-store-page) {
 .modal-scroll-shell:has(.store-admin-public-preview) {
   clip-path: inset(0 round 1.5rem);
   overscroll-behavior: contain;
-  scrollbar-color: rgb(var(--accent-rgb) / 0.72) rgb(var(--surface) / 0.72);
-  scrollbar-gutter: stable;
+  scrollbar-color: rgb(var(--accent-rgb) / 0.72) transparent !important;
   scrollbar-width: thin;
 }
 
 .modal-scroll-shell:has(.store-admin-modal)::-webkit-scrollbar,
 .modal-scroll-shell:has(.store-admin-public-preview)::-webkit-scrollbar {
-  width: 0.65rem;
+  width: 0.65rem !important;
 }
 
 .modal-scroll-shell:has(.store-admin-modal)::-webkit-scrollbar-track,
 .modal-scroll-shell:has(.store-admin-public-preview)::-webkit-scrollbar-track {
   border-radius: 999px;
-  background: rgb(var(--surface) / 0.72);
+  background: transparent !important;
+}
+
+.modal-scroll-shell:has(.store-admin-modal)::-webkit-scrollbar-button,
+.modal-scroll-shell:has(.store-admin-public-preview)::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .modal-scroll-shell:has(.store-admin-modal)::-webkit-scrollbar-thumb,
 .modal-scroll-shell:has(.store-admin-public-preview)::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: rgb(var(--accent-rgb) / 0.72);
-  background-clip: padding-box;
+  border: 2px solid transparent !important;
+  border-radius: 999px !important;
+  background: rgb(var(--accent-rgb) / 0.72) !important;
+  background-clip: padding-box !important;
 }
 
 .admin-store-page .dash-header {
@@ -2120,9 +2126,385 @@ html:has(.admin-store-page) {
    sitting as two small tiles in the top-left corner. */
 .store-admin-hub-cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Three hub cards: page editor, catalog, creator codes. The container no
+     longer needs to fill the viewport now that three cards share the row. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.5rem;
-  min-height: calc(100dvh - 17rem);
+  min-height: calc(100dvh - 20rem);
+}
+
+@media (max-width: 1100px) {
+  .store-admin-hub-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: auto;
+  }
+}
+
+/* --- Creator code editor -------------------------------------------------
+   Sectioned rather than one long column of inputs: the form covers four
+   unrelated concerns (identity, discount, socials, eligibility) and reads as a
+   wall of fields without the separation. */
+.creator-code-editor {
+  display: grid;
+  width: 100%;
+  height: min(90vh, 52rem);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border-radius: 1.5rem;
+}
+
+.creator-code-page-intro {
+  color: rgb(246 240 252 / 0.82);
+  text-shadow: 0 2px 14px rgb(12 5 24 / 0.72);
+}
+
+.creator-code-empty {
+  border-radius: 1.15rem;
+  backdrop-filter: blur(20px) saturate(1.08);
+  -webkit-backdrop-filter: blur(20px) saturate(1.08);
+}
+
+.creator-code-editor-head {
+  z-index: 4;
+  border-bottom: 1px solid rgb(var(--line) / 0.9);
+  padding: 1.25rem 4.5rem 1rem 1.5rem;
+  background: rgb(var(--card) / 0.94);
+  box-shadow: 0 12px 28px -28px rgb(0 0 0 / 0.8);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.creator-code-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.creator-code-section-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(var(--muted));
+}
+
+/* The generated code is the headline of this form, so it is presented as a
+   result rather than as another input. */
+.creator-code-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  border: 1px solid rgb(var(--accent) / 0.35);
+  border-radius: 0.85rem;
+  background: rgb(var(--accent) / 0.07);
+  padding: 0.75rem 0.9rem;
+}
+
+.creator-code-preview-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(var(--muted));
+}
+
+.creator-code-preview-value {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: rgb(var(--accent-bright));
+}
+
+.creator-code-social {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 10rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 560px) {
+  .creator-code-social {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .creator-code-social > *:nth-child(2) {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+
+/* A native <select> paints an OS menu that cannot be themed — white-on-white in
+   dark mode. This is a listbox built out of ordinary elements instead. */
+.creator-code-platform {
+  position: relative;
+}
+
+.creator-code-platform-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgb(var(--line));
+  border-radius: 0.6rem;
+  background: rgb(var(--card));
+  padding: 0.55rem 0.65rem;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: rgb(var(--fg));
+  transition: border-color 140ms ease;
+}
+
+.creator-code-platform-btn:hover {
+  border-color: rgb(var(--accent) / 0.5);
+}
+
+.creator-code-platform-btn:focus-visible {
+  outline: 2px solid rgb(var(--accent) / 0.8);
+  outline-offset: 1px;
+}
+
+.creator-code-social-ico {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+}
+
+/* Compact, recognizable destinations on the list row. The URL is exposed in
+   the native title tooltip and each icon opens the saved creator link. */
+.creator-code-social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.creator-code-social-link {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border: 1px solid rgb(var(--line));
+  border-radius: 0.55rem;
+  background: rgb(var(--card) / 0.72);
+  color: rgb(var(--fg));
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.creator-code-social-link:hover {
+  border-color: rgb(var(--accent) / 0.55);
+  background: rgb(var(--accent) / 0.12);
+  transform: translateY(-1px);
+}
+
+.creator-code-social-link:focus-visible {
+  outline: 2px solid rgb(var(--accent) / 0.8);
+  outline-offset: 2px;
+}
+
+.creator-code-platform-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  width: max(100%, 11rem);
+  max-height: 15rem;
+  overflow-y: auto;
+  border: 1px solid rgb(var(--line));
+  border-radius: 0.7rem;
+  background: rgb(var(--card));
+  padding: 0.3rem;
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.35);
+}
+
+.creator-code-platform-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 0.45rem;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: rgb(var(--fg));
+  transition: background-color 120ms ease;
+}
+
+.creator-code-platform-item:hover:not(:disabled) {
+  background: rgb(var(--accent) / 0.12);
+}
+
+.creator-code-platform-item.is-on {
+  background: rgb(var(--accent) / 0.16);
+}
+
+.creator-code-platform-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.creator-code-picker {
+  overflow: visible;
+  border: 1px solid rgb(var(--line));
+  border-radius: 0.85rem;
+  padding: 0.85rem;
+}
+
+.creator-code-picker-mode {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(var(--accent-bright));
+}
+
+/* Whole-row targets instead of bare checkboxes: 30+ products in a scroll box
+   is a lot of small hit areas otherwise. */
+.creator-code-product {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.55rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.83rem;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.creator-code-product:hover {
+  background: rgb(var(--accent) / 0.06);
+}
+
+.creator-code-product.is-on {
+  border-color: rgb(var(--accent) / 0.4);
+  background: rgb(var(--accent) / 0.1);
+}
+
+.creator-code-product-tick {
+  display: grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+  border: 1px solid rgb(var(--line));
+  border-radius: 0.3rem;
+  color: white;
+}
+
+.creator-code-product.is-on .creator-code-product-tick {
+  border-color: transparent;
+  background: rgb(var(--accent));
+}
+
+.creator-code-product:focus-within .creator-code-product-tick {
+  outline: 2px solid rgb(var(--accent) / 0.8);
+  outline-offset: 1px;
+}
+
+.creator-code-editor-foot {
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid rgb(var(--line) / 0.9);
+  padding: 1rem 1.5rem;
+  background: rgb(var(--card) / 0.94);
+  box-shadow: 0 -12px 28px -28px rgb(0 0 0 / 0.8);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.creator-code-editor-body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.25rem 1.5rem 1.5rem;
+  scrollbar-color: rgb(var(--accent-rgb) / 0.72) transparent !important;
+  scrollbar-width: thin;
+}
+
+.creator-code-editor-body::-webkit-scrollbar {
+  width: 0.65rem !important;
+}
+
+.creator-code-editor-body::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.creator-code-editor-body::-webkit-scrollbar-thumb {
+  border: 2px solid transparent !important;
+  border-radius: 999px !important;
+  background: rgb(var(--accent-rgb) / 0.72) !important;
+  background-clip: padding-box !important;
+}
+
+.creator-code-editor-body::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+@media (max-width: 720px) {
+  .creator-code-editor {
+    height: min(90vh, 50rem);
+    border-radius: 1.25rem;
+  }
+
+  .creator-code-editor-head {
+    padding: 1rem 4rem 0.9rem 1rem;
+  }
+
+  .creator-code-editor-body {
+    padding: 1rem;
+    scrollbar-width: none;
+  }
+
+  .creator-code-editor-body::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+  }
+
+  .creator-code-editor-foot {
+    padding: 0.9rem 1rem;
+  }
+}
+
+@media (max-width: 479px) {
+  .creator-code-preview {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.55rem 0.75rem;
+  }
+
+  .creator-code-preview-value {
+    flex-basis: calc(100% - 5rem);
+    font-size: 1rem;
+  }
+
+  .creator-code-editor-foot > span {
+    width: 100%;
+  }
+
+  .creator-code-editor-foot > span:last-child .btn {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .creator-code-product {
+    transition-duration: 0.01ms;
+  }
 }
 
 .store-admin-hub-card {

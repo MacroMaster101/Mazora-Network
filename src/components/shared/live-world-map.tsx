@@ -31,6 +31,23 @@ export function LiveWorldMap({ mapUrl }: { mapUrl: string }) {
         loading="lazy"
         allowFullScreen
         referrerPolicy="strict-origin-when-cross-origin"
+        /*
+          `allow-modals` is deliberately absent.
+
+          When the map backend cannot reach the server it calls window.alert(),
+          and a framed page's alert is modal over the WHOLE document — visitors
+          to the homepage got a browser dialog reading "An embedded page at
+          map.mazora.us says: Could not retrieve configuration: error" before
+          they had scrolled anywhere near the map. Without this flag the browser
+          ignores alert/confirm/prompt from the frame and logs a notice instead,
+          so a map outage stays inside the map.
+
+          allow-same-origin is safe here precisely because the frame is a
+          different origin (map.mazora.us): it restores that document's access
+          to its OWN origin, not to mazora.us. It would only be self-defeating
+          on a same-origin frame, which could then drop its own sandbox.
+        */
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
       />
       <div className="home-map-actions">
         <button type="button" className="home-map-reset" onClick={resetToSpawn}>

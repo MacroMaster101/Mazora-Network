@@ -13,7 +13,6 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
     "db:apply": "tsx --env-file=.env scripts/apply-sql.ts",
     "db:seed:store": "tsx --env-file=.env scripts/seed-store.ts",
     "db:seed:rules": "tsx --env-file=.env scripts/seed-rules.ts",
@@ -21,8 +20,8 @@
     "db:rehost:news-images": "tsx --env-file=.env scripts/rehost-news-images.ts"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.49.4",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.3",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "drizzle-orm": "^0.45.2",

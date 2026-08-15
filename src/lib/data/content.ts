@@ -116,6 +116,27 @@ async function loadProduct(slug: string): Promise<Product | null> {
 }
 
 export async function getAdminProducts(): Promise<Product[]> {
+  /*
+    Admin Store pages already require DATABASE_URL for their other reads. Use
+    that same bounded Postgres pool first instead of waiting on service-role
+    PostgREST before falling back to it. The Store hub starts five reads in
+    parallel; a stalled REST request left the whole server component suspended
+    behind loading.tsx even while the direct products query completed in under
+    a second.
+
+    Supabase remains the fallback for environments that intentionally provide
+    only the service-role client, or if the direct query fails.
+  */
+  const db = getDb();
+  if (db) {
+    try {
+      const rows = await db.select().from(schema.products).orderBy(asc(schema.products.sortOrder));
+      return rows.map(toProduct);
+    } catch {
+      // Fall through to the service-role API.
+    }
+  }
+
   const admin = getSupabaseAdmin();
   if (admin) {
     try {
@@ -149,15 +170,7 @@ export async function getAdminProducts(): Promise<Product[]> {
       // Fallthrough to Drizzle
     }
   }
-
-  const db = getDb();
-  if (!db) return [];
-  try {
-    const rows = await db.select().from(schema.products).orderBy(asc(schema.products.sortOrder));
-    return rows.map(toProduct);
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 /* ------------------------------------------------------------------ *

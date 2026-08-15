@@ -1,0 +1,39 @@
+# Line endings
+#
+# The index is already LF throughout, but nothing in the repository enforced
+# that — it held only because every commit so far came from a machine with
+# core.autocrlf=true. A contributor with autocrlf=false would commit CRLF and
+# turn the next diff of that file into a whole-file rewrite. `text=auto` makes
+# the normalisation a property of the repository instead of a property of
+# whoever happens to be cloning it.
+#
+# Four files currently sit as mixed-ending in the working tree
+# (src/app/api/status/route.ts, src/app/layout.tsx,
+# src/components/shared/index.ts, src/styles/admin-store.css); this settles them
+# on checkout without changing what is stored.
+* text=auto
+
+# Explicit LF for anything a tool or runtime parses, where a stray CR is a bug
+# rather than a cosmetic difference.
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.mjs  text eol=lf
+*.css  text eol=lf
+*.json text eol=lf
+*.sql  text eol=lf
+*.yml  text eol=lf
+*.md   text eol=lf
+.env.example text eol=lf
+
+# Binary assets: never normalise, never diff as text.
+*.webp binary
+*.png  binary
+*.ico  binary
+
+# Collapse the lockfile in GitHub review and keep it out of language stats.
+#
+# Deliberately NOT `-diff`: that marks the file binary, so `git diff` reports
+# only "Bin 277673 -> 277464 bytes" and a dependency change becomes impossible
+# to review locally. `linguist-generated` already collapses it in pull requests,
+# which is the part worth having.
+package-lock.json linguist-generated=true

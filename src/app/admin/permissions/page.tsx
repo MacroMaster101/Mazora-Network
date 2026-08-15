@@ -4,27 +4,20 @@ import { hasAtLeast, ROLES } from "@/lib/auth/roles";
 import { listAccounts } from "@/lib/data/accounts";
 import {
   ALWAYS_ALLOWED,
-  getNewsPermissions,
-  getGalleryPermissions,
-  getTicketsPermissions,
-  getAppealsPermissions,
-  getReportsPermissions,
-  getBugsPermissions,
-  getSuggestionsPermissions,
-  getEventsPermissions,
-  getGameModesPermissions,
-  getStorePermissions,
-  getRulesPermissions,
-  getNotificationsPermissions,
-  getMinecraftPermissions,
+  getAllModulePermissions,
+  NEWS_PERMISSION_KEY,
+  GALLERY_PERMISSION_KEY,
+  SUGGESTIONS_PERMISSION_KEY,
+  EVENTS_PERMISSION_KEY,
+  GAMEMODES_PERMISSION_KEY,
+  STORE_PERMISSION_KEY,
+  RULES_PERMISSION_KEY,
+  NOTIFICATIONS_PERMISSION_KEY,
+  MINECRAFT_PERMISSION_KEY,
 } from "@/lib/auth/permissions";
 import {
   saveNewsPermissionsAction,
   saveGalleryPermissionsAction,
-  saveTicketsPermissionsAction,
-  saveAppealsPermissionsAction,
-  saveReportsPermissionsAction,
-  saveBugsPermissionsAction,
   saveSuggestionsPermissionsAction,
   saveEventsPermissionsAction,
   saveGameModesPermissionsAction,
@@ -41,40 +34,37 @@ export const metadata: Metadata = { title: "Permissions · Admin" };
 export default async function AdminPermissionsPage() {
   await requireRole("owner", "/admin/permissions");
 
-  const [
-    newsPerms,
-    galleryPerms,
-    ticketsPerms,
-    appealsPerms,
-    reportsPerms,
-    bugsPerms,
-    suggestionsPerms,
-    eventsPerms,
-    gameModesPerms,
-    storePerms,
-    rulesPerms,
-    notificationsPerms,
-    minecraftPerms,
-    accounts,
-  ] = await Promise.all([
-    getNewsPermissions(),
-    getGalleryPermissions(),
-    getTicketsPermissions(),
-    getAppealsPermissions(),
-    getReportsPermissions(),
-    getBugsPermissions(),
-    getSuggestionsPermissions(),
-    getEventsPermissions(),
-    getGameModesPermissions(),
-    getStorePermissions(),
-    getRulesPermissions(),
-    getNotificationsPermissions(),
-    getMinecraftPermissions(),
-    listAccounts(),
-  ]);
+  /*
+    One query for all thirteen modules, not thirteen.
+
+    This used to Promise.all the individual getters, which fired thirteen
+    separate site_settings SELECTs at once against a five-connection pool
+    (src/lib/db/client.ts), alongside listAccounts()'s own queries. They queued
+    in waves through Supabase's pooler, some hit the 15s statement_timeout and
+    retried, and the page sat behind the admin loading fallback for ~40s.
+  */
+  const [perms, accounts] = await Promise.all([getAllModulePermissions(), listAccounts()]);
+
+  const newsPerms = perms[NEWS_PERMISSION_KEY];
+  const galleryPerms = perms[GALLERY_PERMISSION_KEY];
+  const suggestionsPerms = perms[SUGGESTIONS_PERMISSION_KEY];
+  const eventsPerms = perms[EVENTS_PERMISSION_KEY];
+  const gameModesPerms = perms[GAMEMODES_PERMISSION_KEY];
+  const storePerms = perms[STORE_PERMISSION_KEY];
+  const rulesPerms = perms[RULES_PERMISSION_KEY];
+  const notificationsPerms = perms[NOTIFICATIONS_PERMISSION_KEY];
+  const minecraftPerms = perms[MINECRAFT_PERMISSION_KEY];
 
   const staffRoles = ROLES.filter((r) => hasAtLeast(r, "helper"));
-  const allAccounts = accounts ?? [];
+  // Narrowed here, not in the component: props to a Client Component are
+  // serialised whether or not they are rendered. See PermissionAccount.
+  const allAccounts = (accounts ?? []).map(({ userId, username, displayName, email, role }) => ({
+    userId,
+    username,
+    displayName,
+    email,
+    role,
+  }));
 
   const modules: PermissionModuleConfig[] = [
     {
@@ -94,42 +84,6 @@ export default async function AdminPermissionsPage() {
       selected: galleryPerms.roles,
       userIds: galleryPerms.userIds,
       saveAction: saveGalleryPermissionsAction,
-    },
-    {
-      id: "tickets",
-      category: "Community",
-      title: "Who can manage support tickets",
-      description: "These roles can view all support tickets, assign staff members, reply, change status, and delete ticket threads.",
-      selected: ticketsPerms.roles,
-      userIds: ticketsPerms.userIds,
-      saveAction: saveTicketsPermissionsAction,
-    },
-    {
-      id: "appeals",
-      category: "Community",
-      title: "Who can manage ban & punishment appeals",
-      description: "These roles can review player ban appeals, request additional evidence, approve unbans, or reject appeals.",
-      selected: appealsPerms.roles,
-      userIds: appealsPerms.userIds,
-      saveAction: saveAppealsPermissionsAction,
-    },
-    {
-      id: "reports",
-      category: "Community",
-      title: "Who can manage player reports",
-      description: "These roles can review rule violation reports submitted against players, take moderation action, and resolve cases.",
-      selected: reportsPerms.roles,
-      userIds: reportsPerms.userIds,
-      saveAction: saveReportsPermissionsAction,
-    },
-    {
-      id: "bugs",
-      category: "Community",
-      title: "Who can manage bug reports",
-      description: "These roles can review player bug submissions, set priority flags, mark bugs as fixed or in progress.",
-      selected: bugsPerms.roles,
-      userIds: bugsPerms.userIds,
-      saveAction: saveBugsPermissionsAction,
     },
     {
       id: "suggestions",

@@ -62,6 +62,17 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
     }
   }
 
+  /*
+    A configured map URL is not the same as a working map. The map backend reads
+    its configuration from the Minecraft server, so while that server is down it
+    serves an error page — which is what produced the "Could not retrieve
+    configuration: error" dialog on the homepage. Embedding it in that state
+    shows visitors a broken frame and tells them nothing, so fall back to the
+    prepared offline panel and only frame the map once there is a live reading
+    saying the server is actually up.
+  */
+  const mapEmbeddable = Boolean(mapUrl) && status.online;
+
   return (
     <>
       <section className="hero-stage relative z-[3] -mt-[4.75rem] isolate flex min-h-[660px] overflow-hidden pt-[4.75rem] sm:min-h-[710px] lg:min-h-[100svh]">
@@ -90,6 +101,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
             src="/images/mazora-community-hero.webp"
             alt=""
             fill
+            priority
             fetchPriority="high"
             quality={60}
             sizes="100vw"
@@ -110,7 +122,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                 </div>
                 <div className="min-w-0 text-left lg:text-right">
                   <p className="font-display text-base font-extrabold sm:text-lg xl:text-xl">
-                    <span className="text-white">{status.live ? withCommas(status.players) : "—"}</span>{" "}
+                    <span className="text-white">{status.live && status.online ? withCommas(status.players) : "—"}</span>{" "}
                     <span className="uppercase tracking-[0.08em] text-white/80">Players Online</span>
                   </p>
                   <span className="telemetry mt-1 block text-xs text-white/55">{site.javaIp}</span>
@@ -220,15 +232,21 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                   <span className="home-map-icon" aria-hidden="true"><Map size={18} /></span>
                   <div>
                     <h2 id="world-map-title">Mazora live world map</h2>
-                    <p>{mapUrl ? "Live terrain and player activity from across the network." : "The map portal is being prepared for launch."}</p>
+                    <p>
+                      {mapEmbeddable
+                        ? "Live terrain and player activity from across the network."
+                        : mapUrl
+                        ? "The map reconnects automatically once the server is back online."
+                        : "The map portal is being prepared for launch."}
+                    </p>
                   </div>
                 </div>
-                <span className={mapUrl ? "home-map-status is-live" : "home-map-status"}>
-                  <span aria-hidden="true" /> {mapUrl ? "Live" : "Coming soon"}
+                <span className={mapEmbeddable ? "home-map-status is-live" : "home-map-status"}>
+                  <span aria-hidden="true" /> {mapEmbeddable ? "Live" : mapUrl ? "Offline" : "Coming soon"}
                 </span>
               </div>
 
-              {mapUrl ? (
+              {mapEmbeddable && mapUrl ? (
                 <LiveWorldMap mapUrl={mapUrl} />
               ) : (
                 <div className="home-map-preview">
@@ -250,9 +268,13 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                   </div>
                   <div className="home-map-coming-soon">
                     <span className="home-map-signal" aria-hidden="true"><Radio size={22} /></span>
-                    <p className="eyebrow">Map connection pending</p>
-                    <h3>Our world is almost online.</h3>
-                    <p>Explore builds, landmarks and live player locations here once the server map plugin launches.</p>
+                    <p className="eyebrow">{mapUrl ? "Map offline" : "Map connection pending"}</p>
+                    <h3>{mapUrl ? "The world map is resting." : "Our world is almost online."}</h3>
+                    <p>
+                      {mapUrl
+                        ? "Live terrain and player locations return as soon as the server is back up."
+                        : "Explore builds, landmarks and live player locations here once the server map plugin launches."}
+                    </p>
                   </div>
                 </div>
               )}
@@ -301,7 +323,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                 */}
                 <div className="p-5 sm:p-6">
                   <dt className="text-xs uppercase tracking-widest text-muted">Live now</dt>
-                  <dd className="telemetry mt-1 text-2xl font-bold">{status.live ? withCommas(status.players) : "—"}</dd>
+                  <dd className="telemetry mt-1 text-2xl font-bold">{status.live && status.online ? withCommas(status.players) : "—"}</dd>
                   <dd className="mt-1 text-xs text-white/45">players online</dd>
                 </div>
                 <div className="p-5 sm:p-6">

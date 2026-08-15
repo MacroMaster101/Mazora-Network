@@ -3,6 +3,8 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getDiscordIdentity, getSessionUserId } from "@/lib/auth";
+import { resolveCreatorCode } from "@/lib/creator-code-resolve";
+import { applyCreatorCode } from "@/lib/store-discount";
 import { getGameModes, getProducts } from "@/lib/data/content";
 import { getStoreCategoryConfigs } from "@/lib/data/store-categories";
 import { getDb, schema } from "@/lib/db/client";
@@ -172,7 +174,73 @@ export async function submitStoreRequest(
     });
   }
 
-  const total = orderItems.reduce((sum, item) => sum + item.lineTotal, 0);
+  /*
+    Every money figure below comes from ONE arithmetic.
+
+    This used to compute `subtotal` here by summing floats (`price * qty`), take
+    `discount` from store-discount.ts's exact integer-cent path, and then do
+    `subtotal - discount` across the two. store-discount.ts exists precisely so
+    money is never computed in floating point, and its result already carries an
+    exact `subtotal` and `total` — they were simply discarded. The persisted
+    totals could therefore disagree by a cent with what the buyer was quoted at
+    checkout, which is the one place a rounding difference is not cosmetic.
+
+    Running the no-code case through applyCreatorCode with 0% keeps a plain
+    order on the same path as a discounted one, rather than having two ways to
+    add up a cart.
+  */
+  const discountLines = orderItems.map((item) => ({
+    productId: item.productId ?? "",
+    name: item.name,
+    quantity: item.quantity,
+    unitPrice: item.price,
+  }));
+  let priced = applyCreatorCode(
+    discountLines.map((line) => ({ ...line, eligible: false })),
+    0,
+  );
+
+  // The creator code is re-resolved from scratch against the products just
+  // loaded above. Only the code STRING comes from the browser — the percentage,
+  // the eligibility list and the arithmetic are all read from the database, so a
+  // crafted form cannot invent a discount.
+  const submittedCode = String(formData.get("creatorCode") ?? "").trim();
+  let creatorCodeId: string | null = null;
+  let creatorCodeLabel: string | null = null;
+  let creatorPercentOff = 0;
+  let discount = 0;
+
+  if (submittedCode) {
+    const outcome = await resolveCreatorCode(submittedCode, discountLines);
+    if (!outcome.ok) {
+      // The buyer was quoted a discounted total at checkout. Silently charging
+      // the full price instead is a worse failure than refusing the submission,
+      // so the order stops here and says which of the two happened.
+      return {
+        ok: false,
+        message:
+          outcome.reason === "not_applicable"
+            ? "That discount code no longer applies to your cart. Remove it and try again."
+            : "That discount code expired while you were checking out. Remove it and try again.",
+      };
+    }
+    creatorCodeId = outcome.resolved.code.id;
+    creatorCodeLabel = outcome.resolved.code.code;
+    creatorPercentOff = outcome.resolved.code.percentOff;
+    priced = outcome.resolved.result;
+    discount = priced.discount;
+  }
+
+  // Exact, and guaranteed to satisfy subtotal - discount === total.
+  const subtotal = priced.subtotal;
+  const total = priced.total;
+
+  // Line figures come from the same result, so the per-line amounts shown in
+  // Discord always sum to the order subtotal.
+  for (const [index, item] of orderItems.entries()) {
+    const line = priced.lines[index];
+    if (line) item.lineTotal = line.lineSubtotal;
+  }
   const reference = `MZ-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${randomUUID().slice(0, 6).toUpperCase()}`;
   // Only the primary role is pinged. The variable may list several roles that
   // are allowed to action orders; @mentioning all of them on every request
@@ -193,7 +261,17 @@ export async function submitStoreRequest(
     color: 0x9b5cff,
     fields: [
       { name: "Minecraft username", value: escapeMarkdown(contact.data.minecraftUsername), inline: true },
+      // "Order total" MUST keep this exact field name and stay a single clean
+      // money string: src/app/api/discord/interactions/route.ts reads it back by
+      // name to build the ticket embed, the buyer DM and the purchase
+      // announcement. Renaming it blanks the total on all three, silently.
       { name: "Order total", value: usd(total), inline: true },
+      ...(creatorCodeLabel
+        ? [{
+            name: "Discount code",
+            value: `**${escapeMarkdown(creatorCodeLabel)}** · −${usd(discount)} (${creatorPercentOff}%) · was ${usd(subtotal)}`,
+          }]
+        : []),
       { name: "Discord", value: discordValue },
       { name: "Items", value: itemLines },
       { name: "Player notes", value: escapeMarkdown(contact.data.notes || "None") },
@@ -268,6 +346,10 @@ export async function submitStoreRequest(
   await persistOrder({
     reference,
     total,
+    subtotal,
+    discount,
+    creatorCodeId,
+    creatorCode: creatorCodeLabel,
     minecraftUsername: contact.data.minecraftUsername,
     notes: contact.data.notes,
     discordId: discord.id,
@@ -284,7 +366,14 @@ export async function submitStoreRequest(
 
 interface PersistOrderInput {
   reference: string;
+  /** What staff actually collect, after any creator-code discount. */
   total: number;
+  /** Pre-discount total, kept so a past order stays auditable. */
+  subtotal: number;
+  discount: number;
+  creatorCodeId: string | null;
+  /** Text snapshot: survives the code being renamed or deleted later. */
+  creatorCode: string | null;
   minecraftUsername: string;
   notes?: string;
   discordId: string;
@@ -305,6 +394,10 @@ async function persistOrder(input: PersistOrderInput): Promise<void> {
           userId,
           reference: input.reference,
           totalAmount: input.total.toFixed(2),
+          subtotalAmount: input.subtotal.toFixed(2),
+          discountAmount: input.discount.toFixed(2),
+          creatorCodeId: input.creatorCodeId,
+          creatorCode: input.creatorCode,
           status: "pending",
           minecraftUsername: input.minecraftUsername,
           discordId: input.discordId,
@@ -328,6 +421,26 @@ async function persistOrder(input: PersistOrderInput): Promise<void> {
       );
     });
   } catch (error) {
+    /*
+      Persistence is best-effort on purpose (the order already reached staff in
+      Discord), but silence was the wrong failure mode: the order would be
+      actionable in Discord and absent from /admin/orders, and markOrderDecision
+      would then update zero rows without anyone noticing. A log line dies with
+      the request, so the gap is recorded where staff actually look.
+    */
     console.error("Failed to record store order", error);
+    try {
+      const db = getDb();
+      if (db) {
+        await db.insert(schema.auditLogs).values({
+          action: "store.order.persist_failed",
+          targetType: "order",
+          targetId: input.reference,
+          metadata: { reference: input.reference, reason: error instanceof Error ? error.message : "unknown" },
+        });
+      }
+    } catch (auditError) {
+      console.error("Could not record the order persistence failure", auditError);
+    }
   }
 }

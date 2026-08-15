@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type { Role } from "@/lib/types";
 import type { Session } from "@/lib/auth";
 import { hasAtLeast, ROLES } from "@/lib/auth/roles";
@@ -8,10 +8,6 @@ import { getDb, schema } from "@/lib/db/client";
 
 export const NEWS_PERMISSION_KEY = "news.permissions";
 export const GALLERY_PERMISSION_KEY = "gallery.permissions";
-export const TICKETS_PERMISSION_KEY = "tickets.permissions";
-export const APPEALS_PERMISSION_KEY = "appeals.permissions";
-export const REPORTS_PERMISSION_KEY = "reports.permissions";
-export const BUGS_PERMISSION_KEY = "bugs.permissions";
 export const SUGGESTIONS_PERMISSION_KEY = "suggestions.permissions";
 export const EVENTS_PERMISSION_KEY = "events.permissions";
 export const GAMEMODES_PERMISSION_KEY = "gamemodes.permissions";
@@ -31,15 +27,25 @@ export interface ModulePermissions {
 export type NewsPermissions = ModulePermissions;
 export type GalleryPermissions = ModulePermissions;
 
-function defaultRolesForModule(key: string): Role[] {
-  if (key === TICKETS_PERMISSION_KEY || key === APPEALS_PERMISSION_KEY || key === REPORTS_PERMISSION_KEY || key === BUGS_PERMISSION_KEY) {
-    return ROLES.filter((r) => hasAtLeast(r, "helper"));
-  }
+/*
+  Every remaining module gates a real admin surface, and every one of those
+  surfaces requires at least "administrator" — so a single default is now
+  correct rather than a lookup. The helper-tier branch this used to have
+  existed only for Tickets/Appeals/Reports/Bugs, which were removed below:
+  each described a review queue (ban appeals, player reports, bug triage,
+  support tickets) that was never built, and whose public-facing pages were
+  rewritten as Discord hand-off guides with the on-site submission removed
+  entirely — see the comment in src/lib/actions/support.ts. A permission
+  toggle for a feature that does not exist is not a safe default, it is a
+  false promise: an owner could grant "Helper" access to something and no
+  code anywhere would ever check it.
+*/
+function defaultRolesForModule(): Role[] {
   return ROLES.filter((r) => hasAtLeast(r, "administrator"));
 }
 
-function defaults(key = NEWS_PERMISSION_KEY): ModulePermissions {
-  return { roles: defaultRolesForModule(key), userIds: [] };
+function defaults(): ModulePermissions {
+  return { roles: defaultRolesForModule(), userIds: [] };
 }
 
 function failClosed(): ModulePermissions {
@@ -67,18 +73,69 @@ function normalise(value: unknown): ModulePermissions {
 */
 export const getModulePermissions = cache(async (key: string): Promise<ModulePermissions> => {
   const db = getDb();
-  if (!db) return defaults(key);
+  if (!db) return defaults();
   try {
     const [row] = await db
       .select()
       .from(schema.siteSettings)
       .where(eq(schema.siteSettings.settingKey, key))
       .limit(1);
-    return row ? normalise(row.settingValue) : defaults(key);
+    return row ? normalise(row.settingValue) : defaults();
   } catch {
     return failClosed();
   }
 });
+
+/** Every module key, in the order the admin permissions screen renders them. */
+export const ALL_PERMISSION_KEYS = [
+  NEWS_PERMISSION_KEY,
+  GALLERY_PERMISSION_KEY,
+  SUGGESTIONS_PERMISSION_KEY,
+  EVENTS_PERMISSION_KEY,
+  GAMEMODES_PERMISSION_KEY,
+  STORE_PERMISSION_KEY,
+  RULES_PERMISSION_KEY,
+  NOTIFICATIONS_PERMISSION_KEY,
+  MINECRAFT_PERMISSION_KEY,
+] as const;
+
+/**
+ * Every module's permissions in ONE query.
+ *
+ * The admin permissions screen needs all thirteen at once. Asking for them
+ * through the individual getters issued thirteen separate site_settings SELECTs
+ * concurrently — against a pool capped at five connections (src/lib/db/client.ts),
+ * every one of them a round trip through Supabase's pooler. They queued in
+ * waves, some hit the 15s statement_timeout and retried, and the page took
+ * roughly 40 seconds to render behind the admin loading fallback.
+ *
+ * `cache()` did not help: it memoises per key, and these are thirteen different
+ * keys. One `inArray` over the same rows is a single trip.
+ *
+ * Keys with no stored row fall back to their module defaults, exactly as the
+ * single-key getter does. A query failure fails CLOSED for every key.
+ */
+export const getAllModulePermissions = cache(
+  async (): Promise<Record<string, ModulePermissions>> => {
+    const keys = [...ALL_PERMISSION_KEYS];
+    const db = getDb();
+    if (!db) return Object.fromEntries(keys.map((key) => [key, defaults()]));
+
+    try {
+      const rows = await db
+        .select()
+        .from(schema.siteSettings)
+        .where(inArray(schema.siteSettings.settingKey, keys));
+
+      const byKey = new Map(rows.map((row) => [row.settingKey, row.settingValue]));
+      return Object.fromEntries(
+        keys.map((key) => [key, byKey.has(key) ? normalise(byKey.get(key)) : defaults()]),
+      );
+    } catch {
+      return Object.fromEntries(keys.map((key) => [key, failClosed()]));
+    }
+  },
+);
 
 export async function canManageModule(key: string, session: Session | null, userId?: string | null): Promise<boolean> {
   if (!session) return false;
@@ -101,15 +158,16 @@ export const canManageGallery = (s: Session | null, u?: string | null) => canMan
   role via requireRole in their pages/actions; their unused canManageX
   wrappers were removed — the getXPermissions readers remain because
   /admin/permissions renders every module's grant list.
+
+  Tickets, Appeals, Reports and Bugs used to have a getXPermissions entry here
+  too. All four were removed along with their permission keys above: none of
+  them gated anything (grep confirms zero references to the key outside its
+  own definition), and each described a review queue that was never built —
+  see the comment on defaultRolesForModule. Suggestions keeps its entry: unlike
+  the other four, it has a real public submission path (submitSuggestion in
+  src/lib/actions/support.ts writes to the suggestions table), even though the
+  admin review page for it isn't built yet either.
 */
-export const getTicketsPermissions = () => getModulePermissions(TICKETS_PERMISSION_KEY);
-
-export const getAppealsPermissions = () => getModulePermissions(APPEALS_PERMISSION_KEY);
-
-export const getReportsPermissions = () => getModulePermissions(REPORTS_PERMISSION_KEY);
-
-export const getBugsPermissions = () => getModulePermissions(BUGS_PERMISSION_KEY);
-
 export const getSuggestionsPermissions = () => getModulePermissions(SUGGESTIONS_PERMISSION_KEY);
 
 export const getEventsPermissions = () => getModulePermissions(EVENTS_PERMISSION_KEY);
