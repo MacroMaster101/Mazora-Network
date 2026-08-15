@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Award, Trophy } from "lucide-react";
 import { getPlayer } from "@/lib/data/players";
+import { publicPageMetadata } from "@/lib/seo";
 import { MinecraftAvatar, RoleBadge, Reveal } from "@/components/shared";
 import { fmtDate, kd, playtime, relative, withCommas } from "@/lib/utils";
 
@@ -15,10 +16,16 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
   const { username } = await params;
   const player = await getPlayer(username);
   if (!player) return { title: "Player not found", robots: { index: false, follow: false } };
-  return {
+  /*
+    See the game-mode detail route for why bare title/description is not enough.
+    The canonical uses `player.username` rather than the requested spelling, so
+    /players/Kade and /players/kade collapse onto one indexable URL.
+  */
+  return publicPageMetadata({
     title: `${player.username} — Profile`,
     description: `${player.username} · ${player.rank} · Level ${player.level} · ${playtime(player.playtimeHours)} playtime on the network.`,
-  };
+    path: `/players/${player.username}`,
+  });
 }
 
 export default async function PlayerProfile({ params }: { params: Promise<{ username: string }> }) {

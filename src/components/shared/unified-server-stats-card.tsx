@@ -21,6 +21,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { ServerStatus, PatchUpdate } from "@/lib/types";
+import type { StatusSample } from "@/lib/data/status-telemetry";
 import { Modal } from "@/components/ui/modal";
 
 interface BarData {
@@ -28,7 +29,8 @@ interface BarData {
   players: number;
   maxPlayers: number;
   ping: number;
-  health: "operational" | "degraded" | "offline";
+  /** "unknown" means no reading was recorded for that hour — not that it was down. */
+  health: "operational" | "degraded" | "offline" | "unknown";
   outageDuration?: string;
 }
 
@@ -61,59 +63,81 @@ function PatchAuthorAvatar({ name, avatarUrl, size = 22 }: { name: string; avata
   );
 }
 
-const generateTelemetry = (status: ServerStatus): BarData[] => {
+/**
+ * Builds the 24-hour window from readings that were actually recorded.
+ *
+ * This function used to generate the history rather than read it: a sine curve
+ * for player counts, plus hardcoded "degraded" incidents at i === 7 and i === 14
+ * carrying invented durations of "0 hrs 12 mins" and "0 hrs 08 mins" - outages
+ * that never happened, shown under a heading offering "hourly downtime &
+ * latency logs". The player figure was `basePlayers * curve + ((i * 2) % 3)`,
+ * and that trailing term is 0, 2 or 1 whatever `basePlayers` is, so even a
+ * server with nobody on it drew a chart full of activity.
+ *
+ * Samples now come from src/lib/data/status-telemetry.ts, written once a minute
+ * by the presence worker's poll of /api/status. An hour with no sample is
+ * "unknown" and renders greyed - not claimed as uptime, not claimed as an
+ * outage. The window therefore fills in over the first day after deploy, and an
+ * hour the server was genuinely busy keeps showing that activity even while the
+ * server is down right now, which is the point of keeping a history at all.
+ */
+const buildTelemetryBars = (status: ServerStatus, samples: StatusSample[]): BarData[] => {
   const bars: BarData[] = [];
   const now = new Date();
-  const basePlayers = status.live && status.online ? status.players : 0;
-  const maxSlots = status.max || 100;
-  const basePing = status.ping || 18;
-  const isServerOnline = status.live && status.online;
+
+  const byHour = new Map<string, StatusSample>();
+  for (const sample of samples) {
+    const at = new Date(sample.hour);
+    if (Number.isFinite(at.getTime())) {
+      at.setMinutes(0, 0, 0);
+      byHour.set(at.toISOString(), sample);
+    }
+  }
 
   for (let i = 23; i >= 0; i--) {
     const time = new Date(now.getTime() - i * 60 * 60 * 1000);
-    const hour = time.getHours();
-    const timeLabel = i === 0 ? "Right Now" : `${hour.toString().padStart(2, "0")}:00`;
+    const bucket = new Date(time);
+    bucket.setMinutes(0, 0, 0);
+    const timeLabel = i === 0 ? "Right Now" : `${time.getHours().toString().padStart(2, "0")}:00`;
 
+    // The current hour is the one reading always held live.
     if (i === 0) {
+      const liveOnline = status.live && status.online;
       bars.push({
         timeLabel,
-        players: basePlayers,
-        maxPlayers: maxSlots,
-        ping: basePing,
-        health: !isServerOnline ? "offline" : basePing > 120 ? "degraded" : "operational",
-        outageDuration: !isServerOnline ? "Active Outage" : undefined,
+        players: liveOnline ? status.players : 0,
+        maxPlayers: liveOnline && status.max > 0 ? status.max : 0,
+        ping: liveOnline && status.ping > 0 ? status.ping : 0,
+        health: !status.live
+          ? "unknown"
+          : !status.online
+          ? "offline"
+          : status.ping > 120
+          ? "degraded"
+          : "operational",
+        outageDuration: status.live && !status.online ? "Active Outage" : undefined,
       });
       continue;
     }
 
-    let curve = 0.6;
-    if (hour >= 16 && hour <= 23) curve = 1.3 + Math.sin(hour) * 0.3;
-    else if (hour >= 12 && hour < 16) curve = 0.9 + Math.cos(hour) * 0.2;
-    else if (hour >= 1 && hour <= 7) curve = 0.4;
-
-    let health: "operational" | "degraded" | "offline" = "operational";
-    let outageDuration: string | undefined;
-
-    if (i === 7) {
-      health = "degraded";
-      outageDuration = "0 hrs 12 mins";
-    } else if (i === 14) {
-      health = "degraded";
-      outageDuration = "0 hrs 08 mins";
+    const sample = byHour.get(bucket.toISOString());
+    if (!sample) {
+      // Nothing was recorded for this hour. Say so rather than guess.
+      bars.push({ timeLabel, players: 0, maxPlayers: 0, ping: 0, health: "unknown" });
+      continue;
     }
 
-    const players = !isServerOnline && i < 2
-      ? 0
-      : Math.max(0, Math.round(basePlayers * curve + ((i * 2) % 3)));
-    const ping = health === "degraded" ? 145 : Math.max(10, basePing + Math.round((i % 4) * 1.5 - 1));
-
+    const hadOutage = sample.downProbes > 0;
     bars.push({
       timeLabel,
-      players,
-      maxPlayers: maxSlots,
-      ping,
-      health,
-      outageDuration,
+      players: sample.players,
+      maxPlayers: sample.maxPlayers,
+      ping: sample.ping,
+      health: !sample.online ? "offline" : hadOutage ? "degraded" : "operational",
+      outageDuration:
+        hadOutage && sample.totalProbes > 0
+          ? `${sample.downProbes} of ${sample.totalProbes} checks failed`
+          : undefined,
     });
   }
   return bars;
@@ -134,10 +158,13 @@ export function UnifiedServerStatsCard({
   status,
   patches,
   customTelemetryMessage,
+  telemetry = [],
 }: {
   status: ServerStatus;
   patches: PatchUpdate[];
   customTelemetryMessage?: string;
+  /** Recorded hourly readings. Empty until the first day of samples accrues. */
+  telemetry?: StatusSample[];
 }) {
   const onlineState: "online" | "degraded" | "offline" | "unavailable" =
     !status.live
@@ -148,7 +175,7 @@ export function UnifiedServerStatsCard({
       ? "degraded"
       : "online";
 
-  const [bars] = useState<BarData[]>(() => generateTelemetry(status));
+  const [bars] = useState<BarData[]>(() => buildTelemetryBars(status, telemetry));
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [selectedPatch, setSelectedPatch] = useState<PatchUpdate | null>(null);
@@ -156,7 +183,14 @@ export function UnifiedServerStatsCard({
   const activeBar = hoveredIndex !== null ? bars[hoveredIndex] : bars[bars.length - 1];
   const peakPlayers = Math.max(...bars.map((b) => b.players));
   const minecraftVersion = status.version.match(/\d+(?:\.\d+){1,2}/)?.[0] ?? status.version;
-  const uptime = status.uptime && status.uptime !== "—" ? status.uptime : "99.9%";
+  /*
+    The data layer reports "—" when it has no uptime figure. This used to
+    replace that with a literal "99.9%", so a server that was demonstrably down
+    still advertised 99.9% uptime a few pixels from the words "Server Offline".
+    An unknown number is shown as unknown.
+  */
+  const hasUptime = Boolean(status.uptime) && status.uptime !== "—";
+  const uptime = hasUptime ? status.uptime : "—";
 
   // Pagination calculations
   const totalPages = Math.ceil((patches.length || 1) / PATCHES_PER_PAGE);
@@ -170,7 +204,8 @@ export function UnifiedServerStatsCard({
       dot: "bg-emerald-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] animate-pulse",
       badge: "border-success/30 bg-success/10 text-success font-bold",
       text: "text-success",
-      title: "99.9% Operational",
+      // Was "99.9% Operational" — an availability figure nothing measures.
+      title: "All Systems Operational",
       icon: CheckCircle2,
     },
     degraded: {
@@ -201,7 +236,12 @@ export function UnifiedServerStatsCard({
 
   const StateIcon = stateTheme.icon;
 
-  const getBarColor = (health: "operational" | "degraded" | "offline", isHovered: boolean) => {
+  const getBarColor = (health: BarData["health"], isHovered: boolean) => {
+    // No reading for this hour: a flat neutral stub, visibly distinct from both
+    // a healthy hour and an outage, because it asserts neither.
+    if (health === "unknown") {
+      return isHovered ? "bg-line-strong" : "bg-line-strong/50";
+    }
     if (health === "offline") {
       return isHovered ? "bg-rose-500 shadow-[0_0_12px_rgba(239,68,68,0.8)] scale-y-105" : "bg-rose-500/80";
     }
@@ -257,7 +297,12 @@ export function UnifiedServerStatsCard({
             </span>
             <div>
               <h3 className="font-display text-lg font-bold text-ink">24-Hour Active Player Community</h3>
-              <p className="text-xs text-muted">Hover over any bar to view detailed hourly downtime & latency logs.</p>
+              {/*
+                Was "detailed hourly downtime & latency logs" when no such log
+                existed. One is recorded now, so the claim can be honest — but
+                only about hours that were actually sampled.
+              */}
+              <p className="text-xs text-muted">Hourly readings from the last 24 hours. Grey means no reading was recorded.</p>
             </div>
           </div>
 
@@ -286,7 +331,15 @@ export function UnifiedServerStatsCard({
           <div className="rounded-xl border border-line/60 bg-card/80 p-3 shadow-2xs">
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Active Players</span>
             <p className="telemetry mt-1 text-base font-extrabold text-ink">
-              {activeBar.players} <span className="text-xs font-normal text-muted">/ {activeBar.maxPlayers}</span>
+              {/* Matches the Players Online card: no invented capacity while down. */}
+              {activeBar.health === "offline" || activeBar.maxPlayers <= 0 ? (
+                "—"
+              ) : (
+                <>
+                  {activeBar.players}{" "}
+                  <span className="text-xs font-normal text-muted">/ {activeBar.maxPlayers}</span>
+                </>
+              )}
             </p>
           </div>
           <div className="rounded-xl border border-line/60 bg-card/80 p-3 shadow-2xs">
@@ -294,9 +347,14 @@ export function UnifiedServerStatsCard({
               <Zap size={11} /> Ping Speed
             </span>
             <p className={`telemetry mt-1 text-base font-bold ${
-              activeBar.health === "operational" ? "text-success" : activeBar.health === "degraded" ? "text-warning" : "text-danger"
+              activeBar.ping <= 0
+                ? "text-muted"
+                : activeBar.health === "unknown"
+                ? "text-muted"
+                : activeBar.health === "operational" ? "text-success" : activeBar.health === "degraded" ? "text-warning" : "text-danger"
             }`}>
-              {activeBar.ping}ms
+              {/* A down server has no latency to report — "0ms" would read as instant. */}
+              {activeBar.ping > 0 ? `${activeBar.ping}ms` : "—"}
             </p>
           </div>
           <div className="rounded-xl border border-line/60 bg-card/80 p-3 shadow-2xs">
@@ -304,9 +362,14 @@ export function UnifiedServerStatsCard({
               <ShieldCheck size={11} /> Server Health
             </span>
             <p className={`telemetry mt-1 text-base font-bold ${
-              activeBar.health === "operational" ? "text-success" : activeBar.health === "degraded" ? "text-warning" : "text-danger"
+              activeBar.health === "unknown"
+                ? "text-muted"
+                : activeBar.health === "operational" ? "text-success" : activeBar.health === "degraded" ? "text-warning" : "text-danger"
             }`}>
-              {activeBar.health === "operational" ? "Optimal" : activeBar.health === "degraded" ? "Fair" : "Offline"}
+              {/* "unknown" is an hour with no recorded reading, not an outage. */}
+              {activeBar.health === "unknown"
+                ? "No data"
+                : activeBar.health === "operational" ? "Optimal" : activeBar.health === "degraded" ? "Fair" : "Offline"}
             </p>
           </div>
         </div>
@@ -314,7 +377,18 @@ export function UnifiedServerStatsCard({
         {/* 24 STATUS-COLORED BARS WITH FLOATING TOOLTIP POPUPS */}
         <div className="relative flex h-36 items-end gap-1.5 rounded-xl border border-line/60 bg-card/60 p-3">
           {bars.map((bar, idx) => {
-            const heightPercent = Math.max(12, Math.round((bar.players / (peakPlayers * 1.1)) * 100));
+            /*
+              `peakPlayers` is 0 whenever nobody is on — which is every bar while
+              the server is offline. Dividing by it yields NaN, and a NaN height
+              collapses the whole chart to nothing. Fall back to the floor height
+              so the window still reads as 24 flat bars in the offline colour,
+              which is the honest picture, rather than an empty panel that looks
+              broken.
+            */
+            const heightPercent =
+              peakPlayers > 0
+                ? Math.max(12, Math.round((bar.players / (peakPlayers * 1.1)) * 100))
+                : 12;
             const isHovered = hoveredIndex === idx;
 
             return (
@@ -329,10 +403,24 @@ export function UnifiedServerStatsCard({
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3.5 w-64 rounded-xl border border-line-strong/80 bg-card/95 p-3.5 text-xs shadow-2xl z-30 pointer-events-none backdrop-blur-md animate-fade-in text-left">
                     <div className="font-bold text-ink text-sm pb-1.5 border-b border-line/40 flex items-center justify-between">
                       <span>{bar.timeLabel}</span>
-                      <span className="text-[10px] text-muted font-normal">Today</span>
+                      {/* The window reaches 24h back, so most bars are not today. */}
+                      <span className="text-[10px] text-muted font-normal">
+                        {bar.timeLabel === "Right Now" ? "Now" : "Last 24h"}
+                      </span>
                     </div>
 
-                    {bar.health === "operational" ? (
+                    {/*
+                      The `|| "0 hrs 12 mins"` and `|| "1 hrs 15 mins"` defaults
+                      that used to sit here printed a precise outage length for
+                      an incident nobody had measured, and the captions asserted
+                      causes ("network sync", "scheduled maintenance") that
+                      nothing records. Only what was actually sampled is shown.
+                    */}
+                    {bar.health === "unknown" ? (
+                      <div className="mt-2 text-[11px] text-muted font-medium flex items-center gap-1.5">
+                        <Clock size={13} /> No reading recorded for this hour.
+                      </div>
+                    ) : bar.health === "operational" ? (
                       <div className="mt-2 text-[11px] text-success font-medium flex items-center gap-1.5">
                         <CheckCircle2 size={13} /> {customTelemetryMessage || "No downtime recorded during this hour."}
                       </div>
@@ -340,28 +428,35 @@ export function UnifiedServerStatsCard({
                       <div className="mt-2 rounded-lg bg-amber-500/10 p-2 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-[11px] font-medium space-y-1">
                         <div className="flex items-center justify-between font-bold">
                           <span className="flex items-center gap-1"><AlertTriangle size={13} /> Partial Outage</span>
-                          <span>{bar.outageDuration || "0 hrs 12 mins"}</span>
+                          {bar.outageDuration && <span>{bar.outageDuration}</span>}
                         </div>
-                        <p className="text-[10px] text-muted leading-tight">Elevated latency recorded during network sync.</p>
+                        <p className="text-[10px] text-muted leading-tight">Some checks failed during this hour.</p>
                       </div>
                     ) : (
                       <div className="mt-2 rounded-lg bg-rose-500/10 p-2 border border-rose-500/30 text-rose-600 dark:text-rose-300 text-[11px] font-medium space-y-1">
                         <div className="flex items-center justify-between font-bold">
-                          <span className="flex items-center gap-1"><ServerOff size={13} /> Major Outage</span>
-                          <span>{bar.outageDuration || "1 hrs 15 mins"}</span>
+                          <span className="flex items-center gap-1"><ServerOff size={13} /> Offline</span>
+                          {bar.outageDuration && <span>{bar.outageDuration}</span>}
                         </div>
-                        <p className="text-[10px] text-muted leading-tight">Server offline for scheduled maintenance.</p>
+                        <p className="text-[10px] text-muted leading-tight">The server did not respond during this hour.</p>
                       </div>
                     )}
 
                     <div className="mt-2.5 pt-2 border-t border-line/40 grid grid-cols-2 gap-2 text-[11px]">
                       <div>
                         <span className="text-muted block text-[9px] uppercase font-bold">Active Players</span>
-                        <span className="font-bold text-ink">{bar.players} / {bar.maxPlayers}</span>
+                        <span className="font-bold text-ink">
+                          {bar.health === "offline" || bar.maxPlayers <= 0
+                            ? "—"
+                            : `${bar.players} / ${bar.maxPlayers}`}
+                        </span>
                       </div>
                       <div>
                         <span className="text-muted block text-[9px] uppercase font-bold">Connection</span>
-                        <span className="font-bold text-ink">{bar.ping}ms ping</span>
+                        <span className="font-bold text-ink">
+                          {/* An hour with no reading has no latency; "0ms ping" would read as instant. */}
+                          {bar.ping > 0 ? `${bar.ping}ms ping` : "—"}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -403,9 +498,18 @@ export function UnifiedServerStatsCard({
                 <Users size={18} />
               </span>
             </div>
+            {/*
+              Gated on `online`, not just `live`. A down server reports no player
+              data at all, so src/lib/data/status.ts falls back to `max: 500` —
+              a capacity nothing measured. Rendering "0 / 500" beside the words
+              "Server currently offline" states a slot count as fact while the
+              server that would define it is unreachable.
+            */}
             <div className="telemetry mt-3 text-3xl font-bold text-ink">
-              {status.live ? status.players : "—"}
-              {status.live && <span className="text-sm font-normal text-muted"> / {status.max}</span>}
+              {status.live && status.online ? status.players : "—"}
+              {status.live && status.online && (
+                <span className="text-sm font-normal text-muted"> / {status.max}</span>
+              )}
             </div>
             <div className="mt-3.5 h-2 w-full overflow-hidden rounded-full bg-line/60">
               <div
@@ -478,12 +582,14 @@ export function UnifiedServerStatsCard({
                 <Gauge size={18} />
               </span>
             </div>
-            <div className="telemetry mt-3 text-3xl font-bold text-gold">
+            <div className={`telemetry mt-3 text-3xl font-bold ${hasUptime ? "text-gold" : "text-muted"}`}>
               {uptime}
             </div>
             <div className="mt-3 flex items-center gap-1.5">
-              <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-              <span className="text-xs text-muted font-medium">99.9% High Availability</span>
+              <span className={`inline-block h-2 w-2 rounded-full ${hasUptime ? "bg-amber-500" : "bg-slate-400"}`} />
+              <span className="text-xs text-muted font-medium">
+                {hasUptime ? "Measured availability" : "No uptime data recorded yet"}
+              </span>
             </div>
           </div>
         </div>

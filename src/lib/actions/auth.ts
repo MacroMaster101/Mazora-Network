@@ -388,7 +388,33 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
 
     const { data: userData } = await supabase.auth.getUser();
     const email = userData?.user?.email;
-    if (email && (await passwordMatchesCurrent(supabase, email, parsed.data.password))) {
+    if (!email) return { ok: false, message: "Your session has expired. Sign in again." };
+
+    /*
+      Prove the caller knows the existing secret before replacing it.
+
+      Without this, a live session was sufficient to change the password —
+      an unattended device or a copied cookie could lock the real owner out
+      permanently, and because this path never signed anything out, the
+      attacker's own session survived the takeover. finishPasswordResetAction
+      already signs out after a change; this one did not.
+
+      Only applies once a password exists: someone who signed up through Google
+      or Discord has nothing to prove yet, and demanding it would leave them
+      unable to ever set one.
+    */
+    const hasPassword = userData?.user?.user_metadata?.has_password === true;
+    if (hasPassword) {
+      const currentPassword = String(formData.get("currentPassword") ?? "");
+      if (!currentPassword) {
+        return { ok: false, errors: { currentPassword: "Enter your current password." } };
+      }
+      if (!(await passwordMatchesCurrent(supabase, email, currentPassword))) {
+        return { ok: false, errors: { currentPassword: "That is not your current password." } };
+      }
+    }
+
+    if (await passwordMatchesCurrent(supabase, email, parsed.data.password)) {
       return { ok: false, errors: { password: "New password must be different from your current password." } };
     }
 
@@ -397,6 +423,18 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       data: { has_password: true },
     });
     if (error) return { ok: false, message: "The password could not be updated. Request a new recovery link." };
+
+    /*
+      Drop every other session, keeping this one. If the change was made to
+      recover from a compromise, leaving the other party signed in would defeat
+      the point. Failure here must not report the change as failed — it has
+      already succeeded.
+    */
+    try {
+      await supabase.auth.signOut({ scope: "others" });
+    } catch (signOutError) {
+      console.error("Could not revoke other sessions after password change:", signOutError);
+    }
   } else if (!isDemoAuthEnabled()) {
     return { ok: false, message: "Authentication has not been configured yet." };
   }

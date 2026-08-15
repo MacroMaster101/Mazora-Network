@@ -243,8 +243,15 @@ export async function reorderRuleAction(formData: FormData): Promise<RuleActionR
   const swapWith = direction === "up" ? siblings[index - 1] : siblings[index + 1];
   if (!swapWith) return { ok: true, message: "Already at the end." };
 
-  await db.update(schema.rules).set({ sortOrder: swapWith.sortOrder }).where(eq(schema.rules.id, current.id));
-  await db.update(schema.rules).set({ sortOrder: current.sortOrder }).where(eq(schema.rules.id, swapWith.id));
+  /*
+    Both halves of the swap, or neither. Unwrapped, a failure between them left
+    two rules sharing one sort_order and the list silently ordered by whatever
+    Postgres returned for the tie.
+  */
+  await db.transaction(async (tx) => {
+    await tx.update(schema.rules).set({ sortOrder: swapWith.sortOrder }).where(eq(schema.rules.id, current.id));
+    await tx.update(schema.rules).set({ sortOrder: current.sortOrder }).where(eq(schema.rules.id, swapWith.id));
+  });
 
   await audit("rule.reorder", id, { direction, by });
   refresh();

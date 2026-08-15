@@ -6,10 +6,12 @@ import Link from "next/link";
 import { BadgeCheck, CheckCircle2, Loader2, MessageCircle, RefreshCw, Send } from "lucide-react";
 import { submitStoreRequest, type StoreRequestResult } from "@/lib/actions/store";
 import { oauthAction, switchDiscordAccountAction, type AuthResult } from "@/lib/actions/auth";
+import { type CreatorCodePreviewResult } from "@/lib/actions/creator-codes";
 import type { DiscordIdentity } from "@/lib/types";
 import { DiscordIcon } from "@/components/auth/provider-icons";
 import { FormRow, Input, Textarea, useToast } from "@/components/ui";
 import { useCart } from "./cart-provider";
+import { useExampleIgn } from "@/lib/example-names";
 
 const initialState: StoreRequestResult = { ok: false };
 const initialOauthState: AuthResult = { ok: false };
@@ -30,8 +32,16 @@ function readDraft(): OrderDraft {
   }
 }
 
-export function OrderRequestForm({ configured }: { configured: boolean }) {
+export function OrderRequestForm({
+  configured,
+  appliedCode,
+}: {
+  configured: boolean;
+  /** Applied on the cart review step; shown and submitted here. */
+  appliedCode: CreatorCodePreviewResult | null;
+}) {
   const { items, clear } = useCart();
+  const exampleIgn = useExampleIgn();
   const [state, formAction, pending] = useActionState(submitStoreRequest, initialState);
   const [oauthState, oauthFormAction, oauthPending] = useActionState(oauthAction, initialOauthState);
   const [switchState, switchFormAction, switchPending] = useActionState(switchDiscordAccountAction, initialOauthState);
@@ -193,6 +203,7 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
 
       <form action={formAction} className="store-request-form mt-5 space-y-4 border-t pt-5">
         <input type="hidden" name="items" value={JSON.stringify(items.map(({ slug, qty }) => ({ slug, qty })))} />
+        <input type="hidden" name="creatorCode" value={appliedCode?.ok ? appliedCode.code ?? "" : ""} />
         <div className="hidden" aria-hidden="true">
           <label htmlFor="website">Website</label>
           <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" />
@@ -213,7 +224,7 @@ export function OrderRequestForm({ configured }: { configured: boolean }) {
             id="minecraftUsername"
             name="minecraftUsername"
             autoComplete="username"
-            placeholder="Your in-game name"
+            placeholder={`e.g. ${exampleIgn}`}
             maxLength={16}
             required
             defaultValue={draft.minecraftUsername}

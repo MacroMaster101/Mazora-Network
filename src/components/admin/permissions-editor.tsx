@@ -21,6 +21,20 @@ export interface PermissionModuleConfig {
   saveAction: (formData: FormData) => Promise<PermissionActionResult>;
 }
 
+/**
+ * Only what the picker renders or searches.
+ *
+ * This used to take the full `AccountSummary`, so every account's `createdAt`,
+ * `lastSignInAt`, `invitedAt`, `publicStaffVisible`, `minecraftSkinUrl` and
+ * `avatarUrl` were serialised into the RSC payload of an owner-gated page and
+ * readable in view-source, despite none of them being displayed.
+ * `lastSignInAt` in particular is a behavioural signal for every member.
+ */
+export type PermissionAccount = Pick<
+  AccountSummary,
+  "userId" | "username" | "displayName" | "email" | "role"
+>;
+
 export function PermissionsEditor({
   title,
   description,
@@ -37,7 +51,7 @@ export function PermissionsEditor({
   selected: Role[];
   locked: Role[];
   userIds: string[];
-  allAccounts?: AccountSummary[];
+  allAccounts?: PermissionAccount[];
   saveAction: (formData: FormData) => Promise<PermissionActionResult>;
 }) {
   const [busy, start] = useTransition();
@@ -48,7 +62,7 @@ export function PermissionsEditor({
   const { toast } = useToast();
 
   const accountsMap = useMemo(() => {
-    const map = new Map<string, AccountSummary>();
+    const map = new Map<string, PermissionAccount>();
     for (const acc of allAccounts) {
       map.set(acc.userId, acc);
     }
@@ -274,7 +288,7 @@ export function PermissionsManager({
   modules: PermissionModuleConfig[];
   staffRoles: Role[];
   locked: Role[];
-  allAccounts: AccountSummary[];
+  allAccounts: PermissionAccount[];
 }) {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");

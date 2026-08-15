@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { throttleAuthAction } from "@/lib/rate-limit";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET, ensureAvatarBucket } from "@/lib/storage/avatar-bucket";
 import { removeStoredSkinFiles } from "@/lib/storage/skin-files";
@@ -119,11 +120,25 @@ export async function linkMinecraftUsernameAction(
     if (insertError) return { ok: false, enabled, message: "Could not save your Minecraft name. Please try again." };
   }
 
-  // Keep the website handle and skin avatar in step with the IGN.
-  await admin
+  /*
+    Keep the website handle and skin avatar in step with the IGN.
+
+    The error used to be discarded. profiles_username_idx is case-SENSITIVE
+    while the pre-check above uses ilike, so "Steve" and "steve" both pass the
+    check and only one can be written — the loser silently kept their old handle
+    and was told the whole operation succeeded.
+  */
+  const { error: profileError } = await admin
     .from("profiles")
     .update({ username, avatar_url: avatarUrl, updated_at: now })
     .eq("user_id", user.id);
+  if (profileError) {
+    return {
+      ok: false,
+      enabled,
+      message: "Your Minecraft name was saved, but the website handle could not be updated. That name may already be taken.",
+    };
+  }
 
   const supabase = await createSupabaseServerClient();
   if (supabase) {
@@ -170,6 +185,18 @@ export async function uploadMinecraftSkinAction(
 ): Promise<SkinUploadActionState> {
   const user = await authenticatedUser();
   if (!user) return { ok: false, message: "Sign in to upload a skin." };
+
+  /*
+    The heaviest authenticated endpoint on the site: three sharp pipelines
+    (extract, composite, resize) plus two storage uploads and a list+remove
+    sweep, all per call and previously unbounded.
+  */
+  const throttled = await throttleAuthAction("media-upload", {
+    limit: 10,
+    windowMs: 10 * 60_000,
+    identity: user.id,
+  });
+  if (throttled) return { ok: false, message: throttled };
 
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false, message: "Skin uploads are temporarily unavailable." };

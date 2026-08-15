@@ -13,12 +13,16 @@ node_modules
 /coverage
 
 # Environment variables (never commit real secrets — .env.example is the template)
+#
+# Ignore every .env variant and re-admit only the template. The previous list
+# enumerated .env and the *.local files, which left .env.production,
+# .env.development, .env.test and .env.staging fully trackable — the exact
+# filenames someone reaches for when copying real credentials out of Vercel.
+# Deny-by-default is the only version of this rule that stays correct as new
+# variants appear.
 .env
-.env.local
-.env.*.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 
 # Logs
 *.log

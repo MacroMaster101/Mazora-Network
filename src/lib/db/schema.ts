@@ -14,6 +14,7 @@ import {
   jsonb,
   index,
   uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 export const profiles = pgTable(
@@ -323,6 +324,14 @@ export const orders = pgTable("orders", {
   handledBy: text("handled_by"),
   handledAt: timestamp("handled_at", { withTimezone: true }),
   ticketChannelId: text("ticket_channel_id"),
+  // --- creator codes (021) ---
+  /** Null after the code is deleted; the text snapshot below survives. */
+  creatorCodeId: uuid("creator_code_id"),
+  /** Snapshot of the code string, so history reads correctly after a rename. */
+  creatorCode: text("creator_code"),
+  /** Pre-discount total. `totalAmount` remains what staff actually collect. */
+  subtotalAmount: numeric("subtotal_amount"),
+  discountAmount: numeric("discount_amount").default("0").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -336,6 +345,38 @@ export const orderItems = pgTable("order_items", {
   quantity: integer("quantity").default(1).notNull(),
   price: numeric("price").notNull(),
 });
+
+export const creatorCodes = pgTable(
+  "creator_codes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    /** Stored uppercase; lookups uppercase the buyer's input before querying. */
+    code: text("code").notNull(),
+    creatorName: text("creator_name").notNull(),
+    discordUsername: text("discord_username"),
+    /** [{ platform, url }] — validated to http(s) before it is stored. */
+    socials: jsonb("socials").default([]).notNull(),
+    /** Bounded 1–90 by a check constraint and by validation. */
+    percentOff: integer("percent_off").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    internalNote: text("internal_note"),
+    createdBy: uuid("created_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({ codeIdx: uniqueIndex("creator_codes_code_idx").on(t.code) }),
+);
+
+/** Hand-picked eligibility: a code discounts only the products listed here. */
+export const creatorCodeProducts = pgTable(
+  "creator_code_products",
+  {
+    codeId: uuid("code_id").notNull(),
+    productId: uuid("product_id").notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.codeId, t.productId] }) }),
+);
 
 export const voteSites = pgTable("vote_sites", {
   id: uuid("id").defaultRandom().primaryKey(),

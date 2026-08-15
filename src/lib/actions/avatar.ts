@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getDiscordIdentity } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { throttleAuthAction } from "@/lib/rate-limit";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET, ensureAvatarBucket } from "@/lib/storage/avatar-bucket";
 import type { AccountActionResult } from "@/lib/actions/account";
@@ -84,6 +85,18 @@ export async function uploadProfileAvatarAction(
   const auth = await authenticatedUser();
   if (!auth) return { ok: false, message: "You must be signed in to upload a photo." };
 
+  /*
+    Every call buffers up to 2 MB, runs a sharp pipeline and does a
+    list+upload+remove against storage. Being signed in bounded who could do
+    that, not how often — one account could loop it indefinitely.
+  */
+  const uploadThrottled = await throttleAuthAction("media-upload", {
+    limit: 10,
+    windowMs: 10 * 60_000,
+    identity: auth.user.id,
+  });
+  if (uploadThrottled) return { ok: false, message: uploadThrottled };
+
   const file = formData.get("avatar");
   if (!(file instanceof File) || file.size === 0) {
     return { ok: false, errors: { avatar: "Choose a photo to upload." } };
@@ -129,6 +142,19 @@ export async function useMinecraftAvatarAction(
 ): Promise<AccountActionResult> {
   const auth = await authenticatedUser();
   if (!auth) return { ok: false, message: "You must be signed in to use your Minecraft skin." };
+
+  /*
+    Takes an arbitrary username from the form and, on success, writes both
+    minecraft_accounts and the site handle. Ownership is checked, so this is not
+    takeover — but unthrottled it let one account walk the namespace and claim
+    every unclaimed IGN, at 3-5 admin-key round trips each.
+  */
+  const claimThrottled = await throttleAuthAction("ign-claim", {
+    limit: 5,
+    windowMs: 60 * 60_000,
+    identity: auth.user.id,
+  });
+  if (claimThrottled) return { ok: false, message: claimThrottled };
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false, message: "Minecraft profile lookup is temporarily unavailable." };
 

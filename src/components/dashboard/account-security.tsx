@@ -36,8 +36,10 @@ function PasswordStrengthMini({ value }: { value: string }) {
 export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [state, formAction, pending] = useActionState(updatePasswordAction, initialAuth);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const { toast } = useToast();
@@ -47,6 +49,7 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
     if (state.ok && state.message) {
       toast(state.message, "success");
       setIsOpen(false);
+      setCurrentPassword("");
       setPassword("");
       setConfirm("");
       // Re-run the settings server component so the "Set a password" /
@@ -73,7 +76,8 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
 
   const mismatch = confirm.length > 0 && password !== confirm;
   const tooShort = password.length > 0 && password.length < 8;
-  const canSubmit = password.length >= 8 && password === confirm;
+  const canSubmit =
+    password.length >= 8 && password === confirm && (!hasPassword || currentPassword.length > 0);
 
   return (
     <form
@@ -86,9 +90,45 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
       </div>
       <p className="text-xs text-muted">
         {hasPassword
-          ? "Enter your new password below."
+          ? "Confirm your current password, then choose a new one."
           : "Set a password so you can also sign in with your email address."}
       </p>
+
+      {/*
+        Only shown when a password already exists. Accounts created through
+        Google or Discord have nothing to confirm, and the action skips the
+        check for them on the same condition — asking here would leave them
+        permanently unable to set one.
+      */}
+      {hasPassword && (
+        <FormRow
+          label="Current password"
+          htmlFor="settings-current-password"
+          error={state.errors?.currentPassword}
+        >
+          <div className="relative">
+            <Input
+              id="settings-current-password"
+              name="currentPassword"
+              type={showCurrent ? "text" : "password"}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Your current password"
+              autoComplete="current-password"
+              required
+              maxLength={128}
+            />
+            <button
+              type="button"
+              onClick={() => setShowCurrent((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+              aria-label={showCurrent ? "Hide current password" : "Show current password"}
+            >
+              {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+          </div>
+        </FormRow>
+      )}
 
       <FormRow label="New password" htmlFor="settings-password" error={tooShort ? "Must be at least 8 characters" : state.errors?.password}>
         <div className="relative">

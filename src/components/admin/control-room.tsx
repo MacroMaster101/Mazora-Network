@@ -24,20 +24,24 @@ export function WatchBar({
   displayName,
   avatarUrl,
   role,
-  online,
+  players,
   max,
   version,
   live,
+  serverOnline,
 }: {
   username?: string;
   displayName: string;
   /** The signed-in member's chosen avatar, when they have one. */
   avatarUrl?: string;
   role: Role;
-  online: number;
+  players: number;
   max: number;
   version: string;
+  /** Whether the status source produced a usable reading. */
   live: boolean;
+  /** The Minecraft server's state within that reading. */
+  serverOnline: boolean;
 }) {
   return (
     <header className="panel relative overflow-hidden p-6 sm:p-7 border-accent/30 bg-card/80 backdrop-blur-xl shadow-xl">
@@ -64,12 +68,14 @@ export function WatchBar({
         <div
           className={cn(
             "shrink-0 rounded-2xl border p-4 transition-all min-w-[200px]",
-            live
+            serverOnline
               ? "border-emerald-500/30 bg-emerald-500/10 shadow-lg shadow-emerald-500/5"
-              : "border-amber-500/30 bg-amber-500/10",
+              : live
+                ? "border-rose-500/30 bg-rose-500/10"
+                : "border-amber-500/30 bg-amber-500/10",
           )}
         >
-          {live ? (
+          {serverOnline ? (
             <>
               <span className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -79,10 +85,24 @@ export function WatchBar({
                 <Radio size={12} className="text-emerald-500" />
               </span>
               <p className="telemetry mt-2 text-2xl font-black text-ink">
-                {online}
+                {players}
                 <span className="text-xs font-semibold text-muted"> / {max} online</span>
               </p>
-              <p className="text-[11px] font-medium text-muted mt-0.5">Minecraft Leaf {version}</p>
+              <p className="text-[11px] font-medium text-muted mt-0.5">Minecraft {version}</p>
+            </>
+          ) : live ? (
+            <>
+              <span className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-rose-500">
+                  <span className="h-2 w-2 rounded-full bg-rose-500" />
+                  Server Offline
+                </span>
+                <Radio size={12} className="text-rose-500" />
+              </span>
+              <p className="telemetry mt-2 text-2xl font-black text-muted">—</p>
+              <p className="mt-0.5 text-[11px] font-medium text-muted">
+                Player count and capacity are unavailable.
+              </p>
             </>
           ) : (
             <>

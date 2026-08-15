@@ -23,7 +23,13 @@ export interface StoreOrder {
   id: string;
   reference: string;
   status: OrderStatus;
+  /** What staff collect, after any creator-code discount. */
   total: number;
+  /** Pre-discount total. Equals `total` when no code was used. */
+  subtotal: number;
+  discount: number;
+  /** Code snapshot; survives the code itself being deleted. */
+  creatorCode: string | null;
   minecraftUsername: string | null;
   discordUsername: string | null;
   discordId: string | null;

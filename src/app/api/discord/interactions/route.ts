@@ -21,7 +21,8 @@ import {
   sendBotDirectMessage,
   verifyDiscordSignature,
 } from "@/lib/discord";
-import { markOrderDecision } from "@/lib/data/orders";
+import { claimOrderForConfirm, markOrderDecision } from "@/lib/data/orders";
+import { rateLimitShared } from "@/lib/rate-limit";
 
 /**
  * Discord interactions endpoint (HTTP-only bot — no gateway process).
@@ -57,6 +58,8 @@ interface Embed {
 }
 
 interface Interaction {
+  /** Unique per interaction. Used to reject replays — see the dedupe below. */
+  id?: string;
   type: number;
   application_id?: string;
   token?: string;
@@ -111,6 +114,23 @@ function staffCheck(interaction: Interaction): { allowed: boolean; reason?: stri
 
 function fieldValue(embed: Embed | undefined, name: string): string {
   return embed?.fields?.find((field) => field.name === name)?.value ?? "";
+}
+
+/**
+ * Reads the discount attribution off an order embed.
+ *
+ * Embed field names are matched by exact string, and Discord messages live
+ * indefinitely, so a rename can silently blank a field on every message already
+ * posted — the failure the comment above the "Order total" field in
+ * actions/store.ts warns about.
+ *
+ * The "Creator code" spelling is accepted purely as a safety net. The
+ * creator-code feature is not yet committed, so no shipped build ever wrote
+ * that field name; this costs one comparison and removes any dependence on
+ * that being true of every environment.
+ */
+function discountCodeField(embed: Embed | undefined): string {
+  return fieldValue(embed, "Discount code") || fieldValue(embed, "Creator code");
 }
 
 /** Replaces (or appends) the Status field so repeated edits don't stack up. */
@@ -204,6 +224,8 @@ interface DecisionContext {
   items: string;
   total: string;
   minecraftUsername: string;
+  /** Empty when the order carried no creator code. */
+  creatorCode: string;
 }
 
 /** Confirm: open the ticket, post the order in it, DM the buyer the link. */
@@ -212,6 +234,36 @@ async function runConfirm(context: DecisionContext): Promise<void> {
   const categoryId = getStoreTicketsCategoryId();
   const staffRoleId = getStoreStaffRoleId();
   const notes: string[] = [];
+
+  /*
+    Claim the order before ANY other work — including the membership check.
+
+    The claim used to sit after that check, which left the one branch that
+    writes a status bypassing it entirely: a stale Confirm on a `completed`
+    order whose buyer had since left Discord still walked the order backwards to
+    `awaiting_discord_join`. Nothing that writes an order status may run ahead
+    of the claim.
+
+    `ticketsConfigurable` gates the confirmed-but-ticketless retry allowance.
+    With no ticket category configured, `ticket_channel_id` is never written for
+    any order, so that condition would match forever and every press of Confirm
+    would re-run this flow and DM the buyer again.
+  */
+  const ticketsConfigurable = Boolean(guildId && categoryId);
+  const claimed = await claimOrderForConfirm(context.reference, context.actorName, ticketsConfigurable);
+  if (!claimed) {
+    await editOriginalMessage(
+      context.applicationId,
+      context.interactionToken,
+      withStatus(
+        context.originalEmbed,
+        `ℹ️ Already handled — this order has been actioned, so nothing was changed.`,
+        0x94a3b8,
+        "Manual store request · Already handled",
+      ),
+    );
+    return;
+  }
 
   // A buyer who never joined the server cannot be added to a ticket and cannot
   // be DM'd either (the bot shares no guild with them). The order is parked
@@ -276,6 +328,7 @@ async function runConfirm(context: DecisionContext): Promise<void> {
           fields: [
             { name: "Minecraft username", value: context.minecraftUsername || "—", inline: true },
             { name: "Order total", value: context.total || "—", inline: true },
+            ...(context.creatorCode ? [{ name: "Discount code", value: context.creatorCode }] : []),
             ...(context.items ? [{ name: "Items", value: context.items }] : []),
           ],
           footer: { text: "Mazora store · manual order" },
@@ -302,6 +355,7 @@ async function runConfirm(context: DecisionContext): Promise<void> {
             : "A staff member will reach out to you here shortly to arrange payment and finalize the delivery.\n\n") +
           (context.items ? `**Order Summary**\n${context.items}\n\n` : "") +
           (context.total ? `**Total:** ${context.total}\n` : "") +
+          (context.creatorCode ? `**Discount code:** ${context.creatorCode}\n` : "") +
           "_No payment has been taken yet — staff will never ask for card details in chat._",
         color: 0x34d399,
       },
@@ -310,7 +364,12 @@ async function runConfirm(context: DecisionContext): Promise<void> {
 
   if (!dmSent) notes.push("⚠️ DM failed (DMs off)");
 
-  await markOrderDecision(context.reference, "confirmed", context.actorName, ticketId);
+  // The status was already written by the claim above; this only attaches the
+  // channel that has since been created, and is skipped when there is none so a
+  // failed ticket leaves the order retryable.
+  if (ticketId) {
+    await markOrderDecision(context.reference, "confirmed", context.actorName, ticketId);
+  }
 
   const statusLines = [
     `✅ Confirmed by **${context.actorName}**`,
@@ -359,7 +418,15 @@ interface TicketLifecycleContext {
  */
 async function announcePurchase(
   botToken: string,
-  order: { reference: string; minecraftUsername: string; items: string; total: string; customerId: string },
+  order: {
+    reference: string;
+    minecraftUsername: string;
+    items: string;
+    total: string;
+    customerId: string;
+    /** Raw discount-code field value; empty for orders without one. */
+    creatorCode: string;
+  },
 ): Promise<boolean> {
   const channelId = getBuyersChannelId();
   if (!channelId) return false;
@@ -376,6 +443,12 @@ async function announcePurchase(
     order.minecraftUsername ? `🎮 **Minecraft**: ${order.minecraftUsername}` : null,
     order.items ? `📦 **Items**: ${order.items}` : null,
     order.total ? `💰 **Total**: ${order.total}` : null,
+    // Credits the creator but deliberately publishes only the code name, never
+    // the discount size — this is a public channel, and advertising a cheaper
+    // price to everyone without a code is not the point of the shout-out.
+    order.creatorCode
+      ? `🎬 **Discount code**: ${order.creatorCode.split(" · ")[0].replaceAll("*", "")}`
+      : null,
     `📅 **Date**: ${date}`,
     rule,
   ]
@@ -475,6 +548,9 @@ async function logClosedTicket(
     ? messages.map(formatTranscriptMessage).join("\n\n")
     : "(no messages)";
 
+  // Hoisted: this was evaluated twice in the same expression below.
+  const archivedDiscountCode = discountCodeField(context.originalEmbed);
+
   const posted = await postChannelMessageWithFile(
     botToken,
     logsChannelId,
@@ -492,6 +568,11 @@ async function logClosedTicket(
             { name: "Closed by", value: context.actorName, inline: true },
             { name: "Messages", value: String(messages.length), inline: true },
             { name: "Deleted channel ID", value: context.channelId, inline: true },
+            // The archive is the permanent record of the sale, so the
+            // attribution belongs here too — the live ticket is deleted.
+            ...(archivedDiscountCode
+              ? [{ name: "Discount code", value: archivedDiscountCode, inline: true }]
+              : []),
           ],
           footer: { text: "Mazora store · transcript attached" },
           timestamp: new Date().toISOString(),
@@ -572,7 +653,16 @@ async function runTicketLifecycle(context: TicketLifecycleContext): Promise<void
   }
 
   // Closing does not announce: a ticket can end without a completed sale.
-  await markOrderDecision(context.reference, "completed", context.actorName, context.channelId);
+  /*
+    Guarded so a stale Close on an already-terminal order cannot re-stamp it.
+    The `from` parameter existed but no call site passed one, so every button
+    except Confirm still matched on reference alone.
+  */
+  await markOrderDecision(context.reference, "completed", context.actorName, context.channelId, [
+    "pending",
+    "awaiting_discord_join",
+    "confirmed",
+  ]);
 
   await editOriginalMessage(
     context.applicationId,
@@ -606,7 +696,16 @@ async function runReject(context: DecisionContext): Promise<void> {
     ],
   }).catch(() => false);
 
-  await markOrderDecision(context.reference, "rejected", context.actorName);
+  /*
+    Same guard. Without it, pressing Decline on an old `completed` order message
+    dragged a delivered sale back to `rejected`, overwrote who handled it, and
+    DM'd the buyer "Order Declined" for something they had already received.
+  */
+  await markOrderDecision(context.reference, "rejected", context.actorName, null, [
+    "pending",
+    "awaiting_discord_join",
+    "confirmed",
+  ]);
 
   await editOriginalMessage(
     context.applicationId,
@@ -647,6 +746,36 @@ export async function POST(request: Request) {
   // PING — Discord verifies the endpoint with this when the URL is saved.
   if (interaction.type === 1) return json({ type: 1 });
 
+  /*
+    Replay guard.
+
+    A valid signature proves the request came from Discord, not that it is the
+    first time this one arrived. The timestamp check above only bounds the
+    window to five minutes, so a captured signed body — from a proxy log, a
+    compromised log sink, or an on-path attacker — could be re-sent inside it and
+    re-executed: a second ticket channel and a second buyer DM for `confirm`, or
+    a second public purchase post for `announce`. The "cannot double-post"
+    property of the announce button is only the `disabled: true` flag in the
+    returned components, which is Discord UI state that a replayed HTTP request
+    never consults.
+
+    `interaction.id` is unique per interaction, so claiming it once makes the
+    endpoint idempotent. Ten minutes comfortably outsurvives the five-minute
+    signature window.
+
+    Without Upstash configured this degrades to a per-instance window, so a
+    replay landing on a different lambda can still get through — a partial
+    control, and the order-status claim in runConfirm remains the backstop.
+  */
+  if (interaction.type === 3 && interaction.id) {
+    const first = await rateLimitShared(`discord-interaction:${interaction.id}`, {
+      limit: 1,
+      windowMs: 10 * 60_000,
+    });
+    // Type 6 = DEFERRED_UPDATE_MESSAGE: acknowledge and change nothing.
+    if (!first.ok) return json({ type: 6 });
+  }
+
   // MESSAGE_COMPONENT — a staff member clicked a button.
   if (interaction.type === 3) {
     const customId = interaction.data?.custom_id ?? "";
@@ -683,6 +812,7 @@ export async function POST(request: Request) {
             items: fieldValue(orderEmbed, "Items"),
             total: fieldValue(orderEmbed, "Order total"),
             customerId: discordUserId!,
+            creatorCode: discountCodeField(orderEmbed),
           }).catch(() => false);
           if (!posted) console.error("Purchase announcement failed", reference);
         });
@@ -799,6 +929,10 @@ export async function POST(request: Request) {
       items: fieldValue(originalEmbed, "Items"),
       total: fieldValue(originalEmbed, "Order total"),
       minecraftUsername: fieldValue(originalEmbed, "Minecraft username"),
+      // "Order total" above already carries the discounted figure, so every
+      // downstream surface quotes the right amount without further work. This
+      // field only adds the attribution detail.
+      creatorCode: discountCodeField(originalEmbed),
     };
 
     // Runs after the response is flushed, so the three second budget is never

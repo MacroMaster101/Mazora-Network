@@ -50,6 +50,9 @@ export default async function ControlRoom() {
 
   const onlinePlayers = players.filter((p) => p.status === "online").slice(0, 6);
   const liveEvents = events.filter((e) => e.status !== "completed").length;
+  // `live` means the status provider answered; `online` is the Minecraft
+  // server's actual state. A successful offline reading must not become 0/500.
+  const serverOnline = status.live && status.online;
 
   return (
     <div className="space-y-6">
@@ -58,19 +61,20 @@ export default async function ControlRoom() {
         displayName={session.displayName}
         avatarUrl={session.avatarUrl}
         role={role}
-        online={status.players}
+        players={status.players}
         max={status.max}
         version={status.version}
         live={status.live}
+        serverOnline={serverOnline}
       />
 
       {/* Network telemetry — live upstream statistics. */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metric
           label="Players online"
-          value={status.live ? String(status.players) : "—"}
-          detail={status.live ? `of ${status.max} slots` : "status unavailable"}
-          live={status.live}
+          value={serverOnline ? String(status.players) : "—"}
+          detail={!status.live ? "status unavailable" : serverOnline ? `of ${status.max} slots` : "server offline"}
+          live={serverOnline}
         />
         <Metric
           label="Discord members"

@@ -49,7 +49,11 @@ export async function savePlayConfigAction(
     revalidatePath("/admin/pages");
     return { ok: true, message: "Play page configuration updated live on the website!" };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Failed to save configuration.";
-    return { ok: false, message };
+    // The raw error used to be returned to the browser, which made this the one
+    // action in the codebase that forwarded a Postgres message (constraint text,
+    // connection details) to a client. Every sibling action logs the detail and
+    // returns a fixed string; match that.
+    console.error("Play page config save failed:", err);
+    return { ok: false, message: "Failed to save configuration." };
   }
 }

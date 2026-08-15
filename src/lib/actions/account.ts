@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET } from "@/lib/storage/avatar-bucket";
 import { removeStoredSkinFiles } from "@/lib/storage/skin-files";
+import { anonymiseOrdersForUser } from "@/lib/data/orders";
 
 export interface AccountActionResult {
   ok: boolean;
@@ -137,7 +138,14 @@ export async function disconnectMinecraftAction(
   return { ok: true, message: "Minecraft has been disconnected." };
 }
 
-/** Permanently deletes the authenticated user and all user-owned records. */
+/**
+ * Deletes the authenticated user.
+ *
+ * Not quite "and all user-owned records", which is what this used to claim:
+ * migration 020 deliberately retains order history so sales stay reconcilable.
+ * What that retention must not do is keep naming the person, so the identifying
+ * columns are scrubbed here before the auth user goes.
+ */
 export async function deleteAccountAction(
   _previous: AccountActionResult,
   formData: FormData,
@@ -168,6 +176,19 @@ export async function deleteAccountAction(
     await admin.storage
       .from("profile-avatars")
       .remove(avatarObjects.map((item) => `${auth.user.id}/${item.name}`));
+  }
+
+  /*
+    Before the auth user goes: once it is deleted the FK has already nulled
+    orders.user_id and these rows can no longer be located, so the Discord and
+    Minecraft identifiers on them would be stranded permanently.
+  */
+  if (!(await anonymiseOrdersForUser(auth.user.id))) {
+    return {
+      ok: false,
+      message:
+        "Your order history could not be anonymised, so the account was not deleted. Please try again or contact support.",
+    };
   }
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(auth.user.id);
