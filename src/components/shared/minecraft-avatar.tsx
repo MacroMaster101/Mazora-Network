@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
 import { cn } from "@/lib/utils";
@@ -50,8 +51,23 @@ export function MinecraftAvatar({
         {username.slice(0, 2).toUpperCase()}
       </span>
       {!failed && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        /*
+          next/image rather than a bare <img>, for privacy rather than payload.
+
+          A raw <img> pointing at mc-heads.net is fetched by the VISITOR's
+          browser, so that host receives every viewer's IP address, User-Agent
+          and Referer — plus the Minecraft username being looked at. These
+          avatars render on public, unauthenticated pages (leaderboards,
+          /players, /staff, gallery, news bylines), so it applied to every
+          anonymous visitor and disclosed which profile they were viewing.
+
+          Routed through /_next/image the fetch happens server-side, and
+          mc-heads sees only the Vercel egress IP. mc-heads.net is already in
+          next.config.ts remotePatterns, and the onError monogram fallback below
+          still covers an upstream failure — which now surfaces as an optimizer
+          error rather than a browser one.
+        */
+        <Image
           src={src}
           alt={`${username}'s Minecraft head`}
           width={size}

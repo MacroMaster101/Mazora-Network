@@ -14,10 +14,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import type { CreatorCodePreviewResult } from "@/lib/actions/creator-codes";
 import { usd } from "@/lib/utils";
 import { storeArtFor } from "@/lib/store-art";
 import { useCart } from "./cart-provider";
 import { OrderRequestForm } from "./order-request-form";
+import { CreatorCodeField } from "./creator-code-field";
 import { StoreArtwork } from "./store-artwork";
 
 /** Slide-out duration; mirrors .cart-drawer-layer .cart-drawer in globals.css. */
@@ -36,9 +38,28 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
     ready,
   } = useCart();
   const [step, setStep] = useState<"cart" | "details">("cart");
+  const [appliedCode, setAppliedCode] = useState<CreatorCodePreviewResult | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
   const isStoreRoute = pathname.startsWith("/store");
+
+  // A cart edit invalidates the quoted discount, so the code is dropped rather
+  // than left quoting a total that no longer matches the items.
+  useEffect(() => {
+    setAppliedCode(null);
+  }, [items]);
+
+  const discount = appliedCode?.ok ? appliedCode.discount ?? 0 : 0;
+
+  /*
+    Cart line prices are snapshotted into localStorage when an item is added, so
+    they go stale if a product is repriced afterwards. The preview action prices
+    the same cart from the database, so once a code is applied its subtotal and
+    total are the authoritative pair — mixing the stale client subtotal with a
+    server-computed discount would display a total that is simply wrong.
+  */
+  const shownSubtotal = appliedCode?.ok ? appliedCode.subtotal ?? total : total;
+  const shownTotal = appliedCode?.ok ? appliedCode.total ?? total - discount : total;
 
   /*
     Replaces <AnimatePresence>. `mounted` keeps the drawer in the tree while it
@@ -249,12 +270,24 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
                 </div>
 
                 <div className="cart-foot px-5 py-5 sm:px-7">
+                  <div className="mb-4">
+                    <CreatorCodeField
+                      items={items}
+                      appliedCode={appliedCode}
+                      onApplyCode={setAppliedCode}
+                    />
+                  </div>
                   <div className="flex items-end justify-between">
                     <div>
                       <p className="cart-muted text-xs">Estimated total</p>
                       <p className="cart-muted-2 mt-0.5 text-[11px]">Manual payment · no charge today</p>
                     </div>
-                    <p className="telemetry text-2xl font-black">{usd(total)}</p>
+                    <p className="flex items-baseline gap-2">
+                      {discount > 0 && (
+                        <span className="cart-muted-2 telemetry text-sm line-through">{usd(shownSubtotal)}</span>
+                      )}
+                      <span className="telemetry text-2xl font-black">{usd(shownTotal)}</span>
+                    </p>
                   </div>
                   <button type="button" onClick={() => setStep("details")} className="btn btn-primary mt-4 w-full">
                     Continue to request
@@ -308,15 +341,31 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
                       </li>
                     ))}
                   </ul>
+                  {discount > 0 && (
+                    <div className="flex items-center justify-between px-4 pt-1 text-xs">
+                      <span className="cart-muted">
+                        {appliedCode?.code} · {appliedCode?.percentOff}% off
+                      </span>
+                      <span className="telemetry font-bold text-success">−{usd(discount)}</span>
+                    </div>
+                  )}
                   <div className="cart-summary-total mt-3.5 flex items-center justify-between px-4 py-3">
                     <span className="cart-muted text-xs">
                       Estimated total <span className="cart-muted-2">· no charge today</span>
                     </span>
-                    <span className="telemetry text-[1rem] font-black">{usd(total)}</span>
+                    <span className="flex items-baseline gap-2">
+                      {discount > 0 && (
+                        <span className="cart-muted-2 telemetry text-xs line-through">{usd(shownSubtotal)}</span>
+                      )}
+                      <span className="telemetry text-[1rem] font-black">{usd(shownTotal)}</span>
+                    </span>
                   </div>
                 </section>
 
-                <OrderRequestForm configured={requestsConfigured} />
+                <OrderRequestForm
+                  configured={requestsConfigured}
+                  appliedCode={appliedCode}
+                />
               </div>
             )}
       </aside>

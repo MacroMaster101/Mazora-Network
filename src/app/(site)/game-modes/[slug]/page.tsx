@@ -5,6 +5,7 @@ import { Check, Clock3, Sparkles, Terminal, Users } from "lucide-react";
 import { getGameMode } from "@/lib/data/content";
 import { getServerStatus } from "@/lib/data/status";
 import { site } from "@/lib/site";
+import { publicPageMetadata } from "@/lib/seo";
 import { CopyIpButton, FloatingBrandLogo, Icon, PageHero, Reveal } from "@/components/shared";
 import { accentStyles } from "@/components/shared/accent";
 
@@ -16,7 +17,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const mode = await getGameMode(slug);
   if (!mode) return { title: "Game mode not found", robots: { index: false, follow: false } };
-  return { title: mode.name, description: mode.description };
+  // Returning bare title/description let this route inherit the root layout's
+  // whole `openGraph` object — Next merges metadata per key, not per field — so
+  // every game mode unfurled in Discord with the homepage's title and blurb.
+  return publicPageMetadata({
+    title: mode.name,
+    description: mode.description,
+    path: `/game-modes/${mode.slug}`,
+  });
 }
 
 export default async function GameModeDetail({ params }: { params: Promise<{ slug: string }> }) {
@@ -41,7 +49,7 @@ export default async function GameModeDetail({ params }: { params: Promise<{ slu
             <Icon name={mode.icon} size={20} />
           </span>
           {isLive && <CopyIpButton ip={site.javaIp} label="Copy server IP" />}
-          {status.live && (
+          {status.live && status.online && (
             <span className="chip">
               <Users size={14} /> {status.players} online now
             </span>

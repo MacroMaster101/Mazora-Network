@@ -21,11 +21,29 @@ export function Modal({
   const frameRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
+  /*
+    `onClose` used to be a dependency of the effect below, and every one of the
+    eighteen call sites passes an inline arrow — so its identity changed on
+    every render of the parent. Typing one character into a field inside a modal
+    re-rendered the parent, which tore the effect down (restoring focus to
+    whatever was focused before the modal opened) and set it up again (focusing
+    the first focusable element in the frame). The caret was yanked out of the
+    input after each keystroke, which is what made every modal form in the admin
+    impossible to type in continuously.
+
+    The handler is read through a ref so the effect can depend on `open` alone
+    and run exactly once per open/close, while still calling the latest closure.
+  */
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     if (!open) return;
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
       if (e.key !== "Tab") return;
       const frame = frameRef.current;
       if (!frame) return;
@@ -67,7 +85,7 @@ export function Modal({
       document.body.style.overflow = previousBodyOverflow;
       previousFocusRef.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 

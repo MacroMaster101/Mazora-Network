@@ -79,7 +79,6 @@ Open [http://localhost:3000](http://localhost:3000). Environment variables and a
 | `npm run build` | Create and validate the production build |
 | `npm run start` | Serve a completed production build |
 | `npm run db:generate` | Generate SQL migrations from the Drizzle schema |
-| `npm run db:push` | Push the current schema to the configured Postgres database |
 | `npm run db:apply -- <file.sql>` | Apply a single SQL file using `DATABASE_URL` |
 | `npm run db:seed:store` | Load the storefront catalogue into `products` |
 | `npm run db:seed:rules` | Load the baseline community rulebook |
@@ -161,6 +160,32 @@ No payment is ever taken on the website. Orders are requests that staff fulfil m
 4. **Reject.** The buyer is DM'd; no ticket is created.
 5. **Close.** Staff press Close ticket. The bot saves the conversation transcript to `DISCORD_TICKET_LOGS_CHANNEL_ID`, deletes the temporary ticket channel only after that archive succeeds, and marks the order completed. A failed archive or delete keeps the channel and restores the Close button for a safe retry.
 6. **Announce.** A separate button posts the purchase to `DISCORD_BUYERS_CHANNEL_ID`, then disables itself so the same sale cannot be posted twice.
+
+### 🎬 Discount codes
+
+User-facing copy calls these **discount codes**. The internal identifiers and the
+admin route (`creatorCode`, `creator_codes`, `/admin/store/creator-codes`) keep the
+original name — renaming the columns would mean a migration against live order
+history for no visible gain.
+
+Content creators can be issued a personal code that gives their viewers a
+percentage off a hand-picked set of products — for example 15% off selected keys.
+
+- Buyers apply the code on the cart's **Review** step; the deduction is then shown
+  in the order summary on the **Request** step and on the order itself.
+- The discount is computed on the server from database state. The browser sends
+  only the code string, never a price or a discount amount.
+- The percentage stacks on any active sale price and is capped at 90%.
+- A code carries an on/off switch and an optional expiry date.
+- The discount appears on every surface an order reaches: the staff order message,
+  the Discord ticket, the buyer's DM, the purchase announcement, the closed-ticket
+  archive, the buyer's purchase history, and the admin order list.
+
+Staff manage codes at `/admin/store/creator-codes` (administrator and above), from
+the **Discount codes** card on the Store admin dashboard. Each code shows how many
+orders it drove, how much revenue it brought in, and how much discount it gave —
+confirmed orders counted separately from ones merely placed. Deleting a code never
+alters past orders.
 
 Closing and announcing are deliberately separate. A ticket can end without a sale — the buyer changed their mind, never paid, or it was a mistake — and announcing "X bought Y" for someone who never bought is worse than not announcing at all.
 
@@ -257,8 +282,14 @@ To set up a database:
 3. Load the content that ships with the project.
 
 ```bash
-npm run db:push
+supabase db push
 ```
+
+> The `db:push` script was removed. `drizzle-kit push` diffs the database against
+> `src/lib/db/schema.ts`, and that schema does not declare the foreign keys,
+> CHECK constraints or indexes that migration 023 installed — so running it
+> against a populated database proposes **dropping** them. Migrations are the
+> only supported path.
 
 ```bash
 npm run db:seed:store && npm run db:seed:rules

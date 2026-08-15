@@ -15,7 +15,7 @@ export default async function GameModesPage() {
   const eyebrow =
     modes.length === 0
       ? "Game modes"
-      : status.live
+      : status.live && status.online
         ? `${modes.length} worlds · ${status.players} online now`
         : `${modes.length} worlds`;
 

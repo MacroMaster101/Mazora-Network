@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, Gift, Trophy, Users } from "lucide-react";
 import { getEvent } from "@/lib/data/content";
+import { publicPageMetadata } from "@/lib/seo";
 import { fmtDate } from "@/lib/utils";
 import { Countdown, Icon, MinecraftAvatar, Reveal } from "@/components/shared";
 import { accentStyles } from "@/components/shared/accent";
@@ -21,7 +22,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const event = await getEvent(slug);
   if (!event) return { title: "Event not found", robots: { index: false, follow: false } };
-  return { title: event.title, description: event.description };
+  // See the game-mode detail route: bare title/description inherits the root
+  // layout's entire openGraph block, so every event shared the homepage unfurl.
+  return publicPageMetadata({
+    title: event.title,
+    description: event.description,
+    path: `/events/${slug}`,
+  });
 }
 
 const statusTone = {
