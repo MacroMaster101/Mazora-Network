@@ -10,6 +10,7 @@
     "start": "tsx scripts/discord-presence.ts",
     "bot:presence": "tsx --env-file=.env scripts/discord-presence.ts",
     "bot:presence:once": "tsx --env-file=.env scripts/discord-presence.ts --once",
+    "test": "tsx --test scripts/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
