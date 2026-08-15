@@ -6,6 +6,18 @@ import { buildContentSecurityPolicy, generateNonce } from "@/lib/csp";
 
 const isDev = process.env.NODE_ENV === "development";
 
+const DEAD_SESSION_CODES = new Set([
+  "refresh_token_not_found",
+  "refresh_token_already_used",
+  "session_expired",
+]);
+
+function isDeadSessionError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && DEAD_SESSION_CODES.has(code);
+}
+
 /**
  * Every response out of this file must carry the CSP, and the nonce must reach
  * the render pass. Next reads the nonce off the *request* `content-security-policy`
@@ -66,6 +78,10 @@ export async function middleware(request: NextRequest) {
       },
       setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        // requestHeaders was cloned before Supabase refreshed the cookie. Keep
+        // the forwarded render request in sync, otherwise the Server Component
+        // immediately retries the expired token that middleware just replaced.
+        requestHeaders.set("cookie", request.headers.get("cookie") ?? "");
         response = NextResponse.next({ request: { headers: requestHeaders } });
         response.headers.set("Content-Security-Policy", csp);
         cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
@@ -73,7 +89,27 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getClaims();
+  const { error } = await supabase.auth.getClaims();
+  if (isDeadSessionError(error)) {
+    const deadCookies = request.cookies
+      .getAll()
+      .filter(({ name }) => name.startsWith("sb-") && name.includes("auth-token"));
+
+    for (const { name } of deadCookies) request.cookies.delete(name);
+    requestHeaders.set("cookie", request.headers.get("cookie") ?? "");
+    response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set("Content-Security-Policy", csp);
+    for (const { name } of deadCookies) {
+      response.cookies.set(name, "", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 0,
+        expires: new Date(0),
+      });
+    }
+  }
   response.headers.set("Cache-Control", "private, no-store");
   return response;
 }
