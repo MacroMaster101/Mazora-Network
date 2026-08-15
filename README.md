@@ -34,11 +34,11 @@ Render must deploy `discord-bot-presence`. This branch intentionally excludes th
 
 The bot rotates these live activities:
 
-- `🌐 mazora.us • Live`
-- `⛏️ mc.mazora.us • <players>/<capacity>`
+- `🌐 mazora.us • Live` or `Offline`, based on a real website probe
+- `⛏️ mc.mazora.us • <players>/<server capacity>`, or `Offline` when the server cannot be reached
 - `🟣 Discord • <online> online`
 
-Minecraft data is read from `https://mazora.us/api/status`, with a public Minecraft status API as a fallback. Discord totals are read from Discord's invite API.
+Minecraft data and capacity are read from `https://mazora.us/api/status`, with a public Minecraft status API as a fallback. Failed probes clear the previous values so an outage is never shown with a stale player count or capacity. Discord totals are read from Discord's invite API.
 
 ## 🧱 Technology
 
