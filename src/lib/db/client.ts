@@ -26,10 +26,12 @@ export function getDb(): Database | null {
   // default pool size (10) lets a burst of workers exhaust Supabase's shared
   // pool even though every individual worker appears healthy. Three keeps
   // build-time page generation concurrent without allowing each serverless
-  // worker to reserve ten connections.
+  // worker to reserve ten connections. Five also leaves enough headroom for
+  // parallel admin dashboard reads when a cancelled development navigation is
+  // still being released by the pooler.
   const sql = postgres(url, {
     prepare: false,
-    max: 3,
+    max: 5,
     idle_timeout: 20,
     connect_timeout: 10,
     connection: {

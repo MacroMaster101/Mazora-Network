@@ -18,6 +18,7 @@ import {
 import type { AccountActionResult } from "@/lib/actions/account";
 import { Modal, useToast } from "@/components/ui";
 import { MinecraftAvatar } from "@/components/shared/minecraft-avatar";
+import { useExampleIgn } from "@/lib/example-names";
 
 const initialState: AccountActionResult = { ok: false };
 const initialSkinUploadState: SkinUploadActionState = { ok: false };
@@ -38,6 +39,7 @@ export function ProfileAvatarEditor({
   hasDiscordPhoto?: boolean;
   enabled: boolean;
 }) {
+  const exampleIgn = useExampleIgn();
   const [uploadState, uploadAction, uploadPending] = useActionState(uploadProfileAvatarAction, initialState);
   const [minecraftState, minecraftAction, minecraftPending] = useActionState(useMinecraftAvatarAction, initialState);
   const [discordState, discordAction, discordPending] = useActionState(useDiscordAvatarAction, initialState);
@@ -286,7 +288,7 @@ export function ProfileAvatarEditor({
                     type="text"
                     value={mcUsername}
                     onChange={(e) => setMcUsername(e.target.value)}
-                    placeholder="e.g. KaviYa"
+                    placeholder={`e.g. ${exampleIgn}`}
                     maxLength={16}
                     required
                     className="w-full rounded-lg border border-line bg-page px-3 py-2 text-sm font-semibold text-ink focus:border-accent focus:outline-none"

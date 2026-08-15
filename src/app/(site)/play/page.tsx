@@ -4,6 +4,7 @@ import { getServerStatus } from "@/lib/data/status";
 import { getPatchUpdates } from "@/lib/data/patches";
 import { getFaqs } from "@/lib/data/faqs";
 import { getPlayPageConfig } from "@/lib/data/play-page-config";
+import { getStatusTelemetry } from "@/lib/data/status-telemetry";
 import { PageHero } from "@/components/shared/page-hero";
 import { Accordion } from "@/components/ui/accordion";
 import { CopyIpButton } from "@/components/shared/copy-ip-button";
@@ -45,11 +46,12 @@ function Steps({ steps }: { steps: string[] }) {
 }
 
 export default async function PlayPage() {
-  const [status, patchUpdates, faqs, playConfig] = await Promise.all([
+  const [status, patchUpdates, faqs, playConfig, telemetry] = await Promise.all([
     getServerStatus(),
     getPatchUpdates(),
     getFaqs(),
     getPlayPageConfig(),
+    getStatusTelemetry(),
   ]);
 
   const online = status.live && status.online;
@@ -65,7 +67,7 @@ export default async function PlayPage() {
         <div className="flex flex-wrap items-center gap-3">
           <span className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold ${online ? "border-success/40 text-success" : "border-line-strong text-muted"}`}>
             <span className={online ? "dot animate-pulse" : "dot dot-off"} />
-            {online ? `Online · ${status.players}/${status.max}` : "Status unavailable"}
+            {online ? `Online · ${status.players}/${status.max}` : status.live ? "Offline" : "Status unavailable"}
           </span>
           <CopyIpButton ip={playConfig.javaIp || site.javaIp} label="Copy Java IP" />
         </div>
@@ -110,6 +112,7 @@ export default async function PlayPage() {
             status={status}
             patches={patchUpdates}
             customTelemetryMessage={playConfig.telemetryMessage}
+            telemetry={telemetry}
           />
         </Reveal>
       </section>

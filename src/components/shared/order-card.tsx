@@ -81,9 +81,25 @@ export function OrderCard({ order, showBuyer = false }: { order: StoreOrder; sho
         )}
       </ul>
 
-      <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-t border-line pt-4">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted">Total</span>
-        <span className="telemetry text-lg font-black">{usd(order.total)}</span>
+      <div className="mt-4 space-y-1 border-t border-line pt-4">
+        {order.discount > 0 && (
+          <>
+            <div className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="text-muted">Subtotal</span>
+              <span className="telemetry">{usd(order.subtotal)}</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="text-muted">
+                {order.creatorCode ? `Discount code ${order.creatorCode}` : "Discount"}
+              </span>
+              <span className="telemetry font-semibold text-success">−{usd(order.discount)}</span>
+            </div>
+          </>
+        )}
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted">Total</span>
+          <span className="telemetry text-lg font-black">{usd(order.total)}</span>
+        </div>
       </div>
 
       {order.notes && (

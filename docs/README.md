@@ -124,8 +124,13 @@ npm run db:generate
 npm run typecheck
 ```
 
-Review generated SQL before applying it. For a development database, `npm run db:push` can
-apply the schema directly.
+Review generated SQL before applying it, then apply it as a migration.
+
+`npm run db:push` no longer exists. `drizzle-kit push` diffs the live database against
+`src/lib/db/schema.ts`, which declares one `.references()` in the whole file and none of
+the constraints migration 023 added — so against a populated database it proposes
+dropping every foreign key, CHECK and index that migration installed. Use
+`supabase db push` (migrations) or `npm run db:apply -- <file.sql>` instead.
 
 Hand-written SQL (RLS policies, functions, triggers) lives in `supabase/migrations` using
 the Supabase CLI's `<timestamp>_name.sql` naming. Create one with `supabase migration new
@@ -162,6 +167,64 @@ For visual changes, also test:
 - mobile drawer open, dropdown, theme switch, and close interactions;
 - the entire page through the legal footer row;
 - horizontal overflow and browser console errors.
+
+## 🎬 Discount codes
+
+User-facing copy calls these **discount codes**. The internal identifiers are still
+`creatorCode` / `creator_codes`: renaming those columns would mean a migration against
+live order history for no visible gain.
+
+A vetted content creator is issued a code (`NOVAPLAYS1`) that takes a percentage off a
+**hand-picked** set of products. Eligibility is per-code and explicit, so adding a
+new product never silently starts discounting it. The percentage stacks on top of
+`salePrice` when one is set, and is capped at 90% so an order can never reach zero.
+
+`src/lib/store-discount.ts` holds the only implementation of the arithmetic. It is
+pure — no database, no session — and both the checkout preview and the order
+submission call it, so the quoted total and the recorded total cannot drift apart.
+It works in integer cents and rounds half-up **per line**, so the per-line discounts
+a buyer sees always sum to the order discount.
+
+The discount is always computed server-side. The browser sends a code string and
+cart slugs; every price, the percentage and the eligibility list are read from the
+database. `submitStoreRequest` re-resolves the code from scratch and **refuses the
+order** if it stopped being valid since the preview, rather than silently charging
+full price after quoting a discount.
+
+Codes are managed at `/admin/store/creator-codes` (titled **Discount codes** in the UI) (administrator and above),
+reached from the third card on the Store hub. Deleting a code leaves past orders
+intact: `orders.creator_code_id` goes null while the `creator_code` text snapshot
+and the recorded discount remain.
+
+### ⚠️ The `Order total` field name is load-bearing
+
+`src/app/api/discord/interactions/route.ts` receives no order data. It reads it back
+out of the staff order embed **by exact field name**:
+
+```ts
+fieldValue(orderEmbed, "Order total")    // → ticket embed, buyer DM, announcement
+fieldValue(orderEmbed, "Items")
+fieldValue(orderEmbed, "Minecraft username")
+discountCodeField(orderEmbed)            // accepts "Discount code" and older "Creator code"
+```
+
+Renaming any of those fields in `src/lib/actions/store.ts` — or splitting
+`Order total` into a subtotal/discount block — silently blanks that value on the
+ticket, the buyer's DM and the public purchase announcement. Nothing throws; an em
+dash just appears where the price belongs. `Order total` must stay a single clean
+money string carrying the **final payable amount**, with the breakdown in the
+separate `Discount code` field.
+
+A store order renders on seven surfaces, and all seven show the discounted figure:
+the staff order message, the Discord ticket embed, the buyer DM, the purchase
+announcement, the ticket-close archive, the buyer's purchase history, and the admin
+order list. The last three all render the shared `StoreOrder` type from
+`src/lib/order-status.ts`.
+
+Cart line prices are snapshotted into `localStorage` when an item is added, so they
+go stale if a product is repriced. Once a code is applied, the drawer displays the
+**preview action's** subtotal and total rather than the client-side figures — mixing
+a stale client subtotal with a server-computed discount shows a wrong total.
 
 ## 🧹 Repository hygiene
 

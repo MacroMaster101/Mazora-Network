@@ -46,7 +46,9 @@ export default async function StatusPage() {
           <div className="flex items-center gap-3">
             <span className={online ? "dot animate-pulse" : "dot dot-off"} style={{ width: 12, height: 12 }} />
             <div>
-              <p className="font-display text-xl font-bold">{online ? "Server online" : "Status unavailable"}</p>
+              <p className="font-display text-xl font-bold">
+                {!status.live ? "Status unavailable" : online ? "Server online" : "Server offline"}
+              </p>
               <p className="telemetry text-sm text-muted">
                 Last updated {new Date(status.lastUpdate).toLocaleTimeString("en", { timeZone: "UTC", timeZoneName: "short" })}
               </p>
@@ -56,10 +58,10 @@ export default async function StatusPage() {
         </Reveal>
 
         <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Stat icon={Activity} label="Players online" value={status.live ? `${status.players}/${status.max}` : "—"} />
+          <Stat icon={Activity} label="Players online" value={online ? `${status.players}/${status.max}` : status.live ? "Offline" : "—"} />
           <Stat icon={Server} label="Version" value={status.version} />
-          <Stat icon={Signal} label="Ping" value={status.live ? `${status.ping}ms` : "—"} />
-          <Stat icon={Gauge} label="Uptime" value={status.live ? status.uptime : "—"} />
+          <Stat icon={Signal} label="Ping" value={online ? `${status.ping}ms` : status.live ? "Offline" : "—"} />
+          <Stat icon={Gauge} label="Uptime" value={online ? status.uptime : status.live ? "Offline" : "—"} />
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -68,7 +70,7 @@ export default async function StatusPage() {
             <div className="mt-3 flex items-center justify-between">
               <CopyIpButton ip={site.javaIp} variant="inline" />
               <span className={`inline-flex items-center gap-2 text-sm ${status.java.online ? "text-success" : "text-muted"}`}>
-                <span className={status.java.online ? "dot" : "dot dot-off"} /> {status.java.online ? "Reachable" : "Unknown"}
+                <span className={status.java.online ? "dot" : "dot dot-off"} /> {status.java.online ? "Reachable" : status.live ? "Offline" : "Unknown"}
               </span>
             </div>
           </Reveal>
@@ -77,7 +79,7 @@ export default async function StatusPage() {
             <div className="mt-3 flex items-center justify-between">
               <CopyIpButton ip={`${site.bedrockIp}:${site.bedrockPort}`} variant="inline" />
               <span className={`inline-flex items-center gap-2 text-sm ${status.bedrock.online ? "text-success" : "text-muted"}`}>
-                <span className={status.bedrock.online ? "dot" : "dot dot-off"} /> {status.bedrock.online ? "Reachable" : "Unknown"}
+                <span className={status.bedrock.online ? "dot" : "dot dot-off"} /> {status.bedrock.online ? "Reachable" : status.live ? "Offline" : "Unknown"}
               </span>
             </div>
           </Reveal>

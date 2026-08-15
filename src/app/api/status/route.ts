@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { getServerStatus } from "@/lib/data/status";
 import { pingDiscordPresence } from "@/lib/data/discord-presence-health";
+import { recordStatusSample } from "@/lib/data/status-telemetry";
 
 /** Server-side status endpoint. getServerStatus coalesces requests in a short live cache. */
 export const dynamic = "force-dynamic";
@@ -11,6 +12,15 @@ export async function GET() {
   // delaying the Minecraft status response or requiring a Vercel cron job.
   after(pingDiscordPresence);
   const status = await getServerStatus();
+
+  /*
+    That same once-a-minute poll is what builds the 24-hour activity history, so
+    the chart on /play plots readings that were actually taken instead of a
+    generated curve. In `after()` because it must not add latency here, and it
+    swallows its own errors so a telemetry problem can never fail this response.
+  */
+  after(() => recordStatusSample(status));
+
   return NextResponse.json(status, {
     headers: { "Cache-Control": "no-store" },
   });

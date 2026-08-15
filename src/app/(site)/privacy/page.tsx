@@ -10,7 +10,7 @@ export const metadata = publicPageMetadata({
   path: "/privacy",
 });
 
-const LAST_UPDATED = "2026-07-21";
+const LAST_UPDATED = "2026-08-15";
 
 export default function PrivacyPage() {
   const updated = new Date(LAST_UPDATED).toLocaleDateString("en", {
@@ -82,10 +82,15 @@ export default function PrivacyPage() {
                     <strong>Support submissions.</strong> Content you submit through appeals, reports, applications, suggestions, and support tickets.
                   </li>
                   <li>
-                    <strong>Store requests.</strong> Minecraft username, preferred contact method, Discord handle or email, requested items, order totals, and order notes. Payment itself is not processed on-site.
+                    <strong>Store requests.</strong> Minecraft username, your Discord account (including its
+                    numeric Discord ID), requested items, order totals, any discount code applied, and order
+                    notes. Payment itself is not processed on-site.
                   </li>
                   <li>
-                    <strong>Technical data.</strong> Standard log information such as IP address, browser type, and pages visited, used to operate and secure the service.
+                    <strong>Technical data.</strong> Our hosting provider records standard request logs,
+                    including IP address, to operate and secure the service. The site itself does not store
+                    your IP address in its own database: where we need to limit repeated requests, the
+                    address is converted into an irreversible fingerprint and only that is kept.
                   </li>
                 </ul>
               </article>
@@ -125,6 +130,20 @@ export default function PrivacyPage() {
                   <p className="text-muted text-sm sm:text-base leading-relaxed">
                     We also use Discord webhooks to route manual store requests to private staff channels so team members can contact you and coordinate delivery.
                   </p>
+                  <p className="text-muted text-sm sm:text-base leading-relaxed">
+                    The services that process data on our behalf are:{" "}
+                    <strong className="text-ink">Supabase</strong> (accounts, database and uploaded files),{" "}
+                    <strong className="text-ink">Vercel</strong> (hosting, and — only if you accept
+                    analytics — anonymous page-view and performance measurement),{" "}
+                    <strong className="text-ink">Discord</strong> (sign-in, store request channels and
+                    bot messages), and <strong className="text-ink">Google</strong> (sign-in, if you use it).
+                  </p>
+                  <p className="text-muted text-sm sm:text-base leading-relaxed">
+                    Some images are fetched by your browser directly from the service that hosts them,
+                    which means that service can see your IP address and browser. This applies to profile
+                    pictures sourced from Discord or Google. Minecraft head images are requested by our
+                    servers rather than by your browser, so the image provider does not see your details.
+                  </p>
                 </div>
               </article>
 
@@ -135,8 +154,20 @@ export default function PrivacyPage() {
                   <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Cookies & local storage</h2>
                 </div>
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
-                  We use essential cookies to keep you signed in. We also use your browser&apos;s local
-                  storage to remember your theme, cart, in-app notification state, device-only notification preferences, and support-card interactions. These technologies are purely functional and are not used for third-party advertising.
+                  We use essential cookies to keep you signed in, and one cookie to remember your
+                  cookie choice for 180 days. We also use your browser&apos;s local storage to remember
+                  your theme, cart, in-app notification state, device-only notification preferences, and
+                  support-card interactions, and session storage to hold an unfinished store request
+                  until you submit it. None of this is used for third-party advertising.
+                </p>
+                <p className="text-muted text-sm sm:text-base leading-relaxed mt-3">
+                  Analytics are <strong className="text-ink">off until you accept them</strong> in the
+                  cookie banner. If you accept, two cookies are set to avoid counting the same reader
+                  twice — one lasting 12 hours and one lasting a year — and page-view and performance
+                  measurement is enabled. We store reading figures only as totals; no per-visitor record
+                  is kept. If you decline, no analytics cookies are written and no measurement is loaded.
+                  You can change your choice at any time from{" "}
+                  <strong className="text-ink">Cookie settings</strong> in the footer.
                 </p>
               </article>
 
@@ -151,6 +182,14 @@ export default function PrivacyPage() {
                   submissions, and technical logs are kept only for as long as reasonably necessary to
                   respond, provide requested services, maintain security, and resolve disputes.
                 </p>
+                <p className="text-muted text-sm sm:text-base leading-relaxed mt-3">
+                  One exception: a record of completed store orders is kept after an account is deleted,
+                  because we need it to reconcile payments and answer disputes. Before the account is
+                  removed we strip the identifying details from those records — the Discord and
+                  Minecraft names attached to the order, and anything you wrote in the request — leaving
+                  the reference, the amounts and the items. Actions taken by staff on an account are also
+                  recorded in an internal audit log.
+                </p>
               </article>
 
               {/* Card 7 */}
@@ -162,6 +201,11 @@ export default function PrivacyPage() {
                 <p className="text-muted text-sm sm:text-base leading-relaxed">
                   You can access, correct, or delete your personal information from your{" "}
                   <Link href="/dashboard/settings" className="text-accent-bright font-semibold hover:underline">account settings</Link> or by contacting staff. You may also request account deletion at any time.
+                </p>
+                <p className="text-muted text-sm sm:text-base leading-relaxed mt-3">
+                  Deleting your account removes your profile, your linked Minecraft account and any files
+                  you uploaded. As described under <strong className="text-ink">Data retention</strong>,
+                  an anonymised record of completed orders is kept for accounting purposes.
                 </p>
               </article>
 

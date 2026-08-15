@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Role } from "@/lib/types";
 import {
@@ -15,6 +14,7 @@ import {
 } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { usernameForUser } from "@/lib/data/accounts";
+import { anonymiseOrdersForUser } from "@/lib/data/orders";
 import { getDb, schema } from "@/lib/db/client";
 import { canManageMinecraft } from "@/lib/auth/permissions";
 import { site } from "@/lib/site";
@@ -365,28 +365,27 @@ export async function deleteUserAction(
     };
   }
 
-  // orders.user_id is ON DELETE RESTRICT, so Postgres refuses to remove an
-  // account that has order history. Checking first turns an opaque foreign-key
-  // error into something the person reading it can act on.
+  /*
+    This used to refuse outright, on the grounds that orders.user_id was
+    ON DELETE RESTRICT. Migration 020 replaced that with ON DELETE SET NULL so
+    purchase history survives a deletion, but the guard here was never updated —
+    which left the two deletion paths contradicting each other: a member could
+    delete their own account from /dashboard/settings, while an administrator
+    could not delete that same account from /admin/users. 020's own header says
+    it exists to "align self-service deletion with staff deletion", so the block
+    was defeating the migration's stated purpose.
+
+    The order rows are scrubbed of direct identifiers first, then the FK nulls
+    the auth id, leaving a genuinely anonymous commercial record.
+  */
   const db = getDb();
   if (db) {
-    try {
-      const orders = await db
-        .select({ id: schema.orders.id })
-        .from(schema.orders)
-        .where(eq(schema.orders.userId, userId));
-      if (orders.length > 0) {
-        return {
-          ok: false,
-          message: `${targetName} has ${orders.length} order${orders.length === 1 ? "" : "s"} on record. Order history is kept, so the account cannot be deleted.`,
-        };
-      }
-    } catch (checkError) {
-      console.error("Order check before delete failed", checkError);
+    const anonymised = await anonymiseOrdersForUser(userId);
+    if (!anonymised) {
       return {
         ok: false,
         message:
-          "Could not verify the account's order history. Deletion cancelled.",
+          "The account's order history could not be anonymised, so deletion was cancelled to avoid leaving identifying records behind.",
       };
     }
 

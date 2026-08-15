@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+import { ConsentedAnalytics } from "@/components/shared/consented-analytics";
 import { site } from "@/lib/site";
 import { Providers } from "./providers";
 import { themeNoFlashScript } from "@/components/theme/theme-provider";
@@ -127,12 +126,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           the same-origin /_vercel endpoints, so mounting these components there
           produces console noise for scripts that cannot collect anything.
           Vercel sets VERCEL_ENV for preview and production deployments.
+
+          The second gate is consent, which only the browser knows about — see
+          ConsentedAnalytics.
         */}
         {process.env.VERCEL_ENV === "production" || process.env.VERCEL_ENV === "preview" ? (
-          <>
-            <Analytics />
-            <SpeedInsights />
-          </>
+          <ConsentedAnalytics />
         ) : null}
       </body>
     </html>

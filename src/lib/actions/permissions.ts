@@ -10,10 +10,6 @@ import {
   getModulePermissions,
   NEWS_PERMISSION_KEY,
   GALLERY_PERMISSION_KEY,
-  TICKETS_PERMISSION_KEY,
-  APPEALS_PERMISSION_KEY,
-  REPORTS_PERMISSION_KEY,
-  BUGS_PERMISSION_KEY,
   SUGGESTIONS_PERMISSION_KEY,
   EVENTS_PERMISSION_KEY,
   GAMEMODES_PERMISSION_KEY,
@@ -28,6 +24,26 @@ export interface PermissionActionResult {
   message: string;
 }
 
+/*
+  `settingKey` arrives as a caller-supplied string and is written straight into
+  site_settings. The action is owner-gated, so this is not an escalation path —
+  but without an allowlist a crafted call or a UI bug can overwrite an unrelated
+  settings row (store.featured-picks, support.main, play.config) with a
+  permissions payload, and the audit trail would not show that the key was wrong.
+  The exported wrappers below already pass exactly these constants.
+*/
+const PERMISSION_KEYS: readonly string[] = [
+  NEWS_PERMISSION_KEY,
+  GALLERY_PERMISSION_KEY,
+  SUGGESTIONS_PERMISSION_KEY,
+  EVENTS_PERMISSION_KEY,
+  GAMEMODES_PERMISSION_KEY,
+  STORE_PERMISSION_KEY,
+  RULES_PERMISSION_KEY,
+  NOTIFICATIONS_PERMISSION_KEY,
+  MINECRAFT_PERMISSION_KEY,
+];
+
 export async function saveModulePermissionAction(
   settingKey: string,
   label: string,
@@ -36,6 +52,9 @@ export async function saveModulePermissionAction(
   const session = await getSession();
   if (!session || !hasAtLeast(session.role, "owner")) {
     return { ok: false, message: "Only owners can change permissions." };
+  }
+  if (!PERMISSION_KEYS.includes(settingKey)) {
+    return { ok: false, message: "Unknown permission module." };
   }
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
@@ -77,18 +96,6 @@ export async function saveNewsPermissionsAction(fd: FormData) {
 }
 export async function saveGalleryPermissionsAction(fd: FormData) {
   return saveModulePermissionAction(GALLERY_PERMISSION_KEY, "Gallery", fd);
-}
-export async function saveTicketsPermissionsAction(fd: FormData) {
-  return saveModulePermissionAction(TICKETS_PERMISSION_KEY, "Tickets", fd);
-}
-export async function saveAppealsPermissionsAction(fd: FormData) {
-  return saveModulePermissionAction(APPEALS_PERMISSION_KEY, "Appeals", fd);
-}
-export async function saveReportsPermissionsAction(fd: FormData) {
-  return saveModulePermissionAction(REPORTS_PERMISSION_KEY, "Reports", fd);
-}
-export async function saveBugsPermissionsAction(fd: FormData) {
-  return saveModulePermissionAction(BUGS_PERMISSION_KEY, "Bug Reports", fd);
 }
 export async function saveSuggestionsPermissionsAction(fd: FormData) {
   return saveModulePermissionAction(SUGGESTIONS_PERMISSION_KEY, "Suggestions", fd);

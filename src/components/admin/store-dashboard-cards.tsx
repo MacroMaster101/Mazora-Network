@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { ArrowUpRight, LayoutTemplate, ShoppingBag } from "lucide-react";
+import { ArrowUpRight, BadgePercent, LayoutTemplate, ShoppingBag } from "lucide-react";
 
 export function StoreDashboardCards({
   contentSummary,
   catalogSummary,
+  codesSummary,
 }: {
   contentSummary: string;
   catalogSummary: string;
+  codesSummary: string;
 }) {
   return (
     <div className="store-admin-hub-cards">
@@ -37,6 +39,21 @@ export function StoreDashboardCards({
         </span>
         <span className="store-admin-hub-card-go">
           Open catalog <ArrowUpRight size={15} />
+        </span>
+      </Link>
+
+      <Link href="/admin/store/creator-codes" className="store-admin-hub-card">
+        <span className="store-admin-hub-card-icon">
+          <BadgePercent size={22} />
+        </span>
+        <span className="store-admin-hub-card-body">
+          <em>Creators</em>
+          <strong>Discount codes</strong>
+          <p>Issue discount codes to content creators and see the business each one drives.</p>
+          <small>{codesSummary}</small>
+        </span>
+        <span className="store-admin-hub-card-go">
+          Open codes <ArrowUpRight size={15} />
         </span>
       </Link>
     </div>

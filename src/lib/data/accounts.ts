@@ -12,8 +12,8 @@ import type { Role } from "@/lib/types";
  * Roles live in `app_metadata`, which only the service key can write, so auth
  * is the source of truth for rank. Names come from `profiles`: an account
  * created through OAuth has no username in `user_metadata`, so reading auth
- * alone showed everyone by the local part of their email — "lakshankavishatt"
- * for someone the whole site knows as "kaviyaz".
+ * alone showed everyone by the local part of their email — a full real name,
+ * for someone the whole site knows by a short handle.
  *
  * `profiles.role` is a mirror and can drift, so it is deliberately ignored here.
  */
@@ -159,8 +159,9 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
       return null;
     }
 
-    const names = await profileNames();
-    const minecraft = await minecraftProfiles();
+    // Independent queries; awaiting them in sequence doubled the latency of
+    // every admin user-list render for no reason.
+    const [names, minecraft] = await Promise.all([profileNames(), minecraftProfiles()]);
 
     return (data?.users ?? []).map((user) => {
       const profile = names.get(user.id);

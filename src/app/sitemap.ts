@@ -19,6 +19,20 @@ import { isRouteLaunchGated } from "@/lib/launch";
  *  - /admin, /dashboard, /cart and the auth routes — private or user-specific.
  *  - /launch-status — the rewrite target of the pre-launch gate, not a page.
  */
+/*
+  This function touches no dynamic API — the readers below are React cache()'d
+  Drizzle calls, not tagged fetches — so Next would statically generate
+  /sitemap.xml at build time and freeze it there. News is the one time-sensitive
+  content type here, and every article published after a deploy would have been
+  missing from the sitemap until the next deploy.
+
+  An hour is short enough that a new article is discoverable the same day, and
+  long enough that crawler traffic cannot turn sitemap.xml into an unbounded
+  query source. Deliberately not force-dynamic: that would re-run all five
+  queries — including the unbounded getPlayers() aggregate — on every crawler hit.
+*/
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = site.url.replace(/\/$/, "");
 

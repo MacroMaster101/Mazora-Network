@@ -4102,6 +4102,11 @@ html {
    and never flash it — `both` holds the transparent start state through the
    delay. Kept in CSS on purpose: the loading layer must never need hydration
    to look correct. */
+.route-loading-boundary {
+  min-width: 0;
+  min-height: 1px;
+}
+
 .route-loading {
   min-height: clamp(26rem, 68svh, 50rem);
   display: grid;
@@ -4110,6 +4115,15 @@ html {
   padding: 2rem 1.25rem;
   text-align: center;
   animation: route-loading-in 220ms ease 250ms both;
+}
+
+/*
+  NavigationLoader has already waited out its own slow-navigation threshold
+  before this mounts, so the delay above has effectively been served — applying
+  it again would hold the logo back until well past a second.
+*/
+.route-loading[data-instant="true"] {
+  animation-delay: 0ms;
 }
 
 @keyframes route-loading-in {
@@ -4472,13 +4486,13 @@ html {
   }
 }
 
-.initial-loader-overlay[data-phase="leaving"],
-.initial-loader-overlay[data-phase="hidden"] {
-  animation: none;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
+/*
+  A `[data-phase]` pair used to sit here for a JS-driven fade. Nothing has set
+  that attribute since InitialSiteLoader was rewritten to mount-then-unmount, so
+  the rules could never match. The hide is entirely the failsafe animation above,
+  whose `forwards` fill leaves the overlay `visibility: hidden` — and therefore
+  non-interactive — from ~1120ms, before the component unmounts at 1400ms.
+*/
 
 @keyframes initial-loader-failsafe {
   to {
@@ -8335,6 +8349,166 @@ body:has(.store-detail-page) .scroll-header[data-away="true"][data-hidden="false
 .cart-discord-avatar {
   border: 1px solid rgb(88 101 242 / 0.4);
   background: rgb(88 101 242 / 0.16);
+}
+
+/* --- Creator code (cart review step) -------------------------------------
+   Collapsed to one line by default and opened on click, so the cart does not
+   advertise a discount most buyers cannot use. */
+.cart-code-toggle {
+  border: 1px dashed rgb(155 92 255 / 0.38);
+  background: rgb(155 92 255 / 0.07);
+  color: rgb(255 255 255 / 0.86);
+}
+
+.cart-code-toggle:hover {
+  border-color: rgb(155 92 255 / 0.6);
+  background: rgb(155 92 255 / 0.12);
+}
+
+.cart-code-ico {
+  color: rgb(196 154 255);
+}
+
+.cart-code-chevron {
+  color: rgb(255 255 255 / 0.45);
+  transition: transform 200ms ease;
+}
+
+.cart-code-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+/* Height animation rather than display toggling, so the reveal is smooth and
+   the panel stays in the DOM for assistive tech to find via aria-controls. */
+.cart-code-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 220ms ease, opacity 180ms ease;
+}
+
+.cart-code-panel > * {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.cart-code-panel[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.cart-code-input {
+  border: 1px solid rgb(255 255 255 / 0.16);
+  background: rgb(0 0 0 / 0.28);
+  color: white;
+  letter-spacing: 0.06em;
+}
+
+.cart-code-input::placeholder {
+  color: rgb(255 255 255 / 0.32);
+  letter-spacing: 0.06em;
+}
+
+.cart-code-input:focus-visible {
+  /* The expanding panel clips outside outlines while it animates. Keep the
+     focus ring inside the field so all four rounded edges remain visible. */
+  outline: none;
+  border-color: rgb(155 92 255 / 0.78);
+  box-shadow: inset 0 0 0 1px rgb(155 92 255 / 0.5), 0 0 0 1px rgb(155 92 255 / 0.16);
+}
+
+.cart-code-apply {
+  border: 1px solid rgb(155 92 255 / 0.5);
+  background: rgb(155 92 255 / 0.18);
+  color: rgb(226 205 255);
+}
+
+.cart-code-apply:hover:not(:disabled) {
+  background: rgb(155 92 255 / 0.3);
+}
+
+.cart-code-apply:disabled {
+  opacity: 0.6;
+}
+
+.cart-code-applied {
+  border: 1px solid rgb(52 211 153 / 0.3);
+  background: rgb(52 211 153 / 0.08);
+}
+
+.cart-code-tick {
+  background: rgb(52 211 153 / 0.18);
+  color: rgb(110 231 183);
+}
+
+.cart-code-save {
+  color: rgb(110 231 183);
+}
+
+.cart-code-remove {
+  color: rgb(255 255 255 / 0.5);
+}
+
+.cart-code-remove:hover {
+  background: rgb(248 113 113 / 0.14);
+  color: rgb(252 165 165);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-code-panel,
+  .cart-code-chevron {
+    transition-duration: 0.01ms;
+  }
+}
+
+/* Light theme: same violet identity, dark text on the white drawer. */
+:root[data-theme="light"] .cart-code-toggle {
+  border-color: rgb(124 58 237 / 0.4);
+  background: rgb(124 58 237 / 0.06);
+  color: rgb(52 38 74);
+}
+
+:root[data-theme="light"] .cart-code-toggle:hover {
+  background: rgb(124 58 237 / 0.11);
+}
+
+:root[data-theme="light"] .cart-code-ico {
+  color: rgb(124 58 237);
+}
+
+:root[data-theme="light"] .cart-code-chevron,
+:root[data-theme="light"] .cart-code-remove {
+  color: rgb(93 82 112);
+}
+
+:root[data-theme="light"] .cart-code-input {
+  border-color: rgb(93 67 124 / 0.24);
+  background: white;
+  color: rgb(30 23 43);
+}
+
+:root[data-theme="light"] .cart-code-input::placeholder {
+  color: rgb(93 82 112 / 0.6);
+}
+
+:root[data-theme="light"] .cart-code-apply {
+  border-color: rgb(124 58 237 / 0.45);
+  background: rgb(124 58 237 / 0.12);
+  color: rgb(91 33 182);
+}
+
+:root[data-theme="light"] .cart-code-applied {
+  border-color: rgb(5 150 105 / 0.32);
+  background: rgb(5 150 105 / 0.08);
+}
+
+:root[data-theme="light"] .cart-code-tick {
+  background: rgb(5 150 105 / 0.16);
+  color: rgb(4 120 87);
+}
+
+:root[data-theme="light"] .cart-code-save {
+  color: rgb(4 120 87);
 }
 
 .cart-discord-connect-btn {
