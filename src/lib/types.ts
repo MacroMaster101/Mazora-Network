@@ -175,12 +175,16 @@ export interface Player {
   rank: string;
   accent: Accent;
   level: number;
+  /** Exact total from PlayTime; leaderboards sort this rather than rounded hours. */
+  playtimeSeconds: number;
+  playtimeTracked: boolean;
   playtimeHours: number;
   kills: number;
   deaths: number;
   wins: number;
   losses: number;
   balance: number;
+  balanceTracked: boolean;
   blocksMined: number;
   blocksPlaced: number;
   killStreak: number;
@@ -289,6 +293,41 @@ export interface TopVoter {
 
 
 
+export interface OnlinePlayer {
+  name: string;
+  /**
+   * The ping sample's UUID. An offline-mode server reports a name-derived v3
+   * UUID here, so treat this as a render key only — never as an identity key
+   * and never for a Mojang skin lookup.
+   */
+  uuid: string;
+}
+
+/** Where a rendered player image came from. Drives the panel's skin label. */
+export type SkinSourceKind = "uploaded" | "mojang" | "default" | "unknown";
+
+export interface PlayerSkin {
+  headUrl: string;
+  bodyUrl: string;
+  source: SkinSourceKind;
+}
+
+export interface DirectoryPlayer {
+  username: string;
+  online: boolean;
+  /** "member" = a linked Mazora account exists; "server" = seen on the server only. */
+  membership: "member" | "server";
+  skin: PlayerSkin;
+  /** Site role for linked members (member, admin, owner …). Absent for server-only players. */
+  role?: Role;
+  /** The avatar the member chose on the website (Discord photo, upload, etc.). Absent for server-only players. */
+  siteAvatarUrl?: string | null;
+  firstJoined?: string;
+  lastSeen?: string;
+  /** Only present once a sync source fills minecraft_players. Absent today. */
+  stats?: { playtimeSeconds: number | null; balance: number | null };
+}
+
 export interface ServerStatus {
   online: boolean;
   players: number;
@@ -304,6 +343,12 @@ export interface ServerStatus {
   live: boolean;
   /** The most recent successful reading is being served while providers recover. */
   stale?: boolean;
+  /**
+   * Usernames from the server-list ping sample. Paper caps this at
+   * `sample-count` in spigot.yml (12 by default), so it can be shorter than
+   * `players`; render a "+N more" affordance rather than trusting its length.
+   */
+  playerList: OnlinePlayer[];
 }
 
 export interface PatchUpdate {

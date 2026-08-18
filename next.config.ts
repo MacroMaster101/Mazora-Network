@@ -98,6 +98,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "mc-heads.net" },
       { protocol: "https", hostname: "api.dicebear.com" },
       { protocol: "https", hostname: "cdn.discordapp.com" },
+      { protocol: "https", hostname: "media.discordapp.net" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
       ...(supabaseImagePattern ? [supabaseImagePattern] : []),
     ],
   },
