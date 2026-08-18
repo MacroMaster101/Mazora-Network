@@ -68,6 +68,12 @@ export function LeaderboardTable({ entries, valueLabel }: { entries: Leaderboard
                     <MinecraftAvatar username={e.player.username} skinUrl={e.player.customSkinUrl} size={36} />
                     <span className="font-semibold">{e.player.username}</span>
                     <RoleBadge rank={e.player.rank} />
+                    <span className={cn(
+                      "ml-auto text-[10px] font-bold uppercase tracking-wider",
+                      e.player.status === "online" ? "text-success" : "text-muted",
+                    )}>
+                      {e.player.status}
+                    </span>
                   </Link>
                 </td>
                 <td className="telemetry rounded-r-xl px-4 py-3 text-right font-semibold">{e.display}</td>

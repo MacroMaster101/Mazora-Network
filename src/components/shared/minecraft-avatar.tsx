@@ -3,21 +3,18 @@
 import Image from "next/image";
 import { useState } from "react";
 import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
+import { mcHeadsAvatarUrl } from "@/lib/minecraft/skin";
 import { cn } from "@/lib/utils";
 import { accentFor } from "@/lib/utils";
 
 /**
- * Renders a Minecraft head, with a coloured monogram fallback shown while
- * loading or if the image fails (e.g. offline).
+ * Renders a Minecraft head avatar.
  *
- * Source priority: a self-uploaded skin (`skinUrl`, set once a player uploads
- * a real skin file) takes priority over the mc-heads.net lookup by username.
- * The lookup-by-username fallback exists because mc-heads.net returns a
- * default head for unknown players, so there is always something to show —
- * but it only has real data for premium Mojang accounts. Offline/cracked
- * accounts (TLauncher and similar) have no Mojang account for it to look up,
- * so they always got the default head until `skinUrl` gave them a way around
- * that lookup entirely.
+ * Source priority:
+ * 1. A self-uploaded skin (`skinUrl`) takes first priority.
+ * 2. If absent or invalid, looks up the Minecraft head by username on mc-heads.net.
+ * 3. If that lookup fails (e.g. offline/unknown player name or missing storage file), falls back to the default Steve head.
+ * 4. As a final fallback (e.g. total network failure), renders a monogram letter.
  */
 export function MinecraftAvatar({
   username,
@@ -33,13 +30,23 @@ export function MinecraftAvatar({
   className?: string;
   rounded?: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [triedSteve, setTriedSteve] = useState(false);
+  const [allFailed, setAllFailed] = useState(false);
+
   const bg = accentFor(username);
-  // Old/imported rows may contain a username rather than a URL in skin_head_url.
-  // Passing that value straight to <img> turns it into a same-origin request
-  // such as /LilyLuvv and produces a visible fallback plus a noisy 404.
   const safeSkinUrl = isMinecraftAvatarUrl(skinUrl) ? skinUrl : null;
-  const src = safeSkinUrl || `https://mc-heads.net/avatar/${encodeURIComponent(username)}/${size * 2}`;
+  const primarySrc = safeSkinUrl || mcHeadsAvatarUrl(username, size * 2);
+  const steveSrc = mcHeadsAvatarUrl("Steve", size * 2);
+
+  const currentSrc = triedSteve ? steveSrc : primarySrc;
+
+  const handleImageError = () => {
+    if (!triedSteve && username.toLowerCase() !== "steve") {
+      setTriedSteve(true);
+    } else {
+      setAllFailed(true);
+    }
+  };
 
   return (
     <span
@@ -50,30 +57,16 @@ export function MinecraftAvatar({
       <span className="font-display text-xs font-bold" style={{ color: bg }}>
         {username.slice(0, 2).toUpperCase()}
       </span>
-      {!failed && (
-        /*
-          next/image rather than a bare <img>, for privacy rather than payload.
-
-          A raw <img> pointing at mc-heads.net is fetched by the VISITOR's
-          browser, so that host receives every viewer's IP address, User-Agent
-          and Referer — plus the Minecraft username being looked at. These
-          avatars render on public, unauthenticated pages (leaderboards,
-          /players, /staff, gallery, news bylines), so it applied to every
-          anonymous visitor and disclosed which profile they were viewing.
-
-          Routed through /_next/image the fetch happens server-side, and
-          mc-heads sees only the Vercel egress IP. mc-heads.net is already in
-          next.config.ts remotePatterns, and the onError monogram fallback below
-          still covers an upstream failure — which now surfaces as an optimizer
-          error rather than a browser one.
-        */
+      {!allFailed && (
         <Image
-          src={src}
+          key={currentSrc}
+          src={currentSrc}
           alt={`${username}'s Minecraft head`}
           width={size}
           height={size}
           loading="lazy"
-          onError={() => setFailed(true)}
+          unoptimized
+          onError={handleImageError}
           className="absolute inset-0 h-full w-full object-cover"
           style={{ imageRendering: "pixelated" }}
         />

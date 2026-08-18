@@ -6,7 +6,7 @@ import { publicPageMetadata } from "@/lib/seo";
 
 export const metadata = publicPageMetadata({
   title: "Leaderboards",
-  description: "The best of the network — ranked by playtime, kills, K/D, balance, level, wins, blocks and more.",
+  description: "Live Mazora Network rankings by PlayTime activity and EssentialsX economy balance.",
   path: "/leaderboards",
 });
 
@@ -25,7 +25,7 @@ export default async function LeaderboardsPage() {
       <PageHero
         eyebrow="Hall of fame"
         title="Who's on top?"
-        lead="Live rankings across every metric that matters. Climb the boards and stake your claim."
+        lead="Live all-time PlayTime and economy rankings, synchronized directly from the Minecraft server."
       />
       <section className="section shell">
         <Reveal>
