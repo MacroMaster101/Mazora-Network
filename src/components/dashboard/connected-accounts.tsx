@@ -180,7 +180,7 @@ export function ConnectedAccounts({ email, hasGoogle, initialDiscord, initialMin
 
       <div className={`connected-account-row flex items-center gap-3 rounded-xl border px-4 py-3 ${discord ? "border-line-strong bg-ink/5" : "border-dashed border-line-strong"}`}>
         {discord?.avatarUrl ? (
-          <Image src={discord.avatarUrl} alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-full" />
+          <Image src={discord.avatarUrl} alt="" width={40} height={40} unoptimized className="h-10 w-10 shrink-0 rounded-full" />
         ) : (
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line-strong bg-card">
             <DiscordIcon className="h-5 w-5" />

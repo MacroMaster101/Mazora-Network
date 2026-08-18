@@ -55,6 +55,35 @@ export const minecraftAccounts = pgTable(
   }),
 );
 
+/**
+ * Every Minecraft player observed by the server sync plugin. This is separate
+ * from `minecraft_accounts`: that table links a website account to Minecraft,
+ * while this registry must also contain players who never created a web
+ * account. UUID is the durable identity; usernames are only the latest seen
+ * display value.
+ */
+export const minecraftPlayers = pgTable(
+  "minecraft_players",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    minecraftUuid: text("minecraft_uuid").notNull(),
+    username: text("username").notNull(),
+    playtimeSeconds: bigint("playtime_seconds", { mode: "number" }),
+    balance: numeric("balance", { precision: 18, scale: 2 }),
+    isOnline: boolean("is_online").default(false).notNull(),
+    firstJoined: timestamp("first_joined", { withTimezone: true }),
+    lastSeen: timestamp("last_seen", { withTimezone: true }),
+    serverName: text("server_name"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    uuidIdx: uniqueIndex("minecraft_players_uuid_idx").on(t.minecraftUuid),
+    onlineIdx: index("minecraft_players_online_idx").on(t.isOnline, t.syncedAt),
+    playtimeIdx: index("minecraft_players_playtime_idx").on(t.playtimeSeconds),
+    balanceIdx: index("minecraft_players_balance_idx").on(t.balance),
+  }),
+);
+
 export const playerStatistics = pgTable("player_statistics", {
   id: uuid("id").defaultRandom().primaryKey(),
   minecraftAccountId: uuid("minecraft_account_id").notNull(),
