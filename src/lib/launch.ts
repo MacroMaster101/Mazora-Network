@@ -17,18 +17,13 @@ export const launchGates: LaunchGate[] = [
   },
   {
     path: "/players",
-    match: "tree",
+    // The index shows the live online-players panel, which needs no database
+    // rows. Individual profiles stay gated until player data is synced.
+    match: "children",
     icon: "Users",
     eyebrow: "Network data",
     title: "Player profiles are syncing soon.",
     message: "Live profiles and statistics will open after the Minecraft account pipeline has completed verification.",
-  },
-  {
-    path: "/leaderboards",
-    icon: "Trophy",
-    eyebrow: "Network data",
-    title: "Leaderboards are being calibrated.",
-    message: "Rankings will open when live server statistics replace preview data.",
   },
   {
     path: "/support/suggestions",

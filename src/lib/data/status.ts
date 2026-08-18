@@ -5,7 +5,7 @@
  */
 import { site } from "@/lib/site";
 import { fetchWithDeadline } from "@/lib/data/upstream";
-import type { ServerStatus } from "@/lib/types";
+import type { OnlinePlayer, ServerStatus } from "@/lib/types";
 
 function fallback(): ServerStatus {
   return {
@@ -21,17 +21,39 @@ function fallback(): ServerStatus {
     bedrock: { online: false, address: site.bedrockIp, port: site.bedrockPort },
     live: false,
     stale: false,
+    playerList: [],
   };
+}
+
+/** One entry of the server-list ping sample, in either provider's spelling. */
+interface UpstreamSampleEntry {
+  name?: string;
+  name_clean?: string;
+  name_raw?: string;
+  uuid?: string;
+}
+
+interface UpstreamPlayers {
+  online?: number;
+  max?: number;
+  list?: UpstreamSampleEntry[];
 }
 
 interface UpstreamShape {
   online?: boolean;
-  players?: { online?: number; max?: number } | number;
+  players?: UpstreamPlayers | number;
   version?: string | { name?: string; name_clean?: string; name_raw?: string };
   motd?: string | { clean?: string | string[]; raw?: string | string[] };
   ping?: number;
 }
 const UPSTREAM_TIMEOUT_MS = 4_000;
+/**
+ * The ping sample is attacker-influenced text: a username is whatever the
+ * server chose to report. Cap the list well above Paper's default
+ * `sample-count` of 12 so a hostile or misconfigured upstream cannot make the
+ * page render thousands of rows.
+ */
+const MAX_SAMPLE_ENTRIES = 200;
 const LIVE_CACHE_MS = 15_000;
 const STALE_RETRY_MS = 5_000;
 const FAILURE_RETRY_MS = 2_000;
@@ -40,6 +62,41 @@ let cachedStatus: { value: ServerStatus; expiresAt: number } | null = null;
 let lastKnownStatus: ServerStatus | null = null;
 let pendingStatus: Promise<ServerStatus> | null = null;
 
+
+/**
+ * Extracts the online player sample from either provider.
+ *
+ * mcsrvstat v3 sends `{ name, uuid }`; mcstatus.io v2 sends `{ name_clean,
+ * name_raw, uuid }`. Entries without a usable username are dropped rather than
+ * rendered as blanks, and legacy § colour codes are stripped because an
+ * offline-mode server may leave them in the raw name.
+ */
+export function parsePlayerSample(players: unknown): OnlinePlayer[] {
+  if (!players || typeof players !== "object") return [];
+  const list = (players as UpstreamPlayers).list;
+  if (!Array.isArray(list)) return [];
+
+  const seen = new Set<string>();
+  const sample: OnlinePlayer[] = [];
+
+  for (const entry of list) {
+    if (sample.length >= MAX_SAMPLE_ENTRIES) break;
+    if (!entry || typeof entry !== "object") continue;
+
+    const raw = entry.name_clean ?? entry.name ?? entry.name_raw ?? "";
+    if (typeof raw !== "string") continue;
+    const name = raw.replace(/§[0-9a-fk-or]/gi, "").trim();
+    if (!name) continue;
+
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    sample.push({ name, uuid: typeof entry.uuid === "string" && entry.uuid ? entry.uuid : name });
+  }
+
+  return sample;
+}
 
 /**
  * Normalises a few common status-API shapes (mcsrvstat-like / mcstatus-like)
@@ -83,6 +140,7 @@ async function fetchStatusFrom(url: string): Promise<ServerStatus | null> {
       bedrock: { online: data.online ?? true, address: site.bedrockIp, port: site.bedrockPort },
       live: true,
       stale: false,
+      playerList: parsePlayerSample(data.players),
     };
   } catch {
     return null;

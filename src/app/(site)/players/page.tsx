@@ -1,8 +1,8 @@
 import { publicPageMetadata } from "@/lib/seo";
 import { Users } from "lucide-react";
-import { getPlayers } from "@/lib/data/players";
-import { EmptyState, PageHero, Reveal } from "@/components/shared";
-import { PlayerDirectory } from "@/components/shared/player-directory";
+import { getDirectory } from "@/lib/data/directory";
+import { getServerStatus } from "@/lib/data/status";
+import { EmptyState, FloatingBrandLogo, PageHero, PlayerExplorer, Reveal } from "@/components/shared";
 
 export const metadata = publicPageMetadata({
   title: "Players",
@@ -11,25 +11,26 @@ export const metadata = publicPageMetadata({
 });
 
 export default async function PlayersPage() {
-  const players = await getPlayers();
-  const onlineCount = players.filter((p) => p.status === "online").length;
+  const [directory, status] = await Promise.all([getDirectory(), getServerStatus()]);
+  const onlineCount = status.online ? status.players : directory.filter((p) => p.online).length;
 
   return (
     <>
       <PageHero
-        eyebrow={players.length > 0 ? `${onlineCount} online now` : "Player directory"}
+        eyebrow={status.online ? `${onlineCount} online now` : "Player directory"}
         title="Find any player."
         lead="Search the directory, check who's online, and dive into public profiles, stats, and achievements."
+        illustration={<FloatingBrandLogo />}
       />
-      <section className="section shell">
+      <section className="section shell space-y-8">
         <Reveal>
-          {players.length > 0 ? (
-            <PlayerDirectory players={players} />
+          {directory.length > 0 || status.playerList.length > 0 ? (
+            <PlayerExplorer players={directory} serverStatus={status} />
           ) : (
             <EmptyState
               icon={<Users size={24} />}
-              title="The directory isn't live yet"
-              message="Player profiles and statistics arrive with the Minecraft server integration. Nothing is listed until real player data is connected."
+              title="The full directory isn't live yet"
+              message="Profiles, playtime and balances arrive once the Minecraft data pipeline is connected."
               cta={{ label: "How to play", href: "/play" }}
             />
           )}

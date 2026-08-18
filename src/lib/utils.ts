@@ -52,6 +52,23 @@ export function playtime(hours: number): string {
   return `${withCommas(hours)}h`;
 }
 
+/**
+ * Playtime from a raw seconds total -> "3d 4h", "2h 15m", or "45m". Used
+ * anywhere a genuine sub-hour duration must not be rendered as a bare "0h",
+ * which this project treats as a fabricated claim. Shared by the leaderboard
+ * (`buildLeaderboard`) and the player panel so there is one duration
+ * formatter, not a slightly-different one per surface.
+ */
+export function formatPlaytime(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const days = Math.floor(seconds / 86_400);
+  const hours = Math.floor((seconds % 86_400) / 3_600);
+  const minutes = Math.floor((seconds % 3_600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
 /** Deterministic accent for a string (used for avatar fallbacks). */
 export function accentFor(seed: string): string {
   const palette = ["#8b5cf6", "#a855f7", "#7c3aed", "#818cf8", "#e879f9", "#c084fc", "#9333ea"];

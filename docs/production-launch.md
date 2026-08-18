@@ -16,7 +16,6 @@ When launch mode is on, unfinished URLs keep their original address but render t
 
 - Forums
 - Player directory and player profiles
-- Leaderboards
 - Player reports, bug reports and suggestions
 - Dashboard subpages except settings, Minecraft linking, statistics and purchases; the dashboard overview remains available
 
@@ -70,7 +69,7 @@ npm run build
 After deployment, check:
 
 1. Home, Play, Gallery, Rules and legal pages.
-2. Store and voting open normally; Forums, Players and Leaderboards show the launch-status screen.
+2. Store, voting and live leaderboards open normally; Forums and Players show the launch-status screen.
 3. A signed-out dashboard URL sends the visitor to login.
 4. A signed-in gated dashboard subpage shows the account launch-status screen, while settings, Minecraft linking, statistics and purchases remain available.
 5. Login, logout, password reset and email verification use production Supabase.

@@ -1,78 +1,90 @@
 import "server-only";
 import { cache } from "react";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { sql } from "drizzle-orm";
+import { getDb, schema } from "@/lib/db/client";
 import type { Player } from "@/lib/types";
+import { formatPlaytime } from "@/lib/utils";
+
+/**
+ * A player is considered live only while the Minecraft plugin continues to
+ * refresh their row. This turns a server crash or lost quit event into an
+ * automatic offline state instead of leaving a green badge stuck forever.
+ */
+const ONLINE_FRESHNESS_MS = 2 * 60_000;
 
 export const getPlayers = cache(async (): Promise<Player[]> => {
-  const admin = getSupabaseAdmin();
-  if (!admin) return [];
+  const db = getDb();
+  if (!db) return [];
 
   try {
-    const { data: accounts } = await admin
-      .from("minecraft_accounts")
-      .select("id, minecraft_uuid, minecraft_username, linked_at, skin_head_url");
+    const rows = await db
+      .select({
+        uuid: schema.minecraftPlayers.minecraftUuid,
+        username: schema.minecraftPlayers.username,
+        playtimeSeconds: schema.minecraftPlayers.playtimeSeconds,
+        balance: schema.minecraftPlayers.balance,
+        isOnline: schema.minecraftPlayers.isOnline,
+        firstJoined: schema.minecraftPlayers.firstJoined,
+        lastSeen: schema.minecraftPlayers.lastSeen,
+        syncedAt: schema.minecraftPlayers.syncedAt,
+        serverName: schema.minecraftPlayers.serverName,
+        customSkinUrl: schema.minecraftAccounts.skinHeadUrl,
+      })
+      .from(schema.minecraftPlayers)
+      .leftJoin(
+        schema.minecraftAccounts,
+        // Website linking currently stores an `offline:<name>` identity because
+        // it happens before server verification. Match the latest IGN here so
+        // linked custom heads still appear; the sync registry itself remains
+        // correctly keyed by the real UUID supplied by Paper.
+        sql`lower(${schema.minecraftPlayers.username}) = lower(${schema.minecraftAccounts.minecraftUsername})`,
+      );
 
-    if (!accounts || accounts.length === 0) return [];
-
-    const accountIds = accounts.map((a) => String(a.id));
-    const { data: statsList } = await admin
-      .from("player_statistics")
-      .select("*")
-      .in("minecraft_account_id", accountIds);
-
-    const statsMap = new Map();
-    (statsList ?? []).forEach((s) => statsMap.set(String(s.minecraft_account_id), s));
-
-    return accounts.map((acc) => {
-      const stats = statsMap.get(String(acc.id));
-      const playtimeHours = Math.round(Number(stats?.playtime_seconds ?? 0) / 3600);
+    const freshAfter = Date.now() - ONLINE_FRESHNESS_MS;
+    return rows.map((row) => {
+      const playtimeSeconds = Math.max(0, Number(row.playtimeSeconds ?? 0));
+      const syncedAt = row.syncedAt instanceof Date ? row.syncedAt : new Date(row.syncedAt);
+      const online = row.isOnline && syncedAt.getTime() >= freshAfter;
 
       return {
-        username: String(acc.minecraft_username),
-        uuid: String(acc.minecraft_uuid),
-        customSkinUrl: acc.skin_head_url ? String(acc.skin_head_url) : null,
+        username: row.username,
+        uuid: row.uuid,
+        customSkinUrl: row.customSkinUrl,
         rank: "Member",
         accent: "violet",
-        level: Number(stats?.level ?? 1),
-        playtimeHours,
-        kills: Number(stats?.kills ?? 0),
-        deaths: Number(stats?.deaths ?? 0),
-        wins: Number(stats?.wins ?? 0),
-        losses: Number(stats?.losses ?? 0),
-        balance: Number(stats?.balance ?? 0),
-        blocksMined: Number(stats?.blocks_mined ?? 0),
-        blocksPlaced: Number(stats?.blocks_placed ?? 0),
-        killStreak: Number(stats?.kill_streak ?? 0),
-        status: stats?.is_online ? "online" : "offline",
-        firstJoined: String(acc.linked_at ?? new Date().toISOString()),
-        lastSeen: stats?.last_seen ? String(stats.last_seen) : String(acc.linked_at),
-        currentMode: String(stats?.current_game_mode ?? "survival-smp"),
-        badges: ["Community Member"],
+        level: 0,
+        playtimeSeconds,
+        playtimeTracked: row.playtimeSeconds !== null,
+        playtimeHours: playtimeSeconds / 3600,
+        kills: 0,
+        deaths: 0,
+        wins: 0,
+        losses: 0,
+        balance: Number(row.balance ?? 0),
+        balanceTracked: row.balance !== null,
+        blocksMined: 0,
+        blocksPlaced: 0,
+        killStreak: 0,
+        status: online ? "online" : "offline",
+        firstJoined: (row.firstJoined ?? syncedAt).toISOString(),
+        lastSeen: online ? "now" : (row.lastSeen ?? syncedAt).toISOString(),
+        currentMode: row.serverName ?? "survival-smp",
+        badges: [],
         achievements: [],
-      };
+      } satisfies Player;
     });
   } catch (error) {
-    console.error("Failed to fetch players:", error);
+    console.error("Failed to fetch synced Minecraft players:", error);
     return [];
   }
 });
 
 export async function getPlayer(username: string): Promise<Player | null> {
   const players = await getPlayers();
-  return players.find((p) => p.username.toLowerCase() === username.toLowerCase()) ?? null;
+  return players.find((player) => player.username.toLowerCase() === username.toLowerCase()) ?? null;
 }
 
-export type LeaderboardKey =
-  | "overall"
-  | "playtime"
-  | "kills"
-  | "kd"
-  | "balance"
-  | "level"
-  | "wins"
-  | "blocksMined"
-  | "blocksPlaced"
-  | "killStreak";
+export type LeaderboardKey = "playtime" | "balance";
 
 export interface LeaderboardEntry {
   rank: number;
@@ -81,68 +93,26 @@ export interface LeaderboardEntry {
   display: string;
 }
 
-const LABELS: Record<LeaderboardKey, string> = {
-  overall: "Overall",
-  playtime: "Playtime",
-  kills: "Kills",
-  kd: "K/D ratio",
-  balance: "Balance",
-  level: "Level",
-  wins: "Wins",
-  blocksMined: "Blocks mined",
-  blocksPlaced: "Blocks placed",
-  killStreak: "Kill streak",
-};
-
-export const leaderboardTabs: { key: LeaderboardKey; label: string }[] = (
-  Object.keys(LABELS) as LeaderboardKey[]
-).map((key) => ({ key, label: LABELS[key] }));
+export const leaderboardTabs: { key: LeaderboardKey; label: string }[] = [
+  { key: "playtime", label: "Playtime" },
+  { key: "balance", label: "Balance" },
+];
 
 export function buildLeaderboard(players: Player[], key: LeaderboardKey): LeaderboardEntry[] {
-  if (!players.length) return [];
-
-  const getValue = (p: Player): number => {
-    switch (key) {
-      case "level":
-        return p.level;
-      case "playtime":
-        return p.playtimeHours;
-      case "kills":
-        return p.kills;
-      case "kd":
-        return p.deaths > 0 ? Number((p.kills / p.deaths).toFixed(2)) : p.kills;
-      case "balance":
-        return p.balance;
-      case "wins":
-        return p.wins;
-      case "blocksMined":
-        return p.blocksMined;
-      case "blocksPlaced":
-        return p.blocksPlaced;
-      case "killStreak":
-        return p.killStreak;
-      case "overall":
-      default:
-        return p.level * 100 + p.kills * 10 + p.playtimeHours;
-    }
-  };
-
-  const formatDisplay = (val: number): string => {
-    if (key === "balance") return `$${val.toLocaleString()}`;
-    if (key === "playtime") return `${val} hrs`;
-    if (key === "kd") return `${val} K/D`;
-    return val.toLocaleString();
-  };
-
-  const sorted = [...players].sort((a, b) => getValue(b) - getValue(a));
-
-  return sorted.slice(0, 50).map((player, idx) => {
-    const val = getValue(player);
-    return {
-      rank: idx + 1,
-      player,
-      value: val,
-      display: formatDisplay(val),
-    };
-  });
+  const value = (player: Player) => key === "playtime" ? player.playtimeSeconds : player.balance;
+  const tracked = players.filter((player) => key === "playtime" ? player.playtimeTracked : player.balanceTracked);
+  return tracked
+    .sort((a, b) => value(b) - value(a) || a.username.localeCompare(b.username))
+    .slice(0, 100)
+    .map((player, index) => {
+      const metric = value(player);
+      return {
+        rank: index + 1,
+        player,
+        value: metric,
+        display: key === "balance"
+          ? `$${metric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : formatPlaytime(metric),
+      };
+    });
 }
