@@ -49,7 +49,7 @@ export function NavLinks() {
     .sort((a, b) => b.length - a.length)[0];
 
   return (
-    <nav ref={navRef} className="desktop-nav-shell hidden items-center gap-1 min-[1200px]:flex">
+    <nav ref={navRef} className="desktop-nav-shell hidden items-center gap-1.5 min-[1100px]:flex">
       {primaryNav.map((item) => {
         const active = Boolean(
           bestMatch && (item.href === bestMatch || item.children?.some((child) => child.href === bestMatch)),
@@ -86,13 +86,13 @@ export function NavLinks() {
                   }
                 }}
                 className={cn(
-                  "desktop-nav-item relative flex min-h-11 items-center gap-2.5 whitespace-nowrap px-3 text-[0.9375rem] font-semibold transition-all duration-200",
+                  "desktop-nav-item relative flex min-h-[2.85rem] items-center gap-2.5 whitespace-nowrap px-3.5 text-[0.98rem] font-semibold transition-all duration-200",
                   active && "is-active",
                 )}
               >
                 <span className="desktop-nav-icon"><NavIcon label={item.label} /></span>
-                <span className="hidden min-[1280px]:inline">{item.label}</span>
-                <ChevronDown size={13} className={cn("hidden transition-transform duration-200 min-[1280px]:block", menuOpen && "rotate-180")} />
+                <span className="hidden min-[1380px]:inline">{item.label}</span>
+                <ChevronDown size={15} className={cn("hidden transition-transform duration-200 min-[1380px]:block", menuOpen && "rotate-180")} />
               </button>
               <div
                 id={menuId}
@@ -142,12 +142,12 @@ export function NavLinks() {
             data-active={active}
             title={item.label}
             className={cn(
-              "desktop-nav-item relative flex min-h-11 items-center gap-2.5 whitespace-nowrap px-3 text-[0.9375rem] font-semibold transition-all duration-200",
+              "desktop-nav-item relative flex min-h-[2.85rem] items-center gap-2.5 whitespace-nowrap px-3.5 text-[0.98rem] font-semibold transition-all duration-200",
               active && "is-active",
             )}
           >
             <span className="desktop-nav-icon"><NavIcon label={item.label} /></span>
-            <span className="hidden min-[1280px]:inline">{item.label}</span>
+            <span className="hidden min-[1380px]:inline">{item.label}</span>
           </Link>
         );
       })}

@@ -28,12 +28,12 @@ export function CartTrigger({
         // Compact is only ever the icon-only header button, sitting beside the
         // circular theme toggle, notifications and avatar buttons — it needs
         // the same round shape, not the rectangular buttons' rounded-xl.
-        compact ? "h-10 w-10 rounded-full" : "h-10 rounded-xl px-3.5 text-sm",
+        compact ? "h-11 w-11 rounded-full" : "h-11 rounded-xl px-4 text-sm",
         className,
       )}
       aria-label={`Open cart with ${count} ${count === 1 ? "item" : "items"}`}
     >
-      <ShoppingCart size={17} />
+      <ShoppingCart size={19} />
       {!compact && <span>{label}</span>}
       {ready && count > 0 && (
         <span

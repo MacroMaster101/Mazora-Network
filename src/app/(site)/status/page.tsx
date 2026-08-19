@@ -3,7 +3,7 @@ import { Activity, Signal, Server, Clock, Gauge } from "lucide-react";
 import { getServerStatus } from "@/lib/data/status";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { site } from "@/lib/site";
-import { PageHero, CopyIpButton, Reveal } from "@/components/shared";
+import { PageHero, CopyIpButton, Reveal, FloatingBrandLogo } from "@/components/shared";
 
 export const metadata = publicPageMetadata({
   title: "Server Status",
@@ -37,7 +37,12 @@ export default async function StatusPage() {
 
   return (
     <>
-      <PageHero eyebrow="Live telemetry" title="Server status" lead="A real-time look at the network. When our status API is connected, everything here updates automatically." />
+      <PageHero
+        eyebrow="Live telemetry"
+        title="Server status"
+        lead="A real-time look at the network. When our status API is connected, everything here updates automatically."
+        illustration={<FloatingBrandLogo />}
+      />
 
       <section className="section shell">
         {!status.live && (
