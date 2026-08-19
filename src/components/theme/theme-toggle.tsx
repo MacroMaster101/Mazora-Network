@@ -55,7 +55,7 @@ export function ThemeCycleButton({ className }: { className?: string }) {
       className={cn("theme-orb", className)}
     >
       <span className="theme-orb-glow" aria-hidden="true" />
-      <Icon size={17} className="relative z-10" />
+      <Icon size={19} className="relative z-10" />
     </button>
   );
 }

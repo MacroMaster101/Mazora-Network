@@ -56,7 +56,7 @@ const icons: Record<string, LucideIcon | React.ComponentType<{ size?: number; cl
   "Payment support": CreditCard,
 };
 
-export function NavIcon({ label, size = 17 }: { label: string; size?: number }) {
+export function NavIcon({ label, size = 19 }: { label: string; size?: number }) {
   const Icon = icons[label] ?? Grid2X2;
   return <Icon size={size} aria-hidden="true" />;
 }

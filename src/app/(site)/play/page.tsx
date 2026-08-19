@@ -7,7 +7,7 @@ import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { getStatusTelemetry } from "@/lib/data/status-telemetry";
 import { getServerStatus } from "@/lib/data/status";
 import { site } from "@/lib/site";
-import { PageHero, CopyIpButton, Reveal, UnifiedServerStatsCard } from "@/components/shared";
+import { PageHero, CopyIpButton, Reveal, UnifiedServerStatsCard, FloatingBrandLogo } from "@/components/shared";
 import { Accordion } from "@/components/ui";
 
 export const metadata = publicPageMetadata({
@@ -68,6 +68,7 @@ export default async function PlayPage() {
         eyebrow="Get started"
         title={playConfig.heroTitle || "Joining takes about a minute."}
         lead={playConfig.heroLead || "Copy the address, add the server, and you're in. Here's exactly how on both editions."}
+        illustration={<FloatingBrandLogo />}
       >
         <div className="flex flex-wrap items-center gap-3">
           <span className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold ${online ? "border-success/40 text-success" : "border-line-strong text-muted"}`}>

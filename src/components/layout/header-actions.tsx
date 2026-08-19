@@ -61,11 +61,11 @@ export function HeaderActions({ session }: { session: Session | null }) {
     return (
       <div className="hidden items-center gap-1.5 min-[1200px]:flex">
         <AuthDialogTrigger view="login" className="desktop-login-link" title="Log in">
-          <LogIn size={15} />
+          <LogIn size={17} />
           <span className="hidden min-[1280px]:inline">Log in</span>
         </AuthDialogTrigger>
         <AuthDialogTrigger view="register" className="desktop-register-link" title="Join">
-          <Sparkles size={14} />
+          <Sparkles size={16} />
           <span className="hidden min-[1280px]:inline">Join</span>
         </AuthDialogTrigger>
       </div>
@@ -116,7 +116,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
           title="Notifications"
           className="header-notif-trigger"
         >
-          <Bell size={16} />
+          <Bell size={19} />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-extrabold text-white shadow-md border border-page animate-pulse">
               {unreadCount}
@@ -236,10 +236,10 @@ export function HeaderActions({ session }: { session: Session | null }) {
           aria-expanded={open}
           aria-label={`Open account menu for ${session.displayName}`}
           title={session.displayName}
-          className="flex items-center gap-1.5 p-1 rounded-2xl hover:bg-ink/5 dark:hover:bg-white/5 transition-colors"
+          className="flex items-center gap-1.5 p-1.5 rounded-2xl hover:bg-ink/5 dark:hover:bg-white/5 transition-colors"
         >
-          <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={32} />
-          <ChevronDown size={13} className="text-muted transition-transform" aria-hidden="true" />
+          <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={36} />
+          <ChevronDown size={14} className="text-muted transition-transform" aria-hidden="true" />
         </button>
 
         {open && (
