@@ -737,6 +737,13 @@ export function SiteSettingsEditor({
             checked={formState.votingEnabled}
             onChange={(val) => setFormState((p) => ({ ...p, votingEnabled: val }))}
           />
+          <FeatureToggleCard
+            name="liveMapEnabled"
+            label="Live World Map"
+            desc="Embed the Dynmap live map on the homepage. Disable if the map server isn't ready."
+            checked={formState.liveMapEnabled}
+            onChange={(val) => setFormState((p) => ({ ...p, liveMapEnabled: val }))}
+          />
         </div>
       </section>
 
