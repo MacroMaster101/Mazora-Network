@@ -21,6 +21,7 @@ export interface SiteGeneralSettings {
   registrationEnabled: boolean;
   storeEnabled: boolean;
   votingEnabled: boolean;
+  liveMapEnabled: boolean;
   ogImageUrl: string;
 }
 
@@ -40,6 +41,7 @@ export const DEFAULT_SITE_SETTINGS: SiteGeneralSettings = {
   registrationEnabled: true,
   storeEnabled: true,
   votingEnabled: true,
+  liveMapEnabled: false,
   ogImageUrl: "/images/og-default.webp",
 };
 
@@ -64,6 +66,7 @@ function mergeSettings(value: unknown): SiteGeneralSettings {
     registrationEnabled: stored.registrationEnabled !== undefined ? Boolean(stored.registrationEnabled) : true,
     storeEnabled: stored.storeEnabled !== undefined ? Boolean(stored.storeEnabled) : true,
     votingEnabled: stored.votingEnabled !== undefined ? Boolean(stored.votingEnabled) : true,
+    liveMapEnabled: Boolean(stored.liveMapEnabled),
     ogImageUrl: typeof stored.ogImageUrl === "string" && stored.ogImageUrl.trim() ? stored.ogImageUrl.trim() : DEFAULT_SITE_SETTINGS.ogImageUrl,
   };
 }
