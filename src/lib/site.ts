@@ -49,7 +49,7 @@ export const site = {
   name: "Mazora Network",
   shortName: "MAZORA",
   domain: "mazora.us",
-  tagline: "Build. Survive. Compete. Create.",
+  tagline: "Build · Survive · Compete · Create",
   description:
     "A player-first Minecraft network built around unforgettable worlds, fair competition, and a community worth staying for.",
   javaIp: "mc.mazora.us",

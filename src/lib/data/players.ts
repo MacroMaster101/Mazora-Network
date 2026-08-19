@@ -43,8 +43,19 @@ export const getPlayers = cache(async (): Promise<Player[]> => {
     const freshAfter = Date.now() - ONLINE_FRESHNESS_MS;
     return rows.map((row) => {
       const playtimeSeconds = Math.max(0, Number(row.playtimeSeconds ?? 0));
-      const syncedAt = row.syncedAt instanceof Date ? row.syncedAt : new Date(row.syncedAt);
-      const online = row.isOnline && syncedAt.getTime() >= freshAfter;
+      const parseSafeDate = (val: unknown): Date => {
+        if (val instanceof Date && !Number.isNaN(val.getTime())) return val;
+        if (typeof val === "string" || typeof val === "number") {
+          const parsed = new Date(val);
+          if (!Number.isNaN(parsed.getTime())) return parsed;
+        }
+        return new Date();
+      };
+
+      const syncedAt = parseSafeDate(row.syncedAt);
+      const firstJoinedDate = row.firstJoined ? parseSafeDate(row.firstJoined) : syncedAt;
+      const lastSeenDate = row.lastSeen ? parseSafeDate(row.lastSeen) : syncedAt;
+      const online = Boolean(row.isOnline) && syncedAt.getTime() >= freshAfter;
 
       return {
         username: row.username,
@@ -66,8 +77,8 @@ export const getPlayers = cache(async (): Promise<Player[]> => {
         blocksPlaced: 0,
         killStreak: 0,
         status: online ? "online" : "offline",
-        firstJoined: (row.firstJoined ?? syncedAt).toISOString(),
-        lastSeen: online ? "now" : (row.lastSeen ?? syncedAt).toISOString(),
+        firstJoined: firstJoinedDate.toISOString(),
+        lastSeen: online ? "now" : lastSeenDate.toISOString(),
         currentMode: row.serverName ?? "survival-smp",
         badges: [],
         achievements: [],

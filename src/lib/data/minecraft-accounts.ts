@@ -29,12 +29,22 @@ export const listLinkedAccounts = cache(async (): Promise<LinkedAccount[]> => {
       })
       .from(schema.minecraftAccounts);
 
-    return rows.map((row) => ({
-      username: row.username,
-      headUrl: row.headUrl,
-      rawSkinUrl: row.rawSkinUrl,
-      linkedAt: (row.linkedAt instanceof Date ? row.linkedAt : new Date(row.linkedAt)).toISOString(),
-    }));
+    return rows.map((row) => {
+      let linkedAtStr: string;
+      try {
+        const d = row.linkedAt instanceof Date ? row.linkedAt : new Date(row.linkedAt);
+        linkedAtStr = Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+      } catch {
+        linkedAtStr = new Date().toISOString();
+      }
+
+      return {
+        username: row.username,
+        headUrl: row.headUrl,
+        rawSkinUrl: row.rawSkinUrl,
+        linkedAt: linkedAtStr,
+      };
+    });
   } catch (error) {
     console.error("Failed to list linked Minecraft accounts:", error);
     return [];
