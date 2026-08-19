@@ -31,55 +31,75 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", displ
  * crop to, and Discord in particular is where most Mazora links get shared.
  * Pages with their own artwork (news articles) override `openGraph.images`.
  */
-const OG_IMAGE = {
-  url: "/images/og-default.webp",
-  width: 1200,
-  height: 630,
-  alt: `${site.name} — Minecraft survival, skyblock and minigame worlds`,
-};
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(site.url),
-  title: {
-    default: site.name,
-    template: `%s · ${site.name}`,
-  },
-  description: site.description,
-  applicationName: site.name,
-  keywords: ["Minecraft server", "Minecraft community", "survival", "skyblock", "lifesteal", "KitPvP", site.name],
-  /*
-    "./" is resolved by Next against the *current* pathname, so every route
-    self-canonicalises to its own https://mazora.us URL without each page having
-    to repeat it. This is the single signal that collapses the www, http and
-    *.vercel.app duplicates Google would otherwise be free to pick between —
-    those hosts 308 to the apex, and the canonical agrees with the destination.
-    A page that needs a different target (e.g. a paginated view folding into
-    page 1) can still override `alternates` locally.
-  */
-  alternates: { canonical: "./" },
-  openGraph: {
-    type: "website",
-    siteName: site.name,
-    title: `${site.name} — ${site.tagline}`,
-    description: site.description,
-    url: "./",
-    locale: "en_US",
-    images: [OG_IMAGE],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: `${site.name} — ${site.tagline}`,
-    description: site.description,
-    images: [OG_IMAGE.url],
-  },
-  // metadataBase makes these absolute, which Discord and X both require —
-  // a root-relative og:image is silently dropped by most unfurlers.
-  icons: {
-    icon: [{ url: "/images/mazora-icon.png", type: "image/png", sizes: "512x512" }],
-    apple: [{ url: "/images/mazora-icon.png", sizes: "512x512" }],
-  },
-  robots: { index: true, follow: true },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteGeneralSettings();
+  const siteName = settings.name || site.name;
+  const tagline = settings.tagline || site.tagline;
+  const description = settings.description || site.description;
+  const rawOgImageUrl = settings.ogImageUrl || "/images/og-default.webp";
+  const absoluteOgImageUrl = rawOgImageUrl.startsWith("http")
+    ? rawOgImageUrl
+    : `${site.url}${rawOgImageUrl.startsWith("/") ? "" : "/"}${rawOgImageUrl}`;
+
+  const ogImage = {
+    url: absoluteOgImageUrl,
+    secureUrl: absoluteOgImageUrl,
+    width: 1200,
+    height: 630,
+    type: absoluteOgImageUrl.endsWith(".png") ? "image/png" : absoluteOgImageUrl.endsWith(".jpg") || absoluteOgImageUrl.endsWith(".jpeg") ? "image/jpeg" : "image/webp",
+    alt: `${siteName} — Minecraft survival, skyblock and minigame worlds`,
+  };
+
+  return {
+    metadataBase: new URL(site.url),
+    title: {
+      default: siteName,
+      template: `%s · ${siteName}`,
+    },
+    description,
+    applicationName: siteName,
+    keywords: ["Minecraft server", "Minecraft community", "survival", "skyblock", "lifesteal", "KitPvP", siteName],
+    alternates: { canonical: "./" },
+    openGraph: {
+      type: "website",
+      siteName,
+      title: `${siteName} — ${tagline}`,
+      description,
+      url: "./",
+      locale: "en_US",
+      images: [ogImage],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${siteName} — ${tagline}`,
+      description,
+      images: [absoluteOgImageUrl],
+      site: "@mazoramc",
+      creator: "@mazoramc",
+    },
+    icons: {
+      icon: [{ url: "/images/mazora-icon.png", type: "image/png", sizes: "512x512" }],
+      apple: [{ url: "/images/mazora-icon.png", sizes: "512x512" }],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+    other: {
+      "theme-color": "#8b5cf6",
+      "msapplication-TileColor": "#8b5cf6",
+    },
+  };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Real site traffic is a secondary wake signal for the Discord presence

@@ -23,7 +23,7 @@ const siteSettingsSchema = z.object({
   tagline: z.string().trim().max(160, "Tagline must be under 160 characters."),
   description: z.string().trim().max(500, "Description must be under 500 characters."),
   version: z.string().trim().min(1, "Supported version is required.").max(30, "Version must be under 30 characters."),
-  region: z.string().trim().min(1, "Region is required.").max(50, "Region must be under 50 characters."),
+  region: z.string().trim().max(50, "Region must be under 50 characters.").optional().default("Asia Pacific"),
   javaIp: z.string().trim().min(3, "Java IP is required.").max(120, "Java IP must be under 120 characters."),
   bedrockIp: z.string().trim().min(3, "Bedrock IP is required.").max(120, "Bedrock IP must be under 120 characters."),
   bedrockPort: z.string().trim().min(1, "Bedrock port is required.").max(10, "Port must be under 10 characters."),
@@ -33,6 +33,7 @@ const siteSettingsSchema = z.object({
   registrationEnabled: z.boolean(),
   storeEnabled: z.boolean(),
   votingEnabled: z.boolean(),
+  ogImageUrl: z.string().trim().max(500, "Image URL must be under 500 characters.").optional().default("/images/og-default.webp"),
 });
 
 function zodErrors(err: z.ZodError): Record<string, string> {
@@ -74,6 +75,7 @@ export async function saveSiteGeneralSettingsAction(
     registrationEnabled: formData.get("registrationEnabled") === "on",
     storeEnabled: formData.get("storeEnabled") === "on",
     votingEnabled: formData.get("votingEnabled") === "on",
+    ogImageUrl: String(formData.get("ogImageUrl") ?? "").trim() || "/images/og-default.webp",
   };
 
   const parsed = siteSettingsSchema.safeParse(raw);
