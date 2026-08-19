@@ -9,6 +9,7 @@ import {
   Gavel,
   Image,
   KeyRound,
+  LifeBuoy,
   Lightbulb,
   ScrollText,
   Settings,
@@ -60,6 +61,7 @@ export function buildAdminNav({
       items: [
         { label: "Users", href: "/admin/users", icon: Users, minRole: "owner" },
         { label: "Minecraft Players", href: "/admin/players", icon: Blocks, minRole: "moderator" },
+        { label: "Suggestions", href: "/admin/suggestions", icon: Lightbulb, minRole: "moderator" },
         { label: "Staff", href: "/admin/staff", icon: ShieldCheck, minRole: "owner" },
       ],
     },
@@ -77,7 +79,7 @@ export function buildAdminNav({
     {
       heading: "Support",
       items: [
-        { label: "Support Pages", href: "/admin/support", icon: Lightbulb, minRole: "administrator" },
+        { label: "Support Pages", href: "/admin/support", icon: LifeBuoy, minRole: "administrator" },
         { label: "Application Forms", href: "/admin/appeals", icon: Gavel, minRole: "administrator" },
       ],
     },

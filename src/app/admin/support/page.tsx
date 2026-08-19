@@ -9,5 +9,5 @@ export const metadata: Metadata = { title: "Support · Admin" };
 export default async function AdminSupportPage() {
   await requireRole("administrator", "/admin/support");
   const cards = await getSupportCards();
-  return <div className="admin-store-page"><DashHeader title="Support dashboard" subtitle={`${cards.length} cards · ${cards.filter((card) => card.page).length} detailed pages · database managed`} /><SupportDashboardCards cardCount={cards.length} pageCount={cards.filter((card) => card.page).length} /></div>;
+  return <div className="admin-store-page"><DashHeader title="Support dashboard" subtitle={`${cards.length} cards · ${cards.filter((card) => card.page).length} detailed pages · live network configuration`} /><SupportDashboardCards cardCount={cards.length} pageCount={cards.filter((card) => card.page).length} /></div>;
 }

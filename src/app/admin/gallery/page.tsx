@@ -26,8 +26,8 @@ export default async function AdminGalleryPage() {
         <DashHeader title="Gallery Management" subtitle="Manage community screenshots and moderation queue." />
         <AdminPlaceholder
           icon={<ImageIcon size={24} />}
-          title="No database connection"
-          message="Gallery screenshots are stored in the database. Set DATABASE_URL to load and edit them."
+          title="Gallery service unavailable"
+          message="Unable to load gallery screenshots. Please verify the network connection and try again."
         />
       </>
     );

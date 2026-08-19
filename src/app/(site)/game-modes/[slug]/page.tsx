@@ -48,7 +48,7 @@ export default async function GameModeDetail({ params }: { params: Promise<{ slu
           <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-line-strong bg-black/30 ${accent.text}`}>
             <Icon name={mode.icon} size={20} />
           </span>
-          {isLive && <CopyIpButton ip={site.javaIp} label="Copy server IP" />}
+          {isLive && <CopyIpButton ip={status.java?.address || site.javaIp} label="Copy server IP" />}
           {status.live && status.online && (
             <span className="chip">
               <Users size={14} /> {status.players} online now

@@ -18,8 +18,8 @@ export default async function AdminRulesPage() {
         <DashHeader title="Rules" subtitle="Edit the public rulebook." />
         <AdminPlaceholder
           icon={<ScrollText size={24} />}
-          title="No database connection"
-          message="The rulebook is stored in the database. Set DATABASE_URL to load and edit it."
+          title="Rules service unavailable"
+          message="Unable to load the rulebook. Please verify the network connection and try again."
         />
       </>
     );

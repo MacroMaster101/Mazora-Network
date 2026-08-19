@@ -231,7 +231,7 @@ export function StandbyQueue({
               {item.label}
             </span>
             <span className="block text-[10px] text-muted font-medium">
-              {showDiagnostics ? "Awaiting database" : "Coming soon"}
+              {showDiagnostics ? "Awaiting connection" : "Coming soon"}
             </span>
           </span>
           <ArrowUpRight size={14} className="shrink-0 text-muted group-hover:text-accent-bright transition-colors" />

@@ -5,14 +5,17 @@ import {
   Layers3,
   PackageSearch,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import { getGameModes, getProducts } from "@/lib/data/content";
 import { getStoreFeaturedSlugs, getStoreRoadmap, getStoreWelcomeBanner } from "@/lib/data/store-settings";
 import { getStoreCategoryConfigs } from "@/lib/data/store-categories";
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { Reveal } from "@/components/shared";
 import { CartTrigger } from "@/components/shared/cart-trigger";
 import { StoreExplorer } from "@/components/shared/store-explorer";
 import { CartPageLauncher } from "@/components/shared/cart-page-launcher";
+import { cn } from "@/lib/utils";
 // Import order mirrors the order these rules loaded in before they were split
 // out of globals.css / responsive-store-vote.css. Do not reshuffle.
 import "@/styles/store-pages.css";
@@ -30,13 +33,14 @@ export default async function StorePage({
 }: {
   searchParams: Promise<{ cart?: string }>;
 }) {
-  const [products, modes, params, featuredSlugs, welcomeBanner, roadmap] = await Promise.all([
+  const [products, modes, params, featuredSlugs, welcomeBanner, roadmap, generalSettings] = await Promise.all([
     getProducts(),
     getGameModes(),
     searchParams,
     getStoreFeaturedSlugs(),
     getStoreWelcomeBanner(),
     getStoreRoadmap(),
+    getSiteGeneralSettings(),
   ]);
   const categoryConfigs = await getStoreCategoryConfigs(modes);
   const offerCount = new Set(products.map((product) => product.family ?? product.slug)).size;
@@ -65,8 +69,15 @@ export default async function StorePage({
         <div className="shell store-hero-stage store-hero-v2-stage relative z-10">
           <div className="store-hero-v2-status">
             <div className="store-hero-v2-live-pill">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_#4ade80]" />
-              Marketplace open
+              <span
+                className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  generalSettings.storeEnabled
+                    ? "bg-emerald-400 shadow-[0_0_12px_#4ade80]"
+                    : "bg-amber-400 shadow-[0_0_12px_#fbbf24]"
+                )}
+              />
+              {generalSettings.storeEnabled ? "Marketplace open" : "Store checkouts paused"}
             </div>
           </div>
 
@@ -79,13 +90,12 @@ export default async function StorePage({
               <strong>{offerCount.toLocaleString()}</strong>
             </div>
 
-            <div className="store-hero-v2-brand">
-              <span className="store-hero-v2-brand-aura" aria-hidden="true" />
+            <div className="store-hero-v2-logo-wrap">
               <Image
-                src="/images/mazora-logo.webp"
+                src="/images/mazora-brand-logo.webp"
                 alt="Mazora Network"
-                width={300}
-                height={200}
+                width={220}
+                height={220}
                 priority
                 className="store-hero-v2-logo animate-float"
               />
@@ -107,6 +117,13 @@ export default async function StorePage({
             <p>
               Survival ranks, crate keys, battlepass upgrades and progression add-ons made for the Mazora experience.
             </p>
+
+            {!generalSettings.storeEnabled && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-200">
+                <AlertTriangle size={14} className="text-amber-400" />
+                Rank upgrades and checkout are temporarily paused for scheduled maintenance.
+              </div>
+            )}
 
             <div className="store-hero-v2-actions">
               <a href="#catalog" className="btn btn-primary h-12 px-5">
