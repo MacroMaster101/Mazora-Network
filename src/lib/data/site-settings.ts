@@ -21,6 +21,7 @@ export interface SiteGeneralSettings {
   registrationEnabled: boolean;
   storeEnabled: boolean;
   votingEnabled: boolean;
+  ogImageUrl: string;
 }
 
 export const DEFAULT_SITE_SETTINGS: SiteGeneralSettings = {
@@ -39,6 +40,7 @@ export const DEFAULT_SITE_SETTINGS: SiteGeneralSettings = {
   registrationEnabled: true,
   storeEnabled: true,
   votingEnabled: true,
+  ogImageUrl: "/images/og-default.webp",
 };
 
 function mergeSettings(value: unknown): SiteGeneralSettings {
@@ -62,6 +64,7 @@ function mergeSettings(value: unknown): SiteGeneralSettings {
     registrationEnabled: stored.registrationEnabled !== undefined ? Boolean(stored.registrationEnabled) : true,
     storeEnabled: stored.storeEnabled !== undefined ? Boolean(stored.storeEnabled) : true,
     votingEnabled: stored.votingEnabled !== undefined ? Boolean(stored.votingEnabled) : true,
+    ogImageUrl: typeof stored.ogImageUrl === "string" && stored.ogImageUrl.trim() ? stored.ogImageUrl.trim() : DEFAULT_SITE_SETTINGS.ogImageUrl,
   };
 }
 

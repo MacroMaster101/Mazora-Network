@@ -4,6 +4,8 @@ import { getDirectory } from "@/lib/data/directory";
 import { getServerStatus } from "@/lib/data/status";
 import { EmptyState, FloatingBrandLogo, PageHero, PlayerExplorer, Reveal } from "@/components/shared";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = publicPageMetadata({
   title: "Players",
   description: "Search the player directory, see who's online, and view public profiles and stats.",
