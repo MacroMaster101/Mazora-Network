@@ -1,37 +1,32 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManageMinecraft } from "@/lib/auth/permissions";
+import { redirect } from "next/navigation";
 import { getPlayers } from "@/lib/data/players";
 import { DashHeader } from "@/components/dashboard/dash-ui";
-import { AdminTable, ReadOnlyBanner, type Column } from "@/components/admin/admin-ui";
-import { MinecraftAvatar } from "@/components/shared";
-import { playtime, withCommas } from "@/lib/utils";
-import type { Player } from "@/lib/types";
+import { AdminPlayersBrowser } from "@/components/admin/admin-players-browser";
 
-export const metadata: Metadata = { title: "Players · Admin" };
+export const metadata: Metadata = { title: "Minecraft Players · Admin" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AdminPlayersPage() {
-  await requireRole("moderator", "/admin/players");
+  const session = await getSession();
+  const userId = await getSessionUserId();
+  const allowed = await canManageMinecraft(session, userId);
+  if (!session || !allowed) {
+    redirect("/admin");
+  }
+
   const players = await getPlayers();
-  const columns: Column<Player>[] = [
-    {
-      header: "Player",
-      cell: (p) => (
-        <span className="flex items-center gap-2.5">
-          <MinecraftAvatar username={p.username} size={30} />
-          <span className="font-semibold">{p.username}</span>
-        </span>
-      ),
-    },
-    { header: "UUID", cell: (p) => <span className="telemetry text-xs text-muted">{p.uuid.slice(0, 18)}…</span> },
-    { header: "Level", cell: (p) => <span className="telemetry">{p.level}</span> },
-    { header: "Playtime", cell: (p) => <span className="telemetry">{playtime(p.playtimeHours)}</span> },
-    { header: "Balance", align: "right", cell: (p) => <span className="telemetry">${withCommas(p.balance)}</span> },
-  ];
+
   return (
-    <>
-      <DashHeader title="Minecraft players" subtitle={`${players.length} linked players`} />
-      <ReadOnlyBanner note="Player profiles sync automatically when users link their Minecraft Game Name in Settings. Live in-game stats update via server sync." />
-      <AdminTable columns={columns} rows={players} />
-    </>
+    <div className="space-y-6">
+      <DashHeader
+        title="Minecraft Players Directory"
+        subtitle="Search and inspect linked Minecraft player accounts, level progression, in-game economy, and playtime telemetry."
+      />
+      <AdminPlayersBrowser players={players} />
+    </div>
   );
 }

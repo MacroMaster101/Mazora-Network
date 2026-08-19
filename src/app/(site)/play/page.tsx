@@ -1,41 +1,29 @@
-import { site } from "@/lib/site";
 import { publicPageMetadata } from "@/lib/seo";
-import { getServerStatus } from "@/lib/data/status";
+import { Monitor, Smartphone } from "lucide-react";
 import { getPatchUpdates } from "@/lib/data/patches";
 import { getFaqs } from "@/lib/data/faqs";
 import { getPlayPageConfig } from "@/lib/data/play-page-config";
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { getStatusTelemetry } from "@/lib/data/status-telemetry";
-import { PageHero } from "@/components/shared/page-hero";
-import { Accordion } from "@/components/ui/accordion";
-import { CopyIpButton } from "@/components/shared/copy-ip-button";
-import { Reveal } from "@/components/shared/reveal";
-import { Monitor, Smartphone } from "lucide-react";
-import { UnifiedServerStatsCard } from "@/components/shared/unified-server-stats-card";
+import { getServerStatus } from "@/lib/data/status";
+import { site } from "@/lib/site";
+import { PageHero, CopyIpButton, Reveal, UnifiedServerStatsCard } from "@/components/shared";
+import { Accordion } from "@/components/ui";
 
 export const metadata = publicPageMetadata({
-  title: "How to Play — Connect Java & Bedrock",
-  description:
-    "Step-by-step connection guide for Java Edition and Bedrock Edition players joining Mazora Network.",
+  title: "Play",
+  description: `How to join ${site.name} on Java and Bedrock — server IP, Bedrock port, server status and connection instructions.`,
   path: "/play",
 });
 
-/*
-  force-dynamic already keeps this page off the static path. `revalidate = 0`
-  was additionally pinning the *segment's* revalidate to zero, and Next takes
-  the minimum of the segment and each fetch — which silently overrode the
-  `next: { revalidate: 300 }` on getServerStatus and sent this page to
-  mcsrvstat.us on every single request. That put a third-party API on the
-  critical path of every /play load (measured ~0.6s here versus ~0.26s for the
-  homepage, which reads the same status through the cache).
-*/
 export const dynamic = "force-dynamic";
 
 function Steps({ steps }: { steps: string[] }) {
   return (
     <ol className="mt-5 space-y-3">
       {steps.map((step, i) => (
-        <li key={i} className="flex gap-3">
-          <span className="telemetry grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-accent/40 bg-accent/10 text-sm font-bold text-accent-bright">
+        <li key={i} className="flex items-start gap-3">
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-line-strong bg-ink/5 font-display text-xs font-bold text-ink">
             {i + 1}
           </span>
           <span className="pt-0.5 text-sm text-muted">{step}</span>
@@ -46,16 +34,33 @@ function Steps({ steps }: { steps: string[] }) {
 }
 
 export default async function PlayPage() {
-  const [status, patchUpdates, faqs, playConfig, telemetry] = await Promise.all([
+  const [status, patchUpdates, faqs, playConfig, generalSettings, telemetry] = await Promise.all([
     getServerStatus(),
     getPatchUpdates(),
     getFaqs(),
     getPlayPageConfig(),
+    getSiteGeneralSettings(),
     getStatusTelemetry(),
   ]);
 
   const online = status.live && status.online;
-  const bedrockAddress = `${playConfig.bedrockIp || site.bedrockIp}:${playConfig.bedrockPort || site.bedrockPort}`;
+  const activeBedrockIp = playConfig.bedrockIp || generalSettings.bedrockIp || site.bedrockIp;
+  const activeBedrockPort = playConfig.bedrockPort || generalSettings.bedrockPort || site.bedrockPort;
+  const activeJavaIp = playConfig.javaIp || generalSettings.javaIp || site.javaIp;
+  const bedrockAddress = `${activeBedrockIp}:${activeBedrockPort}`;
+
+  const bedrockSteps = (playConfig.bedrockSteps || []).map((step) =>
+    step
+      .replace(/Enter (?:the )?port:?\s*\d+/i, `Enter the port: ${activeBedrockPort}`)
+      .replace(/Server Address:?\s*[^\s,]+/i, `Server Address: ${activeBedrockIp}`)
+      .replace(/Server Name:?\s*[^,]+/i, `Server Name: ${generalSettings.name || site.name}`)
+  );
+
+  const javaSteps = (playConfig.javaSteps || []).map((step) =>
+    step
+      .replace(/Server Address:?\s*[^\s,]+/i, `Server Address: ${activeJavaIp}`)
+      .replace(/Server Name:?\s*[^,]+/i, `Server Name: ${generalSettings.name || site.name}`)
+  );
 
   return (
     <>
@@ -69,7 +74,7 @@ export default async function PlayPage() {
             <span className={online ? "dot animate-pulse" : "dot dot-off"} />
             {online ? `Online · ${status.players}/${status.max}` : status.live ? "Offline" : "Status unavailable"}
           </span>
-          <CopyIpButton ip={playConfig.javaIp || site.javaIp} label="Copy Java IP" />
+          <CopyIpButton ip={activeJavaIp} label="Copy Java IP" />
         </div>
       </PageHero>
 
@@ -81,11 +86,11 @@ export default async function PlayPage() {
             </span>
             <div>
               <h2 className="font-display text-xl font-bold">Java Edition</h2>
-              <p className="telemetry text-sm text-muted">{playConfig.javaIp || site.javaIp}</p>
+              <p className="telemetry text-sm text-muted">{activeJavaIp}</p>
             </div>
           </div>
-          <Steps steps={playConfig.javaSteps} />
-          <CopyIpButton ip={playConfig.javaIp || site.javaIp} label="Copy Java IP" className="mt-6 w-full" />
+          <Steps steps={javaSteps} />
+          <CopyIpButton ip={activeJavaIp} label="Copy Java IP" className="mt-6 w-full" />
         </Reveal>
 
         <Reveal delay={0.05} className="panel p-7">
@@ -96,11 +101,11 @@ export default async function PlayPage() {
             <div>
               <h2 className="font-display text-xl font-bold">Bedrock Edition</h2>
               <p className="telemetry text-sm text-muted">
-                {playConfig.bedrockIp || site.bedrockIp} : {playConfig.bedrockPort || site.bedrockPort}
+                {activeBedrockIp} : {activeBedrockPort}
               </p>
             </div>
           </div>
-          <Steps steps={playConfig.bedrockSteps} />
+          <Steps steps={bedrockSteps} />
           <CopyIpButton ip={bedrockAddress} label="Copy Bedrock IP" className="mt-6 w-full" />
         </Reveal>
       </section>
