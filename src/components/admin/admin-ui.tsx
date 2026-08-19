@@ -17,7 +17,7 @@ export async function ReadOnlyBanner({ note }: { note?: string }) {
       <Lock size={16} className="shrink-0 text-gold" />
       <p className="text-sm text-muted">
         {showDiagnostics
-          ? note ?? "Read-only preview. Creating and editing content activates once the database and audit logging are connected."
+          ? note ?? "Read-only preview. Creating and editing content activates once the service connection and audit logging are configured."
           : FRIENDLY_UNAVAILABLE_NOTE}
       </p>
     </div>

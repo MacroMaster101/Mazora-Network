@@ -1,6 +1,7 @@
 import { getSession, getSessionUserId, isStaff } from "@/lib/auth";
 import { canManageGallery, canManageNews } from "@/lib/auth/permissions";
 import { visibleAdminNav } from "@/lib/admin-nav";
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { Logo } from "./logo";
 import { NavLinks } from "./nav-links";
 import { HeaderActions } from "./header-actions";
@@ -10,7 +11,10 @@ import { ThemeCycleButton } from "@/components/theme/theme-toggle";
 import { CartTrigger } from "@/components/shared/cart-trigger";
 
 export async function SiteHeader({ world = false, stable = false }: { world?: boolean; stable?: boolean }) {
-  const session = await getSession();
+  const [session, generalSettings] = await Promise.all([
+    getSession(),
+    getSiteGeneralSettings(),
+  ]);
   const userId = session ? await getSessionUserId() : null;
 
   // Staff get their admin sections inside the drawer, so small screens have one
@@ -27,31 +31,39 @@ export async function SiteHeader({ world = false, stable = false }: { world?: bo
       : null;
 
   return (
-    <ScrollHeader world={world} stable={stable}>
-      <div className="header-shell shell grid h-[4.75rem] grid-cols-[1fr_auto] items-center gap-3 min-[1200px]:grid-cols-[1fr_auto_1fr]">
-        <div className="justify-self-start min-[1200px]:hidden">
-          <Logo height={84} className="mobile-header-logo" priority />
+    <>
+      {generalSettings.maintenanceMode && (
+        <div className="relative z-50 w-full bg-amber-500/15 border-b border-amber-500/30 text-amber-900 dark:text-amber-200 px-4 py-1.5 text-center text-xs font-semibold backdrop-blur-md flex items-center justify-center gap-2">
+          <span className="inline-block h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+          <span>Network Maintenance Mode is active — Scheduled updates are currently underway.</span>
         </div>
-        <div className="hidden justify-self-start min-[1200px]:block">
-          <Logo height={96} className="header-brand-logo" priority />
-        </div>
-        <div className="hidden min-w-0 justify-self-center min-[1200px]:block">
-          <NavLinks />
-        </div>
-        <div className="desktop-account-dock hidden shrink-0 items-center justify-self-end min-[1200px]:flex">
-          <div className="flex items-center gap-1.5">
-            <CartTrigger compact className="header-cart-trigger" />
-            <ThemeCycleButton />
+      )}
+      <ScrollHeader world={world} stable={stable}>
+        <div className="header-shell shell grid h-[4.75rem] grid-cols-[1fr_auto] items-center gap-3 min-[1200px]:grid-cols-[1fr_auto_1fr]">
+          <div className="justify-self-start min-[1200px]:hidden">
+            <Logo height={84} className="mobile-header-logo" priority />
           </div>
-          <span className="dock-divider" aria-hidden="true" />
-          <HeaderActions session={session} />
+          <div className="hidden justify-self-start min-[1200px]:block">
+            <Logo height={96} className="header-brand-logo" priority />
+          </div>
+          <div className="hidden min-w-0 justify-self-center min-[1200px]:block">
+            <NavLinks />
+          </div>
+          <div className="desktop-account-dock hidden shrink-0 items-center justify-self-end min-[1200px]:flex">
+            <div className="flex items-center gap-1.5">
+              <CartTrigger compact className="header-cart-trigger" />
+              <ThemeCycleButton />
+            </div>
+            <span className="dock-divider" aria-hidden="true" />
+            <HeaderActions session={session} />
+          </div>
+          <div className="col-start-2 row-start-1 flex items-center gap-2 justify-self-end min-[1200px]:hidden">
+            <HeaderActions session={session} />
+            <CartTrigger compact className="header-cart-trigger" />
+            <MobileMenu session={session} adminNav={adminNav} />
+          </div>
         </div>
-        <div className="col-start-2 row-start-1 flex items-center gap-2 justify-self-end min-[1200px]:hidden">
-          <HeaderActions session={session} />
-          <CartTrigger compact className="header-cart-trigger" />
-          <MobileMenu session={session} adminNav={adminNav} />
-        </div>
-      </div>
-    </ScrollHeader>
+      </ScrollHeader>
+    </>
   );
 }

@@ -427,7 +427,7 @@ export function PlayPageEditor({
 
     setFaqs(updatedFaqs);
     await saveFaqsAction(updatedFaqs);
-    toast("Saved FAQ items live to database!", "success");
+    toast("Saved FAQ items successfully!", "success");
     setIsFaqModalOpen(false);
   };
 
@@ -435,7 +435,7 @@ export function PlayPageEditor({
     const updatedFaqs = faqs.filter((f) => f.id !== id);
     setFaqs(updatedFaqs);
     await saveFaqsAction(updatedFaqs);
-    toast("FAQ item removed and database updated.", "info");
+    toast("FAQ item removed successfully.", "info");
   };
 
   return (
@@ -1313,7 +1313,7 @@ export function PlayPageEditor({
                 Frequently Asked Questions (FAQ) Manager
               </h3>
               <p className="text-xs text-muted mt-1 font-medium">
-                Add, edit, or delete FAQ items displayed on the public Play page & Support page. Edits save directly to the database.
+                Add, edit, or delete FAQ items displayed on the public Play page & Support page. Edits publish immediately to the live site.
               </p>
             </div>
 
@@ -1514,7 +1514,7 @@ export function PlayPageEditor({
                 Cancel
               </button>
               <button type="submit" className="btn btn-gold text-xs gap-1.5 font-bold">
-                <Save size={14} /> {editingFaqId ? "Save to Database" : "Publish FAQ"}
+                <Save size={14} /> {editingFaqId ? "Save Changes" : "Publish FAQ"}
               </button>
             </div>
           </form>

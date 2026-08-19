@@ -1,9 +1,9 @@
 import { publicPageMetadata } from "@/lib/seo";
 import { Activity, Signal, Server, Clock, Gauge } from "lucide-react";
 import { getServerStatus } from "@/lib/data/status";
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { site } from "@/lib/site";
 import { PageHero, CopyIpButton, Reveal } from "@/components/shared";
-import { fmtDate } from "@/lib/utils";
 
 export const metadata = publicPageMetadata({
   title: "Server Status",
@@ -24,8 +24,16 @@ function Stat({ icon: Icon, label, value }: { icon: typeof Activity; label: stri
 }
 
 export default async function StatusPage() {
-  const status = await getServerStatus();
+  const [status, generalSettings] = await Promise.all([
+    getServerStatus(),
+    getSiteGeneralSettings(),
+  ]);
+
   const online = status.live && status.online;
+  const activeJavaIp = generalSettings.javaIp || site.javaIp;
+  const activeBedrockIp = generalSettings.bedrockIp || site.bedrockIp;
+  const activeBedrockPort = generalSettings.bedrockPort || site.bedrockPort;
+  const activeVersion = generalSettings.version || status.version || site.version;
 
   return (
     <>
@@ -36,7 +44,7 @@ export default async function StatusPage() {
           <Reveal className="glass mb-8 flex items-center gap-3 p-5">
             <Activity size={20} className="text-warning" />
             <p className="text-sm text-muted">
-              The live provider could not reach <span className="telemetry text-ink">{site.javaIp}</span>. Check that the
+              The live provider could not reach <span className="telemetry text-ink">{activeJavaIp}</span>. Check that the
               server is running and accepts Server List Ping requests; the website will not show fabricated numbers.
             </p>
           </Reveal>
@@ -54,12 +62,12 @@ export default async function StatusPage() {
               </p>
             </div>
           </div>
-          <CopyIpButton ip={site.javaIp} label="Copy server IP" />
+          <CopyIpButton ip={activeJavaIp} label="Copy server IP" />
         </Reveal>
 
         <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Stat icon={Activity} label="Players online" value={online ? `${status.players}/${status.max}` : status.live ? "Offline" : "—"} />
-          <Stat icon={Server} label="Version" value={status.version} />
+          <Stat icon={Server} label="Version" value={activeVersion} />
           <Stat icon={Signal} label="Ping" value={online ? `${status.ping}ms` : status.live ? "Offline" : "—"} />
           <Stat icon={Gauge} label="Uptime" value={online ? status.uptime : status.live ? "Offline" : "—"} />
         </div>
@@ -68,7 +76,7 @@ export default async function StatusPage() {
           <Reveal className="panel p-6">
             <h3 className="font-display font-bold">Java Edition</h3>
             <div className="mt-3 flex items-center justify-between">
-              <CopyIpButton ip={site.javaIp} variant="inline" />
+              <CopyIpButton ip={activeJavaIp} variant="inline" />
               <span className={`inline-flex items-center gap-2 text-sm ${status.java.online ? "text-success" : "text-muted"}`}>
                 <span className={status.java.online ? "dot" : "dot dot-off"} /> {status.java.online ? "Reachable" : status.live ? "Offline" : "Unknown"}
               </span>
@@ -77,7 +85,7 @@ export default async function StatusPage() {
           <Reveal delay={0.05} className="panel p-6">
             <h3 className="font-display font-bold">Bedrock Edition</h3>
             <div className="mt-3 flex items-center justify-between">
-              <CopyIpButton ip={`${site.bedrockIp}:${site.bedrockPort}`} variant="inline" />
+              <CopyIpButton ip={`${activeBedrockIp}:${activeBedrockPort}`} variant="inline" />
               <span className={`inline-flex items-center gap-2 text-sm ${status.bedrock.online ? "text-success" : "text-muted"}`}>
                 <span className={status.bedrock.online ? "dot" : "dot dot-off"} /> {status.bedrock.online ? "Reachable" : status.live ? "Offline" : "Unknown"}
               </span>
@@ -110,8 +118,6 @@ export default async function StatusPage() {
             Illustrative visual. Real history appears once a status API and a history store are connected.
           </p>
         </Reveal>
-
-        <p className="mt-6 text-center text-xs text-muted">Data as of {fmtDate(status.lastUpdate)}.</p>
       </section>
     </>
   );

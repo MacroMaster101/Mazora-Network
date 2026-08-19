@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 export interface PermissionModuleConfig {
   id: string;
-  category: "Content" | "Community" | "Commerce" | "System";
+  category: "Content" | "Community" | "Commerce" | "System" | "Support";
   title: string;
   description: string;
   selected: Role[];
@@ -293,7 +293,7 @@ export function PermissionsManager({
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
 
-  const categories = ["All", "Content", "Community", "Commerce", "System"];
+  const categories = ["All", "Content", "Support", "Community", "Commerce", "System"];
 
   const filteredModules = useMemo(() => {
     const q = query.trim().toLowerCase();

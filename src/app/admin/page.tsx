@@ -175,7 +175,7 @@ export default async function ControlRoom() {
         {canSeeAudit && (
           <Board title="Audit trail" icon={<ScrollText size={16} />} href="/admin/audit-logs" tag="Live">
             {audit === null ? (
-              <BoardNotice>Not recording — no database connection.</BoardNotice>
+              <BoardNotice>Not recording — service connection unavailable.</BoardNotice>
             ) : audit.length === 0 ? (
               <BoardNotice>No privileged actions recorded yet.</BoardNotice>
             ) : (
@@ -208,7 +208,7 @@ export default async function ControlRoom() {
               <Metric
                 label="Store products"
                 value={String(products.length)}
-                detail={showDiagnostics ? "live in the database" : "available products"}
+                detail={showDiagnostics ? "live on the network" : "available products"}
                 live={products.length > 0}
               />
               <Metric

@@ -2,15 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getSession, hasAtLeast } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManagePlay } from "@/lib/auth/permissions";
 import { updatePlayPageConfig, type PlayPageConfig } from "@/lib/data/play-page-config";
 
 /**
  * Server Actions are public POST endpoints — Next.js ships their ids in the
- * browser bundle, so the `requireRole("administrator")` on /admin/pages only
- * guards the *render*, never the action. Without the check below any anonymous
- * visitor could rewrite the Play page, including the server addresses players
- * are told to connect to.
+ * browser bundle, so the role guard on /admin/play only guards the render,
+ * never the action.
  */
 const DENIED = { ok: false as const, message: "You do not have permission to edit the Play page." };
 
@@ -36,7 +35,9 @@ export async function savePlayConfigAction(
   config: Partial<PlayPageConfig>,
 ): Promise<{ ok: boolean; message: string }> {
   const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return DENIED;
+  const userId = await getSessionUserId();
+  const allowed = await canManagePlay(session, userId);
+  if (!session || !allowed) return DENIED;
 
   const parsed = configSchema.safeParse(config);
   if (!parsed.success) {
@@ -46,13 +47,13 @@ export async function savePlayConfigAction(
   try {
     await updatePlayPageConfig(parsed.data);
     revalidatePath("/play");
+    revalidatePath("/status");
+    revalidatePath("/admin/play");
     revalidatePath("/admin/pages");
+    revalidatePath("/admin/settings");
+    revalidatePath("/", "layout");
     return { ok: true, message: "Play page configuration updated live on the website!" };
   } catch (err: unknown) {
-    // The raw error used to be returned to the browser, which made this the one
-    // action in the codebase that forwarded a Postgres message (constraint text,
-    // connection details) to a client. Every sibling action logs the detail and
-    // returns a fixed string; match that.
     console.error("Play page config save failed:", err);
     return { ok: false, message: "Failed to save configuration." };
   }

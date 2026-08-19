@@ -172,7 +172,7 @@ export function SupportMainEditor({ settings, saveAction }: { settings: SupportM
         <div className="panel overflow-hidden p-5 sm:p-6">
           <span className="grid h-11 w-11 place-items-center rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-500"><RotateCcw size={21} /></span>
           <h2 className="mt-4 font-display text-xl font-black">Reset unsaved changes?</h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted">This restores the hero, presets, badges, FAQ content, and FAQ order to the last saved values. Nothing in the database will be deleted.</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">This restores the hero, presets, badges, FAQ content, and FAQ order to the last saved values. No active configuration will be lost.</p>
           <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" className="btn btn-secondary" onClick={() => setResetOpen(false)}>Keep editing</button><button type="button" className="btn btn-primary" onClick={() => { setValue(settings); setFaqQuery(""); setDraggedIndex(null); setDragOverIndex(null); setDragMessage("Editor reset to the last saved values."); setResetOpen(false); }}><RotateCcw size={15} /> Reset editor</button></div>
         </div>
       </Modal>
