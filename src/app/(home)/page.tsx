@@ -73,7 +73,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
     prepared offline panel and only frame the map once there is a live reading
     saying the server is actually up.
   */
-  const mapEmbeddable = Boolean(mapUrl) && status.online;
+  const mapEmbeddable = Boolean(mapUrl) && status.online && generalSettings.liveMapEnabled;
 
   return (
     <>
