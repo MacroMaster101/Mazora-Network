@@ -1,6 +1,6 @@
 import { Trophy } from "lucide-react";
 import { buildLeaderboard, getPlayers, leaderboardTabs, type LeaderboardEntry, type LeaderboardKey } from "@/lib/data/players";
-import { EmptyState, PageHero, Reveal } from "@/components/shared";
+import { EmptyState, FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";
 import { LeaderboardExplorer } from "@/components/shared/leaderboard-explorer";
 import { publicPageMetadata } from "@/lib/seo";
 
@@ -26,6 +26,7 @@ export default async function LeaderboardsPage() {
         eyebrow="Hall of fame"
         title="Who's on top?"
         lead="Live all-time PlayTime and economy rankings, synchronized directly from the Minecraft server."
+        illustration={<FloatingBrandLogo />}
       />
       <section className="section shell">
         <Reveal>

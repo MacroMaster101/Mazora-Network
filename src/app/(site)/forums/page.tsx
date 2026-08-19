@@ -1,7 +1,7 @@
 import { publicPageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { ArrowRight, Blocks, CalendarDays, Lightbulb, MessageSquareText, ShieldCheck, Sparkles } from "lucide-react";
-import { PageHero } from "@/components/shared";
+import { PageHero, FloatingBrandLogo } from "@/components/shared";
 
 export const metadata = publicPageMetadata({
   title: "Community Forums",
@@ -29,6 +29,7 @@ export default function ForumsPage() {
         eyebrow="Mazora community"
         title="The conversation continues here."
         lead="Ask questions, share builds, find teammates and help shape what comes next across the network."
+        illustration={<FloatingBrandLogo />}
       >
         <div className="flex flex-wrap gap-3">
           <Link href="/support/suggestions" className="btn btn-primary"><Lightbulb size={16} /> Share a suggestion</Link>

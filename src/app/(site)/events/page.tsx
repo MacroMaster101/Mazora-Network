@@ -1,7 +1,7 @@
 import { publicPageMetadata } from "@/lib/seo";
 import { CalendarDays } from "lucide-react";
 import { getEvents } from "@/lib/data/content";
-import { EmptyState, PageHero, Reveal } from "@/components/shared";
+import { EmptyState, FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";
 import { EventsExplorer } from "@/components/shared/events-explorer";
 
 export const metadata = publicPageMetadata({
@@ -14,7 +14,12 @@ export default async function EventsPage() {
   const events = await getEvents();
   return (
     <>
-      <PageHero eyebrow="Competitions & community" title="There's always something happening." lead="Tournaments, build competitions, and spontaneous community nights. Show up and win something." />
+      <PageHero
+        eyebrow="Competitions & community"
+        title="There's always something happening."
+        lead="Tournaments, build competitions, and spontaneous community nights. Show up and win something."
+        illustration={<FloatingBrandLogo />}
+      />
       <section className="section shell">
         <Reveal>
           {events.length > 0 ? (
