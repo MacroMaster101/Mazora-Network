@@ -4,8 +4,8 @@ import {
   ArrowDown,
   Layers3,
   PackageSearch,
-  Sparkles,
   AlertTriangle,
+  ShieldCheck,
 } from "lucide-react";
 import { getGameModes, getProducts } from "@/lib/data/content";
 import { getStoreFeaturedSlugs, getStoreRoadmap, getStoreWelcomeBanner } from "@/lib/data/store-settings";
@@ -90,13 +90,15 @@ export default async function StorePage({
               <strong>{offerCount.toLocaleString()}</strong>
             </div>
 
-            <div className="store-hero-v2-logo-wrap">
+            <div className="store-hero-v2-brand">
+              <span className="store-hero-v2-brand-aura" aria-hidden="true" />
               <Image
-                src="/images/mazora-brand-logo.webp"
+                src="/images/mazora-logo.webp"
                 alt="Mazora Network"
-                width={220}
-                height={220}
+                width={300}
+                height={200}
                 priority
+                sizes="(max-width: 640px) 190px, 270px"
                 className="store-hero-v2-logo animate-float"
               />
             </div>
@@ -135,9 +137,11 @@ export default async function StorePage({
               />
             </div>
 
-            <div className="store-hero-v2-note">
-              <Sparkles size={16} />
-              <span><strong>Manual, staff-verified ordering</strong> with no payment taken on this website.</span>
+            <div className="store-hero-v2-note" role="note" aria-label="Store payment notice">
+              <ShieldCheck size={20} className="shrink-0 text-violet-400 dark:text-violet-300" aria-hidden="true" />
+              <span>
+                <strong>Manual, staff-verified ordering:</strong> No payment is taken on this website · Fulfillments are handled in Discord tickets.
+              </span>
             </div>
           </div>
         </div>

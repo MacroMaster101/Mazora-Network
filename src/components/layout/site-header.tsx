@@ -39,17 +39,19 @@ export async function SiteHeader({ world = false, stable = false }: { world?: bo
         </div>
       )}
       <ScrollHeader world={world} stable={stable}>
-        <div className="header-shell shell grid h-[4.75rem] grid-cols-[1fr_auto] items-center gap-3 min-[1200px]:grid-cols-[1fr_auto_1fr]">
-          <div className="justify-self-start min-[1200px]:hidden">
-            <Logo height={84} className="mobile-header-logo" priority />
+        <div className="header-shell shell flex h-[4.85rem] items-center justify-between gap-4">
+          {/* Left: Single unified Brand Logo (responsive sizing via CSS) */}
+          <div className="shrink-0 flex items-center">
+            <Logo height={130} className="header-brand-logo animate-float" priority />
           </div>
-          <div className="hidden justify-self-start min-[1200px]:block">
-            <Logo height={96} className="header-brand-logo" priority />
-          </div>
-          <div className="hidden min-w-0 justify-self-center min-[1200px]:block">
+
+          {/* Center: Desktop Navigation Links (hidden on mobile/tablet < 1100px) */}
+          <div className="hidden min-w-0 flex-1 justify-center min-[1100px]:flex">
             <NavLinks />
           </div>
-          <div className="desktop-account-dock hidden shrink-0 items-center justify-self-end min-[1200px]:flex">
+
+          {/* Right: Desktop Account & Utility Dock (hidden on mobile/tablet < 1100px) */}
+          <div className="desktop-account-dock hidden shrink-0 items-center justify-end min-[1100px]:flex">
             <div className="flex items-center gap-1.5">
               <CartTrigger compact className="header-cart-trigger" />
               <ThemeCycleButton />
@@ -57,7 +59,9 @@ export async function SiteHeader({ world = false, stable = false }: { world?: bo
             <span className="dock-divider" aria-hidden="true" />
             <HeaderActions session={session} />
           </div>
-          <div className="col-start-2 row-start-1 flex items-center gap-2 justify-self-end min-[1200px]:hidden">
+
+          {/* Right: Mobile Controls (hidden on desktop >= 1100px) */}
+          <div className="flex items-center gap-2 shrink-0 min-[1100px]:hidden">
             <HeaderActions session={session} />
             <CartTrigger compact className="header-cart-trigger" />
             <MobileMenu session={session} adminNav={adminNav} />
