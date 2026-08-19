@@ -90,10 +90,8 @@ function FeatureToggleCard({
 
 export function SiteSettingsEditor({
   initialSettings,
-  isOwner,
 }: {
   initialSettings: SiteGeneralSettings;
-  isOwner: boolean;
 }) {
   const { toast } = useToast();
   const [state, formAction, isPending] = useActionState(saveSiteGeneralSettingsAction, null);
