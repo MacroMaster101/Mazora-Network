@@ -24,8 +24,8 @@ export default async function AdminStorePage() {
   return (
     <div className="admin-store-page">
       <DashHeader
-        title="Store dashboard"
-        subtitle={`${products.length} products · ${modes.length} game modes · database managed`}
+        title="Store catalogue"
+        subtitle={`${products.length} products · ${modes.length} game modes · live catalogue`}
       />
       <StoreDashboardCards
         contentSummary={`Banner ${welcomeBanner.enabled ? "live" : "hidden"} · ${activeRoadmapItems} roadmap cards active`}

@@ -47,12 +47,6 @@ interface UpstreamShape {
   ping?: number;
 }
 const UPSTREAM_TIMEOUT_MS = 4_000;
-/**
- * The ping sample is attacker-influenced text: a username is whatever the
- * server chose to report. Cap the list well above Paper's default
- * `sample-count` of 12 so a hostile or misconfigured upstream cannot make the
- * page render thousands of rows.
- */
 const MAX_SAMPLE_ENTRIES = 200;
 const LIVE_CACHE_MS = 15_000;
 const STALE_RETRY_MS = 5_000;
@@ -62,15 +56,6 @@ let cachedStatus: { value: ServerStatus; expiresAt: number } | null = null;
 let lastKnownStatus: ServerStatus | null = null;
 let pendingStatus: Promise<ServerStatus> | null = null;
 
-
-/**
- * Extracts the online player sample from either provider.
- *
- * mcsrvstat v3 sends `{ name, uuid }`; mcstatus.io v2 sends `{ name_clean,
- * name_raw, uuid }`. Entries without a usable username are dropped rather than
- * rendered as blanks, and legacy § colour codes are stripped because an
- * offline-mode server may leave them in the raw name.
- */
 export function parsePlayerSample(players: unknown): OnlinePlayer[] {
   if (!players || typeof players !== "object") return [];
   const list = (players as UpstreamPlayers).list;
@@ -98,10 +83,6 @@ export function parsePlayerSample(players: unknown): OnlinePlayer[] {
   return sample;
 }
 
-/**
- * Normalises a few common status-API shapes (mcsrvstat-like / mcstatus-like)
- * into our ServerStatus.
- */
 async function fetchStatusFrom(url: string): Promise<ServerStatus | null> {
   try {
     const res = await fetchWithDeadline(

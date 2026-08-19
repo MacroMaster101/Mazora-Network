@@ -9,7 +9,7 @@ export function SupportDashboardCards({ cardCount, pageCount }: { cardCount: num
         <span className="store-admin-hub-card-body">
           <em>Page settings</em><strong>Support page editor</strong>
           <p>Edit the public hero, status badges, search copy, and frequently asked questions.</p>
-          <small>Database managed · public content</small>
+          <small>Live managed · public content</small>
         </span>
         <span className="store-admin-hub-card-go">Open editor <ArrowUpRight size={15} /></span>
       </Link>

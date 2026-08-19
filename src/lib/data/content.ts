@@ -12,6 +12,7 @@ import { and, asc, desc, eq, getTableColumns, isNull, lte, ne, or, sql } from "d
 import type {
   Accent,
   EventItem,
+  EventStatus,
   GalleryImage,
   GameMode,
   NewsArticle,
@@ -580,10 +581,79 @@ async function loadRelatedArticles(slug: string, category: string): Promise<News
 }
 
 export async function getEvents(): Promise<EventItem[]> {
-  return [];
+  const db = getDb();
+  if (!db) return [];
+  try {
+    const rows = await db
+      .select()
+      .from(schema.events)
+      .orderBy(asc(schema.events.startAt));
+
+    return rows.map((r) => ({
+      slug: r.slug,
+      title: r.title,
+      description: r.description ?? "",
+      icon: "trophy",
+      accent: "violet" as Accent,
+      startISO: r.startAt instanceof Date ? r.startAt.toISOString() : String(r.startAt),
+      endISO: r.endAt
+        ? r.endAt instanceof Date
+          ? r.endAt.toISOString()
+          : String(r.endAt)
+        : r.startAt instanceof Date
+        ? r.startAt.toISOString()
+        : String(r.startAt),
+      status: (r.status as EventStatus) || "upcoming",
+      mode: r.gameMode || "Survival SMP",
+      prize: Array.isArray(r.rewards) && r.rewards[0] ? String(r.rewards[0]) : "Exclusive Rewards",
+      joined: 0,
+      maxParticipants: r.maxParticipants ?? 100,
+      requirements: ["Linked Minecraft account"],
+      rewards: Array.isArray(r.rewards) ? (r.rewards as string[]) : [],
+      rules: ["Fair play rules apply", "No unauthorized modifications"],
+    }));
+  } catch (error) {
+    console.error("Failed to load events:", error);
+    return [];
+  }
 }
-export async function getEvent(_slug: string): Promise<EventItem | null> {
-  return null;
+
+export async function getEvent(slug: string): Promise<EventItem | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const [r] = await db
+      .select()
+      .from(schema.events)
+      .where(eq(schema.events.slug, slug))
+      .limit(1);
+    if (!r) return null;
+    return {
+      slug: r.slug,
+      title: r.title,
+      description: r.description ?? "",
+      icon: "trophy",
+      accent: "violet" as Accent,
+      startISO: r.startAt instanceof Date ? r.startAt.toISOString() : String(r.startAt),
+      endISO: r.endAt
+        ? r.endAt instanceof Date
+          ? r.endAt.toISOString()
+          : String(r.endAt)
+        : r.startAt instanceof Date
+        ? r.startAt.toISOString()
+        : String(r.startAt),
+      status: (r.status as EventStatus) || "upcoming",
+      mode: r.gameMode || "Survival SMP",
+      prize: Array.isArray(r.rewards) && r.rewards[0] ? String(r.rewards[0]) : "Exclusive Rewards",
+      joined: 0,
+      maxParticipants: r.maxParticipants ?? 100,
+      requirements: ["Linked Minecraft account"],
+      rewards: Array.isArray(r.rewards) ? (r.rewards as string[]) : [],
+      rules: ["Fair play rules apply", "No unauthorized modifications"],
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**

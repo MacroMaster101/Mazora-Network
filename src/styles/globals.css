@@ -5504,10 +5504,37 @@ html {
   color: rgb(238 232 248 / 0.74);
 }
 
+.account-content .field {
+  background: rgb(255 255 255 / 0.9);
+  border: 1px solid rgb(203 213 225 / 0.95);
+  color: rgb(15 23 42);
+  font-weight: 500;
+}
+
+.account-content .field:focus {
+  border-color: rgb(168 85 247);
+  box-shadow: 0 0 0 3px rgb(168 85 247 / 0.2);
+}
+
 :root[data-theme="dark"] .account-content .panel {
   border-color: rgb(94 73 118 / 0.58);
   background: linear-gradient(145deg, rgb(27 20 41 / 0.98), rgb(20 14 31 / 0.96));
   box-shadow: 0 18px 46px -30px rgb(0 0 0 / 0.92), inset 0 1px rgb(255 255 255 / 0.04);
+}
+
+:root[data-theme="dark"] .account-content .field {
+  background: rgb(14 9 24 / 0.85);
+  border: 1px solid rgb(168 85 247 / 0.35);
+  color: rgb(255 255 255);
+}
+
+:root[data-theme="dark"] .account-content .field::placeholder {
+  color: rgb(216 180 254 / 0.45);
+}
+
+:root[data-theme="dark"] .account-content .field:focus {
+  border-color: rgb(192 132 252);
+  box-shadow: 0 0 0 3px rgb(168 85 247 / 0.25);
 }
 
 :root[data-theme="dark"] .account-content .glass,

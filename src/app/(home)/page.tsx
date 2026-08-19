@@ -12,6 +12,7 @@ import { LiveWorldMap } from "@/components/shared/live-world-map";
 import { getNews } from "@/lib/data/content";
 import { getDiscordStats } from "@/lib/data/discord";
 import { getServerStatus } from "@/lib/data/status";
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { site } from "@/lib/site";
 import { withCommas } from "@/lib/utils";
 import { headers } from "next/headers";
@@ -42,10 +43,11 @@ export const metadata: Metadata = {
 };
 
 async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean; previewEmpty: boolean }) {
-  const [status, discord, publishedNews] = await Promise.all([
+  const [status, discord, publishedNews, generalSettings] = await Promise.all([
     getServerStatus(),
     getDiscordStats(),
     getNews(),
+    getSiteGeneralSettings(),
   ]);
   const news = previewEmpty ? [] : previewNews ? getPreviewNews() : publishedNews;
   const configuredMapUrl = process.env.NEXT_PUBLIC_SERVER_MAP_URL?.trim();
@@ -153,7 +155,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
             </div>
 
             <div className="order-3 animate-fade-up" style={{ animationDelay: "120ms" }}>
-              <a href={site.discord} target="_blank" rel="noreferrer" className="hero-stat hero-stat-right group mx-auto max-w-[360px] lg:ml-0 lg:mr-auto">
+              <a href={generalSettings.discord || site.discord} target="_blank" rel="noreferrer" className="hero-stat hero-stat-right group mx-auto max-w-[360px] lg:ml-0 lg:mr-auto">
                 <div className="hero-stat-icon">
                   <DiscordIcon size={18} />
                 </div>
@@ -177,7 +179,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
               <Link href="/play" className="hero-cta hero-cta-primary col-span-2 sm:col-auto">
                 <Play size={16} className="fill-current" /> Enter the world <ArrowRight size={16} />
               </Link>
-              <CopyIpButton ip={site.javaIp} label="Copy IP" className="hero-action-secondary" />
+              <CopyIpButton ip={generalSettings.javaIp || site.javaIp} label="Copy IP" className="hero-action-secondary" />
               {/*
                 aria-label because the nav and footer both link to the internal
                 /discord page under the same "Discord" name; two links reading
@@ -185,7 +187,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                 "identical-links-same-purpose" finding.
               */}
               <a
-                href={site.discord}
+                href={generalSettings.discord || site.discord}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Join the Mazora Discord server"
@@ -298,10 +300,10 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                   <span><UsersRound size={15} /> Active community</span>
                 </div>
                 <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
-                  <CopyIpButton ip={site.javaIp} label="Copy server IP" />
+                  <CopyIpButton ip={generalSettings.javaIp || site.javaIp} label="Copy server IP" />
                   <Link href="/game-modes" className="btn btn-ghost">Explore worlds</Link>
                   <a
-                    href={site.discord}
+                    href={generalSettings.discord || site.discord}
                     target="_blank"
                     rel="noreferrer"
                     aria-label="Join the Mazora Discord server"
@@ -338,7 +340,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                 </div>
                 <div className="p-5 sm:p-6">
                   <dt className="text-xs uppercase tracking-widest text-muted">Version</dt>
-                  <dd className="telemetry mt-1 text-2xl font-bold">{site.version}</dd>
+                  <dd className="telemetry mt-1 text-2xl font-bold">{generalSettings.version || site.version}</dd>
                   <dd className="mt-1 text-xs text-white/45">latest supported</dd>
                 </div>
               </dl>

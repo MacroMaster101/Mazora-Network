@@ -6,6 +6,7 @@ import type { Role } from "@/lib/types";
 import { createSession, getSession, isStaff, landingPathFor, pickDiscordIdentity, ROLES } from "@/lib/auth";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { site } from "@/lib/site";
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { getSupabaseConfig, isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -114,6 +115,11 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
 }
 
 export async function registerAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
+  const siteSettings = await getSiteGeneralSettings();
+  if (!siteSettings.registrationEnabled) {
+    return { ok: false, message: "New user registrations are currently paused by the server administration." };
+  }
+
   const parsed = registerSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
 

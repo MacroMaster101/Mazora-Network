@@ -27,8 +27,8 @@ export default async function AdminNewsPage() {
         <DashHeader title="Editorial desk" subtitle="Create, review, publish and maintain network stories." />
         <AdminPlaceholder
           icon={<FileText size={24} />}
-          title="No database connection"
-          message="News is stored in the database. Set DATABASE_URL to load and edit it."
+          title="Editorial service unavailable"
+          message="Unable to load news articles. Please verify the network connection and try again."
         />
       </>
     );
