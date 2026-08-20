@@ -1,13 +1,22 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { importDiscordAnnouncements } from "@/lib/news/discord-import";
 
-/** Constant-time compare so response timing cannot leak the secret. */
+/**
+ * Constant-time compare so response timing cannot leak the secret.
+ *
+ * Both sides are hashed to a fixed 32-byte digest first. Comparing the raw
+ * buffers required an `a.length === b.length` guard, because timingSafeEqual
+ * throws on a length mismatch — and that guard short-circuits, so a wrong-length
+ * secret returned measurably faster than a right-length one and leaked the
+ * secret's length. Digests are always the same size, so the compare is
+ * unconditional and reveals nothing about the input.
+ */
 function secretMatches(provided: string | null, expected: string): boolean {
   if (!provided) return false;
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
+  const a = createHash("sha256").update(provided, "utf8").digest();
+  const b = createHash("sha256").update(expected, "utf8").digest();
+  return timingSafeEqual(a, b);
 }
 
 export async function GET(request: Request) {
