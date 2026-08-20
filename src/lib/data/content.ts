@@ -21,6 +21,7 @@ import type {
   VoteSite,
   TopVoter,
 } from "@/lib/types";
+import { roleLabel } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -303,7 +304,7 @@ function estimateNewsReadMinutes(content: string): number {
  * snapshot re-saved. Discord-imported articles have no linked authorId and
  * keep using the stored discordAuthor snapshot, same as before.
  */
-type LiveAuthorProfile = { avatarUrl: string | null; displayName: string | null; username: string | null } | null;
+type LiveAuthorProfile = { avatarUrl: string | null; displayName: string | null; username: string | null; role?: string | null } | null;
 
 /**
  * Profiles looked up by byline name, keyed lowercase.
@@ -360,7 +361,17 @@ function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile): NewsArticle {
     author: teamByline
       ? "Mazora Team"
       : (liveAuthor?.displayName || liveAuthor?.username) ?? (row.authorName ?? row.discordAuthor ?? "Mazora Team"),
-    authorRole: teamByline ? "Official Newsroom" : (row.authorRole ?? row.discordAuthorRole ?? "News Publisher"),
+    /*
+      The role is resolved live for the same reason the name and avatar are: it
+      is a snapshot, and a promotion leaves it naming a rank the author no
+      longer holds. Twenty-nine imported articles carried "Community Member"
+      for an account that is an owner.
+    */
+    authorRole: teamByline
+      ? "Official Newsroom"
+      : (liveAuthor?.role
+          ? roleLabel(liveAuthor.role as Parameters<typeof roleLabel>[0])
+          : (row.authorRole ?? row.discordAuthorRole ?? "News Publisher")),
     authorAvatar: teamByline
       ? (row.teamAvatarUrl ?? "/images/mazora-icon.png")
       : (liveAuthor?.avatarUrl ?? row.authorAvatarUrl ?? undefined),
@@ -395,11 +406,11 @@ async function loadNews(): Promise<NewsArticle[]> {
         // moment the author changes their photo, so the current profile wins
         // whenever the article is linked to one.
         const authorIds = [...new Set(publicRows.map((row) => row.author_id).filter(Boolean))];
-        const profileById = new Map<string, { avatar_url: string | null; display_name: string | null; username: string | null }>();
+        const profileById = new Map<string, { avatar_url: string | null; display_name: string | null; username: string | null; role: string | null }>();
         if (authorIds.length) {
           const { data: profiles } = await admin
             .from("profiles")
-            .select("user_id, avatar_url, display_name, username")
+            .select("user_id, avatar_url, display_name, username, role")
             .in("user_id", authorIds);
           for (const p of profiles ?? []) profileById.set(String(p.user_id), p);
         }
@@ -423,7 +434,7 @@ async function loadNews(): Promise<NewsArticle[]> {
           const liveById = row.author_id ? profileById.get(String(row.author_id)) : undefined;
           const liveByName = byName.get(String(row.author_name ?? "").trim().toLowerCase());
           const liveProfile = liveById ?? (liveByName
-            ? { avatar_url: liveByName.avatarUrl, display_name: liveByName.displayName, username: liveByName.username }
+            ? { avatar_url: liveByName.avatarUrl, display_name: liveByName.displayName, username: liveByName.username, role: liveByName.role }
             : undefined);
           const content = String(row.body ?? row.content ?? "").replace(/\r\n?/g, "\n");
           return {
@@ -442,7 +453,9 @@ async function loadNews(): Promise<NewsArticle[]> {
               : String((liveProfile?.display_name || liveProfile?.username) ?? row.author_name ?? row.discord_author ?? "Mazora Team"),
             authorRole: teamByline
               ? "Official Newsroom"
-              : String(row.author_role ?? row.discord_author_role ?? "News Publisher"),
+              : (liveProfile?.role
+                  ? roleLabel(liveProfile.role as Parameters<typeof roleLabel>[0])
+                  : String(row.author_role ?? row.discord_author_role ?? "News Publisher")),
             authorAvatar: teamByline
               ? (row.team_avatar_url ?? "/images/mazora-icon.png")
               : (liveProfile?.avatar_url ?? row.author_avatar_url ?? undefined),
@@ -468,6 +481,7 @@ async function loadNews(): Promise<NewsArticle[]> {
         liveAvatarUrl: schema.profiles.avatarUrl,
         liveDisplayName: schema.profiles.displayName,
         liveUsername: schema.profiles.username,
+        liveRole: schema.profiles.role,
       })
       .from(schema.newsArticles)
       .leftJoin(schema.profiles, eq(schema.newsArticles.authorId, schema.profiles.userId))
@@ -487,6 +501,7 @@ async function loadNews(): Promise<NewsArticle[]> {
         avatarUrl: row.liveAvatarUrl ?? fallback?.avatarUrl ?? null,
         displayName: row.liveDisplayName ?? fallback?.displayName ?? null,
         username: row.liveUsername ?? fallback?.username ?? null,
+        role: row.liveRole ?? fallback?.role ?? null,
       });
     });
   } catch {
@@ -505,6 +520,7 @@ async function loadArticle(slug: string): Promise<NewsArticle | null> {
         liveAvatarUrl: schema.profiles.avatarUrl,
         liveDisplayName: schema.profiles.displayName,
         liveUsername: schema.profiles.username,
+        liveRole: schema.profiles.role,
       })
       .from(schema.newsArticles)
       .leftJoin(schema.profiles, eq(schema.newsArticles.authorId, schema.profiles.userId))
@@ -525,6 +541,7 @@ async function loadArticle(slug: string): Promise<NewsArticle | null> {
       avatarUrl: row.liveAvatarUrl ?? fallback?.avatarUrl ?? null,
       displayName: row.liveDisplayName ?? fallback?.displayName ?? null,
       username: row.liveUsername ?? fallback?.username ?? null,
+      role: row.liveRole ?? fallback?.role ?? null,
     });
   } catch (error) {
     console.error("Failed to load article:", error);
@@ -550,6 +567,7 @@ async function loadRelatedArticles(slug: string, category: string): Promise<News
         liveAvatarUrl: schema.profiles.avatarUrl,
         liveDisplayName: schema.profiles.displayName,
         liveUsername: schema.profiles.username,
+        liveRole: schema.profiles.role,
       })
       .from(schema.newsArticles)
       .leftJoin(schema.profiles, eq(schema.newsArticles.authorId, schema.profiles.userId))
@@ -572,6 +590,7 @@ async function loadRelatedArticles(slug: string, category: string): Promise<News
         avatarUrl: row.liveAvatarUrl ?? fallback?.avatarUrl ?? null,
         displayName: row.liveDisplayName ?? fallback?.displayName ?? null,
         username: row.liveUsername ?? fallback?.username ?? null,
+        role: row.liveRole ?? fallback?.role ?? null,
       });
     });
   } catch (error) {
