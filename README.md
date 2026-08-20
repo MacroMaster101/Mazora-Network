@@ -18,7 +18,7 @@
 
 ## ⛏️ About the project
 
-Mazora Network is a production-ready Minecraft community website built with the Next.js App Router. It combines a cinematic Minecraft presentation with practical community features: server connection details, live Minecraft and Discord counts, news, events, forums, player profiles, game modes, support forms, a full storefront, member dashboards, and a role-based staff administration panel.
+Mazora Network is a production-oriented Minecraft community website built with the Next.js App Router. It combines a cinematic Minecraft presentation with practical community features: server connection details, live Minecraft and Discord counts, news, events, player profiles, game modes, support forms, a full storefront, member account tools, and a role-based staff administration panel. Forums and several statistics-oriented dashboard views remain launch-gated until their live data sources are ready.
 
 The site reads its content from PostgreSQL through Drizzle ORM. Without `DATABASE_URL`,
 repositories return nothing and each page shows an explicit empty state rather than
@@ -37,7 +37,7 @@ backed by real data today.
 - Minecraft skin avatars throughout the UI — header, dashboard sidebar, profile editor, player cards, and admin user directory
 - Discord-based store ordering with ticket lifecycle, purchase announcements, and transcript archival
 - Role-based admin control room with live telemetry, user management, permissions editor, player management, and content tools
-- Member dashboard with profile editing, avatar upload, connected accounts (Discord), ticket system, and notification preferences
+- Member dashboard with profile editing, avatar upload, connected accounts (Discord), purchase history, and notification preferences; support tickets use the public Support flow
 - Keyboard focus states, semantic landmarks, skip navigation, accessible labels, and reduced-motion support
 
 ## 🧱 Technology
@@ -143,7 +143,7 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Legacy auth | Legacy browser-safe anonymous key; used only when no publishable key is set. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Admin features | Server-only Supabase service key used for user, invitation, staff, and avatar administration. Never expose it publicly. |
 | `AUTH_DEMO_MODE` | Local only | Set to `true` only for local UI previews without Supabase. Never enable in production. |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | No | Optional shared rate-limit store (Upstash Redis REST). When set, auth/support/store throttles enforce one global window across all serverless instances; unset, an in-memory per-instance window is used. Vercel's `KV_REST_API_URL`/`KV_REST_API_TOKEN` aliases also work. |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | No | Optional shared rate-limit store (Upstash Redis REST). When set, auth/support/store throttles enforce one global window across all serverless instances; unset, an in-memory per-instance window is used. |
 
 The live integrations fail safely:
 
@@ -168,8 +168,11 @@ admin route (`creatorCode`, `creator_codes`, `/admin/store/creator-codes`) keep 
 original name — renaming the columns would mean a migration against live order
 history for no visible gain.
 
-Content creators can be issued a personal code that gives their viewers a
-percentage off a hand-picked set of products — for example 15% off selected keys.
+Codes are split into two admin-managed types. **Creator codes** attribute orders
+to an approved partner and may store their Discord username and social links.
+**Event codes** cover launches, seasonal events, giveaways, and community
+campaigns without creator contact or social fields. Both use the same audited
+checkout path and discount a hand-picked set of products.
 
 - Buyers apply the code on the cart's **Review** step; the deduction is then shown
   in the order summary on the **Request** step and on the order itself.
@@ -181,8 +184,8 @@ percentage off a hand-picked set of products — for example 15% off selected ke
   the Discord ticket, the buyer's DM, the purchase announcement, the closed-ticket
   archive, the buyer's purchase history, and the admin order list.
 
-Staff manage codes at `/admin/store/creator-codes` (administrator and above), from
-the **Discount codes** card on the Store admin dashboard. Each code shows how many
+Staff choose a code type at `/admin/store/creator-codes` (administrator and above),
+then manage creators under `/creators` or promotions under `/events`. Each code shows how many
 orders it drove, how much revenue it brought in, and how much discount it gave —
 confirmed orders counted separately from ones merely placed. Deleting a code never
 alters past orders.
@@ -285,11 +288,11 @@ To set up a database:
 supabase db push
 ```
 
-> The `db:push` script was removed. `drizzle-kit push` diffs the database against
-> `src/lib/db/schema.ts`, and that schema does not declare the foreign keys,
-> CHECK constraints or indexes that migration 023 installed — so running it
-> against a populated database proposes **dropping** them. Migrations are the
-> only supported path.
+> The `db:push` script was removed. The Drizzle schema now mirrors the
+> application-owned tables, columns, checks, foreign keys, and indexes, but SQL
+> migrations remain the only supported deployment path because RLS policies,
+> triggers, functions, storage policies, and `auth.users` relationships also
+> live in migration SQL.
 
 ```bash
 npm run db:seed:store && npm run db:seed:rules
@@ -403,11 +406,9 @@ is easy to do by accident and hard to notice.
 - **Large decorative art referenced from CSS must be pre-sized.** A CSS
   `background-image` bypasses `next/image` entirely: no resizing, no format
   conversion, no lazy loading. Ship it already compressed at the size it renders.
-- **Remote images go through `next/image` only via `isOptimisableImage`.** Some
-  URLs in this app are snapshots of whatever a profile pointed at when a record
-  was written, so the host set is open-ended and an unconfigured host passed to
-  `<Image>` is a runtime error. Check the host, fall back to `<img>`, and keep
-  `src/lib/image-hosts.ts` in step with `images.remotePatterns`.
+- **Remote images must match `images.remotePatterns` before using `next/image`.**
+  Open-ended profile or imported URLs should use a safely validated source and
+  an unoptimized image fallback rather than being passed to the optimizer.
 
 ## 🧹 Repository hygiene
 
@@ -424,7 +425,6 @@ is easy to do by accident and hard to notice.
 - Set `NEXT_PUBLIC_SITE_URL` to the deployed HTTPS origin.
 - Configure a production Postgres database before enabling persistent forms or account data.
 - Configure Supabase Auth, provider credentials, and the production callback allow list before launch.
-- Replace placeholder social destinations in `src/lib/site.ts` with official Mazora accounts.
 - Store all server-only secrets in the deployment platform, never in public environment variables or source control.
 - Set the Discord order variables in the deployment platform, not just locally — order tickets need `DISCORD_GUILD_ID`, `DISCORD_STORE_TICKETS_CATEGORY_ID` and `DISCORD_STORE_STAFF_ROLE_ID` present in the deployed environment. Discord delivers button clicks to the deployed Interactions Endpoint URL, so a locally-configured bot has no effect in production.
 - No card payments are taken. The storefront places manual order requests that staff confirm and fulfil through Discord tickets; there is no payment processor integration.

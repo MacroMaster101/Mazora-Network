@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { STORE_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getAdminGameModes, getAdminProducts } from "@/lib/data/content";
 import { getStoreCategoryConfigs } from "@/lib/data/store-categories";
 import { DashHeader } from "@/components/dashboard/dash-ui";
@@ -11,7 +12,7 @@ import "@/styles/admin-store.css";
 export const metadata: Metadata = { title: "Store catalog · Admin" };
 
 export default async function AdminStoreCatalogPage() {
-  await requireRole("administrator", "/admin/store/catalog");
+  await requireModuleAccess(STORE_PERMISSION_KEY, "/admin/store/catalog");
   const [products, modes] = await Promise.all([getAdminProducts(), getAdminGameModes()]);
   const categoryConfigs = await getStoreCategoryConfigs(modes);
 

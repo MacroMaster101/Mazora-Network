@@ -1,7 +1,9 @@
 import Image from "next/image";
 import {
   ArrowDown,
+  ArrowUpRight,
   Check,
+  Clock3,
   Gift,
   Sparkles,
   Trophy,
@@ -117,54 +119,77 @@ export default async function VotePage() {
         </div>
       </section>
 
-      <section id="vote-sites" className="vote-redesign-sites-section shell">
-        <Reveal>
-          <div className="vote-section-head">
-            <p className="eyebrow">Partner links</p>
-            <h2>Choose a voting site</h2>
-            <p className="text-muted">Click any link below, submit your in-game username, and rewards will be delivered automatically.</p>
-          </div>
+      <div className="vote-realm-world vote-realm-world-minimal">
+        <div className="vote-realm-atmosphere" aria-hidden="true" />
 
-          <div className="vote-sites-grid mt-8">
-            {sites.map((s, idx) => (
-              <div key={s.id || idx} className="panel p-6 flex flex-col justify-between gap-4">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-display text-lg font-bold">{s.name}</h3>
-                    <span className="chip text-xs">Every {s.cooldownHours}h</span>
+        <section className="shell vote-realm-content vote-hub-content">
+          <Reveal className="vote-hub-heading">
+            <p className="eyebrow"><Sparkles size={13} /> Mazora vote center</p>
+            <h2>Choose a site. Help Mazora grow.</h2>
+            <p>Use your Minecraft username on any available partner. Each completed vote supports the network and can unlock your configured in-game reward.</p>
+          </Reveal>
+
+          <div className="vote-hub-side-layout">
+            <section id="top-voters" className="vote-realm-leaderboard vote-hub-leaderboard" aria-label="Top voters">
+              <Reveal className="vote-realm-leaderboard-card vote-hub-leaderboard-card">
+                <div className="vote-realm-leader-head">
+                  <div className="vote-realm-leader-title">
+                    <span><Trophy size={20} /></span>
+                    <div>
+                      <p className="eyebrow">Community leaderboard</p>
+                      <h2>Top supporters</h2>
+                      <p>Find a player or sort the board by the voting period that matters to you.</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted mt-2">{s.reward || "Claim in-game keys & voting coins."}</p>
+                  <div className="vote-realm-ranked">
+                    <strong className="telemetry">{voters.length}</strong>
+                    <span>{voters.length === 1 ? "voter ranked" : "voters ranked"}</span>
+                  </div>
                 </div>
-                <a
-                  href={generalSettings.votingEnabled ? s.url : undefined}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`btn w-full justify-center ${
-                    generalSettings.votingEnabled
-                      ? "btn-primary"
-                      : "btn-ghost opacity-60 cursor-not-allowed pointer-events-none"
-                  }`}
-                >
-                  {generalSettings.votingEnabled ? "Vote on this site" : "Voting Paused"}
-                </a>
-              </div>
-            ))}
-          </div>
-        </Reveal>
-      </section>
+                <div className="vote-ref-table vote-realm-table"><TopVotersTable entries={voters} /></div>
+              </Reveal>
+            </section>
 
-      <section id="top-voters" className="section shell">
-        <Reveal>
-          <div className="vote-section-head">
-            <p className="eyebrow">Monthly Leaderboard</p>
-            <h2>Top Community Voters</h2>
-            <p className="text-muted">Top voters each month earn extra cosmetic rewards and bonus keys.</p>
+            <aside className="vote-hub-sidebar" aria-label="Voting actions">
+              <section id="vote-sites" aria-label="Vote sites">
+                <Reveal className="vote-hub-sites">
+                  <div className="vote-hub-sites-head">
+                    <div><p className="eyebrow">Available now</p><h2>Vote sites</h2></div>
+                    <span><i aria-hidden="true" /> {sites.length} live</span>
+                  </div>
+                  <div className="vote-hub-site-list">
+                    {sites.map((voteSite, index) => (
+                      <a
+                        key={voteSite.id || `${voteSite.url}-${index}`}
+                        href={generalSettings.votingEnabled ? voteSite.url : undefined}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-disabled={!generalSettings.votingEnabled}
+                        className={`vote-hub-site-link group${generalSettings.votingEnabled ? "" : " is-disabled"}`}
+                      >
+                        <span className="vote-hub-site-number">{String(index + 1).padStart(2, "0")}</span>
+                        <span><strong>{voteSite.name}</strong><small>{voteSite.reward || "Open partner and enter your username"}</small></span>
+                        <span className="vote-hub-site-action">Vote <ArrowUpRight size={15} /></span>
+                      </a>
+                    ))}
+                  </div>
+                  <div className="vote-hub-cooldown"><Clock3 size={14} /><span>Each partner controls its own voting cooldown.</span></div>
+                </Reveal>
+              </section>
+
+              <Reveal className="vote-hub-guide">
+                <div className="vote-hub-guide-head"><p className="eyebrow">Quick guide</p><h2>Three steps. Done.</h2></div>
+                <div className="vote-hub-guide-list">
+                  <div><span>01</span><i><Vote size={17} /></i><div><strong>Open a partner</strong><small>Choose any available site from the list.</small></div></div>
+                  <div><span>02</span><i><Check size={17} /></i><div><strong>Confirm your username</strong><small>Enter the Minecraft name you use on Mazora.</small></div></div>
+                  <div><span>03</span><i><Gift size={17} /></i><div><strong>Return to the server</strong><small>Collect your configured reward in game.</small></div></div>
+                </div>
+                <div className="vote-hub-reward-note"><Gift size={18} /><div><strong>Rewards stay flexible</strong><span>Vote rewards can change as Mazora’s seasons and events evolve.</span></div></div>
+              </Reveal>
+            </aside>
           </div>
-          <div className="mt-8">
-            <TopVotersTable entries={voters} />
-          </div>
-        </Reveal>
-      </section>
+        </section>
+      </div>
     </>
   );
 }

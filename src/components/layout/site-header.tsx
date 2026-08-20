@@ -1,5 +1,5 @@
 import { getSession, getSessionUserId, isStaff } from "@/lib/auth";
-import { canManageGallery, canManageNews } from "@/lib/auth/permissions";
+import { getAdminNavAccess } from "@/lib/auth/permissions";
 import { visibleAdminNav } from "@/lib/admin-nav";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { Logo } from "./logo";
@@ -21,10 +21,7 @@ export async function SiteHeader({ world = false, stable = false }: { world?: bo
   // menu instead of a site menu plus a scrolling strip of admin links.
   const adminNav =
     session && isStaff(session.role)
-      ? visibleAdminNav(session.role, {
-          canManageNews: await canManageNews(session, userId),
-          canManageGallery: await canManageGallery(session, userId),
-        }).map((group) => ({
+      ? visibleAdminNav(session.role, await getAdminNavAccess(session, userId)).map((group) => ({
           heading: group.heading,
           items: group.items.map((item) => ({ label: item.label, href: item.href, exact: item.exact ?? false })),
         }))

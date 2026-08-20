@@ -178,11 +178,13 @@ function isExpired(code: CreatorCode): boolean {
 }
 
 export function CreatorCodesManager({
+  codeType,
   codes,
   products,
   modes,
   stats,
 }: {
+  codeType: "creator" | "event";
   codes: CreatorCode[];
   products: Product[];
   modes: GameMode[];
@@ -194,6 +196,9 @@ export function CreatorCodesManager({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const { toast } = useToast();
+  const isCreator = codeType === "creator";
+  const subjectLabel = isCreator ? "creator" : "event";
+  const subjectTitle = isCreator ? "Creator" : "Event / campaign";
 
   useEffect(() => {
     if (saveState.ok && saveState.message) {
@@ -243,6 +248,7 @@ export function CreatorCodesManager({
     const data = new FormData();
     if (draft.id) data.append("id", draft.id);
     data.append("code", effectiveCode(draft));
+    data.append("codeType", codeType);
     data.append("creatorName", draft.creatorName);
     data.append("discordUsername", draft.discordUsername);
     data.append("percentOff", draft.percentOff);
@@ -271,6 +277,7 @@ export function CreatorCodesManager({
     const data = new FormData();
     data.append("id", code.id);
     data.append("code", code.code);
+    data.append("codeType", code.codeType);
     data.append("creatorName", code.creatorName);
     data.append("discordUsername", code.discordUsername ?? "");
     data.append("percentOff", String(code.percentOff));
@@ -313,7 +320,7 @@ export function CreatorCodesManager({
         <span>
           <span className="telemetry block font-bold text-accent-bright">{code.code}</span>
           <span className="block text-xs text-muted">{code.creatorName}</span>
-          {code.socials.length > 0 && (
+          {code.codeType === "creator" && code.socials.length > 0 && (
             <span className="creator-code-social-links" aria-label={`${code.creatorName} social links`}>
               {code.socials.map((social) => (
                 <a
@@ -445,18 +452,23 @@ export function CreatorCodesManager({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="creator-code-page-intro text-sm">
-          A code takes a percentage off only the products picked for it. Deleting a code keeps past orders intact.
+          {isCreator
+            ? "Creator codes attribute orders to a partner and discount only the products selected for that code."
+            : "Event codes run staff-managed promotions for launches, seasonal events, giveaways, and community campaigns."}{" "}
+          Deleting a code keeps past orders intact.
         </p>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => setDraft({ ...emptyDraft })}>
-          <Plus size={15} aria-hidden="true" /> New code
+          <Plus size={15} aria-hidden="true" /> New {subjectLabel} code
         </button>
       </div>
 
       {codes.length === 0 ? (
         <div className="creator-code-empty panel p-8 text-center">
-          <p className="font-display text-base font-bold">No discount codes yet</p>
+          <p className="font-display text-base font-bold">No {subjectLabel} codes yet</p>
           <p className="mt-1 text-sm text-muted">
-            Create one for an approved creator, then pick the products it discounts.
+            {isCreator
+              ? "Create one for an approved creator, attach their channels, then choose eligible products."
+              : "Create a promotion, set its end date, then choose exactly which products it discounts."}
           </p>
         </div>
       ) : (
@@ -468,11 +480,11 @@ export function CreatorCodesManager({
           <div className="creator-code-editor store-admin-modal panel overflow-hidden">
             <header className="creator-code-editor-head">
               <h2 className="font-display text-lg font-bold">
-                {draft.id ? "Edit discount code" : "New discount code"}
+                {draft.id ? `Edit ${subjectLabel} code` : `New ${subjectLabel} code`}
               </h2>
               <p className="mt-0.5 text-xs text-muted">
-                The code is the creator&apos;s name plus a number. It stays the same if you change the
-                discount later, so links they have already shared keep working.
+                The code starts from the {subjectLabel} name plus a number. It stays unchanged when
+                the discount is edited, so previously shared promotions keep working.
               </p>
             </header>
 
@@ -519,32 +531,34 @@ export function CreatorCodesManager({
               <p className="text-xs font-semibold text-danger">{saveState.errors.code}</p>
             )}
 
-            {/* --- Creator --------------------------------------------------- */}
+            {/* --- Code owner / campaign ------------------------------------- */}
             <section className="creator-code-section">
-              <h3 className="creator-code-section-title">Creator</h3>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormRow label="Creator name" htmlFor="cc-name" error={saveState.errors?.creatorName}>
+              <h3 className="creator-code-section-title">{subjectTitle}</h3>
+              <div className={isCreator ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"}>
+                <FormRow label={isCreator ? "Creator name" : "Event or campaign name"} htmlFor="cc-name" error={saveState.errors?.creatorName}>
                   <Input
                     id="cc-name"
                     value={draft.creatorName}
                     maxLength={80}
-                    placeholder={exampleCreator.name}
+                    placeholder={isCreator ? exampleCreator.name : "Summer launch event"}
                     onChange={(event) => setDraft({ ...draft, creatorName: event.target.value })}
                   />
                 </FormRow>
-                <FormRow
-                  label="Discord username"
-                  htmlFor="cc-discord"
-                  error={saveState.errors?.discordUsername}
-                >
-                  <Input
-                    id="cc-discord"
-                    value={draft.discordUsername}
-                    maxLength={37}
-                    placeholder={exampleCreator.handle}
-                    onChange={(event) => setDraft({ ...draft, discordUsername: event.target.value })}
-                  />
-                </FormRow>
+                {isCreator && (
+                  <FormRow
+                    label="Discord username"
+                    htmlFor="cc-discord"
+                    error={saveState.errors?.discordUsername}
+                  >
+                    <Input
+                      id="cc-discord"
+                      value={draft.discordUsername}
+                      maxLength={37}
+                      placeholder={exampleCreator.handle}
+                      onChange={(event) => setDraft({ ...draft, discordUsername: event.target.value })}
+                    />
+                  </FormRow>
+                )}
               </div>
             </section>
 
@@ -573,8 +587,8 @@ export function CreatorCodesManager({
               </div>
             </section>
 
-            {/* --- Socials --------------------------------------------------- */}
-            <section className="creator-code-section">
+            {/* --- Creator socials ------------------------------------------- */}
+            {isCreator && <section className="creator-code-section">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="creator-code-section-title">Social links</h3>
                 <button
@@ -634,7 +648,7 @@ export function CreatorCodesManager({
               {saveState.errors?.socials && (
                 <p className="text-xs font-semibold text-danger">{saveState.errors.socials}</p>
               )}
-            </section>
+            </section>}
 
             {/* --- Eligible products ----------------------------------------- */}
             <section className="creator-code-section">
@@ -704,6 +718,7 @@ export function CreatorCodesManager({
                 rows={2}
                 maxLength={500}
                 value={draft.internalNote}
+                placeholder={isCreator ? "Partnership terms, contact notes, or approval context…" : "Campaign purpose, launch details, or staff instructions…"}
                 onChange={(event) => setDraft({ ...draft, internalNote: event.target.value })}
               />
             </FormRow>
@@ -711,8 +726,8 @@ export function CreatorCodesManager({
 
             <footer className="creator-code-editor-foot">
               <span className="text-xs text-muted">
-                <Link2 size={12} className="inline" aria-hidden="true" /> {draft.socials.length} link
-                {draft.socials.length === 1 ? "" : "s"} · {draft.productIds.length} product
+                {isCreator && <><Link2 size={12} className="inline" aria-hidden="true" /> {draft.socials.length} link
+                {draft.socials.length === 1 ? "" : "s"} · </>}{draft.productIds.length} product
                 {draft.productIds.length === 1 ? "" : "s"}
               </span>
               <span className="flex gap-2">

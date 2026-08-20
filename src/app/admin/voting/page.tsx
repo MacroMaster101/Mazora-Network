@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { VOTING_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getAdminVoteSites } from "@/lib/data/voting";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { Metric } from "@/components/admin/control-room";
@@ -8,7 +9,7 @@ import { VotingSitesEditor } from "@/components/admin/voting-sites-editor";
 export const metadata: Metadata = { title: "Voting · Admin" };
 
 export default async function AdminVotingPage() {
-  await requireRole("administrator", "/admin/voting");
+  await requireModuleAccess(VOTING_PERMISSION_KEY, "/admin/voting");
   const sites = await getAdminVoteSites();
 
   const activeCount = sites.filter((s) => s.enabled).length;

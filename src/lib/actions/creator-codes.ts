@@ -7,17 +7,25 @@ import { getProducts } from "@/lib/data/content";
 import { normaliseCode } from "@/lib/data/creator-codes";
 import { MAX_PERCENT_OFF } from "@/lib/store-discount";
 import { throttleAuthAction } from "@/lib/rate-limit";
-import { requireRole } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManageStore } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
 import { SOCIAL_PLATFORM_KEYS, isValidSocialUrl, type SocialPlatform } from "@/lib/creator-socials";
 // Not exported from this module on purpose: every export of a "use server"
 // file becomes a browser-callable endpoint. See creator-code-resolve.ts.
 import { resolveCreatorCode } from "@/lib/creator-code-resolve";
 
+async function requireStoreEditor() {
+  const session = await getSession();
+  const userId = session ? await getSessionUserId() : null;
+  return session && (await canManageStore(session, userId)) ? session : null;
+}
+
 export interface CreatorCodePreviewResult {
   ok: boolean;
   /** Normalised code, echoed back so the form can store what was accepted. */
   code?: string;
+  codeType?: "creator" | "event";
   creatorName?: string;
   percentOff?: number;
   subtotal?: number;
@@ -117,6 +125,7 @@ export async function previewCreatorCode(
   return {
     ok: true,
     code: code.code,
+    codeType: code.codeType,
     creatorName: code.creatorName,
     percentOff: code.percentOff,
     subtotal: result.subtotal,
@@ -140,7 +149,8 @@ const codeSchema = z.object({
     .min(3, "Codes are at least 3 characters.")
     .max(40, "Codes are at most 40 characters.")
     .regex(/^[A-Za-z0-9_-]+$/, "Use only letters, numbers, hyphens and underscores."),
-  creatorName: z.string().trim().min(1, "Enter the creator's name.").max(80),
+  codeType: z.enum(["creator", "event"]),
+  creatorName: z.string().trim().min(1, "Enter a creator or event name.").max(80),
   discordUsername: z
     .string()
     .trim()
@@ -173,7 +183,8 @@ export async function saveCreatorCode(
   _previous: CreatorCodeActionResult,
   formData: FormData,
 ): Promise<CreatorCodeActionResult> {
-  const session = await requireRole("administrator", "/admin/store/creator-codes");
+  const session = await requireStoreEditor();
+  if (!session) return { ok: false, message: "You do not have permission to manage Store codes." };
 
   let productIds: unknown = [];
   let socials: unknown = [];
@@ -187,6 +198,7 @@ export async function saveCreatorCode(
   const parsed = codeSchema.safeParse({
     id: formData.get("id") || undefined,
     code: formData.get("code"),
+    codeType: formData.get("codeType") || "creator",
     creatorName: formData.get("creatorName"),
     discordUsername: formData.get("discordUsername") || "",
     socials,
@@ -233,9 +245,10 @@ export async function saveCreatorCode(
     await db.transaction(async (tx) => {
       const values = {
         code,
+        codeType: parsed.data.codeType,
         creatorName: parsed.data.creatorName,
-        discordUsername: parsed.data.discordUsername || null,
-        socials: parsed.data.socials,
+        discordUsername: parsed.data.codeType === "creator" ? parsed.data.discordUsername || null : null,
+        socials: parsed.data.codeType === "creator" ? parsed.data.socials : [],
         percentOff: parsed.data.percentOff,
         enabled: parsed.data.enabled,
         expiresAt,
@@ -278,6 +291,7 @@ export async function saveCreatorCode(
     targetId: codeId ?? null,
     metadata: {
       code,
+      codeType: parsed.data.codeType,
       creatorName: parsed.data.creatorName,
       percentOff: parsed.data.percentOff,
       enabled: parsed.data.enabled,
@@ -287,6 +301,8 @@ export async function saveCreatorCode(
   });
 
   revalidatePath("/admin/store/creator-codes");
+  revalidatePath("/admin/store/creator-codes/creators");
+  revalidatePath("/admin/store/creator-codes/events");
   revalidatePath("/admin/store");
   return { ok: true, message: `Saved ${code}.` };
 }
@@ -295,7 +311,8 @@ export async function deleteCreatorCode(
   _previous: CreatorCodeActionResult,
   formData: FormData,
 ): Promise<CreatorCodeActionResult> {
-  const session = await requireRole("administrator", "/admin/store/creator-codes");
+  const session = await requireStoreEditor();
+  if (!session) return { ok: false, message: "You do not have permission to manage Store codes." };
 
   const id = String(formData.get("id") ?? "");
   if (!z.string().uuid().safeParse(id).success) {
@@ -311,6 +328,7 @@ export async function deleteCreatorCode(
     .select({
       code: schema.creatorCodes.code,
       creatorName: schema.creatorCodes.creatorName,
+      codeType: schema.creatorCodes.codeType,
       percentOff: schema.creatorCodes.percentOff,
       enabled: schema.creatorCodes.enabled,
     })
@@ -343,6 +361,7 @@ export async function deleteCreatorCode(
     targetId: id,
     metadata: {
       code: existing.code,
+      codeType: existing.codeType,
       creatorName: existing.creatorName,
       percentOff: existing.percentOff,
       enabled: existing.enabled,
@@ -352,6 +371,8 @@ export async function deleteCreatorCode(
   });
 
   revalidatePath("/admin/store/creator-codes");
+  revalidatePath("/admin/store/creator-codes/creators");
+  revalidatePath("/admin/store/creator-codes/events");
   revalidatePath("/admin/store");
   return { ok: true, message: "Code deleted." };
 }

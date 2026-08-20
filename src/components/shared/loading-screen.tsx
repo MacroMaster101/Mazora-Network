@@ -1,5 +1,3 @@
-import Image from "next/image";
-
 export function LoadingScreen() {
   return (
     <section className="initial-loader" role="status" aria-live="polite" aria-label="Preparing Mazora Network">
@@ -30,13 +28,14 @@ export function LoadingScreen() {
           <i className="initial-loader-orbit initial-loader-orbit-outer" />
           <i className="initial-loader-orbit initial-loader-orbit-inner" />
           <div className="initial-loader-logo-wrap">
-            <Image
+            {/* Keep this temporary splash asset low priority so it cannot
+                compete with the page hero for LCP bandwidth. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src="/images/mazora-logo.webp"
               alt="Mazora Network"
               width={270}
               height={180}
-              sizes="(max-width: 639px) 152px, 207px"
-              quality={60}
               loading="eager"
               fetchPriority="low"
               className="initial-loader-logo"

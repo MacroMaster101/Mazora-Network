@@ -3,9 +3,11 @@
 import { and, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getSession, getSessionUserId, hasAtLeast } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManageStore } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
 import { rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
+import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 
 export interface StoreAdminActionResult {
   ok: boolean;
@@ -60,7 +62,8 @@ const modeSchema = z.object({
 
 async function admin() {
   const session = await getSession();
-  return session && hasAtLeast(session.role, "administrator") ? session : null;
+  const userId = session ? await getSessionUserId() : null;
+  return session && (await canManageStore(session, userId)) ? session : null;
 }
 
 function text(formData: FormData, key: string): string {
@@ -117,13 +120,7 @@ function refreshStore(slug?: string) {
 }
 
 function isOwnStorageUrl(url: string): boolean {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  if (!base) return false;
-  try {
-    return url.startsWith(new URL(base).origin);
-  } catch {
-    return false;
-  }
+  return isSupabaseStorageObjectUrl(url, process.env.NEXT_PUBLIC_SUPABASE_URL);
 }
 
 async function resolveStoreArtwork(

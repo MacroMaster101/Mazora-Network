@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import type { Role } from "@/lib/types";
 import { createSession, getSession, isStaff, landingPathFor, pickDiscordIdentity, ROLES } from "@/lib/auth";
 import { ensureUserProfile } from "@/lib/auth/profile";
@@ -62,7 +62,7 @@ const usernameFromIdentifier = (identifier: string) =>
  * isolated, non-persisting client so the probe sign-in never touches the
  * real session cookies that `supabase` (cookie-bound) writes to.
  */
-async function passwordMatchesCurrent(supabase: SupabaseClient, email: string, password: string): Promise<boolean> {
+async function passwordMatchesCurrent(email: string, password: string): Promise<boolean> {
   const config = getSupabaseConfig();
   if (!config) return false;
   const probe = createClient(config.url, config.key, { auth: { autoRefreshToken: false, persistSession: false } });
@@ -365,7 +365,7 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
     const email = userData?.user?.email;
     if (!email) return { ok: false, message: "Your reset session expired. Request a new code and try again." };
 
-    if (await passwordMatchesCurrent(supabase, email, parsed.data.password)) {
+    if (await passwordMatchesCurrent(email, parsed.data.password)) {
       return { ok: false, errors: { password: "New password must be different from your current password." } };
     }
 
@@ -415,12 +415,12 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       if (!currentPassword) {
         return { ok: false, errors: { currentPassword: "Enter your current password." } };
       }
-      if (!(await passwordMatchesCurrent(supabase, email, currentPassword))) {
+      if (!(await passwordMatchesCurrent(email, currentPassword))) {
         return { ok: false, errors: { currentPassword: "That is not your current password." } };
       }
     }
 
-    if (await passwordMatchesCurrent(supabase, email, parsed.data.password)) {
+    if (await passwordMatchesCurrent(email, parsed.data.password)) {
       return { ok: false, errors: { password: "New password must be different from your current password." } };
     }
 

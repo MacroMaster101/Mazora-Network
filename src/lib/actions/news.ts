@@ -21,22 +21,11 @@ import {
   storeImageBytes,
 } from "@/lib/news/image-store";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
-
-/** Our own Supabase storage origin, or null when Supabase is not configured. */
-function ownStorageOrigin(): string | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  if (!url) return null;
-  try {
-    return new URL(url).origin;
-  } catch {
-    return null;
-  }
-}
+import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 
 /** True when a link already points at our own storage, so no copy is needed. */
 function isOwnStorageUrl(url: string): boolean {
-  const origin = ownStorageOrigin();
-  return Boolean(origin) && url.startsWith(origin!);
+  return isSupabaseStorageObjectUrl(url, process.env.NEXT_PUBLIC_SUPABASE_URL);
 }
 
 export interface NewsActionResult {

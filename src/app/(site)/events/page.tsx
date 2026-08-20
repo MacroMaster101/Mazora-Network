@@ -10,6 +10,10 @@ export const metadata = publicPageMetadata({
   path: "/events",
 });
 
+// Event availability is live database state; do not block production builds
+// while waiting for an external database during static generation.
+export const dynamic = "force-dynamic";
+
 export default async function EventsPage() {
   const events = await getEvents();
   return (

@@ -51,15 +51,15 @@ export function HeaderActions({ session }: { session: Session | null }) {
   }, []);
 
   if (!session) {
-    // The account dock that wraps this becomes visible at min-[1200px] (see
+    // The account dock that wraps this becomes visible at min-[1100px] (see
     // site-header.tsx), and the mobile drawer (which also carries Log in /
     // Join) hides at that same width — so this must be visible starting at
-    // 1200px too, not later, or there is a width range with no way to sign in
+    // 1100px too, not later, or there is a width range with no way to sign in
     // from the header at all. Labels follow the same icon-then-text pattern
-    // NavLinks uses: icon only from 1200px, full text from 1280px, so the
-    // compact 1200-1279px range doesn't force wrapping.
+    // NavLinks uses: icon only on compact desktops, full text from 1280px, so
+    // the 1100-1279px range doesn't force wrapping.
     return (
-      <div className="hidden items-center gap-1.5 min-[1200px]:flex">
+      <div className="hidden items-center gap-1.5 min-[1100px]:flex">
         <AuthDialogTrigger view="login" className="desktop-login-link" title="Log in">
           <LogIn size={17} />
           <span className="hidden min-[1280px]:inline">Log in</span>
@@ -226,8 +226,9 @@ export function HeaderActions({ session }: { session: Session | null }) {
         )}
       </div>
 
-      {/* Account Avatar Dropdown Trigger (desktop only) */}
-      <div className="hidden min-[1200px]:block relative" ref={ref}>
+      {/* Account Avatar Dropdown Trigger (desktop only). Keep this breakpoint
+          aligned with SiteHeader's desktop navigation/dock handoff. */}
+      <div className="hidden min-[1100px]:block relative" ref={ref}>
         <button
           onClick={() => {
             setOpen((o) => !o);

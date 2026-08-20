@@ -3,6 +3,7 @@ import { cache } from "react";
 import { eq, inArray } from "drizzle-orm";
 import type { Role } from "@/lib/types";
 import type { Session } from "@/lib/auth";
+import type { AdminNavAccess } from "@/lib/admin-nav";
 import { hasAtLeast, ROLES } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 
@@ -182,3 +183,46 @@ export const canManageNotifications = (s: Session | null, u?: string | null) => 
 
 export const canManageSettings = (s: Session | null) => Boolean(s && hasAtLeast(s.role, "it"));
 export const canManageAudit = (s: Session | null) => Boolean(s && hasAtLeast(s.role, "it"));
+
+/** One shared permission snapshot for desktop and mobile admin navigation. */
+export async function getAdminNavAccess(
+  session: Session | null,
+  userId?: string | null,
+): Promise<AdminNavAccess> {
+  const keys = {
+    users: USERS_PERMISSION_KEY,
+    minecraft: MINECRAFT_PERMISSION_KEY,
+    suggestions: SUGGESTIONS_PERMISSION_KEY,
+    staff: STAFF_PERMISSION_KEY,
+    play: PLAY_PERMISSION_KEY,
+    news: NEWS_PERMISSION_KEY,
+    events: EVENTS_PERMISSION_KEY,
+    gameModes: GAMEMODES_PERMISSION_KEY,
+    rules: RULES_PERMISSION_KEY,
+    gallery: GALLERY_PERMISSION_KEY,
+    support: SUPPORT_PERMISSION_KEY,
+    appeals: APPEALS_PERMISSION_KEY,
+    store: STORE_PERMISSION_KEY,
+    orders: ORDERS_PERMISSION_KEY,
+    voting: VOTING_PERMISSION_KEY,
+    notifications: NOTIFICATIONS_PERMISSION_KEY,
+  } as const;
+
+  if (!session) {
+    return Object.fromEntries(Object.keys(keys).map((name) => [name, false])) as unknown as AdminNavAccess;
+  }
+  if (hasAtLeast(session.role, "owner")) {
+    return Object.fromEntries(Object.keys(keys).map((name) => [name, true])) as unknown as AdminNavAccess;
+  }
+
+  // One settings query for the whole sidebar. Calling every canManage* alias
+  // independently caused up to sixteen database round trips per navigation.
+  const permissions = await getAllModulePermissions();
+  return Object.fromEntries(
+    Object.entries(keys).map(([name, key]) => {
+      const permission = permissions[key];
+      const allowed = permission.roles.includes(session.role) || Boolean(userId && permission.userIds.includes(userId));
+      return [name, allowed];
+    }),
+  ) as unknown as AdminNavAccess;
+}

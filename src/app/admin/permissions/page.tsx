@@ -180,7 +180,7 @@ export default async function AdminPermissionsPage() {
     {
       id: "store",
       category: "Commerce",
-      title: "Store Catalogue & Creator Codes",
+      title: "Store Catalogue & Discount Codes",
       description: "Manage webstore packages, ranks, keys, pricing, discount creator promo codes, and roadmap banner.",
       selected: perms[STORE_PERMISSION_KEY].roles,
       userIds: perms[STORE_PERMISSION_KEY].userIds,

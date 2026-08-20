@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { STORE_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getAdminProducts } from "@/lib/data/content";
 import { getStoreFeaturedSlugs, getStoreRoadmap, getStoreWelcomeBanner } from "@/lib/data/store-settings";
 import { saveStoreFeaturedPicksAction, saveStoreRoadmapAction, saveStoreWelcomeBannerAction } from "@/lib/actions/store-settings";
@@ -15,7 +16,7 @@ import "@/styles/admin-store.css";
 export const metadata: Metadata = { title: "Store page editor · Admin" };
 
 export default async function AdminStoreContentPage() {
-  await requireRole("administrator", "/admin/store/content");
+  await requireModuleAccess(STORE_PERMISSION_KEY, "/admin/store/content");
   const [products, featuredSlugs, welcomeBanner, roadmap] = await Promise.all([
     getAdminProducts(),
     getStoreFeaturedSlugs(),

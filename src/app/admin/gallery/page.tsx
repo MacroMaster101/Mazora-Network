@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { Image as ImageIcon } from "lucide-react";
-import { getSession, getSessionUserId } from "@/lib/auth";
-import { canManageGallery } from "@/lib/auth/permissions";
+import { GALLERY_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getAdminGallery } from "@/lib/data/admin-overview";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminPlaceholder } from "@/components/admin/admin-ui";
@@ -13,11 +12,7 @@ import { roleLabel } from "@/lib/auth/roles";
 export const metadata: Metadata = { title: "Gallery · Admin" };
 
 export default async function AdminGalleryPage() {
-  const session = await getSession();
-  const userId = await getSessionUserId();
-  if (!session || !(await canManageGallery(session, userId))) {
-    redirect("/admin");
-  }
+  const session = await requireModuleAccess(GALLERY_PERMISSION_KEY, "/admin/gallery");
   const images = await getAdminGallery();
 
   if (!images) {

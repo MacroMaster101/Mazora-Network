@@ -170,17 +170,8 @@
     width: clamp(10rem, 12vw, 13rem);
   }
 
-  .newsroom-page .newsroom-mast-label {
-    margin-top: -1.25rem;
-  }
-
   .newsroom-page .newsroom-mast-stat {
     padding: 0.68rem;
-  }
-
-  .newsroom-page .newsroom-stat-icon {
-    width: 2.25rem;
-    height: 2.25rem;
   }
 
   .newsroom-page .newsroom-mast-stat strong {
@@ -231,9 +222,7 @@
 
 
 /* Cleaner, home-style masthead: no targeting grid, centered stats, floating logo. */
-.newsroom-page .newsroom-hero::before,
-.newsroom-page .newsroom-hero-grid,
-.newsroom-page .newsroom-hero-rule {
+.newsroom-page .newsroom-hero::before {
   display: none;
 }
 
@@ -313,30 +302,6 @@
 
 .newsroom-page .newsroom-mast-stat {
   position: relative;
-}
-
-.newsroom-page .newsroom-stat-icon {
-  position: absolute;
-  top: 50%;
-  left: 0.9rem;
-  width: 2.25rem;
-  height: 2.25rem;
-  transform: translateY(-50%);
-  border-radius: 11px;
-}
-
-@media (max-width: 640px) {
-  .newsroom-page .newsroom-stat-icon {
-    left: 0.55rem;
-    width: 1.85rem;
-    height: 1.85rem;
-    border-radius: 9px;
-  }
-
-  .newsroom-page .newsroom-stat-icon svg {
-    width: 0.9rem;
-    height: 0.9rem;
-  }
 }
 
 

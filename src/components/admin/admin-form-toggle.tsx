@@ -192,7 +192,7 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
               onChange={(e) => setUrl(e.target.value)}
               placeholder="e.g. https://forms.gle/your-form-link"
               required
-              className="flex-1 px-3 py-2 text-xs rounded-xl bg-surface border border-line-strong/60 focus:border-accent text-ink font-mono font-medium focus:outline-none transition-colors shadow-2xs"
+              className="min-w-0 flex-1 px-3 py-2 text-xs rounded-xl bg-surface border border-line-strong/60 focus:border-accent text-ink font-mono font-medium focus:outline-none transition-colors shadow-2xs"
             />
             <button
               type="submit"
