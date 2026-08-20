@@ -3,6 +3,14 @@
  * staff area (/admin/account/*). Both render the exact same UI — a staff member
  * manages their own account here just like a regular member does.
  */
+/*
+  This file reaches for the service-role Supabase client (getSupabaseAdmin
+  below), which must never be bundled for the browser. It lives under
+  components/ rather than lib/, where a "use client" directive is only ever one
+  edit away, so the boundary is asserted rather than assumed: "server-only"
+  turns that mistake into a build error instead of a leaked key.
+*/
+import "server-only";
 import type { ReactNode } from "react";
 import { Monitor, Receipt } from "lucide-react";
 import { requireSession, getDiscordIdentity, getSessionUserId } from "@/lib/auth";
