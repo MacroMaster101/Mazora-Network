@@ -15,7 +15,10 @@ import {
   index,
   uniqueIndex,
   primaryKey,
+  check,
+  foreignKey,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const profiles = pgTable(
   "profiles",
@@ -33,6 +36,7 @@ export const profiles = pgTable(
   },
   (t) => ({
     usernameIdx: uniqueIndex("profiles_username_idx").on(t.username),
+    usernameLowerIdx: uniqueIndex("profiles_username_lower_idx").on(sql`lower(${t.username})`),
     userIdIdx: uniqueIndex("profiles_user_id_idx").on(t.userId),
   }),
 );
@@ -51,7 +55,7 @@ export const minecraftAccounts = pgTable(
   },
   (t) => ({
     uuidIdx: uniqueIndex("mc_accounts_uuid_idx").on(t.minecraftUuid),
-    userIdx: index("mc_accounts_user_idx").on(t.userId),
+    userIdx: uniqueIndex("minecraft_accounts_user_idx").on(t.userId),
   }),
 );
 
@@ -78,9 +82,11 @@ export const minecraftPlayers = pgTable(
   },
   (t) => ({
     uuidIdx: uniqueIndex("minecraft_players_uuid_idx").on(t.minecraftUuid),
-    onlineIdx: index("minecraft_players_online_idx").on(t.isOnline, t.syncedAt),
-    playtimeIdx: index("minecraft_players_playtime_idx").on(t.playtimeSeconds),
-    balanceIdx: index("minecraft_players_balance_idx").on(t.balance),
+    usernameIdx: index("minecraft_players_username_idx").on(sql`lower(${t.username})`),
+    onlineIdx: index("minecraft_players_online_idx").on(t.isOnline, t.syncedAt.desc()),
+    playtimeIdx: index("minecraft_players_playtime_idx").on(t.playtimeSeconds.desc().nullsLast()),
+    balanceIdx: index("minecraft_players_balance_idx").on(t.balance.desc().nullsLast()),
+    playtimeNonnegative: check("minecraft_players_playtime_nonnegative", sql`${t.playtimeSeconds} is null or ${t.playtimeSeconds} >= 0`),
   }),
 );
 
@@ -133,7 +139,16 @@ export const newsArticles = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => ({ slugIdx: uniqueIndex("news_slug_idx").on(t.slug) }),
+  (t) => ({
+    slugIdx: uniqueIndex("news_slug_idx").on(t.slug),
+    discordMessageIdx: uniqueIndex("news_discord_message_idx").on(t.discordMessageId).where(sql`${t.discordMessageId} is not null`),
+    statusIdx: index("news_status_idx").on(t.status),
+    categoryIdx: index("news_articles_category_idx").on(t.category, t.publishedAt.desc()),
+    publishedOrderIdx: index("news_articles_pub_order_idx").on(sql`coalesce(${t.publishedAt}, ${t.createdAt}) desc`).where(sql`${t.status} = 'published'`),
+    statusCheck: check("news_articles_status_check", sql`${t.status} in ('draft', 'pending', 'published', 'hidden', 'rejected')`),
+    publisherModeCheck: check("news_publisher_mode_check", sql`${t.publisherMode} in ('team', 'author')`),
+    readTimeCheck: check("news_articles_read_time_minutes_check", sql`${t.readTimeMinutes} is null or ${t.readTimeMinutes} between 1 and 60`),
+  }),
 );
 
 export const events = pgTable(
@@ -186,7 +201,10 @@ export const gameModes = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => ({ slugIdx: uniqueIndex("game_modes_slug_idx").on(t.slug) }),
+  (t) => ({
+    slugIdx: uniqueIndex("game_modes_slug_idx").on(t.slug),
+    storeOrderIdx: index("game_modes_store_order_idx").on(t.sortOrder),
+  }),
 );
 
 export const ruleCategories = pgTable("rule_categories", {
@@ -198,16 +216,16 @@ export const ruleCategories = pgTable("rule_categories", {
   sortOrder: integer("sort_order").default(0).notNull(),
   /** Bumped by a trigger whenever a rule in this category changes. */
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => ({ slugIdx: uniqueIndex("rule_categories_slug_idx").on(t.slug) }));
 
 export const rules = pgTable("rules", {
   id: uuid("id").defaultRandom().primaryKey(),
-  categoryId: uuid("category_id").notNull(),
+  categoryId: uuid("category_id").notNull().references(() => ruleCategories.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
   sortOrder: integer("sort_order").default(0).notNull(),
   enabled: boolean("enabled").default(true).notNull(),
-});
+}, (t) => ({ orderIdx: index("rules_order_idx").on(t.categoryId, t.sortOrder) }));
 
 export const staffMembers = pgTable("staff_members", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -327,7 +345,12 @@ export const products = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => ({ slugIdx: uniqueIndex("products_slug_idx").on(t.slug) }),
+  (t) => ({
+    slugIdx: uniqueIndex("products_slug_idx").on(t.slug),
+    gameModeIdx: index("products_game_mode_slug_idx").on(t.gameModeSlug),
+    sortIdx: index("products_sort_idx").on(t.category, t.sortOrder),
+    priceCheck: check("products_price_nonneg", sql`${t.price} >= 0 and (${t.salePrice} is null or ${t.salePrice} >= 0)`),
+  }),
 );
 
 export const orders = pgTable("orders", {
@@ -359,21 +382,37 @@ export const orders = pgTable("orders", {
   /** Snapshot of the code string, so history reads correctly after a rename. */
   creatorCode: text("creator_code"),
   /** Pre-discount total. `totalAmount` remains what staff actually collect. */
-  subtotalAmount: numeric("subtotal_amount"),
-  discountAmount: numeric("discount_amount").default("0").notNull(),
+  subtotalAmount: numeric("subtotal_amount", { precision: 10, scale: 2 }),
+  discountAmount: numeric("discount_amount", { precision: 10, scale: 2 }).default("0").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => ({
+  creatorCodeFk: foreignKey({
+    name: "orders_creator_code_id_fkey",
+    columns: [t.creatorCodeId],
+    foreignColumns: [creatorCodes.id],
+  }).onDelete("set null"),
+  ownerIdx: index("orders_owner_idx").on(t.userId, t.createdAt.desc()),
+  creatorCodeIdx: index("orders_creator_code_idx").on(t.creatorCodeId).where(sql`${t.creatorCodeId} is not null`),
+  referenceIdx: uniqueIndex("orders_reference_idx").on(t.reference).where(sql`${t.reference} is not null`),
+  statusIdx: index("orders_status_idx").on(t.status, t.createdAt.desc()),
+  statusCheck: check("orders_status_check", sql`${t.status} in ('pending', 'confirmed', 'rejected', 'awaiting_discord_join', 'completed')`),
+  amountsCheck: check("orders_amounts_nonneg", sql`${t.totalAmount} >= 0 and (${t.subtotalAmount} is null or ${t.subtotalAmount} >= 0) and ${t.discountAmount} >= 0`),
+}));
 
 export const orderItems = pgTable("order_items", {
   id: uuid("id").defaultRandom().primaryKey(),
-  orderId: uuid("order_id").notNull(),
+  orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
   // Nullable in SQL: a deleted product sets this null but keeps the line item.
-  productId: uuid("product_id"),
+  productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
   /** Snapshot of the name at purchase time, so history survives a rename. */
   productName: text("product_name").notNull(),
   quantity: integer("quantity").default(1).notNull(),
   price: numeric("price").notNull(),
-});
+}, (t) => ({
+  orderIdx: index("order_items_order_idx").on(t.orderId),
+  quantityCheck: check("order_items_quantity_positive", sql`${t.quantity} > 0`),
+  priceCheck: check("order_items_price_nonneg", sql`${t.price} >= 0`),
+}));
 
 export const creatorCodes = pgTable(
   "creator_codes",
@@ -381,6 +420,8 @@ export const creatorCodes = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     /** Stored uppercase; lookups uppercase the buyer's input before querying. */
     code: text("code").notNull(),
+    /** Creator attribution or a staff-run event/promotion. */
+    codeType: text("code_type").default("creator").notNull(),
     creatorName: text("creator_name").notNull(),
     discordUsername: text("discord_username"),
     /** [{ platform, url }] — validated to http(s) before it is stored. */
@@ -394,17 +435,25 @@ export const creatorCodes = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => ({ codeIdx: uniqueIndex("creator_codes_code_idx").on(t.code) }),
+  (t) => ({
+    codeIdx: uniqueIndex("creator_codes_code_idx").on(t.code),
+    typeIdx: index("creator_codes_type_idx").on(t.codeType, t.createdAt.desc()),
+    percentCheck: check("creator_codes_percent_range", sql`${t.percentOff} between 1 and 90`),
+    typeCheck: check("creator_codes_type_check", sql`${t.codeType} in ('creator', 'event')`),
+  }),
 );
 
 /** Hand-picked eligibility: a code discounts only the products listed here. */
 export const creatorCodeProducts = pgTable(
   "creator_code_products",
   {
-    codeId: uuid("code_id").notNull(),
-    productId: uuid("product_id").notNull(),
+    codeId: uuid("code_id").notNull().references(() => creatorCodes.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   },
-  (t) => ({ pk: primaryKey({ columns: [t.codeId, t.productId] }) }),
+  (t) => ({
+    pk: primaryKey({ columns: [t.codeId, t.productId] }),
+    productIdx: index("creator_code_products_product_idx").on(t.productId),
+  }),
 );
 
 export const voteSites = pgTable("vote_sites", {
@@ -415,14 +464,14 @@ export const voteSites = pgTable("vote_sites", {
   rewardDescription: text("reward_description"),
   cooldownHours: integer("cooldown_hours").default(24).notNull(),
   enabled: boolean("enabled").default(true).notNull(),
-});
+}, (t) => ({ urlIdx: uniqueIndex("vote_sites_url_idx").on(t.url) }));
 
 export const voteHistory = pgTable("vote_history", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull(),
   voteSiteId: uuid("vote_site_id").notNull(),
   votedAt: timestamp("voted_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => ({ ownerIdx: index("votes_owner_idx").on(t.userId, t.votedAt.desc()) }));
 
 export const notifications = pgTable("notifications", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -432,7 +481,7 @@ export const notifications = pgTable("notifications", {
   type: text("type").notNull().default("info"),
   readAt: timestamp("read_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => ({ unreadIdx: index("notifications_unread_idx").on(t.userId, t.createdAt.desc()).where(sql`${t.readAt} is null`) }));
 
 export const galleryImages = pgTable("gallery_images", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -448,7 +497,11 @@ export const galleryImages = pgTable("gallery_images", {
   likesCount: integer("likes_count").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => ({
+  feedIdx: index("gallery_images_feed_idx").on(t.status, t.featured.desc(), t.createdAt.desc()),
+  authorIdx: index("gallery_images_author_idx").on(t.authorId),
+  statusCheck: check("gallery_images_status_check", sql`${t.status} in ('pending', 'published', 'rejected')`),
+}));
 
 export const galleryLikes = pgTable(
   "gallery_likes",
@@ -470,7 +523,7 @@ export const auditLogs = pgTable("audit_logs", {
   metadata: jsonb("metadata"),
   ipAddress: text("ip_address"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => ({ createdIdx: index("audit_logs_created_idx").on(t.createdAt.desc()) }));
 
 export const siteSettings = pgTable(
   "site_settings",

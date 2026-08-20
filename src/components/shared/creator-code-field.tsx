@@ -37,7 +37,10 @@ export function CreatorCodeField({
       onApplyCode(codeState);
       setOpen(false);
       setCode("");
-      toast(`${codeState.creatorName}'s code applied — you saved ${usd(codeState.discount ?? 0)}.`, "success");
+      toast(
+        `${codeState.codeType === "event" ? `${codeState.creatorName} event code` : `${codeState.creatorName}'s creator code`} applied — you saved ${usd(codeState.discount ?? 0)}.`,
+        "success",
+      );
     } else if (codeState.message) {
       toast(codeState.message, "error");
     }

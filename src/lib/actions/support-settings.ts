@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getSession, hasAtLeast } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManageSupport } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
 import { getSupportCards, getSupportMainSettings, SUPPORT_CARDS_KEY, SUPPORT_MAIN_KEY } from "@/lib/data/support-settings";
 
@@ -19,7 +20,8 @@ const cardSchema = z.object({ id: z.string().trim().min(1).max(80), icon: z.stri
 
 async function authorize() {
   const session = await getSession();
-  return session && hasAtLeast(session.role, "administrator") ? session : null;
+  const userId = session ? await getSessionUserId() : null;
+  return session && (await canManageSupport(session, userId)) ? session : null;
 }
 
 async function persist(key: string, value: unknown, before: unknown, username: string) {

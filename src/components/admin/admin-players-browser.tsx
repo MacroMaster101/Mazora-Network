@@ -5,36 +5,56 @@ import Link from "next/link";
 import { Search, ExternalLink, Blocks, Trophy, Copy, Check } from "lucide-react";
 import { MinecraftAvatar } from "@/components/shared";
 import { playtime, withCommas, cn } from "@/lib/utils";
-import type { Player } from "@/lib/types";
+import type { DirectoryPlayer, Player, ServerStatus } from "@/lib/types";
+
+interface AdminPlayerRecord {
+  directory: DirectoryPlayer;
+  tracked?: Player;
+}
 
 export function AdminPlayersBrowser({
   players,
+  directory,
+  serverStatus,
 }: {
   players: Player[];
+  directory: DirectoryPlayer[];
+  serverStatus: ServerStatus;
 }) {
   const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"playtime" | "level" | "balance" | "username">("playtime");
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [sortBy, setSortBy] = useState<"status" | "playtime" | "level" | "balance" | "username">("status");
+  const [selectedPlayer, setSelectedPlayer] = useState<AdminPlayerRecord | null>(null);
   const [copiedUuid, setCopiedUuid] = useState(false);
+
+  const records = useMemo<AdminPlayerRecord[]>(() => {
+    const trackedByName = new Map(players.map((player) => [player.username.toLowerCase(), player]));
+    return directory.map((entry) => ({
+      directory: entry,
+      tracked: trackedByName.get(entry.username.toLowerCase()),
+    }));
+  }, [directory, players]);
 
   const filteredPlayers = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = players.filter((p) => {
+    const list = records.filter(({ directory: entry, tracked }) => {
       if (!q) return true;
-      return p.username.toLowerCase().includes(q) || p.uuid.toLowerCase().includes(q);
+      return entry.username.toLowerCase().includes(q) || tracked?.uuid.toLowerCase().includes(q);
     });
 
     return list.sort((a, b) => {
-      if (sortBy === "playtime") return (b.playtimeSeconds || 0) - (a.playtimeSeconds || 0);
-      if (sortBy === "level") return b.level - a.level;
-      if (sortBy === "balance") return b.balance - a.balance;
-      return a.username.localeCompare(b.username);
+      if (sortBy === "status") return Number(b.directory.online) - Number(a.directory.online) || a.directory.username.localeCompare(b.directory.username);
+      if (sortBy === "playtime") return (b.tracked?.playtimeSeconds || 0) - (a.tracked?.playtimeSeconds || 0);
+      if (sortBy === "level") return (b.tracked?.level || 0) - (a.tracked?.level || 0);
+      if (sortBy === "balance") return (b.tracked?.balance || 0) - (a.tracked?.balance || 0);
+      return a.directory.username.localeCompare(b.directory.username);
     });
-  }, [players, query, sortBy]);
+  }, [query, records, sortBy]);
 
   const totalBalance = useMemo(() => players.reduce((sum, p) => sum + (p.balance || 0), 0), [players]);
   const totalPlaytimeSeconds = useMemo(() => players.reduce((sum, p) => sum + (p.playtimeSeconds || 0), 0), [players]);
   const avgLevel = useMemo(() => (players.length ? Math.round(players.reduce((sum, p) => sum + p.level, 0) / players.length) : 0), [players]);
+  const sampledOnline = useMemo(() => directory.filter((player) => player.online).length, [directory]);
+  const onlineCount = serverStatus.online ? serverStatus.players : sampledOnline;
 
   const copyUuid = (uuid: string) => {
     navigator.clipboard.writeText(uuid);
@@ -45,11 +65,25 @@ export function AdminPlayersBrowser({
   return (
     <div className="space-y-6">
       {/* Metrics Row */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         <div className="panel p-4">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Registered Players</div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Online Now</div>
+          <div className="mt-1 flex items-center gap-2 font-display text-2xl font-bold text-emerald-500">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+            {serverStatus.live ? onlineCount : "—"}
+          </div>
+          <div className="text-[11px] text-muted mt-0.5">
+            {serverStatus.online
+              ? sampledOnline < onlineCount
+                ? `${sampledOnline} names visible · ${onlineCount - sampledOnline} hidden by ping`
+                : `of ${serverStatus.max} server slots`
+              : "Server currently offline"}
+          </div>
+        </div>
+        <div className="panel p-4">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Tracked Players</div>
           <div className="mt-1 font-display text-2xl font-bold text-ink">{players.length}</div>
-          <div className="text-[11px] text-muted mt-0.5">Linked Minecraft accounts</div>
+          <div className="text-[11px] text-muted mt-0.5">Synced statistics records</div>
         </div>
         <div className="panel p-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Total Playtime</div>
@@ -89,6 +123,7 @@ export function AdminPlayersBrowser({
           <span className="text-[11px] font-bold uppercase tracking-wider text-muted">Sort By:</span>
           {(
             [
+              ["status", "Online"],
               ["playtime", "Playtime"],
               ["level", "Level"],
               ["balance", "Balance"],
@@ -118,8 +153,8 @@ export function AdminPlayersBrowser({
           <Blocks size={28} className="text-muted" />
           <p className="font-semibold text-ink">No players found</p>
           <p className="text-xs text-muted max-w-sm">
-            {players.length === 0
-              ? "No Minecraft players have linked their accounts yet."
+            {records.length === 0
+              ? "No live or linked Minecraft players are available yet."
               : `No players matching "${query}".`}
           </p>
         </div>
@@ -129,7 +164,8 @@ export function AdminPlayersBrowser({
             <thead className="border-b border-line bg-ink/5 text-[10px] font-bold uppercase tracking-wider text-muted">
               <tr>
                 <th className="p-3.5 pl-5">Player IGN</th>
-                <th className="p-3.5">UUID</th>
+                <th className="p-3.5">Status</th>
+                <th className="p-3.5">Identity</th>
                 <th className="p-3.5 text-center">Level</th>
                 <th className="p-3.5 text-right">Playtime</th>
                 <th className="p-3.5 text-right">Balance</th>
@@ -137,42 +173,61 @@ export function AdminPlayersBrowser({
               </tr>
             </thead>
             <tbody className="divide-y divide-line/60">
-              {filteredPlayers.map((p) => (
-                <tr key={p.uuid} className="hover:bg-ink/5 transition-colors">
+              {filteredPlayers.map(({ directory: entry, tracked }) => (
+                <tr key={entry.username.toLowerCase()} className="hover:bg-ink/5 transition-colors">
                   <td className="p-3.5 pl-5">
                     <div className="flex items-center gap-3">
-                      <MinecraftAvatar username={p.username} size={30} />
+                      <MinecraftAvatar username={entry.username} size={30} />
                       <div>
-                        <strong className="font-bold text-ink block">{p.username}</strong>
-                        <span className="text-[10px] text-muted">{p.rank || "Member"}</span>
+                        <strong className="font-bold text-ink block">{entry.username}</strong>
+                        <span className="text-[10px] text-muted">{tracked?.rank || (entry.membership === "member" ? "Member" : "Server player")}</span>
                       </div>
                     </div>
                   </td>
-                  <td className="p-3.5 font-mono text-[11px] text-muted">
-                    <span title={p.uuid}>{p.uuid.slice(0, 16)}…</span>
-                  </td>
-                  <td className="p-3.5 text-center">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-2.5 py-0.5 text-[11px] font-bold text-accent-bright">
-                      <Trophy size={11} /> {p.level}
+                  <td className="p-3.5">
+                    <span className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+                      entry.online
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        : "bg-ink/5 text-muted",
+                    )}>
+                      <span className={cn("h-1.5 w-1.5 rounded-full", entry.online ? "bg-emerald-500" : "bg-current opacity-50")} />
+                      {entry.online ? "Online" : "Offline"}
                     </span>
                   </td>
+                  <td className="p-3.5 text-[11px] text-muted">
+                    {tracked ? (
+                      <span className="font-mono" title={tracked.uuid}>{tracked.uuid.slice(0, 12)}…</span>
+                    ) : entry.membership === "member" ? (
+                      "Linked account"
+                    ) : (
+                      "Live ping sample"
+                    )}
+                  </td>
+                  <td className="p-3.5 text-center">
+                    {tracked ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-2.5 py-0.5 text-[11px] font-bold text-accent-bright">
+                        <Trophy size={11} /> {tracked.level}
+                      </span>
+                    ) : <span className="text-muted">—</span>}
+                  </td>
                   <td className="p-3.5 text-right telemetry font-medium text-ink">
-                    {playtime(p.playtimeHours)}
+                    {tracked ? playtime(tracked.playtimeHours) : "—"}
                   </td>
                   <td className="p-3.5 text-right telemetry font-bold text-emerald-400">
-                    ${withCommas(p.balance)}
+                    {tracked ? `$${withCommas(tracked.balance)}` : "—"}
                   </td>
                   <td className="p-3.5 pr-5 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         type="button"
-                        onClick={() => setSelectedPlayer(p)}
+                        onClick={() => setSelectedPlayer({ directory: entry, tracked })}
                         className="btn btn-ghost btn-sm text-xs"
                       >
                         Inspect
                       </button>
                       <Link
-                        href={`/players/${p.username}`}
+                        href={`/players/${entry.username}`}
                         target="_blank"
                         className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-ink/10 transition"
                         title="View public profile"
@@ -194,10 +249,12 @@ export function AdminPlayersBrowser({
           <div className="panel w-full max-w-md p-6 space-y-5 shadow-2xl border-line-strong">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div className="flex items-center gap-3">
-                <MinecraftAvatar username={selectedPlayer.username} size={36} />
+                <MinecraftAvatar username={selectedPlayer.directory.username} size={36} />
                 <div>
-                  <h3 className="font-display text-base font-bold text-ink">{selectedPlayer.username}</h3>
-                  <span className="text-xs text-muted">Minecraft Player Record</span>
+                  <h3 className="font-display text-base font-bold text-ink">{selectedPlayer.directory.username}</h3>
+                  <span className={cn("text-xs font-semibold", selectedPlayer.directory.online ? "text-emerald-500" : "text-muted")}>
+                    {selectedPlayer.directory.online ? "Online now" : "Offline"} · {selectedPlayer.directory.membership === "member" ? "Mazora member" : "Server player"}
+                  </span>
                 </div>
               </div>
               <button
@@ -210,44 +267,50 @@ export function AdminPlayersBrowser({
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="rounded-xl border border-line bg-card p-3 space-y-1">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-muted">Minecraft UUID</div>
-                <div className="flex items-center justify-between gap-2 font-mono text-[11px] text-ink break-all">
-                  <span>{selectedPlayer.uuid}</span>
-                  <button
-                    type="button"
-                    onClick={() => copyUuid(selectedPlayer.uuid)}
-                    className="p-1 rounded hover:bg-ink/10 text-muted hover:text-ink shrink-0"
-                    title="Copy full UUID"
-                  >
-                    {copiedUuid ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                  </button>
+              {selectedPlayer.tracked ? (
+                <div className="rounded-xl border border-line bg-card p-3 space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted">Minecraft UUID</div>
+                  <div className="flex items-center justify-between gap-2 font-mono text-[11px] text-ink break-all">
+                    <span>{selectedPlayer.tracked.uuid}</span>
+                    <button
+                      type="button"
+                      onClick={() => copyUuid(selectedPlayer.tracked!.uuid)}
+                      className="p-1 rounded hover:bg-ink/10 text-muted hover:text-ink shrink-0"
+                      title="Copy full UUID"
+                    >
+                      {copiedUuid ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-xs leading-5 text-muted">
+                  This username comes from the live Minecraft server ping. Detailed statistics will appear after the server sync creates a tracked player record.
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-line bg-card p-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-muted">Level</div>
                   <div className="mt-1 font-display text-lg font-bold text-accent-bright">
-                    Lvl {selectedPlayer.level}
+                    {selectedPlayer.tracked ? `Lvl ${selectedPlayer.tracked.level}` : "—"}
                   </div>
                 </div>
                 <div className="rounded-xl border border-line bg-card p-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-muted">Balance</div>
                   <div className="mt-1 font-display text-lg font-bold text-emerald-400">
-                    ${withCommas(selectedPlayer.balance)}
+                    {selectedPlayer.tracked ? `$${withCommas(selectedPlayer.tracked.balance)}` : "—"}
                   </div>
                 </div>
                 <div className="rounded-xl border border-line bg-card p-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-muted">Playtime</div>
                   <div className="mt-1 font-display text-lg font-bold text-ink">
-                    {playtime(selectedPlayer.playtimeHours)}
+                    {selectedPlayer.tracked ? playtime(selectedPlayer.tracked.playtimeHours) : "—"}
                   </div>
                 </div>
                 <div className="rounded-xl border border-line bg-card p-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-muted">Rank</div>
                   <div className="mt-1 font-display text-lg font-bold text-ink">
-                    {selectedPlayer.rank || "Member"}
+                    {selectedPlayer.tracked?.rank || (selectedPlayer.directory.membership === "member" ? "Member" : "Unlinked")}
                   </div>
                 </div>
               </div>
@@ -255,7 +318,7 @@ export function AdminPlayersBrowser({
 
             <div className="flex items-center justify-between pt-2 border-t border-line">
               <Link
-                href={`/players/${selectedPlayer.username}`}
+                href={`/players/${selectedPlayer.directory.username}`}
                 target="_blank"
                 className="btn btn-primary btn-sm flex items-center gap-1.5 w-full justify-center"
               >

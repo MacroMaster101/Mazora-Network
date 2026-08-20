@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Loader2, Trash2, X } from "lucide-react";
 import {
@@ -42,6 +43,20 @@ export function DeleteUserButton({
     }
   }, [state, toast, router]);
 
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
   const matches = typed.trim() === username;
 
   return (
@@ -56,39 +71,39 @@ export function DeleteUserButton({
         <Trash2 size={15} />
       </button>
 
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[200] overflow-y-auto bg-black/70 p-3 backdrop-blur-sm sm:p-6"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-user-title"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setOpen(false);
-          }}
+          onClick={() => setOpen(false)}
         >
-          {/* Width lives on this wrapper: a global .account-content .panel rule
-              forces max-width:100% on every panel inside the admin area. */}
-          <div className="w-full max-w-md">
-            <div className="panel p-6">
+          <div className="flex min-h-full items-center justify-center">
+          <div
+            className="my-auto w-full max-w-lg"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="panel overflow-hidden p-0 shadow-2xl">
+              <div className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-5 sm:max-h-[calc(100dvh-3rem)] sm:p-7">
               <div className="flex items-start justify-between gap-4">
-                <span className="flex items-start gap-3">
+                <div className="flex min-w-0 items-start gap-3">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-danger/30 bg-danger/10 text-danger">
                     <AlertTriangle size={18} aria-hidden="true" />
                   </span>
-                  <span>
+                  <div className="min-w-0">
                     <h2
                       id="delete-user-title"
-                      className="font-display text-lg font-bold"
+                      className="font-display text-xl font-extrabold text-ink"
                     >
-                      Delete {username}?
+                      Permanently delete {username}?
                     </h2>
-                    <p className="mt-1 text-xs leading-relaxed text-muted">
-                      This removes the account and everything owned by it —
-                      profile, gallery uploads, votes and notifications. It
-                      cannot be undone.
+                    <p className="mt-1.5 text-sm leading-relaxed text-muted">
+                      This permanently removes the account and its personal
+                      data. This action cannot be undone.
                     </p>
-                  </span>
-                </span>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
@@ -99,19 +114,31 @@ export function DeleteUserButton({
                 </button>
               </div>
 
-              <p className="mt-4 rounded-lg border border-line bg-ink/5 p-3 text-xs leading-relaxed text-muted">
-                Accounts with order history cannot be deleted — those records
-                are kept, and the deletion will be refused.
-              </p>
+              <div className="mt-5 grid gap-3 text-sm">
+                <div className="rounded-xl border border-danger/20 bg-danger/5 p-4">
+                  <p className="font-bold text-ink">Permanently removed</p>
+                  <p className="mt-1 leading-relaxed text-muted">
+                    Login, profile, Minecraft links, votes, notifications,
+                    support records, gallery submissions, and stored account media.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-amber-400/35 bg-amber-400/10 p-4">
+                  <p className="font-bold text-ink">Retained anonymously</p>
+                  <p className="mt-1 leading-relaxed text-muted">
+                    Order references, totals, status, and purchased items remain
+                    for accounting. Personal identifiers and the account link are removed.
+                  </p>
+                </div>
+              </div>
 
-              <form action={formAction} className="mt-4 space-y-3">
+              <form action={formAction} className="mt-5 space-y-3">
                 <input type="hidden" name="userId" value={userId} />
                 <label
                   htmlFor="confirm-username"
                   className="block text-xs font-semibold"
                 >
                   Type <strong className="text-ink">{username}</strong> to
-                  confirm
+                  permanently confirm
                 </label>
                 <Input
                   id="confirm-username"
@@ -145,9 +172,12 @@ export function DeleteUserButton({
                   </button>
                 </div>
               </form>
+              </div>
             </div>
           </div>
-        </div>
+          </div>
+        </div>,
+        document.body,
       )}
     </>
   );

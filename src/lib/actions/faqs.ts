@@ -1,7 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { getSession, hasAtLeast } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManagePlay } from "@/lib/auth/permissions";
 import { saveFaqs as saveFaqsData, type FaqItem } from "@/lib/data/faqs";
 
 /**
@@ -27,7 +28,8 @@ const faqsSchema = z
 
 export async function saveFaqsAction(faqs: FaqItem[]): Promise<{ ok: boolean; message: string }> {
   const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return DENIED;
+  const userId = session ? await getSessionUserId() : null;
+  if (!session || !(await canManagePlay(session, userId))) return DENIED;
 
   const parsed = faqsSchema.safeParse(faqs);
   if (!parsed.success) {

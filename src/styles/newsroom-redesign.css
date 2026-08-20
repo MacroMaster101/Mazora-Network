@@ -64,16 +64,6 @@
   background: linear-gradient(180deg, transparent, rgb(var(--base)));
 }
 
-.newsroom-page .newsroom-hero-grid {
-  z-index: -1;
-  opacity: 0.18;
-  background-image:
-    linear-gradient(rgb(216 180 254 / 0.13) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(216 180 254 / 0.13) 1px, transparent 1px);
-  background-size: 52px 52px;
-  mask-image: linear-gradient(180deg, transparent 6%, black 38%, transparent 88%);
-}
-
 .newsroom-hero-shell {
   position: relative;
   z-index: 2;
@@ -132,18 +122,6 @@
   filter: drop-shadow(0 18px 36px rgb(0 0 0 / 0.64));
 }
 
-.newsroom-mast-label {
-  position: relative;
-  margin-top: -1.65rem;
-  color: rgb(233 213 255 / 0.88);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  text-shadow: 0 3px 16px rgb(0 0 0 / 0.8);
-}
-
 .newsroom-mast-stat {
   display: flex;
   width: min(100%, 17rem);
@@ -165,19 +143,6 @@
 
 .newsroom-mast-stat-right {
   justify-self: start;
-}
-
-.newsroom-stat-icon {
-  display: grid;
-  width: 2.65rem;
-  height: 2.65rem;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid rgb(216 180 254 / 0.2);
-  border-radius: 12px;
-  color: rgb(216 180 254);
-  background: rgb(139 92 246 / 0.14);
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.06);
 }
 
 .newsroom-mast-stat > span:last-child {
@@ -221,25 +186,6 @@
   justify-items: center;
   margin-top: clamp(2rem, 4vw, 3rem);
   text-align: center;
-}
-
-.newsroom-hero-rule {
-  position: relative;
-  width: min(34rem, 76vw);
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(216 180 254 / 0.42), transparent);
-}
-
-.newsroom-hero-rule span {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0.42rem;
-  height: 0.42rem;
-  transform: translate(-50%, -50%) rotate(45deg);
-  border: 1px solid rgb(216 180 254 / 0.72);
-  background: rgb(21 14 35);
-  box-shadow: 0 0 14px rgb(139 92 246 / 0.72);
 }
 
 .newsroom-hero-copy h1 {
@@ -501,23 +447,12 @@
     width: 10.5rem;
   }
 
-  .newsroom-mast-label {
-    margin-top: -1.2rem;
-    font-size: 0.53rem;
-  }
-
   .newsroom-mast-stat {
     align-items: flex-start;
     gap: 0.55rem;
     min-height: 6.6rem;
     padding: 0.75rem;
     border-radius: 14px;
-  }
-
-  .newsroom-stat-icon {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 9px;
   }
 
   .newsroom-mast-stat > span:last-child {

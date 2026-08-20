@@ -1,4 +1,5 @@
 import { CheckCircle2, Clock3, PackageCheck, UserPlus, XCircle } from "lucide-react";
+import type { ReactNode } from "react";
 import { orderStatusLabel, type OrderStatus, type StoreOrder } from "@/lib/order-status";
 import { cn, fmtDate, usd } from "@/lib/utils";
 
@@ -40,7 +41,7 @@ export function OrderStatusPill({ status }: { status: OrderStatus }) {
   );
 }
 
-export function OrderCard({ order, showBuyer = false }: { order: StoreOrder; showBuyer?: boolean }) {
+export function OrderCard({ order, showBuyer = false, actions }: { order: StoreOrder; showBuyer?: boolean; actions?: ReactNode }) {
   return (
     <article className="panel p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -126,6 +127,8 @@ export function OrderCard({ order, showBuyer = false }: { order: StoreOrder; sho
           Join the Mazora Discord so staff can open your order ticket, then let them know.
         </p>
       )}
+
+      {actions && <div className="mt-4 border-t border-line pt-4">{actions}</div>}
     </article>
   );
 }

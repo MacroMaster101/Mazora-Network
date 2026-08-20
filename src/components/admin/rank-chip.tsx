@@ -32,7 +32,7 @@ const TIER_STYLE: Record<Tier, string> = {
   leadership: "border-amber-500/45 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-extrabold",
   staff: "border-accent/40 bg-accent/15 text-accent-bright font-extrabold shadow-sm",
   supporter: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold",
-  player: "border-line-strong bg-ink/10 dark:bg-white/10 text-ink dark:text-slate-200 font-extrabold",
+  player: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-500/50 dark:bg-slate-400/15 dark:text-slate-100 font-extrabold",
 };
 
 export function rankTier(role: Role): Tier {

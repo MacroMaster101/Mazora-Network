@@ -363,7 +363,7 @@ export function GallerySubmitModal({
                 <img
                   src={imageUrl}
                   alt="Preview"
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="h-full w-full object-contain object-center bg-black/70 p-1 transition-transform duration-300 group-hover:scale-[1.03]"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   onLoad={(e) => { (e.target as HTMLImageElement).style.display = ""; }}
                 />

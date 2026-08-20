@@ -126,11 +126,11 @@ npm run typecheck
 
 Review generated SQL before applying it, then apply it as a migration.
 
-`npm run db:push` no longer exists. `drizzle-kit push` diffs the live database against
-`src/lib/db/schema.ts`, which declares one `.references()` in the whole file and none of
-the constraints migration 023 added — so against a populated database it proposes
-dropping every foreign key, CHECK and index that migration installed. Use
-`supabase db push` (migrations) or `npm run db:apply -- <file.sql>` instead.
+`npm run db:push` no longer exists. The Drizzle schema mirrors the
+application-owned tables, columns, checks, foreign keys, and indexes after migration 026,
+but it intentionally does not replace migration-only RLS policies, functions, triggers,
+storage policies, or relationships into Supabase's `auth` schema. Use `supabase db push`
+(migrations) or `npm run db:apply -- <file.sql>` instead of direct schema pushing.
 
 Hand-written SQL (RLS policies, functions, triggers) lives in `supabase/migrations` using
 the Supabase CLI's `<timestamp>_name.sql` naming. Create one with `supabase migration new
@@ -174,10 +174,12 @@ User-facing copy calls these **discount codes**. The internal identifiers are st
 `creatorCode` / `creator_codes`: renaming those columns would mean a migration against
 live order history for no visible gain.
 
-A vetted content creator is issued a code (`NOVAPLAYS1`) that takes a percentage off a
-**hand-picked** set of products. Eligibility is per-code and explicit, so adding a
-new product never silently starts discounting it. The percentage stacks on top of
-`salePrice` when one is set, and is capped at 90% so an order can never reach zero.
+The `code_type` field separates creator attribution from staff-run event and
+promotional campaigns. Creator codes may carry Discord and social details; event
+codes deliberately omit them. Both take a percentage off a **hand-picked** set of
+products. Eligibility is per-code and explicit, so adding a new product never
+silently starts discounting it. The percentage stacks on top of `salePrice` when
+one is set, and is capped at 90% so an order can never reach zero.
 
 `src/lib/store-discount.ts` holds the only implementation of the arithmetic. It is
 pure — no database, no session — and both the checkout preview and the order
@@ -191,8 +193,8 @@ database. `submitStoreRequest` re-resolves the code from scratch and **refuses t
 order** if it stopped being valid since the preview, rather than silently charging
 full price after quoting a discount.
 
-Codes are managed at `/admin/store/creator-codes` (titled **Discount codes** in the UI) (administrator and above),
-reached from the third card on the Store hub. Deleting a code leaves past orders
+The `/admin/store/creator-codes` hub routes administrators to separate Creator
+codes and Event codes managers. Deleting a code leaves past orders
 intact: `orders.creator_code_id` goes null while the `creator_code` text snapshot
 and the recorded discount remain.
 

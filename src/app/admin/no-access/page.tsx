@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Lock } from "lucide-react";
 import { requireSession, roleLabel, ROLES } from "@/lib/auth";
 import type { Role } from "@/lib/types";
-import { buildAdminNav } from "@/lib/admin-nav";
+import { ALL_ADMIN_NAV_ACCESS, buildAdminNav } from "@/lib/admin-nav";
 import { RankChip } from "@/components/admin/rank-chip";
 
 export const metadata: Metadata = { title: "No access · Admin" };
@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "No access · Admin" };
 
 /** Resolves an admin path back to the label used in the sidebar. */
 function boardLabel(path: string): string | null {
-  const nav = buildAdminNav({ canManageNews: true, canManageGallery: true });
+  const nav = buildAdminNav(ALL_ADMIN_NAV_ACCESS);
   for (const group of nav) {
     for (const item of group.items) {
       if (item.href === path) return item.label;
@@ -58,12 +58,12 @@ export default async function AdminNoAccessPage({
         </span>
 
         <h1 className="mt-5 font-display text-2xl font-bold">
-          {label ? `${label} is above your rank` : "That board is above your rank"}
+          {label ? `You do not have access to ${label}` : "You do not have access to that board"}
         </h1>
 
         <p className="mt-3 text-sm leading-relaxed text-muted">
-          Your account is signed in and working normally. This particular board is limited to a higher
-          staff rank, so it was not opened.
+          Your account is signed in and working normally. This board is not assigned to your role or
+          account, so it was not opened.
         </p>
 
         <dl className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -74,9 +74,9 @@ export default async function AdminNoAccessPage({
             </dd>
           </div>
           <div className="rounded-xl border border-line bg-ink/5 p-4">
-            <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Rank required</dt>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Required access</dt>
             <dd className="mt-2">
-              {need ? <RankChip role={need} /> : <span className="text-sm text-muted">Higher than yours</span>}
+              {need ? <RankChip role={need} /> : <span className="text-sm text-muted">Module permission</span>}
             </dd>
           </div>
         </dl>

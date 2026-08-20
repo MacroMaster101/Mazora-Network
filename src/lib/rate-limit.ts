@@ -12,7 +12,7 @@ import { headers } from "next/headers";
  *
  * - `rateLimitShared` — a global window in Upstash Redis (plain REST, no SDK),
  *   used automatically when `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`
- *   (or the Vercel KV aliases `KV_REST_API_URL`/`KV_REST_API_TOKEN`) are set.
+ *   are set.
  *   This is what `throttleAuthAction` — login, registration, the 6-digit
  *   reset code, support/gallery/store submissions — goes through, because
  *   those need a bound an attacker cannot multiply by fanning out across
@@ -69,10 +69,10 @@ export function rateLimit(
   };
 }
 
-/** Upstash/Vercel-KV REST credentials, when a shared store is provisioned. */
+/** Upstash Redis REST credentials, when a shared store is provisioned. */
 function sharedStoreConfig(): { url: string; token: string } | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL?.trim() || process.env.KV_REST_API_URL?.trim();
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim() || process.env.KV_REST_API_TOKEN?.trim();
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
   if (!url || !token || !url.startsWith("https://")) return null;
   return { url: url.replace(/\/+$/, ""), token };
 }

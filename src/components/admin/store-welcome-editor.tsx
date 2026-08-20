@@ -222,7 +222,7 @@ export function StoreWelcomeEditor({
                         alt={preset.label}
                         fill
                         sizes="200px"
-                        className="object-cover transition-transform group-hover:scale-105"
+                        className="object-contain object-center bg-black/70 p-1 transition-transform group-hover:scale-[1.03]"
                       />
                     </div>
                     <span className="block font-bold text-xs text-ink">{preset.label}</span>
@@ -277,7 +277,7 @@ export function StoreWelcomeEditor({
                   alt="Preview"
                   fill
                   sizes="400px"
-                  className="object-cover"
+                  className="object-contain object-center bg-black/70 p-2"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-black/50 text-xs text-muted">

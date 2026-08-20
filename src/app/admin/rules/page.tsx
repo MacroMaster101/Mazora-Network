@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ScrollText } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { RULES_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getEditableRules } from "@/lib/data/admin-overview";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminPlaceholder } from "@/components/admin/admin-ui";
@@ -9,7 +10,7 @@ import { RulesEditor } from "@/components/admin/rules-editor";
 export const metadata: Metadata = { title: "Rules · Admin" };
 
 export default async function AdminRulesPage() {
-  await requireRole("administrator", "/admin/rules");
+  await requireModuleAccess(RULES_PERMISSION_KEY, "/admin/rules");
   const categories = await getEditableRules();
 
   if (!categories) {

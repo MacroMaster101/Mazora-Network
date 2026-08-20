@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { FileText } from "lucide-react";
-import { getSession, getSessionUserId } from "@/lib/auth";
-import { canManageNews } from "@/lib/auth/permissions";
+import { NEWS_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { roleLabel } from "@/lib/auth/roles";
 import { getAdminNews } from "@/lib/data/news-admin";
 import { getAnnouncementsChannelId, getDiscordBotToken } from "@/lib/discord";
@@ -13,9 +12,7 @@ import { NewsEditor } from "@/components/admin/news-editor";
 export const metadata: Metadata = { title: "News · Admin" };
 
 export default async function AdminNewsPage() {
-  const session = await getSession();
-  const userId = await getSessionUserId();
-  if (!(await canManageNews(session, userId))) redirect("/admin");
+  const session = await requireModuleAccess(NEWS_PERMISSION_KEY, "/admin/news");
 
   const data = await getAdminNews();
   const channelId = getAnnouncementsChannelId();
@@ -45,13 +42,13 @@ export default async function AdminNewsPage() {
         articles={data.articles}
         hidden={data.hidden}
         syncConfigured={syncConfigured}
-        showDiagnostics={session?.role === "it"}
+        showDiagnostics={session.role === "it"}
         guildId={process.env.DISCORD_GUILD_ID?.trim() || undefined}
         channelId={channelId ?? undefined}
         defaultPublisher={{
-          name: session?.displayName ?? session?.username ?? "Mazora Staff",
-          role: session ? roleLabel(session.role) : "News Publisher",
-          avatarUrl: session?.avatarUrl,
+          name: session.displayName ?? session.username ?? "Mazora Staff",
+          role: roleLabel(session.role),
+          avatarUrl: session.avatarUrl,
         }}
       />
     </>

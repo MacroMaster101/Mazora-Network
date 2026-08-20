@@ -54,8 +54,7 @@ html:has(.admin-store-page) {
 }
 
 .admin-store-page .store-admin-featured,
-.admin-store-page .store-admin-product-row,
-.admin-store-page .store-admin-mode-card {
+.admin-store-page .store-admin-product-row {
   overflow: hidden;
   border-radius: 1.15rem;
   backdrop-filter: blur(22px) saturate(1.12);
@@ -91,18 +90,6 @@ html:has(.admin-store-page) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.admin-store-page .store-admin-toolbar {
-  padding: 0.7rem;
-  border: 1px solid rgb(var(--line));
-  border-radius: 1rem;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
-
-.admin-store-page .store-admin-segment {
-  min-width: 0;
 }
 
 .admin-store-page .store-admin-product-row {
@@ -169,19 +156,8 @@ html:has(.admin-store-page) {
   text-align: center;
 }
 
-.admin-store-page .store-admin-product-row .btn,
-.admin-store-page .store-admin-mode-card .btn {
+.admin-store-page .store-admin-product-row .btn {
   box-shadow: none;
-}
-
-.admin-store-page .store-admin-mode-card {
-  min-height: 15rem;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-
-.admin-store-page .store-admin-mode-card:hover {
-  transform: translateY(-2px);
-  border-color: rgb(var(--accent-rgb) / 0.38);
 }
 
 .admin-store-page .store-admin-publish {
@@ -233,9 +209,41 @@ html:has(.admin-store-page) {
   color: rgb(244 237 252 / 0.72);
 }
 
+/* Keep nested Store navigation readable over the world artwork in either
+   theme. This sits in DashHeader rather than inside the light workspace card. */
+.admin-store-page .store-admin-back-link {
+  display: inline-flex;
+  min-height: 2.65rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid rgb(255 255 255 / 0.24);
+  border-radius: 0.8rem;
+  color: rgb(255 255 255 / 0.94);
+  background: rgb(12 6 24 / 0.36);
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.08), 0 12px 28px -22px rgb(0 0 0 / 0.9);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-shadow: none;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.admin-store-page .store-admin-back-link:hover {
+  transform: translateY(-1px);
+  border-color: rgb(216 180 254 / 0.65);
+  background: rgb(124 58 237 / 0.28);
+}
+
+.admin-store-page .store-admin-back-link:focus-visible {
+  outline: 2px solid rgb(216 180 254 / 0.9);
+  outline-offset: 2px;
+}
+
 :root[data-theme="light"] .admin-store-page .store-admin-featured,
 :root[data-theme="light"] .admin-store-page .store-admin-product-row,
-:root[data-theme="light"] .admin-store-page .store-admin-mode-card,
 :root[data-theme="light"] .admin-store-page .panel {
   color: rgb(var(--ink));
   border-color: rgb(83 52 119 / 0.18);
@@ -250,17 +258,6 @@ html:has(.admin-store-page) {
   border-color: rgb(96 63 132 / 0.17);
   background:
     linear-gradient(145deg, rgb(255 255 255 / 0.9), rgb(239 232 249 / 0.74));
-}
-
-:root[data-theme="light"] .admin-store-page .store-admin-toolbar {
-  border-color: rgb(83 52 119 / 0.18);
-  background: rgb(252 249 255 / 0.88);
-  box-shadow: 0 16px 40px -32px rgb(54 30 84 / 0.4);
-}
-
-:root[data-theme="light"] .admin-store-page .store-admin-segment {
-  border-color: rgb(83 52 119 / 0.16);
-  background: rgb(232 224 242 / 0.7);
 }
 
 :root[data-theme="light"] .admin-store-page .field {
@@ -327,8 +324,7 @@ html:has(.admin-store-page) {
 }
 
 :root[data-theme="dark"] .admin-store-page .store-admin-featured,
-:root[data-theme="dark"] .admin-store-page .store-admin-product-row,
-:root[data-theme="dark"] .admin-store-page .store-admin-mode-card {
+:root[data-theme="dark"] .admin-store-page .store-admin-product-row {
   background:
     linear-gradient(145deg, rgb(25 17 39 / 0.97), rgb(15 10 25 / 0.96));
 }
@@ -337,15 +333,6 @@ html:has(.admin-store-page) {
   border-color: rgb(174 137 211 / 0.16);
   background:
     linear-gradient(145deg, rgb(41 27 61 / 0.72), rgb(20 14 31 / 0.7));
-}
-
-:root[data-theme="dark"] .admin-store-page .store-admin-toolbar {
-  border-color: rgb(119 89 151 / 0.35);
-  background: rgb(14 9 23 / 0.78);
-}
-
-:root[data-theme="dark"] .admin-store-page .store-admin-segment {
-  background: rgb(5 3 10 / 0.46);
 }
 
 :root[data-theme="dark"] .admin-store-page .field {
@@ -387,24 +374,6 @@ html:has(.admin-store-page) {
 }
 
 @media (max-width: 767px) {
-  .admin-store-page .store-admin-toolbar {
-    align-items: stretch;
-    padding: 0.6rem;
-  }
-
-  .admin-store-page .store-admin-segment {
-    width: 100%;
-  }
-
-  .admin-store-page .store-admin-segment .btn {
-    min-width: 0;
-    flex: 1;
-    padding-inline: 0.7rem;
-  }
-
-  .admin-store-page .store-admin-toolbar>.btn {
-    width: 100%;
-  }
 
   .admin-store-page .store-admin-product-row {
     gap: 0.85rem;
@@ -429,9 +398,6 @@ html:has(.admin-store-page) {
 }
 
 @media (max-width: 479px) {
-  .admin-store-page .store-admin-segment .btn {
-    font-size: 0.76rem;
-  }
 
   .admin-store-page .store-admin-featured>div:first-of-type,
   .admin-store-page .store-admin-featured>div:last-child {
@@ -828,46 +794,6 @@ html:has(.admin-store-page) {
   line-height: 1.6;
 }
 
-.store-admin-flow-path {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1.5rem;
-  border-bottom: 1px solid rgb(var(--line));
-  background: rgb(var(--surface) / 0.52);
-  color: rgb(var(--muted));
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.store-admin-flow-path span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.store-admin-flow-path b {
-  display: grid;
-  width: 1.7rem;
-  height: 1.7rem;
-  place-items: center;
-  border: 1px solid rgb(var(--line));
-  border-radius: 999px;
-  font-size: 0.6rem;
-}
-
-.store-admin-flow-path .is-complete {
-  color: rgb(var(--ink));
-}
-
-.store-admin-flow-path .is-complete b {
-  border-color: rgb(var(--accent-rgb) / 0.45);
-  background: rgb(var(--accent-rgb) / 0.12);
-  color: rgb(var(--accent-bright));
-}
-
 .store-admin-flow-section {
   padding: 1.5rem;
   border-bottom: 1px solid rgb(var(--line));
@@ -1105,10 +1031,6 @@ html:has(.admin-store-page) {
   margin: 0 0.75rem 0.75rem;
 }
 
-.store-admin-items-section {
-  background: rgb(var(--surface) / 0.25);
-}
-
 .store-admin-empty-category {
   border-style: dashed;
 }
@@ -1142,16 +1064,9 @@ html:has(.admin-store-page) {
   border-color: rgb(244 63 94 / 0.4) !important;
 }
 
-:root[data-theme="light"] .store-admin-subcat-active {
-  background: rgb(109 40 217) !important;
-  color: #ffffff !important;
-  border-color: rgb(109 40 217) !important;
-}
-
 /* Catalog Row vs Card Layout Utility Classes */
 .store-admin-mode-picker.is-row-layout,
 .store-admin-category-picker.is-row-layout,
-.store-admin-subcategory-grid.is-row-layout,
 .store-admin-product-list.is-row-layout {
   display: flex !important;
   flex-direction: column !important;
@@ -1159,17 +1074,10 @@ html:has(.admin-store-page) {
 }
 
 .store-admin-mode-picker.is-card-layout,
-.store-admin-category-picker.is-card-layout,
-.store-admin-subcategory-grid.is-card-layout {
+.store-admin-category-picker.is-card-layout {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
   gap: 0.85rem !important;
-}
-
-:root[data-theme="light"] .store-admin-subcat-inactive {
-  background: rgb(240 235 248) !important;
-  color: rgb(75 85 99) !important;
-  border-color: rgb(210 200 225) !important;
 }
 
 @media (max-width: 1100px) {
@@ -1188,14 +1096,6 @@ html:has(.admin-store-page) {
   .store-admin-flow-section-head {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .store-admin-flow-path {
-    overflow-x: auto;
-  }
-
-  .store-admin-flow-path span {
-    white-space: nowrap;
   }
 
   .store-admin-mode-picker,
@@ -2133,10 +2033,22 @@ html:has(.admin-store-page) {
   min-height: calc(100dvh - 20rem);
 }
 
+.store-admin-hub-cards-pair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 58rem;
+  margin-inline: auto;
+}
+
 @media (max-width: 1100px) {
   .store-admin-hub-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     min-height: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .store-admin-hub-cards-pair {
+    grid-template-columns: 1fr;
   }
 }
 
