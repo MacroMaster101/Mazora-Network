@@ -7,7 +7,7 @@ import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/types";
 import type { Session } from "@/lib/auth";
-import { isAdminNavItemActive, visibleAdminNav } from "@/lib/admin-nav";
+import { isAdminNavItemActive, visibleAdminNav, type AdminNavAccess } from "@/lib/admin-nav";
 import { UserAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
 
@@ -18,16 +18,14 @@ import { RankChip } from "@/components/admin/rank-chip";
 export function AdminSidebar({
   session,
   role,
-  canManageNews,
-  canManageGallery,
+  access,
 }: {
   session?: Session | null;
   role: Role;
-  canManageNews: boolean;
-  canManageGallery?: boolean;
+  access: AdminNavAccess;
 }) {
   const pathname = usePathname();
-  const groups = visibleAdminNav(role, { canManageNews, canManageGallery });
+  const groups = visibleAdminNav(role, access);
   // Only the nav list scrolls now — the profile card above it is a fixed
   // sibling, so this ref (and the sync/fade below) targets the <nav> itself
   // rather than the whole sidebar.

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { APPEALS_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { Metric } from "@/components/admin/control-room";
 import { getFormsConfig } from "@/lib/data/forms-config";
@@ -8,7 +9,7 @@ import { AdminFormToggleCard } from "@/components/admin/admin-form-toggle";
 export const metadata: Metadata = { title: "Appeals & Applications · Admin" };
 
 export default async function AdminAppealsPage() {
-  await requireRole("helper", "/admin/appeals");
+  await requireModuleAccess(APPEALS_PERMISSION_KEY, "/admin/appeals");
   const config = await getFormsConfig();
 
   const activeCount = Object.values(config).filter((c) => c.enabled).length;

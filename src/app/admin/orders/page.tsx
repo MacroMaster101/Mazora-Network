@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { ORDERS_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
+import { hasAtLeast } from "@/lib/auth";
 import { getAllOrders } from "@/lib/data/orders";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { OrdersBrowser } from "@/components/admin/orders-browser";
@@ -7,7 +9,7 @@ import { OrdersBrowser } from "@/components/admin/orders-browser";
 export const metadata: Metadata = { title: "Orders · Admin" };
 
 export default async function AdminOrdersPage() {
-  await requireRole("administrator", "/admin/orders");
+  const session = await requireModuleAccess(ORDERS_PERMISSION_KEY, "/admin/orders");
   /*
     OrdersBrowser is a Client Component, so every field handed to it is
     serialised into the RSC payload embedded in the HTML and is readable in
@@ -26,9 +28,9 @@ export default async function AdminOrdersPage() {
     <>
       <DashHeader
         title="Orders"
-        subtitle="Store order requests. Confirm or decline them from the Discord order channel."
+        subtitle="Review store requests, track completed sales, and manage order decisions."
       />
-      <OrdersBrowser orders={orders} />
+      <OrdersBrowser orders={orders} canDelete={hasAtLeast(session.role, "owner")} />
     </>
   );
 }

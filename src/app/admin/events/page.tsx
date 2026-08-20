@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { getSession, getSessionUserId } from "@/lib/auth";
-import { canManageEvents } from "@/lib/auth/permissions";
-import { redirect } from "next/navigation";
+import { EVENTS_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getDb, schema } from "@/lib/db/client";
 import { asc } from "drizzle-orm";
 import { DashHeader } from "@/components/dashboard/dash-ui";
@@ -12,12 +11,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminEventsPage() {
-  const session = await getSession();
-  const userId = await getSessionUserId();
-  const allowed = await canManageEvents(session, userId);
-  if (!session || !allowed) {
-    redirect("/admin");
-  }
+  await requireModuleAccess(EVENTS_PERMISSION_KEY, "/admin/events");
 
   const db = getDb();
   let events: AdminEventData[] = [];

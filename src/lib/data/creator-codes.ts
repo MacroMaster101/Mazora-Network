@@ -15,6 +15,8 @@ import { SOCIAL_PLATFORM_KEYS, type CreatorSocial } from "@/lib/creator-socials"
 export interface CreatorCode {
   id: string;
   code: string;
+  codeType: "creator" | "event";
+  /** Creator name for creator codes; event/campaign name for event codes. */
   creatorName: string;
   discordUsername: string | null;
   socials: CreatorSocial[];
@@ -62,6 +64,18 @@ export function normaliseCode(value: string): string {
   return value.trim().toUpperCase();
 }
 
+/**
+ * Postgres can contain special timestamp values (for example `infinity`) that
+ * the driver represents as an Invalid Date. Calling `toISOString()` on one
+ * throws a RangeError and used to take down the entire Store admin page.
+ * Invalid optional expiries are omitted from admin output and are rejected by
+ * the redemption path below instead of behaving like a permanent code.
+ */
+function optionalDateIso(value: Date | null): string | null {
+  if (!value || !Number.isFinite(value.getTime())) return null;
+  return value.toISOString();
+}
+
 function toCreatorCode(
   row: typeof schema.creatorCodes.$inferSelect,
   productIds: string[],
@@ -69,12 +83,13 @@ function toCreatorCode(
   return {
     id: row.id,
     code: row.code,
+    codeType: row.codeType === "event" ? "event" : "creator",
     creatorName: row.creatorName,
     discordUsername: row.discordUsername,
     socials: toSocials(row.socials),
     percentOff: row.percentOff,
     enabled: row.enabled,
-    expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
+    expiresAt: optionalDateIso(row.expiresAt),
     internalNote: row.internalNote,
     productIds,
     createdAt: row.createdAt.toISOString(),
@@ -146,7 +161,10 @@ export async function getRedeemableCreatorCode(code: string): Promise<CreatorCod
     if (rows.length === 0) return null;
     const { eligibleProductId: _firstProductId, ...row } = rows[0];
     if (!row || !row.enabled) return null;
-    if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) return null;
+    if (row.expiresAt) {
+      const expiryTime = row.expiresAt.getTime();
+      if (!Number.isFinite(expiryTime) || expiryTime <= Date.now()) return null;
+    }
 
     const productIds = rows.flatMap(({ eligibleProductId }) =>
       eligibleProductId ? [eligibleProductId] : [],

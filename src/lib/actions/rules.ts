@@ -7,7 +7,8 @@
  */
 import { eq, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getSession, hasAtLeast } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManageRules } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
 
 export interface RuleActionResult {
@@ -21,7 +22,8 @@ const NO_DB: RuleActionResult = { ok: false, message: "The database is not conne
 /** Shared guard: returns the editor's username, or null when not permitted. */
 async function requireEditor(): Promise<string | null> {
   const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return null;
+  const userId = session ? await getSessionUserId() : null;
+  if (!session || !(await canManageRules(session, userId))) return null;
   return session.username;
 }
 

@@ -148,7 +148,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             height="aspect-[16/9] min-h-[13rem] sm:min-h-[20rem]"
             sizes="(max-width: 1200px) 100vw, 1152px"
             priority
-            fit="cover"
+            fit="contain"
             className="news-detail-feature-art"
           />
         </div>

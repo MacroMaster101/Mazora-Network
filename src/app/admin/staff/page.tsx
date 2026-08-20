@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ShieldCheck, UserCog } from "lucide-react";
-import { requireRole, roleLabel, canGrantRank, STAFF_ROLES } from "@/lib/auth";
+import { roleLabel, canGrantRank, STAFF_ROLES } from "@/lib/auth";
+import { STAFF_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import type { Role } from "@/lib/types";
 import { listStaffAccounts } from "@/lib/data/accounts";
 import { DashHeader } from "@/components/dashboard/dash-ui";
@@ -24,7 +26,7 @@ export const metadata: Metadata = { title: "Staff · Admin" };
 const LADDER: Role[] = [...STAFF_ROLES].reverse();
 
 export default async function AdminStaffPage() {
-  const session = await requireRole("owner", "/admin/staff");
+  const session = await requireModuleAccess(STAFF_PERMISSION_KEY, "/admin/staff");
   const staff = await listStaffAccounts();
 
   // Someone who has not accepted yet is not on the team, so they are listed

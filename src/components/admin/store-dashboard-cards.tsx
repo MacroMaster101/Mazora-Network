@@ -47,9 +47,9 @@ export function StoreDashboardCards({
           <BadgePercent size={22} />
         </span>
         <span className="store-admin-hub-card-body">
-          <em>Creators</em>
+          <em>Promotions</em>
           <strong>Discount codes</strong>
-          <p>Issue discount codes to content creators and see the business each one drives.</p>
+          <p>Manage creator partnerships and limited-time event or campaign discounts.</p>
           <small>{codesSummary}</small>
         </span>
         <span className="store-admin-hub-card-go">

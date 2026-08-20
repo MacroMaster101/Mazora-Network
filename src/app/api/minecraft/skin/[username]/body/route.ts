@@ -4,6 +4,7 @@ import { compositeBody } from "@/lib/skins/body";
 import { validateSkinBytes, SKIN_MAX_BYTES } from "@/lib/skins/process";
 import { clientKey, rateLimit, retryAfterHeaders } from "@/lib/rate-limit";
 import { mcHeadsBodyUrl } from "@/lib/minecraft/skin";
+import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 
 const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;
 
@@ -15,21 +16,6 @@ const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;
  * asserted here rather than assumed — the same discipline isMinecraftAvatarUrl
  * and providerAvatar apply to rendered image URLs.
  */
-function isOwnStorageUrl(value: string): boolean {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  if (!base) return false;
-  try {
-    const url = new URL(value);
-    const allowed = new URL(base);
-    return (
-      url.origin === allowed.origin &&
-      url.pathname.startsWith("/storage/v1/object/")
-    );
-  } catch {
-    return false;
-  }
-}
-
 /** Returns the default Steve body image redirect so Next.js Image optimizer always gets a valid image */
 function fallbackSteveResponse() {
   return NextResponse.redirect(mcHeadsBodyUrl("Steve", 256), {
@@ -58,7 +44,7 @@ export async function GET(
   }
 
   const linked = await getLinkedSkin(username);
-  if (!linked?.rawSkinUrl || !isOwnStorageUrl(linked.rawSkinUrl)) {
+  if (!linked?.rawSkinUrl || !isSupabaseStorageObjectUrl(linked.rawSkinUrl, process.env.NEXT_PUBLIC_SUPABASE_URL)) {
     return fallbackSteveResponse();
   }
 

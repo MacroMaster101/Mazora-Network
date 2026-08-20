@@ -10,6 +10,10 @@ export const metadata = publicPageMetadata({
   path: "/leaderboards",
 });
 
+// Rankings come from the live Minecraft sync tables and must be rendered from
+// current data instead of queried during a production build.
+export const dynamic = "force-dynamic";
+
 export default async function LeaderboardsPage() {
   const players = await getPlayers();
   const entries = leaderboardTabs.map((tab) => buildLeaderboard(players, tab.key));

@@ -8,7 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET } from "@/lib/storage/avatar-bucket";
 import { removeStoredSkinFiles } from "@/lib/storage/skin-files";
-import { anonymiseOrdersForUser } from "@/lib/data/orders";
+import { cleanupAccountOwnedData } from "@/lib/data/account-deletion";
 
 export interface AccountActionResult {
   ok: boolean;
@@ -170,24 +170,16 @@ export async function deleteAccountAction(
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false, message: "Account deletion is temporarily unavailable." };
 
-  // Storage objects are not database rows and do not cascade when auth.users is deleted.
-  const { data: avatarObjects } = await admin.storage.from("profile-avatars").list(auth.user.id, { limit: 100 });
-  if (avatarObjects?.length) {
-    await admin.storage
-      .from("profile-avatars")
-      .remove(avatarObjects.map((item) => `${auth.user.id}/${item.name}`));
-  }
-
   /*
     Before the auth user goes: once it is deleted the FK has already nulled
     orders.user_id and these rows can no longer be located, so the Discord and
     Minecraft identifiers on them would be stranded permanently.
   */
-  if (!(await anonymiseOrdersForUser(auth.user.id))) {
+  const cleanup = await cleanupAccountOwnedData(auth.user.id);
+  if (!cleanup.ok) {
     return {
       ok: false,
-      message:
-        "Your order history could not be anonymised, so the account was not deleted. Please try again or contact support.",
+      message: `${cleanup.message} Your account was not deleted. Please try again or contact support.`,
     };
   }
 

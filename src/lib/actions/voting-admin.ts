@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getSession, hasAtLeast } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManageVoting as hasVotingAccess } from "@/lib/auth/permissions";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -27,7 +28,8 @@ const voteSiteSchema = z.object({
 
 async function canManageVoting(): Promise<boolean> {
   const session = await getSession();
-  return Boolean(session && hasAtLeast(session.role, "administrator"));
+  const userId = session ? await getSessionUserId() : null;
+  return Boolean(session && (await hasVotingAccess(session, userId)));
 }
 
 export async function saveVoteSiteAction(formData: FormData): Promise<VotingActionResult> {

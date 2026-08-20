@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { getSession, getSessionUserId } from "@/lib/auth";
-import { canManageMinecraft } from "@/lib/auth/permissions";
-import { redirect } from "next/navigation";
+import { MINECRAFT_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getPlayers } from "@/lib/data/players";
+import { getDirectory } from "@/lib/data/directory";
+import { getServerStatus } from "@/lib/data/status";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminPlayersBrowser } from "@/components/admin/admin-players-browser";
 
@@ -11,22 +12,21 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminPlayersPage() {
-  const session = await getSession();
-  const userId = await getSessionUserId();
-  const allowed = await canManageMinecraft(session, userId);
-  if (!session || !allowed) {
-    redirect("/admin");
-  }
+  await requireModuleAccess(MINECRAFT_PERMISSION_KEY, "/admin/players");
 
-  const players = await getPlayers();
+  const [players, directory, serverStatus] = await Promise.all([
+    getPlayers(),
+    getDirectory(),
+    getServerStatus(),
+  ]);
 
   return (
     <div className="space-y-6">
       <DashHeader
         title="Minecraft Players Directory"
-        subtitle="Search and inspect linked Minecraft player accounts, level progression, in-game economy, and playtime telemetry."
+        subtitle="Monitor players online now and inspect linked Minecraft accounts, progression, economy, and playtime telemetry."
       />
-      <AdminPlayersBrowser players={players} />
+      <AdminPlayersBrowser players={players} directory={directory} serverStatus={serverStatus} />
     </div>
   );
 }

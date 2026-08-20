@@ -387,7 +387,7 @@ export function SiteSettingsEditor({
                           <img
                             src={preset.url}
                             alt={preset.label}
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            className="h-full w-full object-contain object-center bg-black/70 p-1 transition-transform duration-300 group-hover:scale-[1.03]"
                           />
                           {isSelected && (
                             <span className="absolute top-1.5 right-1.5 bg-accent text-white p-1 rounded-full shadow-md">
@@ -532,7 +532,7 @@ export function SiteSettingsEditor({
                   <p className="text-[11px] text-[#2e3338] dark:text-[#dbdee1] leading-relaxed line-clamp-3">{shareDesc}</p>
                   <div className="relative aspect-[1200/630] w-full overflow-hidden rounded-md border border-black/10 dark:border-white/10 bg-black/5 dark:bg-black/50 shadow-inner mt-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={activeOgImage} alt="Discord Preview" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "/images/og-default.webp"; }} />
+                    <img src={activeOgImage} alt="Discord Preview" className="h-full w-full object-contain object-center bg-black/70 p-0.5" onError={(e) => { (e.target as HTMLImageElement).src = "/images/og-default.webp"; }} />
                   </div>
                 </div>
               </div>
@@ -543,7 +543,7 @@ export function SiteSettingsEditor({
               <div className="rounded-2xl border border-[#cfd9de] dark:border-[#2f3336] bg-white dark:bg-black p-0 shadow-lg dark:shadow-2xl font-sans select-none overflow-hidden">
                 <div className="relative aspect-[1200/630] w-full overflow-hidden bg-slate-100 dark:bg-[#16181c]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={activeOgImage} alt="Twitter Preview" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "/images/og-default.webp"; }} />
+                  <img src={activeOgImage} alt="Twitter Preview" className="h-full w-full object-contain object-center bg-black/70 p-0.5" onError={(e) => { (e.target as HTMLImageElement).src = "/images/og-default.webp"; }} />
                 </div>
                 <div className="px-3 py-2 border-t border-[#cfd9de] dark:border-[#2f3336] bg-white dark:bg-black">
                   <p className="text-[11px] text-[#536471] dark:text-[#71767b] leading-none">mazora.us</p>
@@ -560,7 +560,7 @@ export function SiteSettingsEditor({
                 <div className="max-w-[85%] rounded-xl rounded-tl-sm bg-white dark:bg-[#202c33] p-0 overflow-hidden shadow-sm dark:shadow-md border border-black/5 dark:border-transparent">
                   <div className="relative aspect-[1200/630] w-full overflow-hidden bg-slate-200 dark:bg-[#111b21]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={activeOgImage} alt="WhatsApp Preview" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "/images/og-default.webp"; }} />
+                    <img src={activeOgImage} alt="WhatsApp Preview" className="h-full w-full object-contain object-center bg-black/70 p-0.5" onError={(e) => { (e.target as HTMLImageElement).src = "/images/og-default.webp"; }} />
                   </div>
                   <div className="px-2.5 py-2 space-y-0.5">
                     <p className="text-[10px] text-[#008069] dark:text-[#00a884] font-bold leading-none uppercase tracking-wide">MAZORA.US</p>
@@ -596,7 +596,7 @@ export function SiteSettingsEditor({
                 <div className="border-t border-[#ced0d4] dark:border-[#3e4042]">
                   <div className="relative aspect-[1200/630] w-full overflow-hidden bg-slate-100 dark:bg-[#18191a]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={activeOgImage} alt="Facebook Preview" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "/images/og-default.webp"; }} />
+                    <img src={activeOgImage} alt="Facebook Preview" className="h-full w-full object-contain object-center bg-black/70 p-0.5" onError={(e) => { (e.target as HTMLImageElement).src = "/images/og-default.webp"; }} />
                   </div>
                   <div className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#3a3b3c]">
                     <p className="text-[10px] text-[#65676b] dark:text-[#b0b3b8] uppercase tracking-wide leading-none font-semibold">mazora.us</p>
@@ -628,7 +628,7 @@ export function SiteSettingsEditor({
                 {/* Rich Result Image Thumbnail */}
                 <div className="relative aspect-[1200/630] w-full overflow-hidden rounded-lg border border-line bg-black/10">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={activeOgImage} alt="Google Preview" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "/images/og-default.webp"; }} />
+                  <img src={activeOgImage} alt="Google Preview" className="h-full w-full object-contain object-center bg-black/70 p-0.5" onError={(e) => { (e.target as HTMLImageElement).src = "/images/og-default.webp"; }} />
                 </div>
               </div>
             )}
@@ -780,4 +780,3 @@ export function SiteSettingsEditor({
     </form>
   );
 }
-

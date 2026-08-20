@@ -11,6 +11,7 @@ import { getSession, hasAtLeast, isStaff } from "@/lib/auth";
 import { getServerStatus } from "@/lib/data/status";
 import { getDiscordStats } from "@/lib/data/discord";
 import { getPlayers } from "@/lib/data/players";
+import { getDirectory } from "@/lib/data/directory";
 import { getEvents, getNews, getProducts } from "@/lib/data/content";
 import { getAccountsSnapshot, getRecentAudit } from "@/lib/data/admin-overview";
 import { MinecraftAvatar, UserAvatar } from "@/components/shared";
@@ -37,10 +38,11 @@ export default async function ControlRoom() {
   const canSeeAccounts = hasAtLeast(role, "owner");
   const canSeeAudit = hasAtLeast(role, "it");
 
-  const [status, discord, players, events, news, products, accounts, audit] = await Promise.all([
+  const [status, discord, players, directory, events, news, products, accounts, audit] = await Promise.all([
     getServerStatus(),
     getDiscordStats(),
     canModerate ? getPlayers() : Promise.resolve([]),
+    canModerate ? getDirectory() : Promise.resolve([]),
     canManageContent ? getEvents() : Promise.resolve([]),
     canManageContent ? getNews() : Promise.resolve([]),
     canManageContent ? getProducts() : Promise.resolve([]),
@@ -48,7 +50,10 @@ export default async function ControlRoom() {
     canSeeAudit ? getRecentAudit() : Promise.resolve(null),
   ]);
 
-  const onlinePlayers = players.filter((p) => p.status === "online").slice(0, 6);
+  const trackedByName = new Map(players.map((player) => [player.username.toLowerCase(), player]));
+  const namedOnlinePlayers = directory.filter((player) => player.online);
+  const onlinePlayers = namedOnlinePlayers.slice(0, 6);
+  const hiddenOnlinePlayers = Math.max(0, status.players - namedOnlinePlayers.length);
   const liveEvents = events.filter((e) => e.status !== "completed").length;
   // `live` means the status provider answered; `online` is the Minecraft
   // server's actual state. A successful offline reading must not become 0/500.
@@ -103,28 +108,44 @@ export default async function ControlRoom() {
             icon={<Radio size={16} />}
             href="/admin/players"
             linkLabel="All players"
-            tag={onlinePlayers.length > 0 ? undefined : showDiagnostics ? "Standby" : "Coming soon"}
+            tag={status.online ? "Live" : showDiagnostics ? "Standby" : undefined}
           >
             {onlinePlayers.length > 0 ? (
               <div className="divide-y divide-line/40">
-                {onlinePlayers.map((p) => (
-                  <div key={p.username} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/5 transition-colors">
-                    <MinecraftAvatar username={p.username} size={30} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-bold text-ink">{p.username}</span>
-                      <span className="block text-[11px] text-muted">
-                        {p.currentMode} · Level {p.level}
+                {onlinePlayers.map((player) => {
+                  const tracked = trackedByName.get(player.username.toLowerCase());
+                  return (
+                    <div key={player.username} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/5 transition-colors">
+                      <MinecraftAvatar username={player.username} size={30} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-bold text-ink">{player.username}</span>
+                        <span className="block text-[11px] text-muted">
+                          {player.membership === "member" ? "Mazora member" : "Live server player"}
+                        </span>
                       </span>
-                    </span>
-                    <span className="telemetry shrink-0 text-xs text-muted font-medium">{p.playtimeHours.toLocaleString()}h</span>
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_7px_rgba(16,185,129,0.8)]" />
+                        Online
+                      </span>
+                      {tracked && (
+                        <span className="telemetry shrink-0 text-xs text-muted font-medium">{tracked.playtimeHours.toLocaleString()}h</span>
+                      )}
+                    </div>
+                  );
+                })}
+                {hiddenOnlinePlayers > 0 && (
+                  <div className="px-4 py-3 text-center text-[11px] font-medium text-muted">
+                    +{hiddenOnlinePlayers} online player {hiddenOnlinePlayers === 1 ? "name is" : "names are"} hidden by the server ping sample
                   </div>
-                ))}
+                )}
               </div>
             ) : (
               <BoardNotice>
-                {showDiagnostics
-                  ? "Player profiles and statistics arrive with the Minecraft server integration."
-                  : "The live player roster is coming soon."}
+                {status.online && status.players > 0
+                  ? `${status.players} player${status.players === 1 ? " is" : "s are"} online, but the server ping sample is not publishing usernames.`
+                  : status.online
+                    ? "The server is online with no players connected right now."
+                    : "The live player roster is unavailable while the Minecraft server is offline."}
               </BoardNotice>
             )}
           </Board>

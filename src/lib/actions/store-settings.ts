@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getSession, hasAtLeast } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManageStore } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
 import { getAdminGameModes, getAdminProducts, getProducts } from "@/lib/data/content";
 import { categoryConfigId, getStoreCategoryConfigs, getStoreCategorySettingState, STORE_CATEGORY_CONFIG_KEY } from "@/lib/data/store-categories";
@@ -20,9 +21,15 @@ export interface StoreSettingsActionResult {
   message: string;
 }
 
-export async function saveStoreFeaturedPicksAction(formData: FormData): Promise<StoreSettingsActionResult> {
+async function storeEditor() {
   const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) {
+  const userId = session ? await getSessionUserId() : null;
+  return session && (await canManageStore(session, userId)) ? session : null;
+}
+
+export async function saveStoreFeaturedPicksAction(formData: FormData): Promise<StoreSettingsActionResult> {
+  const session = await storeEditor();
+  if (!session) {
     return { ok: false, message: "You do not have permission to manage Store merchandising." };
   }
 
@@ -77,8 +84,8 @@ const welcomeBannerSchema = z.object({
 });
 
 export async function saveStoreWelcomeBannerAction(formData: FormData): Promise<StoreSettingsActionResult> {
-  const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) {
+  const session = await storeEditor();
+  if (!session) {
     return { ok: false, message: "You do not have permission to manage Store welcome banner." };
   }
 
@@ -139,8 +146,8 @@ const roadmapSchema = z.object({
 });
 
 export async function saveStoreRoadmapAction(formData: FormData): Promise<StoreSettingsActionResult> {
-  const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) {
+  const session = await storeEditor();
+  if (!session) {
     return { ok: false, message: "You do not have permission to manage Store roadmap." };
   }
 
@@ -237,8 +244,8 @@ function withCategoryOverride(
 }
 
 export async function saveStoreCategoryAction(formData: FormData): Promise<StoreSettingsActionResult> {
-  const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to manage Store categories." };
+  const session = await storeEditor();
+  if (!session) return { ok: false, message: "You do not have permission to manage Store categories." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
 
@@ -284,8 +291,8 @@ export async function saveStoreCategoryAction(formData: FormData): Promise<Store
 }
 
 export async function reorderStoreCategoriesAction(formData: FormData): Promise<StoreSettingsActionResult> {
-  const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to reorder Store categories." };
+  const session = await storeEditor();
+  if (!session) return { ok: false, message: "You do not have permission to reorder Store categories." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
 
@@ -334,8 +341,8 @@ export async function reorderStoreCategoriesAction(formData: FormData): Promise<
 }
 
 export async function toggleStoreCategoryAction(formData: FormData): Promise<StoreSettingsActionResult> {
-  const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to toggle Store categories." };
+  const session = await storeEditor();
+  if (!session) return { ok: false, message: "You do not have permission to toggle Store categories." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
 
@@ -367,8 +374,8 @@ export async function toggleStoreCategoryAction(formData: FormData): Promise<Sto
 }
 
 export async function toggleStoreCategorySubcategoriesAction(formData: FormData): Promise<StoreSettingsActionResult> {
-  const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to manage Store subcategories." };
+  const session = await storeEditor();
+  if (!session) return { ok: false, message: "You do not have permission to manage Store subcategories." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
 
@@ -400,8 +407,8 @@ export async function toggleStoreCategorySubcategoriesAction(formData: FormData)
 }
 
 export async function deleteStoreCategoryAction(formData: FormData): Promise<StoreSettingsActionResult> {
-  const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to delete Store categories." };
+  const session = await storeEditor();
+  if (!session) return { ok: false, message: "You do not have permission to delete Store categories." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   const gameModeSlug = String(formData.get("gameModeSlug") ?? "");
@@ -421,8 +428,8 @@ export async function deleteStoreCategoryAction(formData: FormData): Promise<Sto
 }
 
 export async function saveStoreSubcategoryAction(formData: FormData): Promise<StoreSettingsActionResult> {
-  const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to manage Store subcategories." };
+  const session = await storeEditor();
+  if (!session) return { ok: false, message: "You do not have permission to manage Store subcategories." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   const gameModeSlug = String(formData.get("gameModeSlug") ?? "").trim();
@@ -459,8 +466,8 @@ export async function saveStoreSubcategoryAction(formData: FormData): Promise<St
 }
 
 export async function toggleStoreSubcategoryAction(formData: FormData): Promise<StoreSettingsActionResult> {
-  const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to manage Store subcategories." };
+  const session = await storeEditor();
+  if (!session) return { ok: false, message: "You do not have permission to manage Store subcategories." };
   const gameModeSlug = String(formData.get("gameModeSlug") ?? "");
   const categoryKey = String(formData.get("categoryKey") ?? "");
   const key = String(formData.get("key") ?? "");
@@ -477,8 +484,8 @@ export async function toggleStoreSubcategoryAction(formData: FormData): Promise<
 }
 
 export async function deleteStoreSubcategoryAction(formData: FormData): Promise<StoreSettingsActionResult> {
-  const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to delete Store subcategories." };
+  const session = await storeEditor();
+  if (!session) return { ok: false, message: "You do not have permission to delete Store subcategories." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   const gameModeSlug = String(formData.get("gameModeSlug") ?? "");
@@ -499,8 +506,8 @@ export async function deleteStoreSubcategoryAction(formData: FormData): Promise<
 }
 
 export async function reorderStoreSubcategoriesAction(formData: FormData): Promise<StoreSettingsActionResult> {
-  const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) return { ok: false, message: "You do not have permission to reorder Store subcategories." };
+  const session = await storeEditor();
+  if (!session) return { ok: false, message: "You do not have permission to reorder Store subcategories." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
 

@@ -330,30 +330,6 @@
 }
 
 /* Continuous transparent world overlay below hero section without any dark rectangular bands or lines */
-.vote-realm-world {
-  position: relative;
-  z-index: 4;
-  margin-top: -4rem !important;
-  padding-top: 4rem !important;
-  background: transparent !important;
-}
-
-.vote-realm-atmosphere {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(54rem 32rem at 50% 0%, rgb(139 92 246 / 0.15), transparent 70%),
-    radial-gradient(48rem 28rem at 12% 20%, rgb(14 165 173 / 0.08), transparent 72%),
-    radial-gradient(54rem 32rem at 86% 36%, rgb(139 92 246 / 0.12), transparent 72%),
-    linear-gradient(90deg, rgb(5 3 10 / 0.4), transparent 20%, transparent 80%, rgb(5 3 10 / 0.4));
-  /* This overlay's box starts 4rem up inside the hero, and both its top-anchored
-     purple glow and its left/right edge darkening began at full strength on that
-     first pixel — drawing a hard horizontal line across the artwork. Easing the
-     whole layer in over its first 8rem lets it build up gradually instead. */
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 8rem);
-  mask-image: linear-gradient(180deg, transparent 0, #000 8rem);
-}
 
 @media (max-width: 899px) {
   .vote-redesign-mast {
@@ -496,11 +472,6 @@
     -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 3rem, rgb(0 0 0 / 0.55) 8rem, #000 14rem, #000 100%);
     mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 3rem, rgb(0 0 0 / 0.55) 8rem, #000 14rem, #000 100%);
   }
-
-  .vote-redesign-hero+.vote-realm-world {
-    margin-top: -6rem !important;
-    padding-top: 4.5rem !important;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -626,96 +597,16 @@
     url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
 }
 
-:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world {
-  color: #291b3b;
-  background:
-    radial-gradient(48rem 22rem at 50% 4rem, rgb(139 92 246 / 0.08), transparent 72%),
-    linear-gradient(180deg, transparent 0%, rgb(241 236 247 / 0.28) 8rem, rgb(245 241 249 / 0.45) 52%, rgb(238 232 243 / 0.68) 100%) !important;
-}
-
-:root[data-theme="light"] .vote-realm-atmosphere {
-  background:
-    radial-gradient(48rem 28rem at 12% 20%, rgb(14 165 173 / 0.05), transparent 72%),
-    radial-gradient(54rem 32rem at 86% 36%, rgb(139 92 246 / 0.08), transparent 72%),
-    linear-gradient(90deg, rgb(76 52 108 / 0.05), transparent 20%, transparent 80%, rgb(76 52 108 / 0.05));
-}
-
-:root[data-theme="light"] .vote-hub-heading .eyebrow {
-  color: rgb(109 40 217);
-  text-shadow: none;
-}
-
-:root[data-theme="light"] .vote-hub-heading h2 {
-  color: #261735;
-  text-shadow: 0 3px 20px rgb(255 255 255 / 0.72);
-}
-
-:root[data-theme="light"] .vote-hub-heading>p:last-child {
-  color: rgb(64 47 84 / 0.76);
-  text-shadow: 0 2px 14px rgb(255 255 255 / 0.7);
-}
-
-:root[data-theme="light"] .vote-hub-leaderboard-card,
-:root[data-theme="light"] .vote-hub-sites,
-:root[data-theme="light"] .vote-hub-guide {
-  border-color: rgb(77 53 113 / 0.18);
-  color: #261735;
-  background:
-    radial-gradient(32rem 18rem at 100% 0%, rgb(139 92 246 / 0.09), transparent 72%),
-    rgb(253 251 255 / 0.86);
-  box-shadow: 0 30px 72px -44px rgb(49 30 80 / 0.4), inset 0 1px rgb(255 255 255 / 0.92);
-  backdrop-filter: blur(24px) saturate(1.08);
-}
-
-:root[data-theme="light"] .vote-hub-leaderboard-card :is(h2, strong),
-:root[data-theme="light"] .vote-hub-sites :is(h2, strong),
-:root[data-theme="light"] .vote-hub-guide :is(h2, strong) {
-  color: #261735;
-}
-
-:root[data-theme="light"] .vote-hub-leaderboard-card :is(.vote-realm-leader-head, .vote-ref-pagination),
-:root[data-theme="light"] .vote-hub-sites-head,
-:root[data-theme="light"] .vote-hub-guide-head,
-:root[data-theme="light"] .vote-hub-guide-list>div {
-  border-color: rgb(77 53 113 / 0.13);
-}
-
-:root[data-theme="light"] .vote-hub-leaderboard-card :is(.vote-realm-leader-title > div > p:last-child, .vote-realm-ranked span),
-:root[data-theme="light"] .vote-hub-sites :is(small, .vote-hub-cooldown),
-:root[data-theme="light"] .vote-hub-guide-list small,
 :root[data-theme="light"] .vote-ref-pagination {
   color: rgb(78 60 99 / 0.72);
 }
 
-:root[data-theme="light"] .vote-hub-site-link,
-:root[data-theme="light"] .vote-hub-site-link:hover {
-  border-color: rgb(77 53 113 / 0.14);
-  color: #261735;
-  background: rgb(255 255 255 / 0.7);
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.92);
-}
-
-:root[data-theme="light"] .vote-hub-site-link:hover {
-  border-color: rgb(124 58 237 / 0.3);
-  background: rgb(139 92 246 / 0.09);
-}
-
-:root[data-theme="light"] .vote-hub-site-action,
-:root[data-theme="light"] .vote-hub-site-link:hover .vote-hub-site-action {
-  color: rgb(109 40 217);
-}
-
-:root[data-theme="light"] .vote-realm-table .field,
 :root[data-theme="light"] .vote-table-search .field,
 :root[data-theme="light"] .vote-filter-menu>summary {
   border-color: rgb(77 53 113 / 0.17);
   color: #261735;
   background: rgb(255 255 255 / 0.76);
   box-shadow: inset 0 1px rgb(255 255 255 / 0.92);
-}
-
-:root[data-theme="light"] .vote-realm-table .field::placeholder {
-  color: rgb(78 60 99 / 0.54);
 }
 
 :root[data-theme="light"] .vote-table-search svg,
@@ -756,25 +647,6 @@
   color: rgb(76 42 122);
 }
 
-:root[data-theme="light"] .vote-realm-table thead {
-  color: rgb(78 60 99 / 0.72);
-}
-
-:root[data-theme="light"] .vote-realm-table tbody tr {
-  background: rgb(255 255 255 / 0.55);
-}
-
-:root[data-theme="light"] .vote-realm-table tbody td {
-  border-color: rgb(77 53 113 / 0.1);
-  color: rgb(54 40 72);
-  background: rgb(255 255 255 / 0.38);
-}
-
-:root[data-theme="light"] .vote-realm-table tbody tr:hover td {
-  border-color: rgb(124 58 237 / 0.2);
-  background: rgb(139 92 246 / 0.06);
-}
-
 :root[data-theme="light"] .vote-mobile-row,
 :root[data-theme="light"] .vote-mobile-empty {
   border-color: rgb(77 53 113 / 0.13);
@@ -810,18 +682,7 @@
 }
 
 /* Light transition and empty-table contrast polish. */
-:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world {
-  background:
-    linear-gradient(180deg, #ece6f4 0%, rgb(236 230 244 / 0.97) 9rem, rgb(242 237 247 / 0.78) 20rem, rgb(245 241 249 / 0.46) 52%, rgb(238 232 243 / 0.7) 100%) !important;
-}
 
-:root[data-theme="light"] .vote-realm-table thead,
-:root[data-theme="light"] .vote-realm-table thead tr,
-:root[data-theme="light"] .vote-realm-table thead th {
-  color: rgb(72 52 94 / 0.76) !important;
-}
-
-:root[data-theme="light"] .vote-realm-table tbody .text-muted,
 :root[data-theme="light"] .vote-mobile-empty {
   color: rgb(76 58 96 / 0.7) !important;
 }
@@ -833,11 +694,6 @@
     url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
   -webkit-mask-image: none;
   mask-image: none;
-}
-
-:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world {
-  background:
-    linear-gradient(180deg, transparent 0%, rgb(244 240 248 / 0.06) 14rem, rgb(240 234 245 / 0.16) 54%, rgb(233 226 240 / 0.3) 100%) !important;
 }
 
 /* Light hero shows the generated sanctuary directly, without a pale image mask. */
@@ -903,28 +759,6 @@
   mask-image: none;
 }
 
-:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world,
-:root[data-theme="light"] .vote-realm-atmosphere,
-:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world::before,
-:root[data-theme="light"] .vote-redesign-hero+.vote-realm-world::after {
-  background: none !important;
-}
-
-:root[data-theme="light"] .vote-hub-heading .eyebrow {
-  color: rgb(216 180 254);
-  text-shadow: 0 2px 14px rgb(3 1 8 / 0.8);
-}
-
-:root[data-theme="light"] .vote-hub-heading h2 {
-  color: white;
-  text-shadow: 0 4px 28px rgb(3 1 8 / 0.82);
-}
-
-:root[data-theme="light"] .vote-hub-heading>p:last-child {
-  color: rgb(245 239 251 / 0.78);
-  text-shadow: 0 2px 16px rgb(3 1 8 / 0.78);
-}
-
 :root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer {
   color: white;
   background: transparent !important;
@@ -940,11 +774,6 @@
 
 :root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer .hover\:text-ink:hover {
   color: white;
-}
-
-:root[data-theme="light"] .vote-realm-world {
-  color: #291b3b;
-  background: transparent !important;
 }
 
 /* Solid daylight voting surfaces; the realm artwork remains outside them. */
@@ -977,11 +806,6 @@
   background: rgb(252 251 253) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-}
-
-:root[data-theme="light"] .vote-realm-table tbody tr,
-:root[data-theme="light"] .vote-realm-table tbody td {
-  background: rgb(252 251 253) !important;
 }
 /* Light theme hero/continuation crossfade.
    Light mode deliberately keeps its sanctuary photo unmasked over an opaque
@@ -1024,4 +848,70 @@
   .vote-redesign-image {
     object-position: 18% center;
   }
+}
+
+/* The restored left/right Vote layout uses dark text tokens internally. Keep
+   its light-theme surfaces and content on the same palette so pale cards do
+   not inherit the historical white-on-glass typography. */
+:root[data-theme="light"] .vote-hub-leaderboard-card,
+:root[data-theme="light"] .vote-hub-sites {
+  color: rgb(38 23 53) !important;
+}
+
+:root[data-theme="light"] .vote-hub-leaderboard-card :is(h2, strong),
+:root[data-theme="light"] .vote-hub-sites :is(h2, strong) {
+  color: rgb(30 23 43) !important;
+}
+
+:root[data-theme="light"] .vote-hub-leaderboard-card :is(
+  .vote-realm-leader-title > div > p:last-child,
+  .vote-realm-ranked span
+),
+:root[data-theme="light"] .vote-hub-sites .vote-hub-cooldown,
+:root[data-theme="light"] .vote-ref-pagination {
+  color: rgb(86 72 106 / 0.78) !important;
+}
+
+:root[data-theme="light"] .vote-realm-table thead,
+:root[data-theme="light"] .vote-realm-table thead th {
+  color: rgb(76 61 98 / 0.82) !important;
+}
+
+:root[data-theme="light"] .vote-realm-table tbody tr,
+:root[data-theme="light"] .vote-realm-table tbody td {
+  border-color: rgb(77 53 113 / 0.12) !important;
+  background: rgb(252 251 253) !important;
+  color: rgb(56 45 72) !important;
+}
+
+:root[data-theme="light"] .vote-realm-table tbody .text-muted,
+:root[data-theme="light"] .vote-mobile-empty {
+  color: rgb(86 72 106 / 0.78) !important;
+}
+
+:root[data-theme="light"] .vote-ref-pagination .btn-ghost {
+  border-color: rgb(77 53 113 / 0.16) !important;
+  color: rgb(76 42 122) !important;
+}
+
+:root[data-theme="light"] .vote-hub-site-link,
+:root[data-theme="light"] .vote-hub-site-link:hover {
+  border-color: rgb(124 58 237 / 0.3) !important;
+  background: linear-gradient(135deg, rgb(124 58 237), rgb(91 33 182)) !important;
+  color: white !important;
+  box-shadow: 0 14px 28px -20px rgb(76 29 149 / 0.9), inset 0 1px rgb(255 255 255 / 0.18) !important;
+}
+
+:root[data-theme="light"] .vote-hub-site-link :is(strong, small),
+:root[data-theme="light"] .vote-hub-site-link .vote-hub-site-action {
+  color: white !important;
+}
+
+:root[data-theme="light"] .vote-hub-site-link small {
+  color: rgb(245 239 255 / 0.76) !important;
+}
+
+:root[data-theme="light"] .vote-hub-site-number {
+  background: rgb(255 255 255 / 0.14) !important;
+  color: white !important;
 }
