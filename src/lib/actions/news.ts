@@ -132,8 +132,23 @@ async function publisherPatch(formData: FormData, fallbackName: string): Promise
 
   // Public staff identities are trusted session data, never editable form text.
   const session = await getSession();
+  /*
+    authorId is the whole point of this branch. The three fields below it are a
+    snapshot taken at the moment the publisher was set, and a snapshot of a
+    person's name goes wrong the first time they rename: the byline keeps
+    showing whoever they used to be. The read path already prefers a live
+    profile joined on author_id and only falls back to these columns, but it can
+    only do that if the id was actually stored — and it was not, so every
+    Discord-imported article resolved by matching author_name against
+    profiles.username, which is exactly the lookup a rename breaks.
+
+    Storing the id makes the byline self-updating: name, avatar and role all
+    follow the account from here on, and the snapshot below is left purely as
+    the fallback for rows that predate it.
+  */
   return {
     publisherMode: "author",
+    authorId: (await getSessionUserId()) ?? undefined,
     authorName: session?.displayName || session?.username || fallbackName,
     authorRole: session ? roleLabel(session.role) : "News Publisher",
     authorAvatarUrl: session?.avatarUrl ?? null,

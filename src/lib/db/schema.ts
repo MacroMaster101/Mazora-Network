@@ -90,24 +90,6 @@ export const minecraftPlayers = pgTable(
   }),
 );
 
-export const playerStatistics = pgTable("player_statistics", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  minecraftAccountId: uuid("minecraft_account_id").notNull(),
-  playtimeSeconds: bigint("playtime_seconds", { mode: "number" }).default(0).notNull(),
-  kills: integer("kills").default(0).notNull(),
-  deaths: integer("deaths").default(0).notNull(),
-  balance: numeric("balance").default("0").notNull(),
-  level: integer("level").default(0).notNull(),
-  wins: integer("wins").default(0).notNull(),
-  losses: integer("losses").default(0).notNull(),
-  blocksMined: bigint("blocks_mined", { mode: "number" }).default(0).notNull(),
-  blocksPlaced: bigint("blocks_placed", { mode: "number" }).default(0).notNull(),
-  killStreak: integer("kill_streak").default(0).notNull(),
-  lastSeen: timestamp("last_seen", { withTimezone: true }),
-  isOnline: boolean("is_online").default(false).notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
 export const newsArticles = pgTable(
   "news_articles",
   {
@@ -171,13 +153,6 @@ export const events = pgTable(
   (t) => ({ slugIdx: uniqueIndex("events_slug_idx").on(t.slug) }),
 );
 
-export const eventRegistrations = pgTable("event_registrations", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  eventId: uuid("event_id").notNull(),
-  userId: uuid("user_id").notNull(),
-  registeredAt: timestamp("registered_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
 export const gameModes = pgTable(
   "game_modes",
   {
@@ -226,81 +201,6 @@ export const rules = pgTable("rules", {
   sortOrder: integer("sort_order").default(0).notNull(),
   enabled: boolean("enabled").default(true).notNull(),
 }, (t) => ({ orderIdx: index("rules_order_idx").on(t.categoryId, t.sortOrder) }));
-
-export const staffMembers = pgTable("staff_members", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id"),
-  minecraftAccountId: uuid("minecraft_account_id"),
-  username: text("username").notNull(),
-  staffRole: text("staff_role").notNull(),
-  bio: text("bio"),
-  sortOrder: integer("sort_order").default(0).notNull(),
-  visible: boolean("visible").default(true).notNull(),
-});
-
-export const supportTickets = pgTable("support_tickets", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  category: text("category").notNull().default("General"),
-  subject: text("subject").notNull(),
-  priority: text("priority").notNull().default("normal"),
-  status: text("status").notNull().default("open"),
-  assignedTo: uuid("assigned_to"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const ticketMessages = pgTable("ticket_messages", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  ticketId: uuid("ticket_id").notNull(),
-  senderId: uuid("sender_id").notNull(),
-  message: text("message").notNull(),
-  isPrivateStaffNote: boolean("is_private_staff_note").default(false).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const banAppeals = pgTable("ban_appeals", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  minecraftUsername: text("minecraft_username").notNull(),
-  punishmentType: text("punishment_type").notNull(),
-  punishmentReason: text("punishment_reason"),
-  appealText: text("appeal_text").notNull(),
-  evidenceUrl: text("evidence_url"),
-  status: text("status").notNull().default("pending"),
-  reviewedBy: uuid("reviewed_by"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const playerReports = pgTable("player_reports", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  reporterId: uuid("reporter_id").notNull(),
-  reportedUsername: text("reported_username").notNull(),
-  category: text("category").notNull(),
-  description: text("description").notNull(),
-  evidenceUrl: text("evidence_url"),
-  status: text("status").notNull().default("submitted"),
-  assignedTo: uuid("assigned_to"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const bugReports = pgTable("bug_reports", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  title: text("title").notNull(),
-  gameMode: text("game_mode"),
-  description: text("description").notNull(),
-  reproductionSteps: text("reproduction_steps"),
-  expectedResult: text("expected_result"),
-  actualResult: text("actual_result"),
-  minecraftVersion: text("minecraft_version"),
-  evidenceUrl: text("evidence_url"),
-  status: text("status").notNull().default("submitted"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
 
 export const suggestions = pgTable("suggestions", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -472,16 +372,6 @@ export const voteHistory = pgTable("vote_history", {
   voteSiteId: uuid("vote_site_id").notNull(),
   votedAt: timestamp("voted_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({ ownerIdx: index("votes_owner_idx").on(t.userId, t.votedAt.desc()) }));
-
-export const notifications = pgTable("notifications", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  title: text("title").notNull(),
-  message: text("message"),
-  type: text("type").notNull().default("info"),
-  readAt: timestamp("read_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (t) => ({ unreadIdx: index("notifications_unread_idx").on(t.userId, t.createdAt.desc()).where(sql`${t.readAt} is null`) }));
 
 export const galleryImages = pgTable("gallery_images", {
   id: uuid("id").defaultRandom().primaryKey(),
