@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { getSession, requireRole } from "@/lib/auth";
+import { PLAY_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { roleLabel } from "@/lib/auth/roles";
 import { getPatchUpdates } from "@/lib/data/patches";
 import { getFaqs } from "@/lib/data/faqs";
@@ -10,18 +11,17 @@ import { PlayPageEditor } from "@/components/admin/play-page-editor";
 export const metadata: Metadata = { title: "Play Page · Admin" };
 
 export default async function AdminPagesPage() {
-  await requireRole("administrator", "/admin/pages");
-  const [session, patches, faqs, config] = await Promise.all([
-    getSession(),
+  const session = await requireModuleAccess(PLAY_PERMISSION_KEY, "/admin/pages");
+  const [patches, faqs, config] = await Promise.all([
     getPatchUpdates(),
     getFaqs(),
     getPlayPageConfig(),
   ]);
 
   const currentUser = {
-    name: session?.displayName ?? session?.username ?? "LilyLuvv",
-    role: session ? roleLabel(session.role) : "Owner",
-    avatarUrl: session?.avatarUrl || undefined,
+    name: session.displayName ?? session.username ?? "LilyLuvv",
+    role: roleLabel(session.role),
+    avatarUrl: session.avatarUrl || undefined,
   };
 
   return (

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getSession, hasAtLeast } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManageAppeals } from "@/lib/auth/permissions";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { FORMS_CONFIG_KEY, getFormsConfig, FormConfigItem } from "@/lib/data/forms-config";
@@ -33,11 +34,9 @@ export async function toggleFormStatusAction(
   formId: "appeals" | "staff" | "creator",
   enabled: boolean
 ): Promise<FormActionState> {
-  // These links are where every public ban appeal / staff application lands.
-  // Gate at administrator like every other site-content mutation — helper+
-  // (isStaff) could previously repoint them at a form they controlled.
   const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) {
+  const userId = session ? await getSessionUserId() : null;
+  if (!session || !(await canManageAppeals(session, userId))) {
     return { ok: false, message: "Unauthorized staff action." };
   }
   if (!formIdSchema.safeParse(formId).success) {
@@ -88,9 +87,9 @@ export async function updateFormUrlAction(
   formId: "appeals" | "staff" | "creator",
   publicUrl: string
 ): Promise<FormActionState> {
-  // Same administrator gate as toggleFormStatusAction — see the comment there.
   const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) {
+  const userId = session ? await getSessionUserId() : null;
+  if (!session || !(await canManageAppeals(session, userId))) {
     return { ok: false, message: "Unauthorized staff action." };
   }
   if (!formIdSchema.safeParse(formId).success) {

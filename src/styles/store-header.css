@@ -537,7 +537,6 @@
 
 .store-home-welcome-v3,
 .store-home-featured-v3,
-.store-home-category-hub,
 .store-home-roadmap-v3 {
   position: relative;
   overflow: hidden;
@@ -797,8 +796,7 @@
   color: white !important;
 }
 
-.store-home-featured-v3-head h3,
-.store-home-category-hub-intro h3 {
+.store-home-featured-v3-head h3 {
   max-width: 28ch;
   margin-top: 0.55rem;
   color: rgb(var(--ink));
@@ -809,8 +807,7 @@
   line-height: 0.98;
 }
 
-.store-home-featured-v3-head p:last-child,
-.store-home-category-hub-intro > p:nth-of-type(2) {
+.store-home-featured-v3-head p:last-child {
   max-width: 42rem;
   margin-top: 0.85rem;
   color: rgb(var(--muted));
@@ -818,8 +815,7 @@
   line-height: 1.7;
 }
 
-.store-home-featured-v3-head > span,
-.store-home-category-hub-intro > span {
+.store-home-featured-v3-head > span {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -858,94 +854,6 @@
 }
 
 .store-home-featured-v3-item .store-product-card { height: 100%; }
-
-.store-home-category-hub {
-  display: grid;
-  grid-template-columns: minmax(15rem, 0.72fr) minmax(0, 1.55fr);
-  gap: clamp(1rem, 2vw, 1.5rem);
-  border-radius: clamp(1.35rem, 2vw, 2rem);
-  padding: clamp(1.35rem, 3vw, 2rem);
-}
-
-.store-home-category-hub-intro {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  justify-content: center;
-  border-right: 1px solid rgb(var(--line) / 0.7);
-  padding: clamp(0.5rem, 2vw, 1.25rem) clamp(1rem, 3vw, 2rem) clamp(0.5rem, 2vw, 1.25rem) 0;
-}
-
-.store-home-category-hub-intro > span { align-self: flex-start; margin-top: 1.5rem; }
-
-.store-home-category-v3-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.8rem;
-}
-
-.store-home-category-v3 {
-  display: flex;
-  min-height: 13.5rem;
-  flex-direction: column;
-  align-items: flex-start;
-  border: 1px solid rgb(var(--line-strong) / 0.54);
-  border-radius: 1.15rem;
-  background:
-    radial-gradient(18rem 12rem at 100% 0%, rgb(var(--accent-rgb) / 0.1), transparent 70%),
-    rgb(11 7 20 / 0.72);
-  padding: 1.15rem;
-  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
-}
-
-.store-home-category-v3:hover {
-  transform: translateY(-3px);
-  border-color: rgb(var(--accent-rgb) / 0.4);
-  background-color: rgb(var(--accent-rgb) / 0.06);
-}
-
-.store-home-category-v3 > span {
-  color: rgb(var(--accent-bright));
-  font-size: 0.6rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.store-home-category-v3 h4 {
-  margin-top: 0.9rem;
-  color: rgb(var(--ink));
-  font-family: var(--font-display), system-ui, sans-serif;
-  font-size: 1.45rem;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-}
-
-.store-home-category-v3 p { margin-top: 0.45rem; color: rgb(var(--muted)); font-size: 0.82rem; line-height: 1.55; }
-.store-home-category-v3 > button,
-.store-home-category-v3 > div { width: 100%; margin-top: auto; }
-.store-home-category-v3 > div { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
-
-.store-home-category-v3 button {
-  display: inline-flex;
-  min-height: 2.5rem;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  border: 1px solid rgb(var(--line-strong) / 0.72);
-  border-radius: 0.75rem;
-  background: rgb(255 255 255 / 0.035);
-  padding: 0.6rem 0.7rem;
-  color: rgb(var(--ink));
-  font-size: 0.7rem;
-  font-weight: 800;
-  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
-}
-
-.store-home-category-v3 button:hover {
-  border-color: rgb(var(--accent-rgb) / 0.48);
-  background: rgb(var(--accent-rgb) / 0.13);
-  color: rgb(var(--accent-bright));
-}
 
 .store-home-roadmap-v3 {
   border-radius: clamp(1.35rem, 2vw, 2rem);
@@ -1165,16 +1073,13 @@
 }
 
 @media (max-width: 899px) {
-  .store-home-category-hub { grid-template-columns: minmax(0, 1fr); }
   .store-home-featured-v3-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .store-home-category-hub-intro { border-right: 0; border-bottom: 1px solid rgb(var(--line) / 0.7); padding: 0 0 1.5rem; }
 }
 
 @media (max-width: 599px) {
   .store-home-featured-v3-head,
   .store-home-roadmap-v3 { align-items: flex-start; flex-direction: column; }
-  .store-home-featured-v3-grid,
-  .store-home-category-v3-grid { grid-template-columns: minmax(0, 1fr); }
+  .store-home-featured-v3-grid { grid-template-columns: minmax(0, 1fr); }
   .store-home-roadmap-v3 > div:last-child { justify-content: flex-start; }
 }
 /* Theme contract: the marketplace canvas is intentionally dark in both site
@@ -1264,21 +1169,6 @@
     inset 0 1px rgb(255 255 255 / 0.98) !important;
 }
 
-:root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell .store-home-category-v3 {
-  border-color: rgb(var(--line-strong) / 0.5);
-  color: rgb(var(--ink));
-  background:
-    radial-gradient(18rem 12rem at 100% 0%, rgb(var(--accent-rgb) / 0.09), transparent 70%),
-    rgb(255 255 255 / 0.8);
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.92);
-}
-
-:root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell .store-home-category-v3:hover {
-  border-color: rgb(var(--accent-rgb) / 0.4);
-  background-color: rgb(var(--accent-rgb) / 0.055);
-}
-
-:root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell .store-home-category-v3 button,
 :root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell .store-home-roadmap-v3 > div:last-child > span {
   border-color: rgb(var(--line-strong) / 0.56);
   background: rgb(255 255 255 / 0.74);
@@ -1448,12 +1338,6 @@
   background: rgb(255 255 255 / 0.92) !important;
   box-shadow: 0 18px 46px -36px rgb(58 35 91 / 0.4), inset 0 1px rgb(255 255 255 / 0.84) !important;
   backdrop-filter: blur(12px) saturate(1.04);
-}
-
-:root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell .store-home-category-v3 {
-  background:
-    radial-gradient(18rem 12rem at 100% 0%, rgb(var(--accent-rgb) / 0.1), transparent 70%),
-    rgb(255 255 255 / 0.66);
 }
 /* Keep the marketplace artwork continuous through the light footer. */
 :root[data-theme="light"] .site-world-frame:has(.store-marketplace) {

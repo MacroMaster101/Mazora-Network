@@ -14,7 +14,7 @@ import {
 } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { usernameForUser } from "@/lib/data/accounts";
-import { anonymiseOrdersForUser } from "@/lib/data/orders";
+import { cleanupAccountOwnedData } from "@/lib/data/account-deletion";
 import { getDb, schema } from "@/lib/db/client";
 import { canManageMinecraft } from "@/lib/auth/permissions";
 import { site } from "@/lib/site";
@@ -379,35 +379,26 @@ export async function deleteUserAction(
     the auth id, leaving a genuinely anonymous commercial record.
   */
   const db = getDb();
-  if (db) {
-    const anonymised = await anonymiseOrdersForUser(userId);
-    if (!anonymised) {
-      return {
-        ok: false,
-        message:
-          "The account's order history could not be anonymised, so deletion was cancelled to avoid leaving identifying records behind.",
-      };
-    }
+  if (!db) return { ok: false, message: "Account data cleanup is temporarily unavailable." };
 
-    // Logged before the delete: afterwards there is nothing left to describe.
-    await db.insert(schema.auditLogs).values({
-      action: "user.delete",
-      targetType: "user",
-      targetId: userId,
-      metadata: {
-        username: targetName,
-        email: target.user.email ?? null,
-        role: targetRole,
-        by: session.username,
-      },
-    });
-  }
+  const cleanup = await cleanupAccountOwnedData(userId);
+  if (!cleanup.ok) return { ok: false, message: cleanup.message };
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
   if (deleteError) {
     console.error("User delete failed", deleteError);
     return { ok: false, message: "The account could not be deleted." };
   }
+
+  // Keep proof that an authorized deletion occurred without retaining the
+  // deleted person's email, username, auth id, or other identifying data. This
+  // is deliberately written only after Supabase confirms the deletion.
+  await db.insert(schema.auditLogs).values({
+    action: "user.delete",
+    targetType: "user",
+    targetId: null,
+    metadata: { deletedRole: targetRole, by: session.username },
+  });
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/staff");

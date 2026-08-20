@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { getSession, requireRole } from "@/lib/auth";
+import { PLAY_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { roleLabel } from "@/lib/auth/roles";
 import { getPatchUpdates } from "@/lib/data/patches";
 import { getFaqs } from "@/lib/data/faqs";
@@ -12,16 +13,15 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminPlayPage() {
-  await requireRole("administrator", "/admin/play");
-  const [session, patches, faqs, config] = await Promise.all([
-    getSession(),
+  const session = await requireModuleAccess(PLAY_PERMISSION_KEY, "/admin/play");
+  const [patches, faqs, config] = await Promise.all([
     getPatchUpdates(),
     getFaqs(),
     getPlayPageConfig(),
   ]);
 
   const currentUser = {
-    name: session?.displayName ?? session?.username ?? "LilyLuvv",
+    name: session.displayName ?? session.username ?? "LilyLuvv",
     role: session ? roleLabel(session.role) : "Owner",
     avatarUrl: session?.avatarUrl || undefined,
   };

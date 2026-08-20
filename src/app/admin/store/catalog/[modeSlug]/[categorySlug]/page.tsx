@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { STORE_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getAdminGameModes, getAdminProducts } from "@/lib/data/content";
 import { getStoreCategoryConfigs, storeCategorySlug } from "@/lib/data/store-categories";
 import { DashHeader } from "@/components/dashboard/dash-ui";
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Store items · Admin" };
 
 export default async function AdminStoreItemsPage({ params }: { params: Promise<{ modeSlug: string; categorySlug: string }> }) {
   const { modeSlug, categorySlug } = await params;
-  await requireRole("administrator", `/admin/store/catalog/${modeSlug}/${categorySlug}`);
+  await requireModuleAccess(STORE_PERMISSION_KEY, `/admin/store/catalog/${modeSlug}/${categorySlug}`);
   const [products, modes] = await Promise.all([getAdminProducts(), getAdminGameModes()]);
   const mode = modes.find((item) => item.slug === modeSlug);
   if (!mode) notFound();

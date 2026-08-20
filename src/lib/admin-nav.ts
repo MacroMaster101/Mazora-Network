@@ -44,13 +44,46 @@ export interface AdminNavGroup {
   items: AdminNavItem[];
 }
 
-export function buildAdminNav({
-  canManageNews,
-  canManageGallery,
-}: {
-  canManageNews: boolean;
-  canManageGallery?: boolean;
-}): AdminNavGroup[] {
+/** Permission results calculated server-side for the signed-in staff member. */
+export interface AdminNavAccess {
+  users: boolean;
+  minecraft: boolean;
+  suggestions: boolean;
+  staff: boolean;
+  play: boolean;
+  news: boolean;
+  events: boolean;
+  gameModes: boolean;
+  rules: boolean;
+  gallery: boolean;
+  support: boolean;
+  appeals: boolean;
+  store: boolean;
+  orders: boolean;
+  voting: boolean;
+  notifications: boolean;
+}
+
+export const ALL_ADMIN_NAV_ACCESS: AdminNavAccess = {
+  users: true,
+  minecraft: true,
+  suggestions: true,
+  staff: true,
+  play: true,
+  news: true,
+  events: true,
+  gameModes: true,
+  rules: true,
+  gallery: true,
+  support: true,
+  appeals: true,
+  store: true,
+  orders: true,
+  voting: true,
+  notifications: true,
+};
+
+export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
   return [
     {
       heading: "Overview",
@@ -59,42 +92,42 @@ export function buildAdminNav({
     {
       heading: "Community",
       items: [
-        { label: "Users", href: "/admin/users", icon: Users, minRole: "owner" },
-        { label: "Minecraft Players", href: "/admin/players", icon: Blocks, minRole: "moderator" },
-        { label: "Suggestions", href: "/admin/suggestions", icon: Lightbulb, minRole: "moderator" },
-        { label: "Staff", href: "/admin/staff", icon: ShieldCheck, minRole: "owner" },
+        { label: "Users", href: "/admin/users", icon: Users, minRole: "owner", visible: access.users },
+        { label: "Minecraft Players", href: "/admin/players", icon: Blocks, minRole: "moderator", visible: access.minecraft },
+        { label: "Suggestions", href: "/admin/suggestions", icon: Lightbulb, minRole: "moderator", visible: access.suggestions },
+        { label: "Staff", href: "/admin/staff", icon: ShieldCheck, minRole: "owner", visible: access.staff },
       ],
     },
     {
       heading: "Content",
       items: [
-        { label: "Play", href: "/admin/play", icon: Gamepad2, minRole: "administrator" },
-        { label: "News", href: "/admin/news", icon: FileText, minRole: "administrator", visible: canManageNews },
-        { label: "Events", href: "/admin/events", icon: CalendarDays, minRole: "administrator" },
-        { label: "Game Modes", href: "/admin/game-modes", icon: Blocks, minRole: "administrator" },
-        { label: "Rules", href: "/admin/rules", icon: ScrollText, minRole: "administrator" },
-        { label: "Gallery", href: "/admin/gallery", icon: Image, minRole: "administrator", visible: canManageGallery },
+        { label: "Play", href: "/admin/play", icon: Gamepad2, minRole: "administrator", visible: access.play },
+        { label: "News", href: "/admin/news", icon: FileText, minRole: "administrator", visible: access.news },
+        { label: "Events", href: "/admin/events", icon: CalendarDays, minRole: "administrator", visible: access.events },
+        { label: "Game Modes", href: "/admin/game-modes", icon: Blocks, minRole: "administrator", visible: access.gameModes },
+        { label: "Rules", href: "/admin/rules", icon: ScrollText, minRole: "administrator", visible: access.rules },
+        { label: "Gallery", href: "/admin/gallery", icon: Image, minRole: "administrator", visible: access.gallery },
       ],
     },
     {
       heading: "Support",
       items: [
-        { label: "Support Pages", href: "/admin/support", icon: LifeBuoy, minRole: "administrator" },
-        { label: "Application Forms", href: "/admin/appeals", icon: Gavel, minRole: "administrator" },
+        { label: "Support Pages", href: "/admin/support", icon: LifeBuoy, minRole: "administrator", visible: access.support },
+        { label: "Application Forms", href: "/admin/appeals", icon: Gavel, minRole: "administrator", visible: access.appeals },
       ],
     },
     {
       heading: "Commerce",
       items: [
-        { label: "Store", href: "/admin/store", icon: ShoppingBag, minRole: "administrator" },
-        { label: "Orders", href: "/admin/orders", icon: Receipt, minRole: "administrator" },
-        { label: "Voting", href: "/admin/voting", icon: Vote, minRole: "administrator" },
+        { label: "Store", href: "/admin/store", icon: ShoppingBag, minRole: "administrator", visible: access.store },
+        { label: "Orders", href: "/admin/orders", icon: Receipt, minRole: "administrator", visible: access.orders },
+        { label: "Voting", href: "/admin/voting", icon: Vote, minRole: "administrator", visible: access.voting },
       ],
     },
     {
       heading: "System",
       items: [
-        { label: "Notifications", href: "/admin/notifications", icon: Bell, minRole: "owner" },
+        { label: "Notifications", href: "/admin/notifications", icon: Bell, minRole: "owner", visible: access.notifications },
         { label: "Permissions", href: "/admin/permissions", icon: KeyRound, minRole: "owner" },
         { label: "Settings", href: "/admin/settings", icon: Settings, minRole: "it" },
         { label: "Audit Logs", href: "/admin/audit-logs", icon: UsersRound, minRole: "it" },
@@ -115,9 +148,9 @@ export function buildAdminNav({
 /** Groups the given role may actually see, with empty groups dropped. */
 export function visibleAdminNav(
   role: Role,
-  options: { canManageNews: boolean; canManageGallery?: boolean },
+  access: AdminNavAccess,
 ): AdminNavGroup[] {
-  return buildAdminNav(options)
+  return buildAdminNav(access)
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => item.visible ?? hasAtLeast(role, item.minRole)),

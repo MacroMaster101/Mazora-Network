@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { getSession, getSessionUserId } from "@/lib/auth";
-import { canManageSuggestions } from "@/lib/auth/permissions";
-import { redirect } from "next/navigation";
+import { SUGGESTIONS_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getAdminSuggestions } from "@/lib/data/suggestions";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { SuggestionsManager } from "@/components/admin/suggestions-manager";
@@ -11,12 +10,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminSuggestionsPage() {
-  const session = await getSession();
-  const userId = await getSessionUserId();
-  const allowed = await canManageSuggestions(session, userId);
-  if (!session || !allowed) {
-    redirect("/admin");
-  }
+  await requireModuleAccess(SUGGESTIONS_PERMISSION_KEY, "/admin/suggestions");
 
   const suggestions = await getAdminSuggestions();
 

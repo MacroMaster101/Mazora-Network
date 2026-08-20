@@ -38,15 +38,21 @@ function SafeImageThumb({ src, alt, className = "" }: { src: string; alt: string
     );
   }
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      onError={() => setError(true)}
-      className={cn("h-full w-full object-cover", className)}
-    />
+    <span
+      className={cn("relative block h-full w-full overflow-hidden bg-black/70 bg-cover bg-center", className)}
+      style={{ backgroundImage: `linear-gradient(rgb(5 3 10 / 0.5), rgb(5 3 10 / 0.72)), url(${JSON.stringify(src)})` }}
+    >
+      <span className="absolute inset-0 bg-black/20 backdrop-blur-lg" aria-hidden="true" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onError={() => setError(true)}
+        className="relative h-full w-full object-contain object-center p-1 transition-transform duration-300 group-hover:scale-[1.03]"
+      />
+    </span>
   );
 }
 
@@ -672,7 +678,7 @@ export function AdminGalleryEditor({
                                 key={imageKey}
                                 src={imageUrl}
                                 alt="Preview"
-                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                className="h-full w-full object-contain object-center bg-black/70 p-1 transition-transform duration-300 group-hover:scale-[1.03]"
                                 onError={() => setImageError(true)}
                                 onLoad={() => setImageError(false)}
                               />

@@ -112,23 +112,6 @@
   .profile-avatar-upload-form .btn,
   .profile-avatar-remove { width: 100%; justify-content: center; }
 }
-.minecraft-status-chip.is-waiting { border-color: rgb(var(--warning) / 0.35); background: rgb(var(--warning) / 0.08); color: rgb(var(--warning)); }
-.minecraft-status-chip.is-connected { border-color: rgb(var(--success) / 0.35); background: rgb(var(--success) / 0.09); color: rgb(var(--success)); }
-.minecraft-link-steps li.is-active { border-color: rgb(var(--accent) / 0.34); background: rgb(var(--accent) / 0.07); }
-.minecraft-link-steps li.is-active::before { background: rgb(var(--accent)); }
-.minecraft-link-steps .minecraft-step-number.is-done { border-color: rgb(var(--success) / 0.5); background: rgb(var(--success)); color: white; }
-.minecraft-command-topline .telemetry { display: inline-flex; align-items: center; gap: 0.3rem; color: rgb(var(--warning)); }
-.minecraft-pending-hidden.is-expired { border-color: rgb(var(--danger) / 0.25); background: rgb(var(--danger) / 0.055); color: rgb(var(--danger)); }
-
-@media (max-width: 699px) {
-  .minecraft-link-shield { width: 2.8rem; height: 2.8rem; }
-  .minecraft-link-steps { grid-template-columns: minmax(0, 1fr); }
-  .minecraft-link-actions form,
-  .minecraft-link-actions .btn { width: 100%; }
-  .minecraft-link-actions .btn { justify-content: center; }
-  .minecraft-server-copy { width: 100%; justify-content: center; margin-left: 0; }
-  .minecraft-linked-actions .btn { width: 100%; justify-content: center; }
-}
 /* Connected account actions keep the existing provider rows usable on small screens. */
 .connected-account-actions {
   display: flex;

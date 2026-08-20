@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { STORE_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getAdminGameModes, getAdminProducts } from "@/lib/data/content";
 import { getStoreRoadmap, getStoreWelcomeBanner } from "@/lib/data/store-settings";
 import { getCreatorCodes } from "@/lib/data/creator-codes";
@@ -10,7 +11,7 @@ import "@/styles/admin-store.css";
 export const metadata: Metadata = { title: "Store · Admin" };
 
 export default async function AdminStorePage() {
-  await requireRole("administrator", "/admin/store");
+  await requireModuleAccess(STORE_PERMISSION_KEY, "/admin/store");
   const [products, modes, welcomeBanner, roadmap, codes] = await Promise.all([
     getAdminProducts(),
     getAdminGameModes(),

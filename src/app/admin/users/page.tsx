@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { requireRole, canGrantRank, canManageRank, hasAtLeast, STAFF_ROLES } from "@/lib/auth";
+import { canGrantRank, canManageRank, hasAtLeast, STAFF_ROLES } from "@/lib/auth";
+import { USERS_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import type { Role } from "@/lib/types";
 import { listAccounts } from "@/lib/data/accounts";
 import { DashHeader } from "@/components/dashboard/dash-ui";
@@ -10,7 +12,7 @@ import { InviteUserButton } from "@/components/admin/user-invites";
 export const metadata: Metadata = { title: "Users · Admin" };
 
 export default async function AdminUsersPage() {
-  const session = await requireRole("owner", "/admin/users");
+  const session = await requireModuleAccess(USERS_PERMISSION_KEY, "/admin/users");
   const accounts = await listAccounts();
 
   // Ranks this actor may hand out. The top rank may also grant its own, so a

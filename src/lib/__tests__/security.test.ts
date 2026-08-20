@@ -13,12 +13,15 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { canGrantRank, canManageRank, hasAtLeast, isAdmin, isStaff, ROLES, TOP_ROLE } from "@/lib/auth/roles";
 import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
 import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
 import { safeNext } from "@/lib/safe-redirect";
 import { resolvePublicOrigin } from "@/lib/site";
+import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
+import { visibleAdminNav, type AdminNavAccess } from "@/lib/admin-nav";
 
 describe("role ladder", () => {
   test("hasAtLeast is ordered by the documented ranking", () => {
@@ -218,5 +221,116 @@ describe("isMinecraftAvatarUrl", () => {
     assert.equal(isMinecraftAvatarUrl("LilyLuvv"), false);
     assert.equal(isMinecraftAvatarUrl("/avatar/LilyLuvv"), false);
     assert.equal(isMinecraftAvatarUrl("https://lh3.googleusercontent.com/avatar.png"), false);
+  });
+});
+
+describe("isSupabaseStorageObjectUrl", () => {
+  const project = "https://project.supabase.co";
+
+  test("accepts object URLs on the configured project", () => {
+    assert.equal(
+      isSupabaseStorageObjectUrl(
+        "https://project.supabase.co/storage/v1/object/public/gallery/image.webp",
+        project,
+      ),
+      true,
+    );
+  });
+
+  test("rejects lookalike hosts and non-storage project endpoints", () => {
+    assert.equal(
+      isSupabaseStorageObjectUrl(
+        "https://project.supabase.co.evil.example/storage/v1/object/public/gallery/image.webp",
+        project,
+      ),
+      false,
+    );
+    assert.equal(isSupabaseStorageObjectUrl("https://project.supabase.co/auth/v1/user", project), false);
+    assert.equal(isSupabaseStorageObjectUrl("not a url", project), false);
+  });
+});
+
+describe("permission-aware admin navigation", () => {
+  const denied: AdminNavAccess = {
+    users: false,
+    minecraft: false,
+    suggestions: false,
+    staff: false,
+    play: false,
+    news: false,
+    events: false,
+    gameModes: false,
+    rules: false,
+    gallery: false,
+    support: false,
+    appeals: false,
+    store: false,
+    orders: false,
+    voting: false,
+    notifications: false,
+  };
+
+  function labels(role: "helper" | "moderator" | "senior_moderator", access: AdminNavAccess) {
+    return visibleAdminNav(role, access).flatMap((group) => group.items.map((item) => item.label));
+  }
+
+  test("shows assigned modules even when their default rank is higher", () => {
+    const access = { ...denied, suggestions: true, appeals: true, events: true };
+    assert.deepEqual(
+      labels("helper", access),
+      ["Control room", "Suggestions", "Events", "Application Forms", "My Settings", "My Notifications", "My Purchases"],
+    );
+  });
+
+  test("does not show a module merely because an old static rank allowed it", () => {
+    const moderatorLabels = labels("moderator", { ...denied, suggestions: true });
+    assert.equal(moderatorLabels.includes("Minecraft Players"), false);
+    assert.equal(moderatorLabels.includes("Suggestions"), true);
+  });
+});
+
+describe("permission-aware admin mutations", () => {
+  const guardedActions = [
+    ["voting-admin.ts", "canManageVoting"],
+    ["rules.ts", "canManageRules"],
+    ["faqs.ts", "canManagePlay"],
+    ["support-settings.ts", "canManageSupport"],
+    ["store-admin.ts", "canManageStore"],
+    ["store-settings.ts", "canManageStore"],
+    ["creator-codes.ts", "canManageStore"],
+    ["orders-admin.ts", "canManageOrders"],
+  ] as const;
+
+  test("write actions enforce the same configurable module permissions as their pages", () => {
+    for (const [file, guard] of guardedActions) {
+      const source = readFileSync(new URL(`../actions/${file}`, import.meta.url), "utf8");
+      assert.match(source, new RegExp(`\\b${guard}\\b`), `${file} must use ${guard}`);
+      assert.doesNotMatch(
+        source,
+        /hasAtLeast\(session\.role,\s*["']administrator["']\)|requireRole\(["']administrator["']/,
+        `${file} must not bypass its configurable module permission with a fixed administrator check`,
+      );
+    }
+  });
+
+  test("order decisions and deletion keep their audit write in a transaction", () => {
+    const source = readFileSync(new URL("../actions/orders-admin.ts", import.meta.url), "utf8");
+    assert.equal(
+      source.match(/db\.transaction\(async \(tx\) =>/g)?.length,
+      2,
+      "both order mutations must be atomic with their audit entries",
+    );
+    assert.doesNotMatch(source, /await db\.(update|delete)\(schema\.orders\)/);
+  });
+});
+
+describe("account deletion privacy", () => {
+  test("admin deletion runs shared cleanup and does not retain deleted-user identifiers in its audit entry", () => {
+    const source = readFileSync(new URL("../actions/user-admin.ts", import.meta.url), "utf8");
+    const deletion = source.slice(source.indexOf("export async function deleteUserAction"), source.indexOf("export async function adminReleaseMinecraftUsernameAction"));
+
+    assert.match(deletion, /cleanupAccountOwnedData\(userId\)/);
+    assert.match(deletion, /targetId:\s*null/);
+    assert.doesNotMatch(deletion, /metadata:\s*\{[\s\S]*?\b(email|username):/);
   });
 });
