@@ -69,6 +69,27 @@ export function rateLimit(
   };
 }
 
+/*
+  Falling back to the per-instance window is deliberate — sign-in must not go
+  down with the rate limiter — but in production it is a materially weaker
+  control, not an equivalent one: the effective ceiling becomes limit x running
+  instances, and the Discord interaction replay guard stops being global. That
+  is invisible from the outside, so it is stated once in the logs rather than
+  left to be discovered during an incident. Once per process, not per request,
+  so it cannot itself become log spam.
+*/
+let warnedSharedStoreMissing = false;
+
+function warnSharedStoreMissing() {
+  if (warnedSharedStoreMissing || process.env.NODE_ENV !== "production") return;
+  warnedSharedStoreMissing = true;
+  console.error(
+    "Rate limiting is running per-instance: UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are not set. " +
+      "Login, registration and password-reset limits are multiplied by the number of running instances, " +
+      "and the Discord interaction replay guard is no longer global.",
+  );
+}
+
 /** Upstash Redis REST credentials, when a shared store is provisioned. */
 function sharedStoreConfig(): { url: string; token: string } | null {
   const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
@@ -91,7 +112,10 @@ export async function rateLimitShared(
   { limit, windowMs }: { limit: number; windowMs: number },
 ): Promise<RateLimitVerdict> {
   const config = sharedStoreConfig();
-  if (!config) return rateLimit(key, { limit, windowMs });
+  if (!config) {
+    warnSharedStoreMissing();
+    return rateLimit(key, { limit, windowMs });
+  }
 
   const now = Date.now();
   const redisKey = `rl:${key}:${Math.floor(now / windowMs)}`;

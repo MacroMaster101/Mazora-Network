@@ -4,6 +4,10 @@
       "path": "/api/cron/discord-news",
       "schedule": "0 0 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "src/app/**": {
+      "maxDuration": 30
+    }
+  }
 }
-
