@@ -1,6 +1,7 @@
 import { Trophy } from "lucide-react";
 import { buildLeaderboard, getPlayers, leaderboardTabs, type LeaderboardEntry, type LeaderboardKey } from "@/lib/data/players";
 import { EmptyState, FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { LeaderboardExplorer } from "@/components/shared/leaderboard-explorer";
 import { publicPageMetadata } from "@/lib/seo";
 
@@ -33,6 +34,11 @@ export default async function LeaderboardsPage() {
         illustration={<FloatingBrandLogo />}
       />
       <section className="section shell">
+        {/* Right-aligned above the standings rather than in the hero, whose
+            right side is the floating brand illustration. */}
+        <div className="mb-4 flex justify-end">
+          <RefreshButton iconOnly />
+        </div>
         <Reveal>
           {entries.some((list) => list.length > 0) ? (
             <LeaderboardExplorer
