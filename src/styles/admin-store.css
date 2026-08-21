@@ -2021,22 +2021,34 @@ html:has(.admin-store-page) {
   }
 }
 
-/* Store dashboard landing: two large clickable cards routing to separate pages.
-   The pair fills the remaining viewport height on every screen size instead of
-   sitting as two small tiles in the top-left corner. */
+/* Admin hub landings: large clickable cards routing to separate pages. The row
+   fills the remaining viewport height rather than sitting as small tiles in the
+   top-left corner.
+
+   The column count is a modifier, not something the base class guesses. A hub
+   that renders fewer cards than the base three must say so — Support did not,
+   inherited repeat(3, …) for its two cards, and rendered them at a third of the
+   width each with an empty third column beside them, which is what made its
+   titles wrap to three lines. */
 .store-admin-hub-cards {
   display: grid;
-  /* Three hub cards: page editor, catalog, creator codes. The container no
-     longer needs to fill the viewport now that three cards share the row. */
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.5rem;
   min-height: calc(100dvh - 20rem);
 }
 
+/* Two cards, centred in a narrower block. For hubs where the pair reads as a
+   self-contained choice (discount code types) rather than a page to fill. */
 .store-admin-hub-cards-pair {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   max-width: 58rem;
   margin-inline: auto;
+}
+
+/* Two cards that fill the workspace edge to edge, matching how the three-card
+   Store hub sits on the page. */
+.store-admin-hub-cards-duo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @media (max-width: 1100px) {
@@ -2046,9 +2058,16 @@ html:has(.admin-store-page) {
   }
 }
 
+/* Below this the two-column row is narrower than the card's own content wants:
+   at 375px each column is roughly 160px, which wraps every title and squashes
+   the icon against the text. One column per card instead. This was previously
+   applied only to the centred pair, so the Store hub stayed two-up on phones. */
 @media (max-width: 720px) {
-  .store-admin-hub-cards-pair {
+  .store-admin-hub-cards,
+  .store-admin-hub-cards-pair,
+  .store-admin-hub-cards-duo {
     grid-template-columns: 1fr;
+    min-height: auto;
   }
 }
 

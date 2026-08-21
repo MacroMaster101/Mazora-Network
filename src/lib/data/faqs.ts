@@ -1,4 +1,6 @@
-import { getDb } from "@/lib/db/client";
+import { cache } from "react";
+import { eq } from "drizzle-orm";
+import { getDb, schema } from "@/lib/db/client";
 
 export interface FaqItem {
   id: string;
@@ -46,22 +48,66 @@ export const INITIAL_FAQS: FaqItem[] = [
   },
 ];
 
-let memoryFaqs: FaqItem[] = [...INITIAL_FAQS];
+/*
+  These live in site_settings alongside every other editable page block.
 
-export async function getFaqs(): Promise<FaqItem[]> {
-  const db = getDb();
-  if (db) {
-    try {
-      // If a database table exists for FAQs, query it here
-      return memoryFaqs;
-    } catch {
-      return memoryFaqs;
-    }
-  }
-  return memoryFaqs;
+  They used to live in a module-level `memoryFaqs` array: saveFaqs() assigned to
+  it and returned { ok: true } unconditionally. On Vercel that is per-worker
+  memory, so an edit reached exactly one lambda and was gone at the next cold
+  start — while the admin was told "FAQs saved successfully." A read served by a
+  different worker never saw the change at all. Nothing was ever persisted.
+*/
+export const PLAY_FAQS_KEY = "play.faqs";
+
+/** Keep only well-formed rows; a malformed settings blob must not break /play. */
+function normalise(value: unknown): FaqItem[] | null {
+  if (!Array.isArray(value)) return null;
+  const items = value.flatMap((entry): FaqItem[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const row = entry as Record<string, unknown>;
+    if (typeof row.id !== "string" || typeof row.q !== "string" || typeof row.a !== "string") return [];
+    return [{
+      id: row.id,
+      q: row.q,
+      a: row.a,
+      ...(typeof row.category === "string" ? { category: row.category } : {}),
+    }];
+  });
+  return items;
 }
 
+export const getFaqs = cache(async (): Promise<FaqItem[]> => {
+  const db = getDb();
+  if (!db) return INITIAL_FAQS;
+  try {
+    const [row] = await db
+      .select()
+      .from(schema.siteSettings)
+      .where(eq(schema.siteSettings.settingKey, PLAY_FAQS_KEY))
+      .limit(1);
+    // A stored empty array is a real answer — the editor deleted every FAQ — so
+    // only an absent or malformed row falls back to the seeded set.
+    return normalise(row?.settingValue) ?? INITIAL_FAQS;
+  } catch (error) {
+    console.error("Failed to read FAQs:", error);
+    return INITIAL_FAQS;
+  }
+});
+
 export async function saveFaqs(faqs: FaqItem[]): Promise<{ ok: boolean; message: string }> {
-  memoryFaqs = [...faqs];
-  return { ok: true, message: "FAQs saved successfully." };
+  const db = getDb();
+  if (!db) return { ok: false, message: "The database is not connected." };
+  try {
+    await db
+      .insert(schema.siteSettings)
+      .values({ settingKey: PLAY_FAQS_KEY, settingValue: faqs })
+      .onConflictDoUpdate({
+        target: schema.siteSettings.settingKey,
+        set: { settingValue: faqs, updatedAt: new Date() },
+      });
+    return { ok: true, message: "FAQs saved successfully." };
+  } catch (error) {
+    console.error("Failed to save FAQs:", error);
+    return { ok: false, message: "The FAQs could not be saved." };
+  }
 }

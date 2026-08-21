@@ -33,6 +33,11 @@ const siteSettingsSchema = z.object({
   registrationEnabled: z.boolean(),
   storeEnabled: z.boolean(),
   votingEnabled: z.boolean(),
+  // Present in the stored shape (src/lib/data/site-settings.ts) and in the
+  // editor's form, but it was missing here — so parsed.data never carried it,
+  // the {...current, ...parsed.data} merge left the old value in place, and the
+  // toggle silently reverted on every save while reporting success.
+  liveMapEnabled: z.boolean(),
   ogImageUrl: z.string().trim().max(500, "Image URL must be under 500 characters.").optional().default("/images/og-default.webp"),
 });
 
@@ -75,6 +80,7 @@ export async function saveSiteGeneralSettingsAction(
     registrationEnabled: formData.get("registrationEnabled") === "on",
     storeEnabled: formData.get("storeEnabled") === "on",
     votingEnabled: formData.get("votingEnabled") === "on",
+    liveMapEnabled: formData.get("liveMapEnabled") === "on",
     ogImageUrl: String(formData.get("ogImageUrl") ?? "").trim() || "/images/og-default.webp",
   };
 
