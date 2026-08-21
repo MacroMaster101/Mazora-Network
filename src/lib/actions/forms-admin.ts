@@ -53,7 +53,14 @@ export async function toggleFormStatusAction(
   };
 
   const db = getDb();
-  if (db) {
+  /*
+    Previously `if (db) { … }` with no else, then an unconditional ok:true — so
+    with no DATABASE_URL the operator was told the change was saved and nothing
+    had been written anywhere. Every comparable action in this directory refuses
+    instead (see orders-admin.ts and permissions.ts).
+  */
+  if (!db) return { ok: false, message: "The database is not connected." };
+  {
     try {
       await db
         .insert(schema.siteSettings)
@@ -111,7 +118,14 @@ export async function updateFormUrlAction(
   };
 
   const db = getDb();
-  if (db) {
+  /*
+    Previously `if (db) { … }` with no else, then an unconditional ok:true — so
+    with no DATABASE_URL the operator was told the change was saved and nothing
+    had been written anywhere. Every comparable action in this directory refuses
+    instead (see orders-admin.ts and permissions.ts).
+  */
+  if (!db) return { ok: false, message: "The database is not connected." };
+  {
     try {
       await db
         .insert(schema.siteSettings)

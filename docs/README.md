@@ -127,7 +127,7 @@ npm run typecheck
 Review generated SQL before applying it, then apply it as a migration.
 
 `npm run db:push` no longer exists. The Drizzle schema mirrors the
-application-owned tables, columns, checks, foreign keys, and indexes after migration 026,
+application-owned tables, columns, checks, foreign keys, and indexes after migration 029,
 but it intentionally does not replace migration-only RLS policies, functions, triggers,
 storage policies, or relationships into Supabase's `auth` schema. Use `supabase db push`
 (migrations) or `npm run db:apply -- <file.sql>` instead of direct schema pushing.

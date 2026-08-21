@@ -7,6 +7,7 @@ import { site } from "@/lib/site";
 import { Providers } from "./providers";
 import { themeNoFlashScript } from "@/components/theme/theme-provider";
 import { CookieConsent } from "@/components/shared/cookie-consent";
+import { ScrollResetOnReload } from "@/components/shared/scroll-reset-on-reload";
 import { pingDiscordPresence } from "@/lib/data/discord-presence-health";
 import "@/styles/globals.css";
 
@@ -138,6 +139,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Skip to content
         </a>
         <Providers storeRequestsConfigured={Boolean(process.env.DISCORD_STORE_WEBHOOK_URL)}>
+          <ScrollResetOnReload />
           {children}
           <CookieConsent />
         </Providers>

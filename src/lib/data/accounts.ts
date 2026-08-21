@@ -2,6 +2,9 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { ROLES, hasAtLeast } from "@/lib/auth/roles";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+
+/** The subset of the GoTrue user record these readers touch. */
+type AuthUserRecord = Awaited<ReturnType<NonNullable<ReturnType<typeof getSupabaseAdmin>>["auth"]["admin"]["listUsers"]>>["data"]["users"][number];
 import { getDb, schema } from "@/lib/db/client";
 import { isMinecraftAvatarUrl, resolveAvatarUrl } from "@/lib/avatar-source";
 import type { Role } from "@/lib/types";
@@ -147,17 +150,45 @@ async function minecraftProfiles(): Promise<Map<string, { username: string; skin
   return map;
 }
 
+/*
+  GoTrue caps listUsers at one page. Both callers asked for perPage: 200 and
+  used the result as if it were everything, so past 200 accounts the admin
+  control room reported "200 accounts" permanently, and any staff member created
+  after the cut-off disappeared from the Users board, the public team page and
+  the player directory's role lookup.
+
+  Pages until short or empty, with a hard ceiling so a runaway loop can never
+  hang an admin render.
+*/
+const USER_PAGE_SIZE = 200;
+const USER_PAGE_LIMIT = 50;
+
+export async function listAllAuthUsers(
+  admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+): Promise<{ users: AuthUserRecord[]; error: string | null }> {
+  const users: AuthUserRecord[] = [];
+  for (let page = 1; page <= USER_PAGE_LIMIT; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: USER_PAGE_SIZE });
+    if (error) return { users, error: error.message };
+    const batch = data?.users ?? [];
+    users.push(...(batch as AuthUserRecord[]));
+    if (batch.length < USER_PAGE_SIZE) break;
+  }
+  return { users, error: null };
+}
+
 /** Every account, newest rank-holders included. Returns null when unconfigured. */
 export async function listAccounts(): Promise<AccountSummary[] | null> {
   const admin = getSupabaseAdmin();
   if (!admin) return null;
 
   try {
-    const { data, error } = await admin.auth.admin.listUsers({ perPage: 200 });
+    const { users, error } = await listAllAuthUsers(admin);
     if (error) {
-      console.error("Failed to list accounts:", error.message);
+      console.error("Failed to list accounts:", error);
       return null;
     }
+    const data = { users };
 
     // Independent queries; awaiting them in sequence doubled the latency of
     // every admin user-list render for no reason.

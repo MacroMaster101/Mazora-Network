@@ -13,6 +13,7 @@ import type { Role } from "@/lib/types";
 import { ROLES } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { listAllAuthUsers } from "@/lib/data/accounts";
 import { resolveAvatarUrl } from "@/lib/avatar-source";
 
 export interface AccountRow {
@@ -69,8 +70,11 @@ export async function getAccountsSnapshot(): Promise<AccountsSnapshot | null> {
   const admin = getSupabaseAdmin();
   if (!admin) return null;
 
-  const { data, error } = await admin.auth.admin.listUsers({ perPage: 200 });
-  if (error || !data) return null;
+  // Paginated: the totals below are reported to the operator as account counts,
+  // so a silently truncated first page made them wrong past 200 accounts.
+  const { users: allUsers, error } = await listAllAuthUsers(admin);
+  if (error) return null;
+  const data = { users: allUsers };
 
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
