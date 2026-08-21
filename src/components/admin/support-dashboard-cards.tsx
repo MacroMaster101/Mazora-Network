@@ -3,7 +3,7 @@ import { ArrowUpRight, LayoutTemplate, PanelsTopLeft } from "lucide-react";
 
 export function SupportDashboardCards({ cardCount, pageCount }: { cardCount: number; pageCount: number }) {
   return (
-    <div className="store-admin-hub-cards">
+    <div className="store-admin-hub-cards store-admin-hub-cards-duo">
       <Link href="/admin/support/content" className="store-admin-hub-card">
         <span className="store-admin-hub-card-icon"><LayoutTemplate size={22} /></span>
         <span className="store-admin-hub-card-body">

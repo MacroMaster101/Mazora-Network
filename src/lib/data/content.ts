@@ -202,7 +202,15 @@ export async function getTopVoters(): Promise<TopVoter[]> {
       .from(schema.voteHistory)
       .leftJoin(schema.profiles, eq(schema.voteHistory.userId, schema.profiles.userId))
       .leftJoin(schema.minecraftAccounts, eq(schema.voteHistory.userId, schema.minecraftAccounts.userId))
-      .groupBy(schema.voteHistory.userId, schema.profiles.username, schema.minecraftAccounts.minecraftUsername);
+      .groupBy(schema.voteHistory.userId, schema.profiles.username, schema.minecraftAccounts.minecraftUsername)
+      /*
+        Ordered and capped in SQL. This feeds the public /vote page, which is
+        force-dynamic, so without a bound every visitor downloaded one row per
+        account that has ever voted — in arbitrary order — to display a top ten.
+        buildLeaderboard in players.ts already caps at 100; this matches it.
+      */
+      .orderBy(sql`count(*) desc`)
+      .limit(100);
 
     return rows;
   } catch (error) {

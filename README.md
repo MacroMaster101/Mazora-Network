@@ -332,11 +332,23 @@ consistent — and if you do, update its `version` in
 
 ### Row level security
 
-Every table in `public` has RLS enabled. Public content (products, rules, profiles,
-gallery) is world-readable; user-owned data (orders, tickets, appeals, notifications,
-Minecraft links, vote history) is restricted to its owner and staff, and `audit_logs` and
-`site_settings` are admin-only. Role checks use the `is_staff()` / `is_admin()` helpers,
-which read `profiles.role`.
+Every table in `public` has RLS enabled. Public content (products, rules,
+`rule_categories`, `game_modes`, `news_articles`, `gallery_images`, `vote_sites`) is
+world-readable; user-owned data (orders, order items, Minecraft links, vote history,
+suggestions) is restricted to its owner and staff, and `audit_logs` and `site_settings`
+are admin-only. Role checks use the `is_staff()` / `is_admin()` helpers, which read
+`profiles.role`.
+
+`profiles` is deliberately NOT world-readable. It was, until migration 029: the policy
+named no role, so it also granted `anon`, and since the anon key ships to every browser
+the whole member list — auth id, rank and account status — could be read straight off
+PostgREST. It is now self-or-staff, and nothing in the app noticed, because every profile
+read here runs through the service role or Drizzle. Do not widen it again without a
+concrete reader that needs it.
+
+`creator_codes`, `creator_code_products`, `gallery_likes` and `minecraft_players` carry
+RLS with no policies at all, which denies every non-service-role caller. That is the
+intended state for tables only the server touches.
 
 The application itself connects with a role that bypasses RLS, so these policies protect
 direct PostgREST/anon-key access rather than the app's own queries. Authorization for

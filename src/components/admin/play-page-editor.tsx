@@ -425,16 +425,27 @@ export function PlayPageEditor({
       updatedFaqs = [newFaq, ...faqs];
     }
 
+    const saved = await saveFaqsAction(updatedFaqs);
+    if (!saved.ok) {
+      // Put the list back: the server rejected it, so leaving the edit on screen
+      // would show the operator a state the database does not have.
+      setFaqs(faqs);
+      toast(saved.message, "error");
+      return;
+    }
     setFaqs(updatedFaqs);
-    await saveFaqsAction(updatedFaqs);
-    toast("Saved FAQ items successfully!", "success");
+    toast(saved.message, "success");
     setIsFaqModalOpen(false);
   };
 
   const handleDeleteFaq = async (id: string) => {
     const updatedFaqs = faqs.filter((f) => f.id !== id);
+    const saved = await saveFaqsAction(updatedFaqs);
+    if (!saved.ok) {
+      toast(saved.message, "error");
+      return;
+    }
     setFaqs(updatedFaqs);
-    await saveFaqsAction(updatedFaqs);
     toast("FAQ item removed successfully.", "info");
   };
 

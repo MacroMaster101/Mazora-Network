@@ -1,12 +1,17 @@
 import Link from "next/link";
-import { footerNav, legalNav, site } from "@/lib/site";
+import { accountNavFor, accountNavGuest, footerNav, legalNav, site } from "@/lib/site";
+import { getSession, isStaff } from "@/lib/auth";
 import { Logo } from "./logo";
 import { Icon } from "@/components/shared/icon";
 import { CopyIpButton } from "@/components/shared/copy-ip-button";
 import { CookieSettingsLink } from "@/components/shared/cookie-settings-link";
 
-export function SiteFooter() {
+export async function SiteFooter() {
   const year = new Date().getFullYear();
+  // SiteHeader already resolves this on every route and getSession is memoised
+  // per request, so this costs no extra round trip to the auth server.
+  const session = await getSession();
+  const accountLinks = session ? accountNavFor(isStaff(session.role)) : accountNavGuest;
   return (
     <footer className="site-footer">
       <div className="shell grid grid-cols-2 gap-x-8 gap-y-10 py-14 sm:py-16 lg:grid-cols-[1.4fr_repeat(4,1fr)] lg:gap-x-10">
@@ -43,7 +48,7 @@ export function SiteFooter() {
           </div>
         </div>
 
-        {Object.entries(footerNav).map(([heading, links]) => (
+        {[...Object.entries(footerNav), ["Account", accountLinks] as const].map(([heading, links]) => (
             <div key={heading} className="text-center lg:text-left">
               <h3 className="mb-3 text-sm font-semibold">{heading}</h3>
               <ul className="space-y-2">

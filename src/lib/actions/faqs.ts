@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManagePlay } from "@/lib/auth/permissions";
@@ -36,5 +37,14 @@ export async function saveFaqsAction(faqs: FaqItem[]): Promise<{ ok: boolean; me
     return { ok: false, message: parsed.error.issues[0]?.message ?? "Those FAQ items are not valid." };
   }
 
-  return await saveFaqsData(parsed.data);
+  const result = await saveFaqsData(parsed.data);
+  if (result.ok) {
+    // The FAQs render on the public Play page and in both admin editors; without
+    // this the save lands in the database but every cached render keeps serving
+    // the previous list.
+    revalidatePath("/play");
+    revalidatePath("/admin/play");
+    revalidatePath("/admin/pages");
+  }
+  return result;
 }
