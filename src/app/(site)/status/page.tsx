@@ -4,6 +4,7 @@ import { getServerStatus } from "@/lib/data/status";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { site } from "@/lib/site";
 import { PageHero, CopyIpButton, Reveal, FloatingBrandLogo } from "@/components/shared";
+import { RefreshButton } from "@/components/shared/refresh-button";
 
 export const metadata = publicPageMetadata({
   title: "Server Status",
@@ -67,7 +68,11 @@ export default async function StatusPage() {
               </p>
             </div>
           </div>
-          <CopyIpButton ip={activeJavaIp} label="Copy server IP" />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Beside "Last updated", which is the number it refreshes. */}
+            <RefreshButton iconOnly />
+            <CopyIpButton ip={activeJavaIp} label="Copy server IP" />
+          </div>
         </Reveal>
 
         <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
