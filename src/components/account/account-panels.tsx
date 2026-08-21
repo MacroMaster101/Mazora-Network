@@ -12,7 +12,8 @@
 */
 import "server-only";
 import type { ReactNode } from "react";
-import { Monitor, Receipt } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Monitor, Receipt } from "lucide-react";
 import { requireSession, getDiscordIdentity, getSessionUserId } from "@/lib/auth";
 import { getOrdersForUser } from "@/lib/data/orders";
 import { OrderCard } from "@/components/shared/order-card";
@@ -153,18 +154,50 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
 import { AccountNotificationsFeed } from "@/components/account/account-notifications-feed";
 
 /** The signed-in user's own notifications feed. */
-export function AccountNotifications() {
-  return <AccountNotificationsFeed />;
+export function AccountNotifications({ back }: { back?: AccountBackLink } = {}) {
+  // This panel renders no DashHeader of its own — the feed carries its own
+  // heading — so the back link gets its own row above it rather than a header
+  // slot to sit in.
+  return (
+    <>
+      {back && (
+        <div className="mb-4">
+          <BackAction back={back} />
+        </div>
+      )}
+      <AccountNotificationsFeed />
+    </>
+  );
 }
 
 /** The signed-in user's own purchase history. */
-export async function AccountPurchases() {
+/**
+ * Optional "back to the section index" link for these panels.
+ *
+ * They are rendered from two places with different parents — /dashboard/* for
+ * members and /admin/account/* for staff — so the destination cannot be
+ * hardcoded here. Every other nested admin screen offers one; these two were
+ * the only ones that did not.
+ */
+export type AccountBackLink = { href: string; label: string };
+
+function BackAction({ back }: { back?: AccountBackLink }) {
+  if (!back) return null;
+  return (
+    <Link href={back.href} className="btn btn-secondary btn-sm">
+      <ArrowLeft size={15} /> {back.label}
+    </Link>
+  );
+}
+
+export async function AccountPurchases({ back }: { back?: AccountBackLink } = {}) {
   const userId = await getSessionUserId();
   const orders = userId ? await getOrdersForUser(userId) : [];
 
   return (
     <>
       <DashHeader
+        action={<BackAction back={back} />}
         title="Purchase history"
         subtitle={
           orders.length

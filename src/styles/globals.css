@@ -5034,6 +5034,131 @@ html {
   color: rgb(255 255 255 / 0.78);
 }
 
+/* --- Refresh button ------------------------------------------------------
+   Re-fetches the current route's data in place. Sits in the page header row
+   beside any page-specific actions on admin/dashboard screens, and beside the
+   heading of the live data it refreshes on public pages. */
+.refresh-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.6rem;
+  /*
+    Border and fill are both derived from --muted rather than --line-strong.
+
+    --line-strong is tuned for separating large surfaces, and in the light theme
+    it resolves to a very pale lilac that measured 1.79:1 against the page — far
+    under the 3:1 WCAG asks for the boundary of an interactive control. That was
+    survivable while the button still said "Refresh"; now that it is icon-only
+    the border is the only thing that marks it as a button at all.
+  */
+  border: 1px solid rgb(var(--muted) / 0.85);
+  background: rgb(var(--muted) / 0.14);
+  color: rgb(var(--muted));
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.refresh-button:hover:not(:disabled) {
+  color: rgb(var(--ink));
+  border-color: rgb(var(--accent) / 0.5);
+  background: rgb(var(--accent) / 0.08);
+}
+
+.refresh-button:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+}
+
+/* Not hidden while refreshing — a control that vanishes mid-action loses focus
+   and moves everything beside it. It stays put and stops responding. */
+.refresh-button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+/* The label is the first thing to go on narrow headers; aria-label carries the
+   accessible name, so the icon-only state is still announced correctly. */
+.refresh-button-label {
+  display: none;
+}
+
+/* Icon-only: square, no text at any width. Used where the surrounding row
+   already names what is being refreshed. */
+.refresh-button-compact {
+  padding: 0.4rem;
+  gap: 0;
+}
+
+@media (min-width: 640px) {
+  .refresh-button-label {
+    display: inline;
+  }
+}
+
+.refresh-button-spin {
+  animation: refresh-button-rotate 0.8s linear infinite;
+}
+
+@keyframes refresh-button-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* framer-motion was removed from this project, so reduced-motion is handled by
+   hand rather than by a library. The icon holds still and the disabled state
+   plus the aria-live announcement still convey that work is in progress. */
+@media (prefers-reduced-motion: reduce) {
+  .refresh-button-spin {
+    animation: none;
+  }
+}
+
+/*
+  Inside a dash-header the button cannot use the theme's own colours.
+
+  That header sits on the cinematic artwork, which is the same dark purple in
+  both themes — which is why .dash-header pins its text to white and why the
+  sibling links render as white pills with dark labels rather than themed
+  buttons. Deriving from --muted meant that in the light theme the control
+  resolved to a dark purple on a dark purple photograph and effectively
+  disappeared.
+
+  Matching the siblings exactly keeps the row reading as one set of controls,
+  and works on the artwork regardless of theme.
+*/
+.dash-header .refresh-button {
+  background: rgb(255 255 255 / 0.7);
+  border-color: rgb(91 61 126 / 0.2);
+  color: rgb(35 25 49);
+}
+
+.dash-header .refresh-button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.92);
+  border-color: rgb(91 61 126 / 0.38);
+  color: rgb(24 17 35);
+}
+
+.dash-header .refresh-button:focus-visible {
+  outline-color: rgb(255 255 255 / 0.9);
+}
+
+/* Keeps the refresh control and a page's own actions on one right-aligned row,
+   wrapping together rather than splitting when the header runs out of width. */
+.dash-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 /* Editor toolbars that sit directly on the cinematic admin background need
    foreground colours independent from the light card tokens used below. */
 .admin-editor-heading {

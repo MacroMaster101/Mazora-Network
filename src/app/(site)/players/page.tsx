@@ -3,6 +3,7 @@ import { Users } from "lucide-react";
 import { getDirectory } from "@/lib/data/directory";
 import { getServerStatus } from "@/lib/data/status";
 import { EmptyState, FloatingBrandLogo, PageHero, PlayerExplorer, Reveal } from "@/components/shared";
+import { RefreshButton } from "@/components/shared/refresh-button";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,11 @@ export default async function PlayersPage() {
         illustration={<FloatingBrandLogo />}
       />
       <section className="section shell space-y-8">
+        {/* Right-aligned above the directory rather than in the hero, whose
+            right side is the floating brand illustration. */}
+        <div className="flex justify-end">
+          <RefreshButton iconOnly />
+        </div>
         <Reveal>
           {directory.length > 0 || status.playerList.length > 0 ? (
             <PlayerExplorer players={directory} serverStatus={status} />
