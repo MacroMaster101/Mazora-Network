@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Users,
   Server,
@@ -23,6 +23,7 @@ import {
 import type { ServerStatus, PatchUpdate } from "@/lib/types";
 import type { StatusSample } from "@/lib/data/status-telemetry";
 import { Modal } from "@/components/ui/modal";
+import { RefreshButton } from "./refresh-button";
 
 interface BarData {
   timeLabel: string;
@@ -144,6 +145,36 @@ const buildTelemetryBars = (status: ServerStatus, samples: StatusSample[]): BarD
 };
 
 const PATCHES_PER_PAGE = 3;
+
+/**
+ * The "Updated HH:MM" stamp, in the reader's own timezone.
+ *
+ * It used to format with timeZone: "UTC" and print no zone label, so a reader
+ * at UTC+5:30 saw "Updated 08:11 AM" at 1:41 in the afternoon and had no way to
+ * tell it was not their clock. The UTC pin was not arbitrary — this component
+ * is server-rendered for the initial HTML, and formatting in the server's zone
+ * there and the browser's zone on hydration is a guaranteed mismatch.
+ *
+ * So both stay true: the first paint renders the same UTC string the server
+ * produced, and an effect swaps in local time once mounted, which by definition
+ * cannot run before hydration. No mismatch, and the number is the reader's.
+ */
+function UpdatedStamp({ iso }: { iso?: string | null }) {
+  const utc = iso
+    ? new Date(iso).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })
+    : null;
+  const [local, setLocal] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!iso) return;
+    setLocal(new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }));
+  }, [iso]);
+
+  if (!iso) return <>Updated just now</>;
+  // Until the effect runs, show UTC and say so, so the label is never wrong —
+  // only less local than it is about to be.
+  return <>Updated {local ?? `${utc} UTC`}</>;
+}
 
 function formatPatchDate(date: string): string {
   return new Date(date).toLocaleDateString("en-GB", {
@@ -270,8 +301,20 @@ export function UnifiedServerStatsCard({
           </p>
         </div>
 
-        <div className="telemetry text-xs text-muted font-medium">
-          Updated {status.lastUpdate ? new Date(status.lastUpdate).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "just now"}
+        {/*
+          One control for the whole card, sitting with the timestamp it moves.
+          The activity bars and the patch list are both rendered from this
+          card's props, so a single router.refresh() updates both — a button per
+          section would imply they refresh independently, which they do not.
+
+          Icon-only because the row beside it already reads "Updated 08:03 AM";
+          the word would say the same thing twice.
+        */}
+        <div className="flex items-center gap-2">
+          <span className="telemetry text-xs text-muted font-medium">
+            <UpdatedStamp iso={status.lastUpdate} />
+          </span>
+          <RefreshButton iconOnly label="Refresh server data" />
         </div>
       </div>
 

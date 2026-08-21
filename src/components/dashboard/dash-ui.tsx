@@ -1,6 +1,16 @@
 import type { ReactNode } from "react";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import Link from "next/link";
 
+/**
+ * Page header for every admin and dashboard screen.
+ *
+ * The refresh control lives here rather than in the `action` slot: thirteen
+ * pages already pass their own actions (back links, "Public store", and so on),
+ * and putting refresh in that slot would have silently replaced them. Rendering
+ * both inside one right-aligned row gives every page refresh for free while
+ * leaving its own buttons intact.
+ */
 export function DashHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
     <div className="dash-header mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -8,7 +18,16 @@ export function DashHeader({ title, subtitle, action }: { title: string; subtitl
         <h1 className="font-display text-2xl font-bold">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
       </div>
-      {action}
+      {/*
+        Page actions first, refresh last. The page's own links are what someone
+        came to the header for — "Store dashboard", "Public store" — while
+        refresh is a utility that applies to any screen. Leading with it pushed
+        the meaningful links rightward on every one of these pages.
+      */}
+      <div className="dash-header-actions">
+        {action}
+        <RefreshButton iconOnly />
+      </div>
     </div>
   );
 }

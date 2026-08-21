@@ -15,6 +15,7 @@ import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { site } from "@/lib/site";
 import { publicPageMetadata } from "@/lib/seo";
 import { Reveal } from "@/components/shared";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { TopVotersTable } from "./top-voters-table";
 // Import order mirrors the order these rules loaded in before they were split
 // out of globals.css / responsive-store-vote.css. Do not reshuffle.
@@ -141,9 +142,14 @@ export default async function VotePage() {
                       <p>Find a player or sort the board by the voting period that matters to you.</p>
                     </div>
                   </div>
-                  <div className="vote-realm-ranked">
-                    <strong className="telemetry">{voters.length}</strong>
-                    <span>{voters.length === 1 ? "voter ranked" : "voters ranked"}</span>
+                  {/* Wrapped so the head keeps its two-child layout: the count
+                      and the refresh control share the right-hand side. */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="vote-realm-ranked">
+                      <strong className="telemetry">{voters.length}</strong>
+                      <span>{voters.length === 1 ? "voter ranked" : "voters ranked"}</span>
+                    </div>
+                    <RefreshButton iconOnly />
                   </div>
                 </div>
                 <div className="vote-ref-table vote-realm-table"><TopVotersTable entries={voters} /></div>
