@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   ArrowUpRight,
   Clock,
@@ -22,6 +22,20 @@ import { useToast } from "@/components/ui";
 
 export function VotingSitesEditor({ sites }: { sites: AdminVoteSite[] }) {
   const [siteList, setSiteList] = useState<AdminVoteSite[]>(sites);
+
+  /*
+    saveVoteSiteAction revalidates /admin/voting, so a newly created or edited
+    site does arrive as fresh props — but useState only reads its initial value,
+    so the list rendered whatever was there on first mount forever. Adding a
+    site showed "Vote site saved", closed the form, and left the list unchanged.
+
+    Re-syncing on the prop identity also fixes the stale rollback below: it used
+    to restore the original `sites` array, discarding every toggle made since
+    the page loaded.
+  */
+  useEffect(() => {
+    setSiteList(sites);
+  }, [sites]);
   const [editingSite, setEditingSite] = useState<AdminVoteSite | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [pending, startTransition] = useTransition();

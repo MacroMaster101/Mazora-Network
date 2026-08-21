@@ -371,6 +371,7 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
 
     const { error } = await supabase.auth.updateUser({ password: parsed.data.password, data: { has_password: true } });
     if (error) return { ok: false, message: "The password could not be updated. Request a new code and try again." };
+    await markHasPassword(userData?.user?.id);
 
     await supabase.auth.signOut();
   } else if (!isDemoAuthEnabled()) {
@@ -378,6 +379,49 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
   }
 
   return { ok: true, message: "Your password has been updated." };
+}
+
+/**
+ * Whether this account already has a password, decided from sources the account
+ * holder cannot rewrite.
+ *
+ * The old check read `user_metadata.has_password`, which fails twice. It is
+ * never set at registration — signUp only records username/display_name — so
+ * every email+password account reported "no password yet" and skipped the
+ * current-password prompt entirely. And `user_metadata` is writable by the user
+ * themselves through GoTrue, so even a correctly flagged account could clear it
+ * and skip the prompt on the next call.
+ *
+ * `identities` is managed by GoTrue and answers the common case. It cannot
+ * answer the OAuth-user-who-later-set-a-password case, because updateUser({
+ * password }) adds no "email" identity — that is what the flag is for, so it now
+ * lives in `app_metadata`, which only the service role can write.
+ *
+ * user_metadata is still consulted, but only as an additional way to say *yes*.
+ * It can never be used to say no, so forging it buys nothing.
+ */
+function accountHasPassword(user: {
+  identities?: { provider?: string }[] | null;
+  app_metadata?: Record<string, unknown> | null;
+  user_metadata?: Record<string, unknown> | null;
+} | null | undefined): boolean {
+  if (!user) return false;
+  if ((user.identities ?? []).some((identity) => identity?.provider === "email")) return true;
+  if (user.app_metadata?.has_password === true) return true;
+  return user.user_metadata?.has_password === true;
+}
+
+/** Record "this account has a password" where only the service role can write it. */
+async function markHasPassword(userId: string | undefined) {
+  if (!userId) return;
+  const admin = getSupabaseAdmin();
+  if (!admin) return;
+  const { data } = await admin.auth.admin.getUserById(userId);
+  // Spread the existing app_metadata: role lives here too, and replacing the
+  // object wholesale would strip it.
+  await admin.auth.admin.updateUserById(userId, {
+    app_metadata: { ...(data?.user?.app_metadata ?? {}), has_password: true },
+  });
 }
 
 export async function updatePasswordAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
@@ -409,7 +453,7 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       or Discord has nothing to prove yet, and demanding it would leave them
       unable to ever set one.
     */
-    const hasPassword = userData?.user?.user_metadata?.has_password === true;
+    const hasPassword = accountHasPassword(userData?.user);
     if (hasPassword) {
       const currentPassword = String(formData.get("currentPassword") ?? "");
       if (!currentPassword) {
@@ -429,6 +473,7 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       data: { has_password: true },
     });
     if (error) return { ok: false, message: "The password could not be updated. Request a new recovery link." };
+    await markHasPassword(userData?.user?.id);
 
     /*
       Drop every other session, keeping this one. If the change was made to

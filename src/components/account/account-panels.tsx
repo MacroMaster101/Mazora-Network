@@ -60,8 +60,13 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
         // identities list alone can't detect a password set this way. The
         // has_password metadata flag (set in updatePasswordAction) is the
         // reliable signal for that case.
+        // Mirrors accountHasPassword() in src/lib/actions/auth.ts. app_metadata is
+        // where the flag is written now (only the service role can set it);
+        // user_metadata is still read so accounts flagged before that change
+        // keep showing the current-password field.
         hasPassword =
           (data.user.identities?.some((i) => i.provider === "email") ?? false) ||
+          data.user.app_metadata?.has_password === true ||
           Boolean(data.user.user_metadata?.has_password);
         const accountStore = getSupabaseAdmin() ?? supabase;
         const { data: minecraftAccount } = await accountStore

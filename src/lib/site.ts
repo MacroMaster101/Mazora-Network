@@ -122,13 +122,52 @@ export const footerNav = {
     { label: "Report a Bug", href: "/support/report-bug" },
     { label: "Rules", href: "/rules" },
   ],
-  Account: [
-    { label: "Log in", href: "/login" },
-    { label: "Register", href: "/register" },
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Settings", href: "/dashboard/settings" },
-  ],
 };
+
+/*
+  The Account column depends on who is reading it, so it is not part of
+  footerNav — that object is static and rendered identically for everyone.
+
+  It used to hold all four links at once, which was wrong in both directions.
+  Signed in, the footer still offered "Log in" and "Register", and because
+  AuthDialogProvider intercepts every anchor pointing at /login or /register and
+  opens the modal, clicking one showed a sign-in dialog to somebody who was
+  already signed in. That footer also renders inside the dashboard layout, so
+  the links appeared on the account pages themselves. Signed out, it offered
+  "Dashboard" and "Settings", which are gated and simply bounced the visitor to
+  the login screen.
+
+  No sign-out entry here: /logout is POST-only, so a plain link would 405. That
+  control belongs to the header, which can submit a form.
+*/
+export const accountNavGuest = [
+  { label: "Log in", href: "/login" },
+  { label: "Register", href: "/register" },
+];
+
+/*
+  Staff do not use the member dashboard. /dashboard redirects every helper and
+  above straight to /admin (src/app/dashboard/layout.tsx), so pointing them at
+  /dashboard/settings did not open their settings — it bounced them to the
+  control room and dropped what they were trying to reach. Their equivalents
+  live under /admin/account.
+
+  Paths here match the header's account menu exactly (header-actions.tsx), so
+  the two never disagree about where a given role's settings live.
+*/
+export function accountNavFor(staff: boolean) {
+  return staff
+    ? [
+        { label: "Control Room", href: "/admin" },
+        { label: "My Settings", href: "/admin/account" },
+        { label: "Purchases", href: "/admin/account/purchases" },
+      ]
+    : [
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Settings", href: "/dashboard/settings" },
+        { label: "Purchases", href: "/dashboard/purchases" },
+      ];
+}
 
 export const legalNav = [
   { label: "Terms", href: "/terms" },

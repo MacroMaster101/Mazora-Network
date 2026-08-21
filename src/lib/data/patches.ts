@@ -1,6 +1,6 @@
 import { getDb, schema } from "@/lib/db/client";
 import type { PatchUpdate } from "@/lib/types";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   fetchChannelMessages,
   fetchGuildRoles,
@@ -239,11 +239,28 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
   const db = getDb();
   if (db) {
     try {
+      /*
+        The status filter is not optional. getPatchUpdates() feeds the public
+        /play page, and without it every Patch Notes row was eligible —
+        including drafts, items still pending review, and the "rejected"
+        tombstones the Discord importer keeps for de-duplication. Any of those
+        would have been published to visitors the moment Discord was
+        unreachable and this fallback ran.
+
+        Ordering by published_at alone also put the never-published rows first:
+        Postgres sorts NULLs first in DESC, so rows with no published_at
+        outranked every dated one. coalesce matches how loadNews orders, and the
+        limit keeps a growing archive from being read in full on every render.
+      */
       const rows = await db
         .select()
         .from(schema.newsArticles)
-        .where(eq(schema.newsArticles.category, "Patch Notes"))
-        .orderBy(desc(schema.newsArticles.publishedAt));
+        .where(and(
+          eq(schema.newsArticles.category, "Patch Notes"),
+          eq(schema.newsArticles.status, "published"),
+        ))
+        .orderBy(sql`coalesce(${schema.newsArticles.publishedAt}, ${schema.newsArticles.createdAt}) desc`)
+        .limit(20);
 
       if (rows.length > 0) {
         const storedPatches = rows.map((r) => {

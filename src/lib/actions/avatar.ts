@@ -220,19 +220,43 @@ export async function useMinecraftAvatarAction(
     .eq("user_id", auth.user.id)
     .maybeSingle();
 
+  /*
+    Both writes are checked, and the update rewrites minecraft_uuid as well —
+    linkMinecraftUsernameAction in minecraft.ts already does both and this path
+    did neither.
+
+    Dropping the error let a failed insert (it violates mc_accounts_uuid_idx
+    whenever another account already holds `offline:<name>`) fall straight
+    through to the profile update and return "…set as profile photo." The caller
+    then had a website handle and avatar for an IGN with no minecraft_accounts
+    row — and uploadMinecraftSkinAction would refuse them with "Link your
+    Minecraft IGN first" for a name the UI said was theirs.
+
+    Leaving minecraft_uuid stale on the update path was the other half: the row
+    kept the uuid of a previously claimed name, so the unique index no longer
+    guarded the name actually stored in minecraft_username.
+  */
+  const offlineUuid = `offline:${targetUsername.toLowerCase()}`;
+
   if (currentLink) {
-    await admin
+    const { error: updateError } = await admin
       .from("minecraft_accounts")
-      .update({ minecraft_username: targetUsername, updated_at: now })
+      .update({ minecraft_username: targetUsername, minecraft_uuid: offlineUuid, updated_at: now })
       .eq("user_id", auth.user.id);
+    if (updateError) {
+      return { ok: false, message: "That Minecraft name could not be linked. It may already be claimed." };
+    }
   } else {
-    await admin.from("minecraft_accounts").insert({
+    const { error: insertError } = await admin.from("minecraft_accounts").insert({
       user_id: auth.user.id,
-      minecraft_uuid: `offline:${targetUsername.toLowerCase()}`,
+      minecraft_uuid: offlineUuid,
       minecraft_username: targetUsername,
       linked_at: now,
       updated_at: now,
     });
+    if (insertError) {
+      return { ok: false, message: "That Minecraft name could not be linked. It may already be claimed." };
+    }
   }
 
   const skinAvatarUrl = `https://mc-heads.net/avatar/${encodeURIComponent(targetUsername)}/256`;
