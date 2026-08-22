@@ -264,7 +264,8 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
 }
 
 .news-detail-intro > p {
-  max-width: 45rem;
+  /* Centred lead: 45rem ran to 94 characters at 768-900px. */
+  max-width: var(--measure, 45rem);
   margin-top: 1.1rem;
   color: rgb(222 215 234 / 0.78);
   font-size: clamp(0.92rem, 1.7vw, 1.08rem);
