@@ -60,11 +60,26 @@ export function absoluteUrl(path: string): string {
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+/**
+ * The short name people actually type. Google treats `alternateName` as a
+ * secondary label for the same entity, which is the only supported way to tell
+ * it that the bare word "Mazora" and "Mazora Network" are one thing rather
+ * than two — the search result for "mazora" is currently owned by an unrelated
+ * supplement brand of the same name, and an entity that never claims the short
+ * form gives Google nothing to disambiguate with.
+ *
+ * Deliberately not `site.shortName` ("MAZORA"): that is a wordmark for the
+ * header, and an all-caps string reads to Google as an acronym rather than a
+ * name.
+ */
+const ALTERNATE_NAME = "Mazora";
+
 export function organizationSchema() {
   return {
     "@type": "Organization",
     "@id": ORGANIZATION_ID,
     name: site.name,
+    alternateName: ALTERNATE_NAME,
     url: `${base}/`,
     logo: {
       "@type": "ImageObject",
@@ -73,15 +88,26 @@ export function organizationSchema() {
       height: 512,
     },
     description: site.description,
+    slogan: site.tagline,
     sameAs: site.socials.map((s) => s.href),
   };
 }
 
+/**
+ * The node Google reads for the site name shown above the result title.
+ *
+ * It only looks at the homepage, and only if this node agrees with the other
+ * three signals there — `og:site_name`, the `<title>` prefix and the `<h1>`.
+ * All four say "Mazora Network", so nothing here is a bug fix; the domain gets
+ * shown instead when Google is not yet confident the name is what people call
+ * the site, and that confidence is rebuilt on its own crawl schedule.
+ */
 export function websiteSchema() {
   return {
     "@type": "WebSite",
     "@id": WEBSITE_ID,
     name: site.name,
+    alternateName: ALTERNATE_NAME,
     url: `${base}/`,
     description: site.description,
     inLanguage: "en",
