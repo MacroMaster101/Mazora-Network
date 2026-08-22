@@ -65,7 +65,7 @@ export function RuleBook({ categories }: { categories: RuleCategory[] }) {
               </h2>
               <span className="text-xs text-muted">Updated {fmtDate(cat.updated)}</span>
             </div>
-            <div className="mt-4 space-y-3">
+            <div className="rule-book-list mt-4">
               {cat.items.map((item, i) => {
                 const cleanTitle = item.title.replace(/^(\d+\.\s*)+/, "");
                 return (
