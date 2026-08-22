@@ -27,34 +27,31 @@ function scrollToSection(id: string) {
 }
 
 export function LegalToc({ sections }: { sections: Section[] }) {
-  const [activeId, setActiveId] = useState<string>(sections[0]?.id ?? "");
+  const [activeId, setActiveId] = useState<string>("");
 
+  /*
+   * A jump list, not a progress tracker, and that is forced by the layout: above
+   * 1600px the sections run in two columns, so two of them share every scroll
+   * position — on /terms, section 01 and section 08 both start at the same y.
+   * Any scroll-spy therefore has to pick one and be wrong about the other. The
+   * version this replaced used an IntersectionObserver and took whichever entry
+   * the callback handed it last, which sent the mark 01 → 09 → 11 → 06 → 15 on
+   * a straight scroll down; marking both instead only made the ambiguity
+   * visible. So nothing is marked from scrolling. The mark follows the section
+   * the reader actually asked for, by clicking or by arriving on a link to it.
+   *
+   * If the sections are ever collapsed back to one column, scroll tracking
+   * becomes well defined again and is worth restoring.
+   */
   useEffect(() => {
-    const elements = sections.map((s) => document.getElementById(s.id));
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
-          }
-        });
-      },
-      {
-        rootMargin: "-96px 0px -70% 0px",
-        threshold: 0,
-      }
-    );
-
-    elements.forEach((el) => {
-      if (el) observer.observe(el);
-    });
-
-    return () => {
-      elements.forEach((el) => {
-        if (el) observer.unobserve(el);
-      });
+    const syncFromHash = () => {
+      const id = window.location.hash.slice(1);
+      setActiveId(sections.some((s) => s.id === id) ? id : "");
     };
+
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
   }, [sections]);
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
