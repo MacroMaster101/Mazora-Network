@@ -10049,7 +10049,7 @@ body:has(.admin-recovery-overlay) {
   --shell-reading: 72rem;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   /* Paragraphs are the only element capped globally. Short ones (labels, stat
      captions, IP strings) are already narrower than the cap, so this is inert
      for them. Centred copy keeps its optical centre via the rule below.
@@ -10172,3 +10172,69 @@ body:has(.admin-recovery-overlay) {
   }
 }
 
+
+/* The three explainer blocks under the org chart are each capped at a readable
+   `max-w-3xl`, which left them as a 768px strip down the left of a 1616px band
+   with roughly 850px of nothing beside it. They are self-contained titled
+   sections, so on a wide shell they run in two columns instead. Safe to do here
+   in a way it was not on the legal pages: this page has no "on this page" nav
+   to track scroll position, so two columns cost nothing.
+
+   The FAQ block below is deliberately left out. Its `<details>` items change
+   height when opened, and inside a multi-column flow that rebalances both
+   columns and jumps unrelated content around. */
+.team-notes > * {
+  break-inside: avoid;
+}
+
+@media (min-width: 1024px) {
+  .team-notes {
+    columns: 2;
+    column-gap: 3rem;
+    /* The blocks' own `mt-14` is zeroed below so the second column starts flush
+       with the first, which also removed the separation from the org chart
+       above. The container carries it instead. */
+    margin-top: 3.5rem;
+  }
+
+  /* Column spacing has to come from the wrappers: the authored `mt-14` / `mt-12`
+     would otherwise push down whichever block starts the second column. */
+  .team-notes .team-copy {
+    margin-top: 0;
+  }
+
+  .team-notes > * {
+    margin-bottom: 3rem;
+  }
+
+  .team-notes > :last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* The FAQ sits outside `.team-notes` because its `<details>` items change height
+   when opened, and a multi-column flow rebalances on that and jumps unrelated
+   content. A grid does not: opening an item grows only its own row. So the FAQ
+   gets the full band and two tracks of its own. */
+/* The list owns its own spacing as a one-column grid. It used to carry
+   Tailwind's `space-y-3`, whose generated selector
+   `.space-y-3 > :not([hidden]) ~ :not([hidden])` is three classes' worth of
+   specificity — a plain `.team-faq-list > * + *` reset lost to it, leaving a
+   12px `margin-top` on every item but the first. In one column that is
+   invisible; in two it dropped the right-hand column 12px below the left. */
+.team-faq-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .team-faq-block {
+    max-width: none;
+  }
+
+  .team-faq-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -202,7 +202,9 @@
 }
 
 .newsroom-hero-copy > p {
-  max-width: 42rem;
+  /* Centred lead: 42rem ran to 93 characters at tablet widths. Centred copy
+     wants a shorter measure than ranged-left copy, not a longer one. */
+  max-width: var(--measure, 42rem);
   margin-top: 0.9rem;
   color: rgb(222 215 234 / 0.76);
   font-size: clamp(0.9rem, 1.7vw, 1.04rem);
