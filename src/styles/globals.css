@@ -197,8 +197,14 @@ html {
     padding-inline: 1.25rem;
   }
 
+  /* The header tracks the content shell so the logo, nav and account dock line
+     up with the page body and the footer. The floor is what the full nav row
+     actually needs — logo 180 + links 910 + dock 268 + two 16px gaps = 1390,
+     plus `.shell`'s 2rem padding either side — so the header only widens past
+     `--shell` on laptop widths where 88vw is still under that. From roughly
+     1650px up, `--shell` wins and header and body share the same edges. */
   .header-shell {
-    max-width: clamp(1380px, 94vw, 1680px);
+    max-width: max(var(--shell), 1480px);
     width: 100%;
   }
 
@@ -7092,12 +7098,35 @@ html {
 /* Header redesign — edge-pinned layout, background-free scroll reveal,
    and a friendlier signed-in account trigger. */
 
-/* The header spans the full viewport width: logo hugs the left edge, account
-   actions hug the right, and the centered nav column stays truly centered
-   thanks to the existing 1fr/auto/1fr grid. */
+/* The header used to span the full viewport (`max-width: none`) while the page
+   body stayed inside `--shell`. That reads as an edge-pinned layout up to about
+   1440px, but the two never stop diverging: at 2560px the logo sat 419px
+   outside the first column of content and the account dock hung the same
+   distance off the other side, so the nav looked detached from the page.
+   It now inherits `.header-shell`'s width and `.shell`'s padding, which keeps
+   the logo, nav and dock on the same vertical rules as the body and footer. */
 .scroll-header .header-shell {
-  max-width: none;
-  padding-inline: clamp(1.1rem, 2.75vw, 3rem);
+  padding-inline: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .scroll-header .header-shell {
+    padding-inline: 2rem;
+  }
+}
+
+/* Between the icon-only nav (which ends at 1379px) and the point where the
+   header reaches its 1480px floor, the full-label nav row is wider than the
+   space between the logo and the account dock and the three overlap. Tighten
+   the links just enough to clear it. */
+@media (min-width: 1380px) and (max-width: 1519px) {
+  .desktop-nav-shell {
+    gap: 0.25rem;
+  }
+
+  .desktop-nav-item {
+    padding-inline: 0.75rem;
+  }
 }
 
 /* Scrolling back up reveals only the nav items — no bar, border, or blur.
@@ -9993,3 +10022,153 @@ body:has(.admin-recovery-overlay) {
   .store-product-media { --store-artwork-padding: 0.55rem; }
   .store-detail-media { --store-artwork-padding: 0.75rem; }
 }
+
+/* ==========================================================================
+   Wide-screen refinement
+
+   `--shell` grows to 1680px, which is what we want for artwork, tables and
+   card grids. Prose does not benefit from the same treatment: at full shell
+   width a rule description on /rules ran to 186 characters per line and a
+   legal clause to 157, against a comfortable 60–80. Nothing here narrows the
+   page frame — these rules only stop text and fixed-ratio layouts from
+   absorbing all the extra width.
+   ========================================================================== */
+
+:root {
+  /* Reading measure. Expressed in `ch` so it tracks each element's own font
+     size: the same token caps 14px card copy and 18px hero leads at the same
+     number of characters. `1ch` is the width of "0", which in the brand sans
+     is 0.6em — wider than an average letter — so 62ch sets about 74 real
+     characters, near the middle of the comfortable 60–80 range. */
+  --measure: 62ch;
+
+  /* Prose-first pages (legal, the rulebook) stop here rather than filling the
+     shell, so their sidebar and body keep a readable relationship. Wide enough
+     that the lists and callouts inside a section card use their full width —
+     only the paragraphs stop at `--measure`. */
+  --shell-reading: 72rem;
+}
+
+@media (min-width: 1024px) {
+  /* Paragraphs are the only element capped globally. Short ones (labels, stat
+     captions, IP strings) are already narrower than the cap, so this is inert
+     for them. Centred copy keeps its optical centre via the rule below.
+
+     `:where()` is doing real work: Tailwind's utilities compile after this file,
+     but a bare `p` still outranks a class, so `.site-world-main p` would have
+     quietly widened every paragraph that already carries an explicit `max-w-xs`
+     / `max-w-md` / `max-w-2xl`. Dropping this to a type selector's specificity
+     lets any authored max-width win and only catches the uncapped ones. */
+  :where(.site-world-main) p {
+    max-width: var(--measure);
+  }
+
+  :where(.site-world-main .text-center) p,
+  :where(.site-world-main) p.text-center,
+  :where(.site-world-main) p.mx-auto {
+    margin-inline: auto;
+  }
+
+  /* Reading layouts: sidebar + prose body. The body column stops at a width
+     where a paragraph fills the card instead of leaving half of it empty.
+
+     Ranged left, not centred. Centring floats the column off the left rule that
+     the hero, the header and the footer all share, which is the same detachment
+     this pass set out to remove — better to leave the spare width on one side. */
+  .reading-layout {
+    max-width: var(--shell-reading);
+    margin-inline: 0;
+  }
+
+  .reading-layout p,
+  .reading-layout li {
+    max-width: var(--measure);
+  }
+
+
+}
+
+/* The homepage news row keeps two cards however wide the shell gets, so at
+   full width each card is ~800px against a 160px thumbnail and the art stops
+   holding its side. Grow the thumbnail with the card — but only once the card
+   is wide enough to spare it, which is why this sits above the measure cap's
+   breakpoint rather than inside it. */
+@media (min-width: 1400px) {
+  .site-world-main .news-home-card {
+    grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  }
+}
+
+/* The rulebook is a run of short, independent cards, so it can spend the extra
+   width on columns instead of on one very long line: at full shell width a
+   single-column rule ran to 186 characters. The track count follows the width,
+   which lands each card near 440px — a comfortable ~57 characters — and folds
+   back to two and then one column as the shell narrows. */
+.rule-book-list {
+  /* Multi-column, not grid. A grid locks every row to its tallest card, and
+     rules are wildly uneven in length, so short ones left a hole beneath them
+     until the next row started. Columns let each card sit directly under the
+     one above it and the browser balances the column heights instead.
+     `column-width` picks the count, so this still resolves to 3 / 2 / 1 as the
+     shell narrows without a breakpoint ladder. */
+  columns: 26rem;
+  column-gap: 0.75rem;
+}
+
+.rule-book-list > * {
+  /* Vertical rhythm has to come from margins here — `gap` only spaces columns,
+     not the cards stacked inside one. `margin-bottom` rather than `margin-top`
+     so the first card in each column still starts flush with the others. */
+  margin-bottom: 0.75rem;
+  break-inside: avoid;
+}
+
+.rule-book-list > :last-child {
+  margin-bottom: 0;
+}
+
+/* Between 768px and the point where a second column appears, a rule card is
+   still the full body width, which puts its 14px copy back at 93 characters.
+   The measure cap is scoped to desktop widths, so carry it here explicitly. */
+.rule-book-list p {
+  max-width: var(--measure);
+}
+
+/* Legal pages are a numbered run of independent section cards, so on a wide
+   shell they take a second column rather than leaving 464px of a 1616px band
+   empty beside one narrow strip. Multi-column, not grid: a grid locks each row
+   to its tallest card, which left holes under the short ones. Spacing is
+   per-card `margin-bottom` because `gap` only separates columns, not the cards
+   stacked inside one.
+
+   Two columns put two sections at the same scroll position, so a scroll-spy
+   cannot name one current section — `LegalToc` is deliberately a jump list
+   rather than a progress tracker for exactly that reason. Do not add scroll
+   tracking back to it without collapsing this to one column first. */
+.legal-sections {
+  columns: 1;
+  column-gap: 1rem;
+}
+
+.legal-sections > * {
+  margin-bottom: 1rem;
+  break-inside: avoid;
+}
+
+.legal-sections > :last-child {
+  margin-bottom: 0;
+}
+
+/* 1600px is where two columns are still wide enough to read: the body splits
+   into roughly 654px cards at 1920. Below it the single column is the better
+   shape, and `--shell-reading` keeps that one honest. */
+@media (min-width: 1600px) {
+  .reading-layout:has(.legal-sections) {
+    max-width: none;
+  }
+
+  .legal-sections {
+    columns: 2;
+  }
+}
+
