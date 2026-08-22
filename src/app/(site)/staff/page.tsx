@@ -242,89 +242,91 @@ export default async function StaffPage() {
           </div>
         </Reveal>
 
-        <Reveal delay={0.06}>
-          <div className="team-copy mt-14 max-w-3xl">
-            <p className="eyebrow">How we operate</p>
-            <h2 className="mt-1 font-display text-2xl font-extrabold text-ink sm:text-3xl">
-              Five ranks, one escalation path
-            </h2>
-            <div className="mt-5 space-y-4 text-sm font-medium leading-relaxed text-muted sm:text-base">
-              <p>
-                Every issue on Mazora enters the team the same way and moves up only as far as it needs to. Helpers
-                handle the everyday questions — how a game mode works, where to find a rule, why a command is not
-                behaving. Anything involving player conduct goes to a Moderator, who reviews the evidence against the
-                network rules.
-              </p>
-              <p>
-                Senior Moderators take the cases a single moderator should not decide alone: disputes between
-                long-standing players, and anything where the right outcome is not obvious from the rules text.
-                Administrators own the operational side — staff coordination, server configuration, and decisions that
-                affect the network rather than an individual player. Ownership sets direction and has the final say on
-                policy.
-              </p>
+        <div className="team-notes">
+          <Reveal delay={0.06}>
+            <div className="team-copy mt-14 max-w-3xl">
+              <p className="eyebrow">How we operate</p>
+              <h2 className="mt-1 font-display text-2xl font-extrabold text-ink sm:text-3xl">
+                Five ranks, one escalation path
+              </h2>
+              <div className="mt-5 space-y-4 text-sm font-medium leading-relaxed text-muted sm:text-base">
+                <p>
+                  Every issue on Mazora enters the team the same way and moves up only as far as it needs to. Helpers
+                  handle the everyday questions — how a game mode works, where to find a rule, why a command is not
+                  behaving. Anything involving player conduct goes to a Moderator, who reviews the evidence against the
+                  network rules.
+                </p>
+                <p>
+                  Senior Moderators take the cases a single moderator should not decide alone: disputes between
+                  long-standing players, and anything where the right outcome is not obvious from the rules text.
+                  Administrators own the operational side — staff coordination, server configuration, and decisions that
+                  affect the network rather than an individual player. Ownership sets direction and has the final say on
+                  policy.
+                </p>
+              </div>
             </div>
-          </div>
-        </Reveal>
+          </Reveal>
+
+          <Reveal delay={0.06}>
+            <div className="team-copy mt-12 max-w-3xl">
+              <p className="eyebrow">Getting help</p>
+              <h2 className="mt-1 font-display text-2xl font-extrabold text-ink sm:text-3xl">How to reach us</h2>
+              <div className="mt-5 space-y-4 text-sm font-medium leading-relaxed text-muted sm:text-base">
+                <p>
+                  Whichever rank ends up handling your issue, how you reach us depends on what you need. Player reports,
+                  bug reports, and store or payment problems go to a <Link href="/support/ticket" className="team-copy-link">private Discord ticket</Link>,
+                  so you can share evidence confidentially. <Link href="/support/appeal" className="team-copy-link">Appeals</Link> and
+                  {" "}<Link href="/support/staff-application" className="team-copy-link">applications</Link> go through official forms.
+                  {" "}<Link href="/support/suggestions" className="team-copy-link">Feature suggestions</Link> are submitted on the site
+                  so the community can vote on them.
+                </p>
+                <p>
+                  Please do not confront a reported player directly, and do not post evidence publicly — use a ticket so
+                  the moderation team can handle it privately. The{" "}
+                  <Link href="/support" className="team-copy-link">Support Center</Link> lists every option in one place, and the{" "}
+                  <Link href="/rules" className="team-copy-link">network rules</Link> explain what we act on.
+                </p>
+              </div>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.06}>
+            <div className="team-copy mt-12 max-w-3xl">
+              <p className="eyebrow">Grow with us</p>
+              <h2 className="mt-1 font-display text-2xl font-extrabold text-ink sm:text-3xl">
+                How staff applications work
+              </h2>
+              <div className="mt-5 space-y-4 text-sm font-medium leading-relaxed text-muted sm:text-base">
+                <p>
+                  Mazora is community-run. If you are patient, dependable, and excited to help players, we would like to
+                  hear from you. Applications go through our official staff application form, which opens and closes as
+                  the team needs people — when recruitment is paused the form shows as closed rather than disappearing,
+                  so it is worth checking back.
+                </p>
+                <p>
+                  <strong className="text-ink">What the application asks for:</strong> your exact Minecraft username,
+                  age, timezone, and weekly availability; the role you are applying for; any relevant moderation,
+                  building, development, or community experience; and why you want to join Mazora and how you will help
+                  players.
+                </p>
+                <p>
+                  <strong className="text-ink">What we look for:</strong> consistent activity, a clean record, and the
+                  patience to answer the same question for the twentieth time without losing your tone. Prior staff
+                  experience elsewhere is useful context, not a shortcut. Keep everything you submit accurate —
+                  applications are reviewed by staff management.
+                </p>
+              </div>
+            </div>
+          </Reveal>
+        </div>
 
         <Reveal delay={0.06}>
-          <div className="team-copy mt-12 max-w-3xl">
-            <p className="eyebrow">Getting help</p>
-            <h2 className="mt-1 font-display text-2xl font-extrabold text-ink sm:text-3xl">How to reach us</h2>
-            <div className="mt-5 space-y-4 text-sm font-medium leading-relaxed text-muted sm:text-base">
-              <p>
-                Whichever rank ends up handling your issue, how you reach us depends on what you need. Player reports,
-                bug reports, and store or payment problems go to a <Link href="/support/ticket" className="team-copy-link">private Discord ticket</Link>,
-                so you can share evidence confidentially. <Link href="/support/appeal" className="team-copy-link">Appeals</Link> and
-                {" "}<Link href="/support/staff-application" className="team-copy-link">applications</Link> go through official forms.
-                {" "}<Link href="/support/suggestions" className="team-copy-link">Feature suggestions</Link> are submitted on the site
-                so the community can vote on them.
-              </p>
-              <p>
-                Please do not confront a reported player directly, and do not post evidence publicly — use a ticket so
-                the moderation team can handle it privately. The{" "}
-                <Link href="/support" className="team-copy-link">Support Center</Link> lists every option in one place, and the{" "}
-                <Link href="/rules" className="team-copy-link">network rules</Link> explain what we act on.
-              </p>
-            </div>
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.06}>
-          <div className="team-copy mt-12 max-w-3xl">
-            <p className="eyebrow">Grow with us</p>
-            <h2 className="mt-1 font-display text-2xl font-extrabold text-ink sm:text-3xl">
-              How staff applications work
-            </h2>
-            <div className="mt-5 space-y-4 text-sm font-medium leading-relaxed text-muted sm:text-base">
-              <p>
-                Mazora is community-run. If you are patient, dependable, and excited to help players, we would like to
-                hear from you. Applications go through our official staff application form, which opens and closes as
-                the team needs people — when recruitment is paused the form shows as closed rather than disappearing,
-                so it is worth checking back.
-              </p>
-              <p>
-                <strong className="text-ink">What the application asks for:</strong> your exact Minecraft username,
-                age, timezone, and weekly availability; the role you are applying for; any relevant moderation,
-                building, development, or community experience; and why you want to join Mazora and how you will help
-                players.
-              </p>
-              <p>
-                <strong className="text-ink">What we look for:</strong> consistent activity, a clean record, and the
-                patience to answer the same question for the twentieth time without losing your tone. Prior staff
-                experience elsewhere is useful context, not a shortcut. Keep everything you submit accurate —
-                applications are reviewed by staff management.
-              </p>
-            </div>
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.06}>
-          <div className="team-copy mt-12 max-w-3xl">
+          <div className="team-copy team-faq-block mt-12 max-w-3xl">
             <p className="eyebrow">Common questions</p>
             <h2 className="mt-1 font-display text-2xl font-extrabold text-ink sm:text-3xl">
               About the team
             </h2>
-            <div className="mt-6 space-y-3">
+            <div className="team-faq-list mt-6">
               {TEAM_FAQS.map(({ question, answer }) => (
                 <details
                   key={question}
