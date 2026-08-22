@@ -368,9 +368,14 @@
   background: linear-gradient(180deg, transparent, rgb(var(--accent-rgb) / 0.45), transparent);
 }
 
+/* Track count follows the width instead of being fixed at three: three columns
+   in a 1680px shell made every story card 513px, half again the size it is on
+   a 1280px screen. `auto-fill` holds the card near its drawn size and adds a
+   fourth column once there is room, and still resolves to 3/2/1 further down
+   (the narrower breakpoints below pin those explicitly). */
 .newsroom-story-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
   gap: clamp(0.9rem, 1.6vw, 1.25rem);
   margin-top: clamp(0.9rem, 1.6vw, 1.25rem);
 }

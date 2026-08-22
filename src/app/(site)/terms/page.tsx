@@ -48,12 +48,12 @@ export default function TermsPage() {
       />
       <section className="section shell">
         <Reveal>
-          <div className="grid gap-8 lg:grid-cols-[260px_1fr] items-start">
+          <div className="reading-layout grid gap-8 lg:grid-cols-[260px_1fr] items-start">
             {/* Left Sidebar Table of Contents */}
             <LegalToc sections={SECTIONS} />
 
             {/* Right Side: Separate Section Cards */}
-            <div className="space-y-4 min-w-0">
+            <div className="legal-sections min-w-0">
               <LegalMobileToc sections={SECTIONS} />
 
               {/* Card 1 */}

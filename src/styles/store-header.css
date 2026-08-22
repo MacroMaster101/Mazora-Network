@@ -171,7 +171,10 @@
 }
 
 .store-hero-v2-copy > p {
-  max-width: 43rem;
+  /* 43rem put this centred lead at 96 characters a line. Centred copy wants a
+     shorter measure than ranged-left copy, not a longer one — hand it the
+     shared cap so it matches the rest of the site at ~74. */
+  max-width: var(--measure, 43rem);
   margin-top: 1.35rem;
   color: rgb(226 217 237 / 0.74);
   font-size: clamp(0.86rem, 1.4vw, 1rem);
@@ -547,11 +550,14 @@
   box-shadow: 0 34px 82px -58px rgb(0 0 0 / 0.94), inset 0 1px rgb(255 255 255 / 0.05);
 }
 
+/* The copy column is capped rather than proportional: at 1.25fr of a full-width
+   shell it reached 890px and the welcome paragraph ran to 117 characters a
+   line. The artwork takes whatever is left, which it can use. */
 .store-home-welcome-v3 {
   border-radius: clamp(1.35rem, 2vw, 2rem);
   padding: clamp(1.5rem, 3vw, 2.5rem);
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr);
+  grid-template-columns: minmax(0, 40rem) minmax(0, 1fr);
   gap: clamp(1.5rem, 3vw, 2.5rem);
   align-items: center;
 }
@@ -600,6 +606,10 @@
 }
 
 .store-home-welcome-body p {
+  /* Carry the measure cap below the 1024px breakpoint the global rule uses:
+     the welcome card is a single column on tablets and its copy hit 94
+     characters a line there. */
+  max-width: var(--measure);
   color: rgb(var(--muted));
   font-size: clamp(0.86rem, 1.2vw, 0.95rem);
   line-height: 1.75;
@@ -830,9 +840,12 @@
   text-transform: uppercase;
 }
 
+/* Fixed at three columns this ran to 501px per item in a full-width shell.
+   Letting the track count follow the width keeps a featured item close to the
+   size it has on a laptop, and still gives 3/2/1 as the shell narrows. */
 .store-home-featured-v3-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
   gap: 1rem;
   margin-top: clamp(1.5rem, 3vw, 2.25rem);
 }
@@ -897,7 +910,8 @@
 
 .store-home-roadmap-desc {
   margin-top: 0.5rem;
-  max-width: 42rem;
+  /* Was 42rem, which at this 0.9rem size is 93 characters a line. */
+  max-width: var(--measure, 42rem);
   color: rgb(var(--muted));
   font-size: 0.9rem;
   line-height: 1.65;
@@ -1488,4 +1502,18 @@
   box-shadow: 0 18px 44px -36px rgb(49 30 80 / 0.42), inset 0 1px white !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+/* The hero note is a single nowrap pill, which measures its full 829px however
+   little room there is: `max-width: fit-content` cannot shrink a line that
+   refuses to break, so the grid item overflowed its area and the body's
+   overflow guard clipped it. The phone rules already let it wrap, but they
+   only start at 599px, leaving it broken from there to about 900px. Let it
+   fold across that whole band; from 1024px up the pill fits on one line. */
+@media (max-width: 1023px) {
+  .store-hero-v2-note {
+    max-width: 100%;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
 }

@@ -68,7 +68,7 @@ function FeaturedCard({ article }: { article: NewsArticle }) {
 function GridCard({ article }: { article: NewsArticle }) {
   return (
     <Link href={`/news/${article.slug}`} className="news-home-card group grid overflow-hidden sm:grid-cols-[10rem_1fr]">
-      <CardArt article={article} height="h-44 sm:h-full sm:min-h-[13rem]" sizes="(max-width: 640px) 100vw, 160px" />
+      <CardArt article={article} height="h-44 sm:h-full sm:min-h-[13rem]" sizes="(max-width: 640px) 100vw, (max-width: 1400px) 160px, 240px" />
       <div className="flex flex-1 flex-col p-5 sm:p-6">
         <TonePill tone={article.accent} className="self-start">
           {article.category}
