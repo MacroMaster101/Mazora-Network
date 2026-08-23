@@ -202,11 +202,31 @@ healthServer.listen(port, "0.0.0.0", () => {
   console.log(`[health] listening on 0.0.0.0:${port}`);
 });
 
+/*
+  Warn if the gateway has not reported ready, but do NOT kill the process.
+
+  This used to destroy the client and exit(1) after 20 seconds. On Render's
+  free tier that is a trap: a cold start spends several seconds before the
+  first connect attempt even begins, and the handshake regularly needs more
+  than the remaining budget. The exit made Render restart the service, which
+  cold-started again and timed out again — a loop that could not break out of
+  itself, because every retry was as slow as the one that failed.
+
+  discord.js already reconnects on its own, so there is nothing for a
+  supervisor to fix by restarting. The health server is listening by this
+  point and answers 200 regardless of gateway state, so Render's health check
+  keeps passing while the client works it out. `ok` and `discord` in that
+  payload still report the truth for anything that reads it.
+
+  A genuinely bad token is a different failure and still exits — see the
+  client.login() catch at the bottom of this file.
+*/
 const connectionTimeout = setTimeout(() => {
-  console.error("[presence] Discord Gateway connection timed out after 20 seconds");
-  client.destroy();
-  healthServer.close(() => process.exit(1));
-}, 20_000);
+  console.warn(
+    "[presence] Discord Gateway has not reported ready after 60s; still retrying. " +
+      "Health stays up and reports discord=connecting until it does.",
+  );
+}, 60_000);
 
 client.once(Events.ClientReady, async (readyClient) => {
   clearTimeout(connectionTimeout);
