@@ -304,8 +304,45 @@ function shutdown(signal: string): void {
 process.once("SIGINT", () => shutdown("SIGINT"));
 process.once("SIGTERM", () => shutdown("SIGTERM"));
 
+/**
+ * Prove basic reachability before blaming the gateway.
+ *
+ * A hang after "connecting" is ambiguous: discord.js first calls REST
+ * /gateway/bot, then opens the WebSocket, and neither logs anything of its
+ * own. If the network is blackholed, login() simply never settles — no
+ * error, no close code, nothing to report. That is indistinguishable in the
+ * logs from a gateway that accepted the socket and went quiet.
+ *
+ * /api/v10/gateway needs no auth, so this separates the two: if it answers,
+ * outbound HTTPS to Discord works and the problem is the WebSocket upgrade.
+ * If it times out, nothing reaches Discord from this host at all.
+ */
+async function probeDiscordReachability(): Promise<void> {
+  const started = Date.now();
+  try {
+    const res = await fetch("https://discord.com/api/v10/gateway", {
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = await res.text();
+    console.log(
+      `[probe] REST https://discord.com/api/v10/gateway -> ${res.status} in ${Date.now() - started}ms ${body.slice(0, 120)}`,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(
+      `[probe] REST https://discord.com/api/v10/gateway FAILED after ${Date.now() - started}ms: ${message} ` +
+        "— outbound HTTPS to Discord is not working from this host",
+    );
+  }
+}
+
+void probeDiscordReachability();
+
 console.log("[presence] connecting to Discord Gateway");
-void client.login(token).catch((error: unknown) => {
+void client
+  .login(token)
+  .then(() => console.log("[presence] login() resolved — REST auth OK, waiting for gateway READY"))
+  .catch((error: unknown) => {
   clearTimeout(connectionTimeout);
   const message = error instanceof Error ? error.message : "Unknown login error";
   console.error(`[presence] login failed: ${message}`);
