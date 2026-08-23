@@ -7,6 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 type AuthUserRecord = Awaited<ReturnType<NonNullable<ReturnType<typeof getSupabaseAdmin>>["auth"]["admin"]["listUsers"]>>["data"]["users"][number];
 import { getDb, schema } from "@/lib/db/client";
 import { isMinecraftAvatarUrl, resolveAvatarUrl } from "@/lib/avatar-source";
+import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
 import type { Role } from "@/lib/types";
 
 /**
@@ -46,6 +47,12 @@ export interface AccountSummary {
   pendingInvite: boolean;
   /** Whether this staff account appears in the public team hierarchy. */
   publicStaffVisible: boolean;
+  /**
+   * Discord account id, when one is linked and well-formed. Needed to DM a
+   * staff member. Read from identities already fetched for resolveAvatarUrl,
+   * so this adds no round trip.
+   */
+  discordUserId: string | null;
 }
 
 export type PublicStaffMember = Pick<
@@ -228,6 +235,17 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
         // Existing staff and newly promoted accounts are public by default.
         // Only an explicit protected metadata flag hides someone.
         publicStaffVisible: user.app_metadata?.staff_public !== false,
+        discordUserId: (() => {
+          const identity = pickDiscordIdentity(user.identities);
+          const raw = String(
+            (identity?.identity_data as Record<string, unknown> | undefined)?.provider_id ??
+              (identity?.identity_data as Record<string, unknown> | undefined)?.sub ??
+              "",
+          ).trim();
+          // Same shape test getDiscordIdentity applies, so a malformed id is
+          // treated as "not linked" rather than being handed to the Discord API.
+          return /^\d{17,20}$/.test(raw) ? raw : null;
+        })(),
       };
     });
   } catch (error) {

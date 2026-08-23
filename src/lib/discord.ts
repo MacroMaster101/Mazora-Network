@@ -184,6 +184,56 @@ export async function isGuildMember(
   }
 }
 
+/**
+ * Membership check that also returns who the member is.
+ *
+ * Same single request `isGuildMember` makes — that one discards the body and
+ * answers only yes/no/unknown. Callers that need to address the person by name
+ * would otherwise have to make a second identical call, or fall back to a
+ * generic greeting: the first staff notice sent in anger opened "Hi there"
+ * because the recipient had no site account and nothing else carried a name.
+ *
+ * Deliberately uncached, unlike `isGuildMember`'s fast path: a display name is
+ * worth re-reading, and every caller here is a deliberate one-off action.
+ *
+ * Returns `null` when Discord could not answer, so a transient failure stays
+ * distinguishable from "not a member" (which is `{ member: null }`).
+ */
+export async function fetchGuildMember(
+  token: string,
+  guildId: string,
+  userId: string,
+): Promise<{ member: GuildMemberMatch | null } | null> {
+  try {
+    const res = await botRequest(token, `/guilds/${guildId}/members/${userId}`, undefined, "GET");
+    if (res.status === 404) return { member: null };
+    if (!res.ok) {
+      console.error("Discord guild member fetch failed", res.status, res.json);
+      return null;
+    }
+    const row = res.json as {
+      nick?: string | null;
+      user?: { id?: string; username?: string; global_name?: string | null; avatar?: string | null; bot?: boolean };
+    } | null;
+    const user = row?.user;
+    if (!user?.id || !user.username) return null;
+    const display = row?.nick ?? user.global_name ?? null;
+    return {
+      member: {
+        id: user.id,
+        username: user.username,
+        displayName: display && display !== user.username ? display : null,
+        avatarUrl: user.avatar
+          ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
+          : null,
+        bot: user.bot === true,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 // VIEW_CHANNEL | SEND_MESSAGES | EMBED_LINKS | ATTACH_FILES | READ_MESSAGE_HISTORY | ADD_REACTIONS
 const TICKET_MEMBER_PERMISSIONS = String(
   (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 6),
@@ -355,6 +405,80 @@ export interface DiscordRole {
   id: string;
   name: string;
   position: number;
+}
+
+export interface GuildMemberMatch {
+  /** Discord user id (snowflake). */
+  id: string;
+  /** Discord username, e.g. "kavisha". */
+  username: string;
+  /** Server nickname, or the global display name, when either differs. */
+  displayName: string | null;
+  avatarUrl: string | null;
+  bot: boolean;
+}
+
+/**
+ * Search the guild's members by username or nickname.
+ *
+ * Discord's search is a PREFIX match on username or nickname — "kav" finds
+ * "kavisha", "visha" does not. That is the endpoint's behaviour, not a
+ * limitation of this wrapper, and the UI says so.
+ *
+ * This deliberately uses the search endpoint rather than listing members:
+ * "Search Guild Members" works with a plain bot token, whereas "List Guild
+ * Members" requires the GUILD_MEMBERS privileged intent, which this
+ * application does not hold and should not need for a lookup.
+ *
+ * Bots are returned but flagged, so callers can refuse to DM them — a DM to a
+ * bot always fails, and failing early gives a better message than Discord's.
+ */
+export async function searchGuildMembers(
+  token: string,
+  guildId: string,
+  query: string,
+  limit = 10,
+): Promise<GuildMemberMatch[] | null> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const params = new URLSearchParams({
+    query: trimmed,
+    limit: String(Math.min(Math.max(limit, 1), 25)),
+  });
+  const res = await botRequest(
+    token,
+    `/guilds/${guildId}/members/search?${params}`,
+    undefined,
+    "GET",
+  );
+  if (!res.ok) {
+    console.error("Discord member search failed", res.status, res.json);
+    return null;
+  }
+
+  const rows = (res.json ?? []) as {
+    nick?: string | null;
+    user?: { id?: string; username?: string; global_name?: string | null; avatar?: string | null; bot?: boolean };
+  }[];
+  if (!Array.isArray(rows)) return null;
+
+  return rows.flatMap((row) => {
+    const user = row.user;
+    if (!user?.id || !user.username) return [];
+    const display = row.nick ?? user.global_name ?? null;
+    return [
+      {
+        id: user.id,
+        username: user.username,
+        displayName: display && display !== user.username ? display : null,
+        avatarUrl: user.avatar
+          ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
+          : null,
+        bot: user.bot === true,
+      },
+    ];
+  });
 }
 
 /** Guild roles used to turn Discord role ids on an announcement into a public label. */
