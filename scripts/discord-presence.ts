@@ -257,9 +257,36 @@ client.on(Events.Error, (error) => {
   console.error("[presence] Discord client error", error.message);
 });
 
-client.on(Events.ShardDisconnect, () => {
+/**
+ * Discord's close code is the only thing that says WHY the gateway dropped,
+ * and this handler used to discard the event that carries it — so a failure to
+ * connect looked identical to a network blip in the logs.
+ *
+ * The codes worth recognising:
+ *   4004  authentication failed — the token is wrong
+ *   4013  invalid intents
+ *   4014  disallowed intents — a privileged intent is not enabled in the portal
+ *   1006  abnormal closure — the socket died without a close frame (network)
+ */
+const CLOSE_CODES: Record<number, string> = {
+  1006: "abnormal closure (no close frame — network or proxy)",
+  4004: "authentication failed — DISCORD_BOT_TOKEN is wrong",
+  4013: "invalid intents",
+  4014: "disallowed intents — enable them in the Developer Portal",
+};
+
+client.on(Events.ShardDisconnect, (event, shardId) => {
   discordReady = false;
-  console.warn("[presence] Discord Gateway disconnected; waiting to reconnect");
+  const code = event?.code;
+  const explained = code !== undefined ? (CLOSE_CODES[code] ?? "see Discord gateway close codes") : "unknown";
+  console.warn(
+    `[presence] Gateway disconnected (shard ${shardId}) code=${code ?? "none"} ` +
+      `reason=${event?.reason || "none"} — ${explained}`,
+  );
+});
+
+client.on(Events.ShardError, (error, shardId) => {
+  console.error(`[presence] Gateway error (shard ${shardId}): ${error.message}`);
 });
 
 client.on(Events.ShardReady, () => {
