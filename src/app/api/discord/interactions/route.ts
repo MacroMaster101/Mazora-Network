@@ -23,6 +23,10 @@ import {
 } from "@/lib/discord";
 import { claimOrderForConfirm, markOrderDecision } from "@/lib/data/orders";
 import { rateLimitShared } from "@/lib/rate-limit";
+import {
+  handleStaffNoticeAutocomplete,
+  handleStaffNoticeCommand,
+} from "@/lib/discord/staff-notice-command";
 
 /**
  * Discord interactions endpoint (HTTP-only bot — no gateway process).
@@ -65,7 +69,13 @@ interface Interaction {
   token?: string;
   /** Present on component clicks — the channel the button lives in. */
   channel_id?: string;
-  data?: { custom_id?: string; component_type?: number };
+  /**
+   * `custom_id` / `component_type` are for message-component clicks (type 3).
+   * `name` / `options` are for application commands (type 2, e.g. /staff-notice)
+   * and are absent on component clicks — widened here rather than split into a
+   * separate interface so both interaction types share this one definition.
+   */
+  data?: { custom_id?: string; component_type?: number; name?: string; options?: { name?: string; value?: unknown }[] };
   member?: { user?: { id?: string; username?: string; global_name?: string | null }; roles?: string[] };
   user?: { id?: string; username?: string; global_name?: string | null };
   message?: { embeds?: Embed[] };
@@ -747,17 +757,40 @@ export async function POST(request: Request) {
   if (interaction.type === 1) return json({ type: 1 });
 
   /*
+    Autocomplete (type 4) for the /staff-notice `reason` option.
+
+    Answered synchronously and BEFORE the replay guard below: Discord fires one
+    of these per keystroke, so they are expected to repeat and deduplicating
+    them would blank the suggestions mid-typing. That is safe because this path
+    has no side effects at all — it neither sends nor writes anything, it only
+    filters an in-memory list.
+
+    Type 8 is APPLICATION_COMMAND_AUTOCOMPLETE_RESULT.
+  */
+  if (interaction.type === 4) {
+    const name = (interaction.data as { name?: string } | undefined)?.name;
+    if (name !== "staff-notice") return json({ type: 8, data: { choices: [] } });
+    return json({ type: 8, data: handleStaffNoticeAutocomplete(interaction as never) });
+  }
+
+  /*
     Replay guard.
 
     A valid signature proves the request came from Discord, not that it is the
     first time this one arrived. The timestamp check above only bounds the
     window to five minutes, so a captured signed body — from a proxy log, a
     compromised log sink, or an on-path attacker — could be re-sent inside it and
-    re-executed: a second ticket channel and a second buyer DM for `confirm`, or
-    a second public purchase post for `announce`. The "cannot double-post"
-    property of the announce button is only the `disabled: true` flag in the
-    returned components, which is Discord UI state that a replayed HTTP request
-    never consults.
+    re-executed: a second ticket channel and a second buyer DM for `confirm`, a
+    second public purchase post for `announce`, or a second /staff-notice DM.
+    The "cannot double-post" property of the announce button is only the
+    `disabled: true` flag in the returned components, which is Discord UI state
+    that a replayed HTTP request never consults — and a slash command has no
+    such UI state at all.
+
+    Covers both interaction kinds (2 = APPLICATION_COMMAND, 3 =
+    MESSAGE_COMPONENT): the reasoning above applies unchanged to a captured
+    /staff-notice body, so this used to sit only above the type-3 branch,
+    leaving slash commands with no replay protection at all.
 
     `interaction.id` is unique per interaction, so claiming it once makes the
     endpoint idempotent. Ten minutes comfortably outsurvives the five-minute
@@ -767,16 +800,73 @@ export async function POST(request: Request) {
     replay landing on a different lambda can still get through — a partial
     control, and the order-status claim in runConfirm remains the backstop.
   */
-  if (interaction.type === 3 && interaction.id) {
+  if ((interaction.type === 2 || interaction.type === 3) && interaction.id) {
     const first = await rateLimitShared(`discord-interaction:${interaction.id}`, {
       limit: 1,
       windowMs: 10 * 60_000,
     });
-    // Type 6 = DEFERRED_UPDATE_MESSAGE: acknowledge and change nothing.
-    if (!first.ok) return json({ type: 6 });
+    if (!first.ok) {
+      // Type 6 (DEFERRED_UPDATE_MESSAGE) only makes sense as a reply to a
+      // component click — a slash command has no message to leave alone, so it
+      // gets a real ephemeral reply (type 4) instead.
+      return interaction.type === 2
+        ? ephemeral("This command was already actioned.")
+        : json({ type: 6 });
+    }
   }
 
-  // MESSAGE_COMPONENT — a staff member clicked a button.
+  // APPLICATION_COMMAND — a slash command. Kept to a dispatch: the handler
+  // lives in its own module (src/lib/discord/staff-notice-command.ts) rather
+  // than growing this file further.
+  if (interaction.type === 2) {
+    const name = interaction.data?.name;
+    if (name !== "staff-notice") return json({ type: 4, data: { content: "Unknown command.", flags: 64 } });
+    if (!interaction.application_id || !interaction.token) {
+      return json({ type: 4, data: { content: "This command is not configured.", flags: 64 } });
+    }
+
+    const applicationId = interaction.application_id;
+    const interactionToken = interaction.token;
+
+    // Discord kills an interaction not answered within three seconds, so the
+    // ack goes out now (flags 64 = ephemeral) and the work runs in after(),
+    // the same pattern the order buttons use.
+    after(async () => {
+      try {
+        const result = await handleStaffNoticeCommand(interaction);
+        await fetch(`${DISCORD_API}/webhooks/${applicationId}/${interactionToken}/messages/@original`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: result.content }),
+          cache: "no-store",
+          signal: AbortSignal.timeout(10_000),
+        });
+      } catch (error) {
+        console.error("Discord staff-notice command failed", error);
+        // Without this, a thrown error leaves the invoker's ephemeral reply
+        // stuck on "thinking…" forever — the same reason runConfirm/runReject
+        // below always PATCH @original in their own catch rather than only
+        // logging.
+        try {
+          await fetch(`${DISCORD_API}/webhooks/${applicationId}/${interactionToken}/messages/@original`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: "Something went wrong sending the notice. Check the server logs." }),
+            cache: "no-store",
+            signal: AbortSignal.timeout(10_000),
+          });
+        } catch (patchError) {
+          console.error("Discord staff-notice error reply failed", patchError);
+        }
+      }
+    });
+
+    return json({ type: 5, data: { flags: 64 } });
+  }
+
+  // MESSAGE_COMPONENT — a staff member clicked a button. (The replay guard
+  // covering this branch runs above, before the type dispatch, so it applies
+  // to both interaction kinds.)
   if (interaction.type === 3) {
     const customId = interaction.data?.custom_id ?? "";
     // Ticket controls carry the ticket channel id, because they live on the
