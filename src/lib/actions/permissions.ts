@@ -24,6 +24,7 @@ import {
   USERS_PERMISSION_KEY,
   STAFF_PERMISSION_KEY,
   NOTIFICATIONS_PERMISSION_KEY,
+  MAZORA_BOT_PERMISSION_KEY,
   ALL_PERMISSION_KEYS,
 } from "@/lib/auth/permissions";
 
@@ -130,4 +131,7 @@ export async function saveStaffPermissionsAction(fd: FormData) {
 }
 export async function saveNotificationsPermissionsAction(fd: FormData) {
   return saveModulePermissionAction(NOTIFICATIONS_PERMISSION_KEY, "Notifications", fd);
+}
+export async function saveBotPermissionsAction(fd: FormData) {
+  return saveModulePermissionAction(MAZORA_BOT_PERMISSION_KEY, "Mazora Bot", fd);
 }

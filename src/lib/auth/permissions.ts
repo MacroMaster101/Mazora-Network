@@ -25,6 +25,7 @@ export const STAFF_PERMISSION_KEY = "staff.permissions";
 export const NOTIFICATIONS_PERMISSION_KEY = "notifications.permissions";
 export const SETTINGS_PERMISSION_KEY = "settings.permissions";
 export const AUDIT_PERMISSION_KEY = "audit.permissions";
+export const MAZORA_BOT_PERMISSION_KEY = "bot.permissions";
 
 /** Owner and IT can never be removed, so the owner cannot lock themselves out. */
 export const ALWAYS_ALLOWED: Role[] = ["owner", "it"];
@@ -38,7 +39,12 @@ export type NewsPermissions = ModulePermissions;
 export type GalleryPermissions = ModulePermissions;
 
 function defaultRolesForModule(key?: string): Role[] {
-  if (key === NOTIFICATIONS_PERMISSION_KEY || key === USERS_PERMISSION_KEY || key === STAFF_PERMISSION_KEY) {
+  if (
+    key === NOTIFICATIONS_PERMISSION_KEY ||
+    key === USERS_PERMISSION_KEY ||
+    key === STAFF_PERMISSION_KEY ||
+    key === MAZORA_BOT_PERMISSION_KEY
+  ) {
     return ROLES.filter((r) => hasAtLeast(r, "owner"));
   }
   if (key === SETTINGS_PERMISSION_KEY || key === AUDIT_PERMISSION_KEY) {
@@ -100,6 +106,7 @@ export const ALL_PERMISSION_KEYS = [
   USERS_PERMISSION_KEY,
   STAFF_PERMISSION_KEY,
   NOTIFICATIONS_PERMISSION_KEY,
+  MAZORA_BOT_PERMISSION_KEY,
 ] as const;
 
 export const getAllModulePermissions = cache(
@@ -206,6 +213,7 @@ export async function getAdminNavAccess(
     orders: ORDERS_PERMISSION_KEY,
     voting: VOTING_PERMISSION_KEY,
     notifications: NOTIFICATIONS_PERMISSION_KEY,
+    bot: MAZORA_BOT_PERMISSION_KEY,
   } as const;
 
   if (!session) {

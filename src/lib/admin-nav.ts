@@ -2,6 +2,7 @@ import {
   Bell,
   BellRing,
   Blocks,
+  Bot,
   CalendarDays,
   FileText,
   Gamepad2,
@@ -62,6 +63,7 @@ export interface AdminNavAccess {
   orders: boolean;
   voting: boolean;
   notifications: boolean;
+  bot: boolean;
 }
 
 export const ALL_ADMIN_NAV_ACCESS: AdminNavAccess = {
@@ -81,6 +83,7 @@ export const ALL_ADMIN_NAV_ACCESS: AdminNavAccess = {
   orders: true,
   voting: true,
   notifications: true,
+  bot: true,
 };
 
 export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
@@ -127,6 +130,7 @@ export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
     {
       heading: "System",
       items: [
+        { label: "Mazora Bot", href: "/admin/mazora-bot", icon: Bot, minRole: "owner", visible: access.bot },
         { label: "Notifications", href: "/admin/notifications", icon: Bell, minRole: "owner", visible: access.notifications },
         { label: "Permissions", href: "/admin/permissions", icon: KeyRound, minRole: "owner" },
         { label: "Settings", href: "/admin/settings", icon: Settings, minRole: "it" },
