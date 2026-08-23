@@ -187,6 +187,10 @@ const healthServer = createServer((request, response) => {
       minecraftPlayers: snapshot.minecraftPlayers,
       minecraftMax: snapshot.minecraftMax,
       discordOnline: snapshot.discordOnline,
+      // Tracked and logged already; it was simply never exposed. The website's
+      // bot console parses this field, so without it the member count shown
+      // there is permanently null.
+      discordMembers: snapshot.discordMembers,
     }));
   }
 
