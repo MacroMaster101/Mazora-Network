@@ -128,8 +128,10 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production auth | Browser-safe Supabase publishable key for new projects. |
 | `DISCORD_STORE_WEBHOOK_URL` | Manual store orders | Private webhook URL for the staff order channel. Never expose it as a public variable. |
 | `DISCORD_STORE_STAFF_ROLE_ID` | Store orders | Role(s) permitted to action orders and read every ticket. Accepts one ID or several comma-separated (`<staff>,<management>,<owner>`); only the first is @mentioned on a new order. Order actions are refused entirely while this is unset. |
+| `DISCORD_STAFF_NOTICE_ROLE_ID` | `/staff-notice` | Discord role id(s) permitted to run `/staff-notice`, comma-separated for several. Deliberately not `DISCORD_STORE_STAFF_ROLE_ID` — confirming a store order and terminating a colleague are different levels of authority. The command refuses entirely while this is unset; the admin console page is unaffected. |
 | `DISCORD_BOT_TOKEN` | Order buttons, news sync | Bot token. Enables Confirm/Reject buttons, order tickets, buyer DMs, and the announcement importer. |
 | `DISCORD_APP_PUBLIC_KEY` | Order buttons | Developer Portal → General Information → Public Key. Verifies that button clicks genuinely came from Discord. |
+| `DISCORD_APPLICATION_ID` | `npm run discord:commands` | Discord application id, used only to register the guild slash commands. Developer Portal → General Information. |
 | `DISCORD_ORDERS_CHANNEL_ID` | Order buttons | Staff channel the bot posts order requests into. |
 | `DISCORD_GUILD_ID` | Order tickets | Your Discord server ID. Used to verify a buyer has joined before checkout and to create their ticket. Also links imported news back to the original message. |
 | `DISCORD_STORE_TICKETS_CATEGORY_ID` | Order tickets | Private category the bot creates one ticket channel per confirmed order in. When unset, confirming an order only DMs the buyer. |

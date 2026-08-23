@@ -21,7 +21,7 @@ import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
 import { safeNext } from "@/lib/safe-redirect";
 import { resolvePublicOrigin } from "@/lib/site";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
-import { visibleAdminNav, type AdminNavAccess } from "@/lib/admin-nav";
+import { visibleAdminNav, ALL_ADMIN_NAV_ACCESS, type AdminNavAccess } from "@/lib/admin-nav";
 
 describe("role ladder", () => {
   test("hasAtLeast is ordered by the documented ranking", () => {
@@ -268,6 +268,7 @@ describe("permission-aware admin navigation", () => {
     orders: false,
     voting: false,
     notifications: false,
+    bot: false,
   };
 
   function labels(role: "helper" | "moderator" | "senior_moderator", access: AdminNavAccess) {
@@ -287,6 +288,21 @@ describe("permission-aware admin navigation", () => {
     assert.equal(moderatorLabels.includes("Minecraft Players"), false);
     assert.equal(moderatorLabels.includes("Suggestions"), true);
   });
+
+  test("the bot console is hidden when access is withheld", () => {
+    const access = { ...ALL_ADMIN_NAV_ACCESS, bot: false } as AdminNavAccess;
+    const hrefs = visibleAdminNav("owner", access).flatMap((group) =>
+      group.items.map((item) => item.href),
+    );
+    assert.ok(!hrefs.includes("/admin/mazora-bot"));
+  });
+
+  test("the bot console is shown to an owner who has access", () => {
+    const hrefs = visibleAdminNav("owner", ALL_ADMIN_NAV_ACCESS).flatMap((group) =>
+      group.items.map((item) => item.href),
+    );
+    assert.ok(hrefs.includes("/admin/mazora-bot"));
+  });
 });
 
 describe("permission-aware admin mutations", () => {
@@ -299,6 +315,7 @@ describe("permission-aware admin mutations", () => {
     ["store-settings.ts", "canManageStore"],
     ["creator-codes.ts", "canManageStore"],
     ["orders-admin.ts", "canManageOrders"],
+    ["staff-notices.ts", "MAZORA_BOT_PERMISSION_KEY"],
   ] as const;
 
   test("write actions enforce the same configurable module permissions as their pages", () => {

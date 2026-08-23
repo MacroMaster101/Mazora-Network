@@ -21,6 +21,7 @@ import {
   USERS_PERMISSION_KEY,
   STAFF_PERMISSION_KEY,
   NOTIFICATIONS_PERMISSION_KEY,
+  MAZORA_BOT_PERMISSION_KEY,
 } from "@/lib/auth/permissions";
 import {
   saveNewsPermissionsAction,
@@ -39,6 +40,7 @@ import {
   saveUsersPermissionsAction,
   saveStaffPermissionsAction,
   saveNotificationsPermissionsAction,
+  saveBotPermissionsAction,
 } from "@/lib/actions/permissions";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { PermissionsManager, type PermissionModuleConfig } from "@/components/admin/permissions-editor";
@@ -214,6 +216,15 @@ export default async function AdminPermissionsPage() {
       selected: perms[NOTIFICATIONS_PERMISSION_KEY].roles,
       userIds: perms[NOTIFICATIONS_PERMISSION_KEY].userIds,
       saveAction: saveNotificationsPermissionsAction,
+    },
+    {
+      id: "bot",
+      category: "System",
+      title: "Mazora Bot Console",
+      description: "View Discord bot health, configuration, channel routing and activity, and send staff notices by direct message.",
+      selected: perms[MAZORA_BOT_PERMISSION_KEY].roles,
+      userIds: perms[MAZORA_BOT_PERMISSION_KEY].userIds,
+      saveAction: saveBotPermissionsAction,
     },
   ];
 
