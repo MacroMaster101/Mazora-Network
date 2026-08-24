@@ -229,6 +229,7 @@ export function AdminPlayersBrowser({
                       <Link
                         href={`/players/${entry.username}`}
                         target="_blank"
+                        rel="noreferrer"
                         className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-ink/10 transition"
                         title="View public profile"
                       >
@@ -320,6 +321,7 @@ export function AdminPlayersBrowser({
               <Link
                 href={`/players/${selectedPlayer.directory.username}`}
                 target="_blank"
+                rel="noreferrer"
                 className="btn btn-primary btn-sm flex items-center gap-1.5 w-full justify-center"
               >
                 <ExternalLink size={14} />

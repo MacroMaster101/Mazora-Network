@@ -152,16 +152,44 @@ export async function rateLimitShared(
 }
 
 /**
+ * How many proxy hops in front of the app are trusted. `x-forwarded-for` is a
+ * chain each proxy APPENDS to, so only the entries our own infrastructure added
+ * are trustworthy; everything to their left is caller-supplied. Default 1 — a
+ * single edge/CDN in front of the app, e.g. Vercel. Override with
+ * `TRUSTED_PROXY_HOPS` if the app sits behind additional trusted proxies.
+ */
+function trustedProxyHops(): number {
+  const raw = Number(process.env.TRUSTED_PROXY_HOPS);
+  return Number.isInteger(raw) && raw >= 1 ? raw : 1;
+}
+
+/**
+ * Resolve the caller's IP without trusting client-supplied `x-forwarded-for`
+ * hops. Counting `trustedProxyHops()` in from the RIGHT gives the address our
+ * outermost trusted proxy observed; taking the leftmost token instead would let
+ * a caller send their own `X-Forwarded-For` and mint unlimited distinct
+ * rate-limit buckets, defeating the per-IP limit. Falls back to `x-real-ip`
+ * (platform-set, not client-forwarded) and finally `"unknown"`.
+ */
+function clientIpFrom(get: (name: string) => string | null): string {
+  const chain = (get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (chain.length > 0) {
+    const index = Math.max(0, chain.length - trustedProxyHops());
+    return chain[index] ?? "unknown";
+  }
+  return get("x-real-ip")?.trim() || "unknown";
+}
+
+/**
  * Stable per-client bucket key. The IP is hashed and truncated before it is
  * used, so no raw address is held in memory — the limiter only ever needs
  * equality, never the address itself.
  */
 export function clientKey(request: Request, scope: string): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip =
-    forwarded?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip")?.trim() ||
-    "unknown";
+  const ip = clientIpFrom((name) => request.headers.get(name));
   const digest = createHash("sha256").update(ip, "utf8").digest("hex").slice(0, 16);
   return `${scope}:${digest}`;
 }
@@ -185,9 +213,7 @@ function hashed(value: string): string {
  */
 export async function actionClientKey(scope: string, identity?: string): Promise<string> {
   const headerList = await headers();
-  const forwarded = headerList.get("x-forwarded-for");
-  const ip =
-    forwarded?.split(",")[0]?.trim() || headerList.get("x-real-ip")?.trim() || "unknown";
+  const ip = clientIpFrom((name) => headerList.get(name));
   const suffix = identity ? `:${hashed(identity.toLowerCase())}` : "";
   return `${scope}:${hashed(ip)}${suffix}`;
 }
