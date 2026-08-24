@@ -592,6 +592,7 @@ export function PlayPageEditor({
           <Link
             href="/play"
             target="_blank"
+            rel="noreferrer"
             className="btn btn-secondary text-xs py-2 px-3.5 gap-1.5 font-bold"
           >
             <Globe size={14} /> View Live Play Page

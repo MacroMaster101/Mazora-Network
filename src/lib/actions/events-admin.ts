@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageEvents } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
+import { isUuid } from "@/lib/validation/id";
 
 export interface EventActionResult {
   ok: boolean;
@@ -49,6 +50,7 @@ export async function saveEventAction(
   if (!db) return { ok: false, message: "Database not connected." };
 
   const eventId = formData.get("id") ? String(formData.get("id")) : null;
+  if (eventId && !isUuid(eventId)) return { ok: false, message: "That event no longer exists." };
 
   const raw = {
     title: String(formData.get("title") ?? "").trim(),
@@ -154,7 +156,7 @@ export async function deleteEventAction(formData: FormData): Promise<EventAction
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "Event");
 
-  if (!id) return { ok: false, message: "Event ID is required." };
+  if (!isUuid(id)) return { ok: false, message: "That event no longer exists." };
 
   try {
     await db.delete(schema.events).where(eq(schema.events.id, id));

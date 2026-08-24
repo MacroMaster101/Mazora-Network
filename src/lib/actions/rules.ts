@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageRules } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
+import { isUuid } from "@/lib/validation/id";
 
 export interface RuleActionResult {
   ok: boolean;
@@ -57,7 +58,7 @@ export async function saveRuleAction(formData: FormData): Promise<RuleActionResu
   const id = clean(formData.get("id"), 64);
   const title = clean(formData.get("title"), 160);
   const description = clean(formData.get("description"), 1000);
-  if (!id) return { ok: false, message: "Missing rule." };
+  if (!isUuid(id)) return { ok: false, message: "Missing rule." };
   if (!title) return { ok: false, message: "A rule needs a title." };
 
   await db.update(schema.rules).set({ title, description }).where(eq(schema.rules.id, id));
@@ -76,7 +77,7 @@ export async function addRuleAction(formData: FormData): Promise<RuleActionResul
   const categoryId = clean(formData.get("categoryId"), 64);
   const title = clean(formData.get("title"), 160);
   const description = clean(formData.get("description"), 1000);
-  if (!categoryId) return { ok: false, message: "Missing category." };
+  if (!isUuid(categoryId)) return { ok: false, message: "Missing category." };
   if (!title) return { ok: false, message: "A rule needs a title." };
 
   const [{ next }] = await db
@@ -102,7 +103,7 @@ export async function deleteRuleAction(formData: FormData): Promise<RuleActionRe
   if (!db) return NO_DB;
 
   const id = clean(formData.get("id"), 64);
-  if (!id) return { ok: false, message: "Missing rule." };
+  if (!isUuid(id)) return { ok: false, message: "Missing rule." };
 
   const [existing] = await db
     .select({ title: schema.rules.title })
@@ -125,7 +126,7 @@ export async function toggleRuleAction(formData: FormData): Promise<RuleActionRe
 
   const id = clean(formData.get("id"), 64);
   const enabled = clean(formData.get("enabled"), 8) === "true";
-  if (!id) return { ok: false, message: "Missing rule." };
+  if (!isUuid(id)) return { ok: false, message: "Missing rule." };
 
   await db.update(schema.rules).set({ enabled }).where(eq(schema.rules.id, id));
   await audit("rule.visibility", id, { enabled, by });
@@ -143,7 +144,7 @@ export async function saveCategoryAction(formData: FormData): Promise<RuleAction
   const id = clean(formData.get("id"), 64);
   const name = clean(formData.get("name"), 80);
   const icon = clean(formData.get("icon"), 40);
-  if (!id) return { ok: false, message: "Missing category." };
+  if (!isUuid(id)) return { ok: false, message: "Missing category." };
   if (!name) return { ok: false, message: "A category needs a name." };
 
   await db
@@ -202,7 +203,7 @@ export async function deleteCategoryAction(formData: FormData): Promise<RuleActi
   if (!db) return NO_DB;
 
   const id = clean(formData.get("id"), 64);
-  if (!id) return { ok: false, message: "Missing category." };
+  if (!isUuid(id)) return { ok: false, message: "Missing category." };
 
   const [existing] = await db
     .select({ name: schema.ruleCategories.name })
@@ -230,7 +231,7 @@ export async function reorderRuleAction(formData: FormData): Promise<RuleActionR
 
   const id = clean(formData.get("id"), 64);
   const direction = clean(formData.get("direction"), 8);
-  if (!id || (direction !== "up" && direction !== "down")) return { ok: false, message: "Missing move." };
+  if (!isUuid(id) || (direction !== "up" && direction !== "down")) return { ok: false, message: "Missing move." };
 
   const [current] = await db.select().from(schema.rules).where(eq(schema.rules.id, id)).limit(1);
   if (!current) return { ok: false, message: "Rule not found." };
