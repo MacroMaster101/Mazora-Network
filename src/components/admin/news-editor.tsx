@@ -305,7 +305,7 @@ function ArticleRow({
             </a>
           )}
           {isPublic && (
-            <Link href={`/news/${article.slug}`} target="_blank" className="chip ml-2 text-xs hover:text-ink">
+            <Link href={`/news/${article.slug}`} target="_blank" rel="noreferrer" className="chip ml-2 text-xs hover:text-ink">
               Public preview <BookOpen size={11} />
             </Link>
           )}

@@ -148,8 +148,24 @@ const DISCORD_PATCH_UPDATES: PatchUpdate[] = [
 
 export async function getPatchUpdates(customChannelId?: string): Promise<PatchUpdate[]> {
   const token = getDiscordBotToken();
+
+  // A caller-supplied channel is honoured only when it is a real Discord
+  // snowflake AND one of the configured patch/announcement channels. This keeps
+  // getPatchUpdates from becoming a read-any-channel oracle (order tickets,
+  // staff channels) if a future caller forwards unvalidated input — the guard
+  // lives here, next to the bot-token fetch it protects, rather than relying on
+  // every call site to validate first.
+  const allowedChannels = [
+    process.env.DISCORD_PATCH_CHANNEL_ID,
+    process.env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID,
+  ].filter((value): value is string => Boolean(value));
+  const requestedChannel =
+    customChannelId && /^\d{17,20}$/.test(customChannelId) && allowedChannels.includes(customChannelId)
+      ? customChannelId
+      : undefined;
+
   const channelId =
-    customChannelId ||
+    requestedChannel ||
     process.env.DISCORD_PATCH_CHANNEL_ID ||
     process.env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID ||
     "1193207365906997379";
@@ -184,7 +200,7 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
               !lowerRaw.includes("event"));
 
           // Skip general announcements (e.g. birthday wishes) unless explicitly querying a dedicated channel or post contains patch keywords
-          if (!isExplicitPatch && !customChannelId) {
+          if (!isExplicitPatch && !requestedChannel) {
             continue;
           }
 

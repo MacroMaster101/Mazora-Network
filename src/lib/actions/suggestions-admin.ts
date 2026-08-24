@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageSuggestions } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
+import { isUuid } from "@/lib/validation/id";
 
 export interface SuggestionActionResult {
   ok: boolean;
@@ -25,6 +26,8 @@ export async function updateSuggestionStatusAction(formData: FormData): Promise<
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "open");
   const title = String(formData.get("title") ?? "Suggestion");
+
+  if (!isUuid(id)) return { ok: false, message: "That suggestion no longer exists." };
 
   const validStatuses = ["open", "under_review", "planned", "completed", "declined"];
   if (!validStatuses.includes(status)) {
@@ -68,6 +71,8 @@ export async function deleteSuggestionAction(formData: FormData): Promise<Sugges
 
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "Suggestion");
+
+  if (!isUuid(id)) return { ok: false, message: "That suggestion no longer exists." };
 
   try {
     // Delete related votes first if any

@@ -8,6 +8,7 @@ import { canManageStore } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
 import { rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
+import { isUuid } from "@/lib/validation/id";
 
 export interface StoreAdminActionResult {
   ok: boolean;
@@ -250,18 +251,24 @@ export async function toggleStoreProductAction(formData: FormData): Promise<Stor
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   const id = text(formData, "id");
+  if (!isUuid(id)) return { ok: false, message: "That product no longer exists." };
   const enabled = text(formData, "enabled") === "true";
-  const [saved] = await db.update(schema.products).set({ enabled, updatedAt: new Date() }).where(eq(schema.products.id, id)).returning();
-  if (!saved) return { ok: false, message: "That product no longer exists." };
-  await db.insert(schema.auditLogs).values({
-    actorId: await getSessionUserId(),
-    action: enabled ? "store.product.enable" : "store.product.disable",
-    targetType: "product",
-    targetId: saved.id,
-    metadata: { by: session.username, slug: saved.slug },
-  });
-  refreshStore(saved.slug);
-  return { ok: true, message: enabled ? "Product is live." : "Product hidden from the Store." };
+  try {
+    const [saved] = await db.update(schema.products).set({ enabled, updatedAt: new Date() }).where(eq(schema.products.id, id)).returning();
+    if (!saved) return { ok: false, message: "That product no longer exists." };
+    await db.insert(schema.auditLogs).values({
+      actorId: await getSessionUserId(),
+      action: enabled ? "store.product.enable" : "store.product.disable",
+      targetType: "product",
+      targetId: saved.id,
+      metadata: { by: session.username, slug: saved.slug },
+    });
+    refreshStore(saved.slug);
+    return { ok: true, message: enabled ? "Product is live." : "Product hidden from the Store." };
+  } catch (error) {
+    console.error("Failed to toggle store product", error);
+    return { ok: false, message: "The product could not be updated." };
+  }
 }
 
 export async function saveStoreModeAction(formData: FormData): Promise<StoreAdminActionResult> {
@@ -326,18 +333,24 @@ export async function toggleStoreModeAction(formData: FormData): Promise<StoreAd
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   const id = text(formData, "id");
+  if (!isUuid(id)) return { ok: false, message: "That game mode no longer exists." };
   const enabled = text(formData, "enabled") === "true";
-  const [saved] = await db.update(schema.gameModes).set({ enabled, updatedAt: new Date() }).where(eq(schema.gameModes.id, id)).returning();
-  if (!saved) return { ok: false, message: "That game mode no longer exists." };
-  await db.insert(schema.auditLogs).values({
-    actorId: await getSessionUserId(),
-    action: enabled ? "store.mode.enable" : "store.mode.disable",
-    targetType: "game_mode",
-    targetId: saved.id,
-    metadata: { by: session.username, slug: saved.slug },
-  });
-  refreshStore();
-  return { ok: true, message: enabled ? "Game mode shown in the Store." : "Game mode hidden from the Store." };
+  try {
+    const [saved] = await db.update(schema.gameModes).set({ enabled, updatedAt: new Date() }).where(eq(schema.gameModes.id, id)).returning();
+    if (!saved) return { ok: false, message: "That game mode no longer exists." };
+    await db.insert(schema.auditLogs).values({
+      actorId: await getSessionUserId(),
+      action: enabled ? "store.mode.enable" : "store.mode.disable",
+      targetType: "game_mode",
+      targetId: saved.id,
+      metadata: { by: session.username, slug: saved.slug },
+    });
+    refreshStore();
+    return { ok: true, message: enabled ? "Game mode shown in the Store." : "Game mode hidden from the Store." };
+  } catch (error) {
+    console.error("Failed to toggle game mode", error);
+    return { ok: false, message: "The game mode could not be updated." };
+  }
 }
 
 export async function reorderStoreModesAction(formData: FormData): Promise<StoreAdminActionResult> {
@@ -347,6 +360,7 @@ export async function reorderStoreModesAction(formData: FormData): Promise<Store
   if (!db) return { ok: false, message: "The database is not connected." };
 
   const id = text(formData, "id");
+  if (!isUuid(id)) return { ok: false, message: "That game mode no longer exists." };
   const direction = text(formData, "direction") as "up" | "down" | "drag";
   const rawTarget = formData.get("targetIndex");
   const modes = (await db.select().from(schema.gameModes))
@@ -396,6 +410,7 @@ export async function deleteStoreProductAction(formData: FormData): Promise<Stor
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   const id = text(formData, "id");
+  if (!isUuid(id)) return { ok: false, message: "That product no longer exists." };
   const [before] = await db.select().from(schema.products).where(eq(schema.products.id, id)).limit(1);
   if (!before) return { ok: false, message: "That product no longer exists." };
   await db.delete(schema.products).where(eq(schema.products.id, id));
@@ -417,6 +432,7 @@ export async function deleteStoreModeAction(formData: FormData): Promise<StoreAd
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   const id = text(formData, "id");
+  if (!isUuid(id)) return { ok: false, message: "That game mode no longer exists." };
   const [before] = await db.select().from(schema.gameModes).where(eq(schema.gameModes.id, id)).limit(1);
   if (!before) return { ok: false, message: "That game mode no longer exists." };
   const [child] = await db.select({ id: schema.products.id }).from(schema.products).where(eq(schema.products.gameModeSlug, before.slug)).limit(1);
@@ -440,6 +456,7 @@ export async function reorderStoreProductAction(formData: FormData): Promise<Sto
   if (!db) return { ok: false, message: "The database is not connected." };
 
   const id = text(formData, "id");
+  if (!isUuid(id)) return { ok: false, message: "Product not found." };
   const direction = text(formData, "direction") as "up" | "down" | "drag";
   const rawTarget = formData.get("targetIndex");
 

@@ -1,6 +1,9 @@
 import "server-only";
 
-import { lookup as dnsLookup } from "node:dns/promises";
+import * as http from "node:http";
+import * as https from "node:https";
+import { lookup as dnsLookup } from "node:dns";
+import type { LookupAddress } from "node:dns";
 import { isIPv4, isIPv6 } from "node:net";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
@@ -20,46 +23,57 @@ export const NEWS_IMAGE_BUCKET = "news-images";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
-const DEFAULT_REMOTE_IMAGE_HOSTS = new Set([
-  "cdn.discordapp.com",
-  "media.discordapp.net",
-  "i.imgur.com",
-]);
+/*
+  Host policy for remote image fetches.
 
-function approvedRemoteImageHost(hostname: string): boolean {
+  By default ANY host is allowed — a member can paste an image link from any
+  site and it is re-hosted — because the real protection against SSRF is at the
+  connection layer, not the hostname. Every request (and every redirect hop)
+  resolves DNS through `secureLookup`, which refuses to connect to a private,
+  loopback, link-local, or cloud-metadata address and hands the socket the exact
+  vetted IP it then connects to. That closes the resolve-then-connect gap a DNS
+  rebind would need, so an arbitrary hostname is safe to accept.
+
+  Setting REMOTE_IMAGE_HOST_ALLOWLIST re-imposes a hard hostname allowlist (the
+  built-in Discord/Imgur hosts plus whatever is listed) on top of the IP guard,
+  for operators who want to lock intake down to specific CDNs.
+*/
+const DEFAULT_REMOTE_IMAGE_HOSTS = ["cdn.discordapp.com", "media.discordapp.net", "i.imgur.com"];
+
+function hostAllowed(hostname: string): boolean {
   const configured = (process.env.REMOTE_IMAGE_HOST_ALLOWLIST ?? "")
     .split(",")
     .map((host) => host.trim().toLowerCase())
     .filter(Boolean);
-  return DEFAULT_REMOTE_IMAGE_HOSTS.has(hostname.toLowerCase()) || configured.includes(hostname.toLowerCase());
+  if (configured.length === 0) return true; // open mode — any public host, IP-guarded at connect
+  const allow = new Set([...DEFAULT_REMOTE_IMAGE_HOSTS, ...configured]);
+  return allow.has(hostname.toLowerCase());
 }
 
-async function readLimitedBody(response: Response): Promise<Uint8Array | null> {
-  if (!response.body) return null;
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
+/** Drain an image response, refusing anything over the size cap mid-stream. */
+function readLimitedStream(stream: http.IncomingMessage): Promise<Uint8Array | null> {
+  return new Promise((resolve) => {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    let settled = false;
+    const finish = (value: Uint8Array | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    stream.on("data", (chunk: Buffer) => {
+      total += chunk.byteLength;
       if (total > MAX_IMAGE_BYTES) {
-        await reader.cancel();
-        return null;
+        stream.destroy();
+        finish(null);
+        return;
       }
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
+      chunks.push(chunk);
+    });
+    stream.on("end", () => finish(new Uint8Array(Buffer.concat(chunks))));
+    stream.on("error", () => finish(null));
+    stream.on("close", () => finish(null));
+  });
 }
 
 const MIME_EXTENSIONS = {
@@ -188,26 +202,85 @@ function isBlockedAddress(ip: string): boolean {
   return true; // unparseable — fail closed
 }
 
-/** Resolves the host and refuses anything pointing into private space. */
-async function resolvesToPublicAddress(target: URL): Promise<boolean> {
-  try {
-    const results = await dnsLookup(target.hostname, { all: true });
-    return results.length > 0 && results.every((entry) => !isBlockedAddress(entry.address));
-  } catch {
-    return false;
-  }
+/**
+ * DNS lookup used for every outbound image request. It resolves the host, drops
+ * any private/loopback/link-local/metadata address, and hands the socket only a
+ * vetted public IP — so the connection lands on exactly the address that was
+ * validated, closing the rebind gap between checking and connecting. When
+ * nothing public resolves, the connection is refused.
+ *
+ * Because this runs at connect time for every request and every redirect hop,
+ * an arbitrary hostname can be accepted safely: a host that answers public then
+ * flips to a private address still never gets connected to, since the address
+ * the socket uses is the one this function already validated.
+ */
+function secureLookup(
+  hostname: string,
+  options: { all?: boolean; family?: number },
+  callback: (err: NodeJS.ErrnoException | null, address?: string | LookupAddress[], family?: number) => void,
+): void {
+  dnsLookup(hostname, { all: true, verbatim: true }, (err, addresses) => {
+    if (err) {
+      callback(err);
+      return;
+    }
+    let publicAddrs = addresses.filter((entry) => !isBlockedAddress(entry.address));
+    if (options.family === 4 || options.family === 6) {
+      publicAddrs = publicAddrs.filter((entry) => entry.family === options.family);
+    }
+    if (publicAddrs.length === 0) {
+      callback(
+        Object.assign(new Error(`Refused to connect to a non-public address for ${hostname}`), {
+          code: "EAI_BLOCKED",
+        }),
+      );
+      return;
+    }
+    if (options.all) {
+      callback(null, publicAddrs);
+    } else {
+      callback(null, publicAddrs[0].address, publicAddrs[0].family);
+    }
+  });
+}
+
+/** One GET, connecting only through secureLookup. Resolves null on any error. */
+function requestImage(url: URL): Promise<http.IncomingMessage | null> {
+  const transport = url.protocol === "https:" ? https : http;
+  return new Promise((resolve) => {
+    const req = transport.request(
+      url,
+      {
+        method: "GET",
+        // Fresh connection (never a pooled socket) resolved through our guard.
+        agent: false,
+        lookup: secureLookup as http.RequestOptions["lookup"],
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          Accept: "image/avif,image/webp,image/apng,image/png,image/jpeg,image/gif,*/*;q=0.8",
+          // Ask for no transfer compression: sidesteps decompression-bomb handling.
+          "Accept-Encoding": "identity",
+        },
+      },
+      (res) => resolve(res),
+    );
+    req.setTimeout(15_000, () => req.destroy());
+    req.on("error", () => resolve(null));
+    req.end();
+  });
 }
 
 /**
- * Download a remote image and re-host it. The response is validated by content
- * sniffing rather than by its declared type, so a hostile URL cannot smuggle a
- * non-image through.
+ * Download a remote image and re-host it. Accepts a link from ANY host — the
+ * SSRF protection is the secureLookup connection guard, not a hostname list, so
+ * arbitrary image URLs work while requests to internal addresses are refused at
+ * connect time. The bytes are validated by content sniffing, not the declared
+ * type, and only raster formats (JPEG/PNG/WebP/GIF) are accepted; SVG is
+ * intentionally rejected because it can carry script.
  *
- * The URL is attacker-controlled in practice: any signed-in member can submit
- * gallery artwork by link, so this is a server-side request they get to aim.
- * Redirects are therefore followed by hand and every hop is re-resolved and
- * re-checked — validating only the first URL would let a public host bounce the
- * request to 169.254.169.254 or a service on localhost.
+ * Redirects are followed by hand, and every hop reconnects through secureLookup
+ * so a public host cannot bounce the request to 169.254.169.254 or localhost.
  */
 export async function rehostImageFromUrl(url: string, keyBase: string): Promise<StoredImage | null> {
   let parsed: URL;
@@ -218,58 +291,56 @@ export async function rehostImageFromUrl(url: string, keyBase: string): Promise<
   }
   if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
 
-  // Unwrap Google Images / Imgur page links before fetching
+  // Unwrap Google Images / Imgur page links before fetching.
   const cleaned = cleanAndUnwrapImageUrl(parsed.toString());
-  let fetchUrl: URL;
+  let current: URL;
   try {
-    fetchUrl = new URL(cleaned);
+    current = new URL(cleaned);
   } catch {
-    fetchUrl = parsed;
+    current = parsed;
   }
 
-  try {
-    let current = fetchUrl;
-    let res: Response | null = null;
+  let response: http.IncomingMessage | null = null;
+  for (let hop = 0; hop < 4; hop += 1) {
+    if (current.protocol !== "https:" && current.protocol !== "http:") return null;
+    if (!hostAllowed(current.hostname)) return null;
 
-    for (let hop = 0; hop < 4; hop++) {
-      if (current.protocol !== "https:" && current.protocol !== "http:") return null;
-      if (!approvedRemoteImageHost(current.hostname)) return null;
-      if (!(await resolvesToPublicAddress(current))) return null;
+    response = await requestImage(current);
+    if (!response) return null;
 
-      res = await fetch(current.toString(), {
-        cache: "no-store",
-        redirect: "manual",
-        signal: AbortSignal.timeout(15_000),
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-        },
-      });
-
-      if (res.status >= 300 && res.status < 400) {
-        const location = res.headers.get("location");
-        if (!location) return null;
-        try {
-          current = new URL(location, current);
-        } catch {
-          return null;
-        }
-        continue;
+    const status = response.statusCode ?? 0;
+    if (status >= 300 && status < 400) {
+      const location = response.headers.location;
+      response.resume(); // drain the redirect body so the socket can close
+      if (!location) return null;
+      try {
+        current = new URL(location, current);
+      } catch {
+        return null;
       }
-      break;
+      response = null;
+      continue;
     }
+    break;
+  }
 
-    if (!res || !res.ok) return null;
+  if (!response) return null; // ran out of redirect hops
 
-    const declared = Number(res.headers.get("content-length") ?? 0);
-    if (declared > MAX_IMAGE_BYTES) return null;
-
-    const bytes = await readLimitedBody(res);
-    if (!bytes) return null;
-    return await storeImageBytes(bytes, keyBase);
-  } catch {
+  const status = response.statusCode ?? 0;
+  if (status < 200 || status >= 300) {
+    response.resume();
     return null;
   }
+
+  const declared = Number(response.headers["content-length"] ?? 0);
+  if (declared > MAX_IMAGE_BYTES) {
+    response.destroy();
+    return null;
+  }
+
+  const bytes = await readLimitedStream(response);
+  if (!bytes) return null;
+  return storeImageBytes(bytes, keyBase);
 }
 
 /** Stable object key for an announcement's original artwork. */
