@@ -192,6 +192,12 @@ export async function setStaffPublicVisibilityAction(
   if (typeof targetRole !== "string" || !ROLES.includes(targetRole as Role) || !hasAtLeast(targetRole as Role, "helper")) {
     return { ok: false, message: "Only staff accounts can appear on the team page." };
   }
+  // Same ceiling as a role change: an Owner must not flip the visibility of a
+  // peer Owner (or IT). Without this, requireOwner() alone would let any owner
+  // act on ranks at or above their own.
+  if (!canManageRank(session.role, targetRole as Role)) {
+    return { ok: false, message: "You cannot change visibility for a staff member at or above your rank." };
+  }
 
   const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
     app_metadata: { ...target.user.app_metadata, staff_public: visible },
@@ -246,6 +252,12 @@ export async function revokeInviteAction(
   if (!isPendingInvite(target.user)) {
     return { ok: false, message: "That invitation was already accepted." };
   }
+  // Revoking hard-deletes the pending row, so it obeys the same rank ceiling as
+  // deletion: an Owner must not undo an invite an IT created at Owner/IT rank.
+  const targetRole = (target.user.app_metadata?.role as Role) ?? "member";
+  if (!canManageRank(session.role, targetRole)) {
+    return { ok: false, message: "You cannot withdraw an invitation at or above your rank." };
+  }
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
   if (deleteError) {
@@ -287,6 +299,12 @@ export async function resendInviteAction(
     return { ok: false, message: "That invitation no longer exists." };
   if (!isPendingInvite(target.user)) {
     return { ok: false, message: "That invitation was already accepted." };
+  }
+  // Match the rank ceiling on the other invite paths: don't let a lower-tier
+  // owner re-provision an invitation created at or above their own rank.
+  const targetRole = (target.user.app_metadata?.role as Role) ?? "member";
+  if (!canManageRank(session.role, targetRole)) {
+    return { ok: false, message: "You cannot resend an invitation at or above your rank." };
   }
 
   const { error: resendError } = await admin.auth.admin.inviteUserByEmail(

@@ -128,10 +128,26 @@ async function fetchStatusFrom(url: string): Promise<ServerStatus | null> {
   }
 }
 
+/**
+ * The status feed URL is operator-configured, but a misconfiguration to an
+ * `http://` or internal address should not be honoured — require https, for
+ * parity with the presence-health helper. Returns undefined for anything that
+ * isn't a valid https URL.
+ */
+function httpsEnvUrl(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  try {
+    return new URL(trimmed).protocol === "https:" ? trimmed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function fetchServerStatus(): Promise<ServerStatus> {
   const encodedAddress = encodeURIComponent(site.javaIp);
   const urls = [
-    process.env.MINECRAFT_STATUS_API_URL?.trim(),
+    httpsEnvUrl(process.env.MINECRAFT_STATUS_API_URL),
     `https://api.mcsrvstat.us/3/${encodedAddress}`,
     `https://api.mcstatus.io/v2/status/java/${encodedAddress}`,
   ].filter((url, index, all): url is string => Boolean(url) && all.indexOf(url) === index);
