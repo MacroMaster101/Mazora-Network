@@ -1,5 +1,6 @@
 "use server";
 
+import sharp from "sharp";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -230,11 +231,23 @@ export async function uploadMinecraftSkinAction(
 
   const headBuffer = await cropAndCompositeHead(Buffer.from(bytes), validated.format);
 
+  // Re-encode the raw skin to a clean PNG before storing. `validateSkinBytes`
+  // above already proved the dimensions and signature, so a lossless sharp
+  // round-trip preserves every pixel while discarding any metadata or bytes
+  // appended after the image data — the raw skin's Supabase URL is public and
+  // directly fetchable, so what is stored is what could be served. Falls back
+  // to the validated original if sharp cannot round-trip it.
+  const rawBytes = await sharp(bytes)
+    .png()
+    .toBuffer()
+    .then((buffer) => new Uint8Array(buffer))
+    .catch(() => bytes);
+
   const timestamp = Date.now();
   const rawPath = `${user.id}/skin-raw-${timestamp}.png`;
   const headPath = `${user.id}/skin-head-${timestamp}.png`;
 
-  const { error: rawUploadError } = await admin.storage.from(AVATAR_BUCKET).upload(rawPath, bytes, {
+  const { error: rawUploadError } = await admin.storage.from(AVATAR_BUCKET).upload(rawPath, rawBytes, {
     contentType: "image/png",
     cacheControl: "3600",
     upsert: false,
