@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { throttleAuthAction } from "@/lib/rate-limit";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET, ensureAvatarBucket } from "@/lib/storage/avatar-bucket";
+import { ignAvailability } from "@/lib/minecraft/link";
 import type { AccountActionResult } from "@/lib/actions/account";
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
@@ -224,29 +225,23 @@ export async function useMinecraftAvatarAction(
     return { ok: false, message: "Enter a valid Minecraft username (3–16 letters, numbers, or underscores)." };
   }
 
-  // Anti-theft / unique claim check: verify if another user has already claimed this IGN.
-  const { data: existingClaims } = await admin
-    .from("minecraft_accounts")
-    .select("user_id, minecraft_username")
-    .ilike("minecraft_username", targetUsername);
-
-  const stolen = (existingClaims ?? []).find((row) => String(row.user_id) !== auth.user.id);
-  if (stolen) {
-    return { ok: false, message: `The Minecraft name "${targetUsername}" is already claimed by another user.` };
-  }
-
-  // profiles.username is UNIQUE and is a separate namespace from
-  // minecraft_accounts: a name can be free as an IGN yet taken as a website
-  // handle. Without this pre-check the profiles update below failed on the
-  // constraint while the action still reported success (same guard as
-  // linkMinecraftUsernameAction in minecraft.ts).
-  const { data: existingProfile } = await admin
-    .from("profiles")
-    .select("user_id")
-    .ilike("username", targetUsername)
-    .maybeSingle();
-  if (existingProfile && String(existingProfile.user_id) !== auth.user.id) {
-    return { ok: false, message: `The website handle "${targetUsername}" is already used by another user account.` };
+  /*
+    Anti-theft / unique claim check, across BOTH namespaces this name occupies:
+    minecraft_accounts (the IGN) and profiles.username (the website handle) — a
+    name can be free as one and taken as the other. Shared with the registration
+    and dashboard link paths so all three agree on what "taken" means, and so
+    the LIKE-wildcard escaping lives in exactly one place: `_` is a single-char
+    ILIKE wildcard and usernames legitimately contain it, so an unescaped
+    comparison reports free names as taken.
+  */
+  const availability = await ignAvailability(admin, targetUsername, auth.user.id);
+  if (!availability.available) {
+    return {
+      ok: false,
+      message: availability.conflict === "ign"
+        ? `The Minecraft name "${targetUsername}" is already claimed by another user.`
+        : `The website handle "${targetUsername}" is already used by another user account.`,
+    };
   }
 
   const now = new Date().toISOString();

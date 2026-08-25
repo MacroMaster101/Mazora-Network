@@ -173,8 +173,18 @@ export function validateStaffNotice(
  * would ping the recipient's client. Escaping the text instead would corrupt
  * legitimate reasons that mention a username.
  */
+/**
+ * Neutralise Discord markdown in the recipient's name so a display name like
+ * `**Owner**` or `> quote` cannot restyle the notice it is embedded in. The
+ * reason is deliberately NOT escaped (see the payload comment above) — only the
+ * name, which a member controls, is. Mirrors the store-order embed's escaping.
+ */
+function escapeMarkdown(value: string): string {
+  return value.replace(/[\\*_~`|>]/g, (match) => `\\${match}`);
+}
+
 export function renderStaffNotice(input: StaffNoticeInput): Record<string, unknown> {
-  const username = input.username.trim();
+  const username = escapeMarkdown(input.username.trim());
   const reason = input.reason.trim();
 
   const title =
