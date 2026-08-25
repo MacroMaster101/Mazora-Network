@@ -13,6 +13,7 @@ import {
   Eye,
   EyeOff,
   FileText,
+  Gamepad2,
   KeyRound,
   Loader2,
   LockKeyhole,
@@ -469,8 +470,14 @@ export function RegisterForm({ onRegistered }: { onRegistered: (email: string) =
   const [state, action, pending] = useActionState(registerAction, initial);
   const [passwordValue, setPasswordValue] = useState("");
   const [email, setEmail] = useState("");
+  // Controlled so they survive a rejected submit (e.g. a taken username) instead
+  // of being wiped — React resets uncontrolled form fields after a form action,
+  // which is why the email above is controlled too.
+  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [previewType, setPreviewType] = useState<"rules" | "terms" | null>(null);
   const validation = useClientValidation(registerSchema, state);
+  const displayNameError = validation.errorFor("displayName");
   const usernameError = validation.errorFor("username");
   const emailError = validation.errorFor("email");
   const passwordError = validation.errorFor("password");
@@ -495,17 +502,22 @@ export function RegisterForm({ onRegistered }: { onRegistered: (email: string) =
       <AuthDivider />
       <form action={action} className="auth-form auth-register-form" noValidate onSubmit={validation.onSubmit} onInput={validation.onInput}>
         <div className="auth-register-grid">
-          <FormRow label="Minecraft username" htmlFor="username" error={usernameError}>
+          <FormRow label="Display name" htmlFor="displayName" error={displayNameError}>
             <FieldShell icon={<UserRound size={17} />}>
-              <Input id="username" name="username" required minLength={3} maxLength={16} pattern="[A-Za-z0-9_]+" placeholder="NovaCrafter" autoComplete="username" autoCapitalize="none" spellCheck={false} aria-invalid={Boolean(usernameError)} aria-describedby={usernameError ? "username-error" : undefined} className="auth-field" />
+              <Input id="displayName" name="displayName" required minLength={2} maxLength={32} placeholder="Your name" autoComplete="name" spellCheck={false} value={displayName} onChange={(event) => setDisplayName(event.target.value)} aria-invalid={Boolean(displayNameError)} aria-describedby={displayNameError ? "displayName-error" : undefined} className="auth-field" />
             </FieldShell>
           </FormRow>
-          <FormRow label="Email address" htmlFor="email" error={emailError}>
-            <FieldShell icon={<AtSign size={17} />}>
-              <Input id="email" name="email" type="email" required maxLength={254} placeholder="you@example.com" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "email-error" : undefined} className="auth-field" />
+          <FormRow label="Minecraft username" htmlFor="username" error={usernameError}>
+            <FieldShell icon={<Gamepad2 size={17} />}>
+              <Input id="username" name="username" required minLength={3} maxLength={16} pattern="[A-Za-z0-9_]+" placeholder="NovaCrafter" autoComplete="username" autoCapitalize="none" spellCheck={false} value={username} onChange={(event) => setUsername(event.target.value)} aria-invalid={Boolean(usernameError)} aria-describedby={usernameError ? "username-error" : undefined} className="auth-field" />
             </FieldShell>
           </FormRow>
         </div>
+        <FormRow label="Email address" htmlFor="email" error={emailError}>
+          <FieldShell icon={<AtSign size={17} />}>
+            <Input id="email" name="email" type="email" required maxLength={254} placeholder="you@example.com" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "email-error" : undefined} className="auth-field" />
+          </FieldShell>
+        </FormRow>
         <div className="auth-register-grid auth-register-passwords">
           <FormRow label="Create password" htmlFor="password" error={passwordError}>
             <PasswordInput id="password" name="password" placeholder="Create password" autoComplete="new-password" error={passwordError} onValueChange={setPasswordValue} />
