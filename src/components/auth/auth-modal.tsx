@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, type ReactNode } from "react";
-import { Server, ShieldCheck, X } from "lucide-react";
+import { CircleCheck, Server, ShieldCheck, X } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
 import { ThemeCycleButton } from "@/components/theme/theme-toggle";
 import { site } from "@/lib/site";
@@ -34,7 +34,7 @@ export function AuthModal({
     document.body.style.overflow = "hidden";
     const frame = requestAnimationFrame(() => {
       const first = dialogRef.current?.querySelector<HTMLElement>(
-        ".auth-modal-scroll input, .auth-modal-scroll button, .auth-modal-scroll a[href]",
+        ".auth-modal-scroll input:not([type='hidden']), .auth-modal-scroll button, .auth-modal-scroll a[href]",
       );
       (first ?? dialogRef.current)?.focus();
     });
@@ -85,6 +85,11 @@ export function AuthModal({
             <p className="auth-world-kicker"><span /> Mazora access</p>
             <h2>Your world is waiting.</h2>
             <p>Continue your progress, events, forums, and community identity from one secure account.</p>
+            <div className="auth-world-features" aria-label="Account benefits">
+              <span><CircleCheck size={13} /> One identity</span>
+              <span><CircleCheck size={13} /> Synced progress</span>
+              <span><CircleCheck size={13} /> Player support</span>
+            </div>
           </div>
           <div className="auth-modal-trust">
             <ShieldCheck size={16} /> Secure player portal

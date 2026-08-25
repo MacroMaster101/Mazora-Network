@@ -17,6 +17,7 @@ import {
   KeyRound,
   Loader2,
   LockKeyhole,
+  MailCheck,
   Send,
   ShieldCheck,
   UserRound,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 import {
   confirmEmailAction,
+  confirmEmailCodeAction,
   finishPasswordResetAction,
   loginAction,
   oauthAction,
@@ -204,6 +206,85 @@ function AuthMessage({ message }: { message?: string }) {
   return message ? <p className="auth-form-message" role="alert">{message}</p> : null;
 }
 
+function OtpInput({ id, name, error }: { id: string; name: string; error?: string }) {
+  const [value, setValue] = useState("");
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <div className="auth-otp" data-focused={focused || undefined} data-invalid={Boolean(error) || undefined}>
+      <Input
+        id={id}
+        name={name}
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]{6}"
+        maxLength={6}
+        required
+        value={value}
+        onChange={(event) => setValue(event.target.value.replace(/\D/g, "").slice(0, 6))}
+        onPaste={(event) => {
+          const digits = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+          if (!digits) return;
+          event.preventDefault();
+          setValue(digits);
+        }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        autoComplete="one-time-code"
+        aria-label="Six-digit verification code"
+        aria-invalid={Boolean(error)}
+        aria-describedby={`${id}-hint${error ? ` ${id}-error` : ""}`}
+        className="auth-otp-native"
+      />
+      <div className="auth-otp-cells" aria-hidden="true">
+        {Array.from({ length: 6 }, (_, index) => {
+          const digit = value[index] ?? "";
+          const active = focused && index === Math.min(value.length, 5);
+          return (
+            <span key={index} className={active ? "is-active" : digit ? "is-filled" : undefined}>
+              {digit || <i />}
+            </span>
+          );
+        })}
+      </div>
+      <p id={`${id}-hint`} className="auth-otp-hint">
+        Paste the full code or type one digit at a time.
+      </p>
+    </div>
+  );
+}
+
+function RecoveryProgress({ step }: { step: 1 | 2 | 3 }) {
+  const steps = ["Account", "Verify", "Reset"];
+  return (
+    <ol className="auth-recovery-progress" aria-label={`Password recovery, step ${step} of 3`}>
+      {steps.map((label, index) => {
+        const number = index + 1;
+        const state = number < step ? "complete" : number === step ? "current" : "upcoming";
+        return (
+          <li key={label} data-state={state} aria-current={state === "current" ? "step" : undefined}>
+            <span>{state === "complete" ? <Check size={12} strokeWidth={3} /> : number}</span>
+            <small>{label}</small>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function CodeDestination({ email, purpose }: { email: string; purpose: string }) {
+  return (
+    <div className="auth-code-destination">
+      <span><MailCheck size={19} /></span>
+      <div>
+        <small>{purpose}</small>
+        <strong>{email}</strong>
+      </div>
+      <i aria-hidden="true" />
+    </div>
+  );
+}
+
 function SocialButtons({ next = "/", mode = "login" }: { next?: string; mode?: "login" | "register" }) {
   const [googleState, googleAction, googlePending] = useActionState(oauthAction, initial);
   const [discordState, discordAction, discordPending] = useActionState(oauthAction, initial);
@@ -294,7 +375,7 @@ export function LoginForm({ next }: { next?: string }) {
     <div className="auth-form-stack">
       <SocialButtons next={next} />
       <AuthDivider />
-      <form action={action} className="auth-form" noValidate onSubmit={validation.onSubmit} onInput={validation.onInput}>
+      <form action={action} className="auth-form auth-login-form" noValidate onSubmit={validation.onSubmit} onInput={validation.onInput}>
         {next && <input type="hidden" name="next" value={next} />}
         <FormRow label="Email address" htmlFor="identifier" error={emailError}>
           <FieldShell icon={<UserRound size={17} />}>
@@ -322,6 +403,10 @@ export function LoginForm({ next }: { next?: string }) {
           </span>
           <span className="auth-account-submit-arrow" aria-hidden="true"><ArrowRight size={17} /></span>
         </button>
+        <div className="auth-login-trust" aria-label="Secure sign in">
+          <span><ShieldCheck size={14} /> Protected session</span>
+          <span><i /> Mazora services online</span>
+        </div>
       </form>
       {state.unverifiedEmail && <ResendConfirmationRow email={state.unverifiedEmail} />}
       <p className="auth-switch-copy">
@@ -577,6 +662,59 @@ export function RegisterForm({ onRegistered }: { onRegistered: (email: string) =
   );
 }
 
+/**
+ * The "check your inbox" step for a new signup: enter the 6-digit code from the
+ * confirmation email. Mirrors VerifyResetCodeForm — on success the action
+ * verifies the account, establishes a session, and redirects, so there is no
+ * onVerified callback (the browser navigates away).
+ */
+export function VerifyEmailCodeForm({ email }: { email: string }) {
+  const [state, action, pending] = useActionState(confirmEmailCodeAction, initial);
+  const [resendState, resendAction, resendPending] = useActionState(resendConfirmationAction, initial);
+  const [cooldown, setCooldown] = useState(0);
+  const { toast } = useToast();
+  const tokenError = state.errors?.token;
+
+  useEffect(() => {
+    if (resendState.ok && resendState.message) {
+      toast(resendState.message, "success");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    } else if (!resendState.ok && resendState.message) {
+      toast(resendState.message, "error");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resendState]);
+
+  useEffect(() => {
+    if (cooldown === 0) return;
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
+
+  return (
+    <>
+      <form action={action} className="auth-form" noValidate>
+        <input type="hidden" name="email" value={email} />
+        <CodeDestination email={email} purpose="Verification code sent to" />
+        <FormRow label="6-digit code" htmlFor="confirm-token" error={tokenError}>
+          <OtpInput id="confirm-token" name="token" error={tokenError} />
+        </FormRow>
+        <AuthMessage message={state.message} />
+        <button type="submit" disabled={pending} className="btn btn-primary auth-submit disabled:opacity-70">
+          {pending ? <Loader2 size={17} className="animate-spin" /> : <BadgeCheck size={17} />} Verify email <ArrowRight size={16} className="ml-auto" />
+        </button>
+      </form>
+      <form action={resendAction} className="auth-resend-row">
+        <input type="hidden" name="email" value={email} />
+        <button type="submit" disabled={resendPending || cooldown > 0} className="btn btn-ghost auth-submit disabled:opacity-60">
+          {resendPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+          {resendPending ? "Sending…" : cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
+        </button>
+      </form>
+    </>
+  );
+}
+
 function RequestResetCodeForm({ onSent }: { onSent: (email: string) => void }) {
   const [state, action, pending] = useActionState(requestPasswordResetAction, initial);
   const [email, setEmail] = useState("");
@@ -591,6 +729,11 @@ function RequestResetCodeForm({ onSent }: { onSent: (email: string) => void }) {
 
   return (
     <form action={action} className="auth-form" noValidate onSubmit={validation.onSubmit} onInput={validation.onInput}>
+      <RecoveryProgress step={1} />
+      <div className="auth-recovery-callout">
+        <span><ShieldCheck size={18} /></span>
+        <p><strong>Private recovery</strong> We&apos;ll only use this address to send your one-time security code.</p>
+      </div>
       <FormRow label="Account email" htmlFor="email" error={emailError}>
         <FieldShell icon={<AtSign size={17} />}>
           <Input
@@ -651,23 +794,10 @@ function VerifyResetCodeForm({ email, onVerified }: { email: string; onVerified:
     <>
       <form action={action} className="auth-form" noValidate>
         <input type="hidden" name="email" value={email} />
+        <RecoveryProgress step={2} />
+        <CodeDestination email={email} purpose="Recovery code sent to" />
         <FormRow label="6-digit code" htmlFor="reset-token" error={tokenError}>
-          <FieldShell icon={<KeyRound size={17} />}>
-            <Input
-              id="reset-token"
-              name="token"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              required
-              placeholder="123456"
-              autoComplete="one-time-code"
-              aria-invalid={Boolean(tokenError)}
-              aria-describedby={tokenError ? "reset-token-error" : undefined}
-              className="auth-field"
-            />
-          </FieldShell>
+          <OtpInput id="reset-token" name="token" error={tokenError} />
         </FormRow>
         <AuthMessage message={state.message} />
         <button type="submit" disabled={pending} className="btn btn-primary auth-submit disabled:opacity-70">
@@ -702,6 +832,7 @@ function NewPasswordAfterResetForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form action={action} className="auth-form" noValidate onSubmit={validation.onSubmit} onInput={validation.onInput}>
+      <RecoveryProgress step={3} />
       <FormRow label="New password" htmlFor="reset-new-password" error={passwordError}>
         <PasswordInput id="reset-new-password" name="password" placeholder="Create a secure password" autoComplete="new-password" error={passwordError} strength />
       </FormRow>
@@ -724,7 +855,7 @@ export function ForgotPasswordFlow() {
 
   if (step === "code") {
     return (
-      <AuthCard kicker="Account recovery" title="Enter your code." subtitle={`We sent a 6-digit code to ${email}.`}>
+      <AuthCard kicker="Account recovery" title="Check your inbox." subtitle="Enter the one-time code to prove this account belongs to you.">
         <VerifyResetCodeForm email={email} onVerified={() => setStep("password")} />
       </AuthCard>
     );
@@ -732,7 +863,7 @@ export function ForgotPasswordFlow() {
 
   if (step === "password") {
     return (
-      <AuthCard kicker="Account recovery" title="Choose a new password." subtitle="Use a strong password you don't use anywhere else.">
+      <AuthCard kicker="Account recovery" title="Secure your account." subtitle="Your code is confirmed. Finish with a new, unique password.">
         <NewPasswordAfterResetForm onDone={() => setStep("done")} />
       </AuthCard>
     );
@@ -754,7 +885,7 @@ export function ForgotPasswordFlow() {
   }
 
   return (
-    <AuthCard kicker="Account recovery" title="Find your way back." subtitle="Enter your account email and we'll send you a 6-digit code.">
+    <AuthCard kicker="Account recovery" title="Let’s get you back in." subtitle="Start with the email connected to your Mazora account.">
       <RequestResetCodeForm
         onSent={(sentEmail) => {
           setEmail(sentEmail);
@@ -786,6 +917,7 @@ export function PasswordResetForm() {
   }
   return (
     <form action={action} className="auth-form" noValidate onSubmit={validation.onSubmit} onInput={validation.onInput}>
+      <RecoveryProgress step={3} />
       <FormRow label="New password" htmlFor="password" error={passwordError}>
         <PasswordInput id="password" name="password" placeholder="Create a secure password" autoComplete="new-password" error={passwordError} strength />
       </FormRow>

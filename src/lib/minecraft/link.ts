@@ -4,7 +4,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /** Premium names are 3–16 of [A-Za-z0-9_]; cracked/TLauncher clients use the same rule. */
 export const IGN_PATTERN = /^[a-zA-Z0-9_]{3,16}$/;
 
-export type IgnAvailability = { available: true } | { available: false; conflict: "ign" | "handle" };
+export type IgnAvailability =
+  | { available: true }
+  | { available: false; conflict: "ign" | "handle"; userId: string };
 
 /**
  * Escape LIKE/ILIKE wildcards so a name is matched LITERALLY.
@@ -40,7 +42,8 @@ export async function ignAvailability(
     .select("user_id")
     .ilike("minecraft_username", pattern);
   if ((claims ?? []).some((row) => String(row.user_id) !== exceptUserId)) {
-    return { available: false, conflict: "ign" };
+    const claim = (claims ?? []).find((row) => String(row.user_id) !== exceptUserId);
+    return { available: false, conflict: "ign", userId: String(claim?.user_id ?? "") };
   }
 
   const { data: profile } = await admin
@@ -49,7 +52,7 @@ export async function ignAvailability(
     .ilike("username", pattern)
     .maybeSingle();
   if (profile && String(profile.user_id) !== exceptUserId) {
-    return { available: false, conflict: "handle" };
+    return { available: false, conflict: "handle", userId: String(profile.user_id) };
   }
 
   return { available: true };
