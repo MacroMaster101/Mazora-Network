@@ -8,6 +8,7 @@ type AuthUserRecord = Awaited<ReturnType<NonNullable<ReturnType<typeof getSupaba
 import { getDb, schema } from "@/lib/db/client";
 import { isMinecraftAvatarUrl, resolveAvatarUrl } from "@/lib/avatar-source";
 import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
+import { isPlaceholderUsername, realDisplayName } from "@/lib/auth/placeholder";
 import type { Role } from "@/lib/types";
 
 /**
@@ -75,9 +76,16 @@ export function resolveUsername(input: {
   profileUsername?: string | null;
   metadataUsername?: unknown;
   email?: string | null;
+  /** The account UUID, so the trigger's `player_<uuid8>` placeholder is matched exactly. */
+  userId?: string | null;
 }): string {
   const profile = typeof input.profileUsername === "string" ? input.profileUsername.trim() : "";
-  if (profile) return profile;
+  // A real, chosen profile username wins. The signup trigger's placeholder
+  // (player_<uuid8>) is not a choice, so it falls through to the same
+  // email/metadata derivation the control-room widget uses — without this, an
+  // OAuth account read as "player_9d6a48d4" on the Users board while reading as
+  // its email handle everywhere the profile row was not consulted.
+  if (profile && !isPlaceholderUsername(profile, input.userId)) return profile;
   const metadata = typeof input.metadataUsername === "string" ? input.metadataUsername.trim() : "";
   if (metadata) return metadata;
   return input.email?.split("@")[0] ?? "player";
@@ -106,6 +114,7 @@ export async function usernameForUser(
     profileUsername,
     metadataUsername: authUser.user_metadata?.username,
     email: authUser.email ?? null,
+    userId,
   });
 }
 
@@ -207,8 +216,11 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
         profileUsername: profile?.username,
         metadataUsername: user.user_metadata?.username,
         email: user.email,
+        userId: user.id,
       });
-      const displayName = profile?.displayName ?? null;
+      // "New Player" is the trigger's placeholder, not a chosen name — drop it
+      // so the row shows the resolved handle rather than a fake display name.
+      const displayName = realDisplayName(profile?.displayName);
       const minecraftProfile = minecraft.get(user.id);
       const minecraftUsername = minecraftProfile?.username ?? null;
 
