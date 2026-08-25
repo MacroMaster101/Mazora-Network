@@ -22,7 +22,11 @@ async function main() {
   }
 
   const content = readFileSync(file, "utf8");
-  const sql = postgres(url, { prepare: false });
+  // A migration file may contain an explicit BEGIN/COMMIT block. Pin this
+  // one-off runner to one connection so every statement in that transaction
+  // reaches the same PostgreSQL session; postgres-js rejects pooled explicit
+  // transactions with UNSAFE_TRANSACTION because they cannot be atomic.
+  const sql = postgres(url, { prepare: false, max: 1 });
   try {
     await sql.unsafe(content);
     console.log(`✓ Applied ${file}`);

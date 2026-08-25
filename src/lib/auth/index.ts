@@ -123,6 +123,14 @@ export const getSession = cache(async (): Promise<Session | null> => {
     // their profile row.
     const profile = await ensureUserProfile(data.user);
 
+    // An auth.users row is created before a signup OTP is verified. It must
+    // not become an application session merely because a cookie exists, and
+    // suspended/deleted profiles must not regain access through Supabase Auth.
+    const hasEmailIdentity = data.user.identities?.some((identity) => identity.provider === "email") ?? false;
+    if ((hasEmailIdentity && !data.user.email_confirmed_at) || !profile || profile.account_status !== "active") {
+      return null;
+    }
+
     const emailName = data.user.email?.split("@")[0] ?? "player";
     // The signup trigger stores `player_<uuid8>` / "New Player" for OAuth
     // accounts that arrive without their own username/display_name. Neither is a
