@@ -5,6 +5,7 @@ import * as https from "node:https";
 import { lookup as dnsLookup } from "node:dns";
 import type { LookupAddress } from "node:dns";
 import { isIPv4, isIPv6 } from "node:net";
+import sharp from "sharp";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
 
@@ -132,6 +133,39 @@ export interface StoredImage {
   key: string;
 }
 
+/**
+ * Re-encode accepted image bytes before they are stored.
+ *
+ * `detectedMime` only vouches for the file header; it says nothing about the
+ * bytes that follow. Decoding to pixels and re-encoding through sharp discards
+ * any EXIF/GPS metadata the source carried and any payload appended after the
+ * image data (a valid-header "polyglot"), so the object we serve back is pixels
+ * only. The format is preserved — including animation for GIF and animated
+ * WebP — so a re-hosted banner still animates.
+ *
+ * Falls back to the original bytes when sharp cannot process them: `detectedMime`
+ * has already proved they are a real raster image, and the callers here are the
+ * admin content tools and the IP-guarded importer, so refusing an unusual but
+ * valid image would break a legitimate upload rather than stop an attack.
+ */
+async function sanitizeImageBytes(bytes: Uint8Array, mime: ImageMime): Promise<Uint8Array> {
+  try {
+    switch (mime) {
+      case "image/jpeg":
+        // rotate() bakes in EXIF orientation before that metadata is dropped.
+        return new Uint8Array(await sharp(bytes).rotate().jpeg({ quality: 85 }).toBuffer());
+      case "image/png":
+        return new Uint8Array(await sharp(bytes).png().toBuffer());
+      case "image/webp":
+        return new Uint8Array(await sharp(bytes, { animated: true }).webp().toBuffer());
+      case "image/gif":
+        return new Uint8Array(await sharp(bytes, { animated: true }).gif().toBuffer());
+    }
+  } catch {
+    return bytes;
+  }
+}
+
 /** Persist raw bytes under a stable key. Returns null if the bytes are not a real image. */
 export async function storeImageBytes(bytes: Uint8Array, keyBase: string): Promise<StoredImage | null> {
   if (bytes.byteLength === 0 || bytes.byteLength > MAX_IMAGE_BYTES) return null;
@@ -141,8 +175,9 @@ export async function storeImageBytes(bytes: Uint8Array, keyBase: string): Promi
   const admin = getSupabaseAdmin();
   if (!admin || !(await ensureBucket())) return null;
 
+  const clean = await sanitizeImageBytes(bytes, mime);
   const key = `${keyBase}.${MIME_EXTENSIONS[mime]}`;
-  const { error } = await admin.storage.from(NEWS_IMAGE_BUCKET).upload(key, bytes, {
+  const { error } = await admin.storage.from(NEWS_IMAGE_BUCKET).upload(key, clean, {
     contentType: mime,
     cacheControl: "31536000",
     upsert: true,
