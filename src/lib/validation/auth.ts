@@ -26,6 +26,25 @@ const newPassword = z
   .regex(/[0-9]/, "Add at least one number.")
   .regex(/[^a-zA-Z0-9]/, "Add at least one symbol.");
 
+/**
+ * Display name: freeform and NON-unique — two members may share one, since the
+ * unique identity is the @username, not this. Trimmed, 2–64 characters, and
+ * rejecting control, format (zero-width joiners, RTL/LTR overrides), and
+ * line/paragraph-separator characters — the ones that let a name break page
+ * layout or read as something it is not, rather than simply describe someone.
+ * Mixed case and spaces are fine and preserved exactly as typed. Shared by
+ * registration and the profile editor so their limits cannot drift apart.
+ */
+export const displayName = z
+  .string({ required_error: "Enter a display name." })
+  .trim()
+  .min(2, "Display name must be at least 2 characters.")
+  .max(64, "Display name must be 64 characters or fewer.")
+  .regex(
+    /^[^\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+$/u,
+    "Remove control or invisible characters from your display name.",
+  );
+
 export const loginSchema = z.object({
   identifier: email,
   password,
@@ -34,6 +53,7 @@ export const loginSchema = z.object({
 
 export const registerSchema = z
   .object({
+    displayName,
     username: z
       .string({ required_error: "Enter your Minecraft username." })
       .trim()

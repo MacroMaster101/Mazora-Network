@@ -9,6 +9,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET } from "@/lib/storage/avatar-bucket";
 import { removeStoredSkinFiles } from "@/lib/storage/skin-files";
 import { cleanupAccountOwnedData } from "@/lib/data/account-deletion";
+import { displayName } from "@/lib/validation/auth";
 
 export interface AccountActionResult {
   ok: boolean;
@@ -17,11 +18,8 @@ export interface AccountActionResult {
 }
 
 const profileSchema = z.object({
-  displayName: z
-    .string({ required_error: "Enter a display name." })
-    .trim()
-    .min(2, "Display name must be at least 2 characters.")
-    .max(64, "Display name must be 64 characters or fewer."),
+  // Shared with registration so the two never drift (was 64 here, 32 there).
+  displayName,
   bio: z.string().trim().max(500, "Bio must be 500 characters or fewer."),
 });
 

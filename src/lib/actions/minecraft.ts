@@ -9,6 +9,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET, ensureAvatarBucket } from "@/lib/storage/avatar-bucket";
 import { removeStoredSkinFiles } from "@/lib/storage/skin-files";
 import { SKIN_MAX_BYTES, cropAndCompositeHead, validateSkinBytes } from "@/lib/skins/process";
+import { IGN_PATTERN, ignAvailability, linkMinecraftIgn } from "@/lib/minecraft/link";
 
 /**
  * Setting the Minecraft in-game name on an account.
@@ -41,9 +42,6 @@ export interface MinecraftLinkActionState {
   linked?: MinecraftConnection;
 }
 
-/** Premium names are 3–16 of [A-Za-z0-9_]; cracked clients use the same rule. */
-const IGN_PATTERN = /^[a-zA-Z0-9_]{3,16}$/;
-
 async function authenticatedUser() {
   if (!isSupabaseConfigured()) return null;
   const supabase = await createSupabaseServerClient();
@@ -70,80 +68,32 @@ export async function linkMinecraftUsernameAction(
     return { ok: false, enabled, message: "Minecraft name must be 3–16 letters, numbers, or underscores." };
   }
 
-  // Someone else already holds this IGN — refuse rather than let two accounts
-  // show the same player identity.
-  const { data: existingClaims } = await admin
-    .from("minecraft_accounts")
-    .select("user_id, minecraft_username")
-    .ilike("minecraft_username", username);
-
-  const taken = (existingClaims ?? []).find((row) => String(row.user_id) !== user.id);
-  if (taken) {
-    return { ok: false, enabled, message: `The Minecraft name "${username}" is already used by another Mazora account.` };
-  }
-
-  const { data: existingProfile } = await admin
-    .from("profiles")
-    .select("user_id")
-    .ilike("username", username)
-    .maybeSingle();
-
-  if (existingProfile && String(existingProfile.user_id) !== user.id) {
-    return { ok: false, enabled, message: `The website handle "${username}" is already used by another user account.` };
-  }
-
-  const { data: currentLink } = await admin
-    .from("minecraft_accounts")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const now = new Date().toISOString();
-  const avatarUrl = `https://mc-heads.net/avatar/${encodeURIComponent(username)}/256`;
-  // Offline-mode UUIDs are what a cracked/TLauncher player actually joins with,
-  // so the row is keyed the same way rather than inventing a premium UUID.
-  const offlineUuid = `offline:${username.toLowerCase()}`;
-
-  if (currentLink) {
-    const { error: updateError } = await admin
-      .from("minecraft_accounts")
-      .update({ minecraft_username: username, minecraft_uuid: offlineUuid, updated_at: now })
-      .eq("user_id", user.id);
-    if (updateError) return { ok: false, enabled, message: "Could not update your Minecraft name. Please try again." };
-  } else {
-    const { error: insertError } = await admin.from("minecraft_accounts").insert({
-      user_id: user.id,
-      minecraft_uuid: offlineUuid,
-      minecraft_username: username,
-      linked_at: now,
-      updated_at: now,
-    });
-    if (insertError) return { ok: false, enabled, message: "Could not save your Minecraft name. Please try again." };
-  }
-
-  /*
-    Keep the website handle and skin avatar in step with the IGN.
-
-    The error used to be discarded. profiles_username_idx is case-SENSITIVE
-    while the pre-check above uses ilike, so "Steve" and "steve" both pass the
-    check and only one can be written — the loser silently kept their old handle
-    and was told the whole operation succeeded.
-  */
-  const { error: profileError } = await admin
-    .from("profiles")
-    .update({ username, avatar_url: avatarUrl, updated_at: now })
-    .eq("user_id", user.id);
-  if (profileError) {
+  // Someone else already holds this IGN or handle — refuse rather than let two
+  // accounts show the same player identity. Same availability check the
+  // registration flow uses, so the two cannot drift.
+  const availability = await ignAvailability(admin, username, user.id);
+  if (!availability.available) {
     return {
       ok: false,
       enabled,
-      message: "Your Minecraft name was saved, but the website handle could not be updated. That name may already be taken.",
+      message: availability.conflict === "ign"
+        ? `The Minecraft name "${username}" is already used by another Mazora account.`
+        : `The website handle "${username}" is already used by another user account.`,
+    };
+  }
+
+  const linked = await linkMinecraftIgn(admin, user.id, username);
+  if (!linked.ok) {
+    return {
+      ok: false,
+      enabled,
+      message: "Your Minecraft name could not be saved. That name may already be taken — please try again.",
     };
   }
 
   const supabase = await createSupabaseServerClient();
   if (supabase) {
-    await supabase.auth.updateUser({ data: { username, avatar_url: avatarUrl } });
+    await supabase.auth.updateUser({ data: { username, avatar_url: linked.avatarUrl } });
   }
 
   revalidatePath("/dashboard", "layout");
@@ -157,10 +107,10 @@ export async function linkMinecraftUsernameAction(
     ok: true,
     enabled,
     linked: {
-      id: String(currentLink?.id ?? user.id),
-      uuid: offlineUuid,
+      id: linked.linkId ?? user.id,
+      uuid: linked.uuid,
       username,
-      linkedAt: now,
+      linkedAt: new Date().toISOString(),
     },
     message: `Minecraft name set to ${username}.`,
   };
