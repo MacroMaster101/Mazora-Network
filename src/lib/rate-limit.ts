@@ -207,9 +207,9 @@ function hashed(value: string): string {
  * Server-action equivalent of `clientKey`. Actions never receive a `Request`,
  * so the address comes from the incoming request headers instead.
  *
- * `identity` narrows the bucket beyond the address — pass the submitted email
- * on login so one account cannot be sprayed from a single address, while a
- * shared NAT/school IP does not lock out unrelated users quite so easily.
+ * `identity` narrows the bucket beyond the address for callers that explicitly
+ * want a combined key. `throttleAuthAction` below instead creates independent
+ * address and identity buckets, which is required to stop IP rotation.
  */
 export async function actionClientKey(scope: string, identity?: string): Promise<string> {
   const headerList = await headers();
@@ -229,9 +229,29 @@ export async function throttleAuthAction(
   scope: string,
   { limit, windowMs, identity }: { limit: number; windowMs: number; identity?: string },
 ): Promise<string | null> {
-  const verdict = await rateLimitShared(await actionClientKey(scope, identity), { limit, windowMs });
-  if (verdict.ok) return null;
-  const minutes = Math.ceil(verdict.retryAfter / 60);
+  /*
+    These must be separate buckets. A single `ip:identity` key looks like it is
+    protecting both dimensions, but an attacker can reset it just by rotating
+    addresses. The identity bucket caps attempts against one account globally;
+    the broader IP bucket also brakes account spraying from one source.
+
+    The IP allowance is intentionally wider so a school, office or carrier NAT
+    is less likely to lock unrelated people out. Values stored in either tier
+    contain only truncated SHA-256 digests, never raw email or IP addresses.
+  */
+  const ipLimit = identity ? Math.max(limit * 5, 20) : limit;
+  const checks = [rateLimitShared(await actionClientKey(`${scope}:ip`), { limit: ipLimit, windowMs })];
+  if (identity) {
+    checks.push(
+      rateLimitShared(`${scope}:identity:${hashed(identity.trim().toLowerCase())}`, { limit, windowMs }),
+    );
+  }
+
+  const verdicts = await Promise.all(checks);
+  const blocked = verdicts.filter((verdict) => !verdict.ok);
+  if (blocked.length === 0) return null;
+  const retryAfter = Math.max(...blocked.map((verdict) => verdict.retryAfter));
+  const minutes = Math.ceil(retryAfter / 60);
   return minutes > 1
     ? `Too many attempts. Try again in about ${minutes} minutes.`
     : "Too many attempts. Try again in about a minute.";
