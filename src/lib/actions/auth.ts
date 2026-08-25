@@ -10,6 +10,7 @@ import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { getSupabaseConfig, isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { ignAvailability, linkMinecraftIgn } from "@/lib/minecraft/link";
 import { throttleAuthAction } from "@/lib/rate-limit";
 import {
   authFormValues,
@@ -129,6 +130,22 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
+    const admin = getSupabaseAdmin();
+
+    // Reject a taken username up front so the person consciously picks a unique
+    // handle, rather than the signup trigger silently suffixing it after the
+    // fact (`unique_username` in the migrations). The IGN is checked against
+    // both namespaces it will occupy — the site handle and the Minecraft link.
+    if (admin) {
+      const availability = await ignAvailability(admin, parsed.data.username);
+      if (!availability.available) {
+        return {
+          ok: false,
+          errors: { username: "That Minecraft username is already taken. Please choose another." },
+        };
+      }
+    }
+
     // emailRedirectTo intentionally omitted: the Confirm signup template links
     // to /confirm-email?token_hash=...&type=email (built from {{ .SiteURL }}
     // and {{ .TokenHash }}) rather than {{ .ConfirmationURL }}, so this option
@@ -136,18 +153,52 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
     const { data, error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
+      // Name and username are now distinct: the trigger stores display_name as
+      // the chosen name and username as the IGN (which becomes the @handle).
       options: {
-        data: { username: parsed.data.username, display_name: parsed.data.username },
+        data: { username: parsed.data.username, display_name: parsed.data.displayName },
       },
     });
-    if (error) return { ok: false, message: "That account could not be created. Try another email or sign in instead." };
+    if (error) {
+      // The real reason is logged server-side so a failed signup is actually
+      // diagnosable, while the user-facing message stays generic for the
+      // account-related cases (it must not reveal whether an email already
+      // exists — that would be an enumeration oracle).
+      console.error("Registration signUp failed:", { status: error.status, code: error.code, message: error.message });
+      // A confirmation-email delivery failure is an infrastructure problem, not
+      // an account one: it says nothing about whether the email exists, so it is
+      // safe — and far less confusing — to name it instead of telling the user
+      // to "try another email" when their email was fine. (Common on projects
+      // using Supabase's rate-limited built-in email with no custom SMTP.)
+      const emailSendFailed = /sending.*email|email.*(?:send|deliver)/i.test(error.message ?? "");
+      return {
+        ok: false,
+        message: emailSendFailed
+          ? "We couldn't send your confirmation email right now. Please wait a few minutes and try again."
+          : "That account could not be created. Try another email or sign in instead.",
+      };
+    }
 
     // Keep account creation complete even on projects where the database
     // signup trigger has not been applied yet.
-    const admin = getSupabaseAdmin();
     if (data.user && admin && !(await ensureUserProfile(data.user))) {
       await admin.auth.admin.deleteUser(data.user.id);
       return { ok: false, message: "That account could not be created. Try another username or email." };
+    }
+
+    // Point the new account's Minecraft link + skin avatar at the IGN. The site
+    // handle is already the IGN (the signup trigger set it from metadata); this
+    // adds the minecraft_accounts row and the skin head. Best-effort on purpose:
+    // the account already exists and the player can (re)link from the dashboard,
+    // so a hiccup here must not fail an otherwise-successful signup.
+    if (data.user && admin) {
+      const linked = await linkMinecraftIgn(admin, data.user.id, parsed.data.username).catch((linkError) => {
+        console.error("Registration IGN link failed:", linkError);
+        return null;
+      });
+      if (linked && !linked.ok) {
+        console.error("Registration IGN link did not fully apply for user", data.user.id);
+      }
     }
 
     if (data.session) redirect("/");
@@ -161,7 +212,7 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
   }
 
   if (!isDemoAuthEnabled()) return { ok: false, message: "Authentication has not been configured yet." };
-  await createSession(parsed.data.username, parsed.data.username);
+  await createSession(parsed.data.username, parsed.data.displayName);
   redirect("/");
 }
 
