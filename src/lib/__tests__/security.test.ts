@@ -350,4 +350,135 @@ describe("account deletion privacy", () => {
     assert.match(deletion, /targetId:\s*null/);
     assert.doesNotMatch(deletion, /metadata:\s*\{[\s\S]*?\b(email|username):/);
   });
+
+  test("the database migration enforces complete account deletion and anonymized retention", () => {
+    const migration = readFileSync(
+      new URL("../../../supabase/migrations/032_restore_auth_user_foreign_keys.sql", import.meta.url),
+      "utf8",
+    );
+
+    for (const constraint of [
+      "profiles_user_id_fkey",
+      "minecraft_accounts_user_id_fkey",
+      "suggestions_user_id_fkey",
+      "suggestion_votes_user_id_fkey",
+      "vote_history_user_id_fkey",
+      "gallery_images_author_id_fkey",
+      "gallery_likes_user_id_fkey",
+    ]) {
+      assert.match(
+        migration,
+        new RegExp(`constraint ${constraint}[^;]*on delete cascade`, "i"),
+        `${constraint} must delete account-owned data`,
+      );
+    }
+
+    for (const constraint of [
+      "news_articles_author_id_fkey",
+      "orders_user_id_fkey",
+      "audit_logs_actor_id_fkey",
+      "creator_codes_created_by_fkey",
+    ]) {
+      assert.match(
+        migration,
+        new RegExp(`constraint ${constraint}[^;]*on delete set null`, "i"),
+        `${constraint} must anonymize retained history`,
+      );
+    }
+
+    assert.match(migration, /before delete on auth\.users/i);
+    assert.match(migration, /set[\s\S]*discord_id = null[\s\S]*minecraft_username = null[\s\S]*notes = null/i);
+  });
+
+  test("the account deletion trigger is not executable through Data API roles", () => {
+    const migration = readFileSync(
+      new URL("../../../supabase/migrations/033_restrict_account_delete_trigger.sql", import.meta.url),
+      "utf8",
+    );
+
+    assert.match(
+      migration,
+      /revoke execute\s+on function public\.prepare_account_delete\(\)\s+from anon, authenticated;/i,
+    );
+  });
+});
+
+describe("email verification lifecycle", () => {
+  test("unconfirmed profiles stay pending until auth confirms the email", () => {
+    const enumMigration = readFileSync(
+      new URL("../../../supabase/migrations/034_add_pending_account_status.sql", import.meta.url),
+      "utf8",
+    );
+    const lifecycleMigration = readFileSync(
+      new URL("../../../supabase/migrations/035_activate_profiles_after_email_verification.sql", import.meta.url),
+      "utf8",
+    );
+
+    assert.match(enumMigration, /add value if not exists 'pending'/i);
+    assert.match(lifecycleMigration, /new\.email_confirmed_at is null then 'pending'/i);
+    assert.match(lifecycleMigration, /after update of email_confirmed_at on auth\.users/i);
+    assert.match(lifecycleMigration, /account_status = 'pending'[\s\S]*email_confirmed_at is null/i);
+    assert.match(lifecycleMigration, /and account_status = 'pending'/i);
+  });
+
+  test("the application denies pending sessions and securely resumes an unfinished signup", () => {
+    const sessionSource = readFileSync(new URL("../auth/index.ts", import.meta.url), "utf8");
+    const actionSource = readFileSync(new URL("../actions/auth.ts", import.meta.url), "utf8");
+    const registerSource = actionSource.slice(
+      actionSource.indexOf("export async function registerAction"),
+      actionSource.indexOf("export async function oauthAction"),
+    );
+
+    assert.match(sessionSource, /hasEmailIdentity && !data\.user\.email_confirmed_at/);
+    assert.match(sessionSource, /profile\.account_status !== "active"/);
+    assert.match(registerSource, /identity: parsed\.data\.email/);
+    assert.match(registerSource, /pendingRegistrationCredentialsMatch\(parsed\.data\.email, parsed\.data\.password\)/);
+    assert.match(actionSource, /sameEmail && !owner\.user\?\.email_confirmed_at/);
+    assert.match(actionSource, /linkVerifiedRegistration\(supabase\)/);
+    assert.ok(
+      registerSource.indexOf("pendingRegistrationCredentialsMatch") < registerSource.indexOf("getUserById"),
+      "the pending password must be proved before reading the username owner's email",
+    );
+    assert.doesNotMatch(
+      registerSource,
+      /auth\.resend\(/,
+      "registration collisions must not trigger unsolicited confirmation email",
+    );
+    assert.doesNotMatch(
+      registerSource,
+      /linkMinecraftIgn\(/,
+      "an unverified signup must not receive an active Minecraft link",
+    );
+  });
+
+  test("public auth writes are throttled and identity limits survive IP rotation", () => {
+    const actionSource = readFileSync(new URL("../actions/auth.ts", import.meta.url), "utf8");
+    const limiterSource = readFileSync(new URL("../rate-limit.ts", import.meta.url), "utf8");
+
+    for (const scope of [
+      "login",
+      "register",
+      "oauth-start:",
+      "oauth-link",
+      "confirm-link",
+      "confirm-verify",
+      "resend-confirmation",
+      "reset-request",
+      "reset-verify",
+      "reset-finish",
+      "password-update",
+      "discord-switch",
+      "discord-account-switch",
+      "discord-unlink",
+    ]) {
+      assert.ok(
+        actionSource.includes(`throttleAuthAction("${scope}`) || actionSource.includes(`throttleAuthAction(\`${scope}`),
+        `${scope} must have an application-level rate limit`,
+      );
+    }
+
+    assert.match(limiterSource, /actionClientKey\(`\$\{scope\}:ip`\)/);
+    assert.match(limiterSource, /\$\{scope\}:identity:\$\{hashed\(identity\.trim\(\)\.toLowerCase\(\)\)\}/);
+    assert.match(limiterSource, /Promise\.all\(checks\)/);
+  });
 });

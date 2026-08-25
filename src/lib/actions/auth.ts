@@ -55,6 +55,24 @@ function safeNext(value: string | undefined, fallback = "/"): string {
   return normalized.startsWith("/") && !normalized.startsWith("//") ? normalized : fallback;
 }
 
+async function linkVerifiedRegistration(
+  supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>,
+): Promise<void> {
+  const { data } = await supabase.auth.getUser();
+  const admin = getSupabaseAdmin();
+  if (!data.user || !admin) return;
+
+  const username = String(data.user.user_metadata?.username ?? "").trim();
+  if (!username) return;
+
+  const availability = await ignAvailability(admin, username, data.user.id);
+  if (!availability.available) return;
+
+  await linkMinecraftIgn(admin, data.user.id, username).catch((error) => {
+    console.error("Verified registration IGN link failed:", error);
+  });
+}
+
 const usernameFromIdentifier = (identifier: string) =>
   (identifier.includes("@") ? identifier.split("@")[0] : identifier).replace(/[^a-zA-Z0-9_]/g, "");
 
@@ -69,6 +87,23 @@ async function passwordMatchesCurrent(email: string, password: string): Promise<
   const probe = createClient(config.url, config.key, { auth: { autoRefreshToken: false, persistSession: false } });
   const { error } = await probe.auth.signInWithPassword({ email, password });
   return !error;
+}
+
+/**
+ * Proves that a caller resuming an unfinished registration knows that pending
+ * account's password. Supabase deliberately returns `email_not_confirmed` only
+ * after the credentials are valid; an incorrect password returns the same
+ * generic invalid-credentials error used for unknown accounts.
+ *
+ * The isolated client cannot persist the probe session or alter the browser's
+ * real cookie-bound session.
+ */
+async function pendingRegistrationCredentialsMatch(email: string, password: string): Promise<boolean> {
+  const config = getSupabaseConfig();
+  if (!config) return false;
+  const probe = createClient(config.url, config.key, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { error } = await probe.auth.signInWithPassword({ email, password });
+  return isUnconfirmedEmailError(error);
 }
 
 export async function loginAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
@@ -124,7 +159,11 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
   const parsed = registerSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
 
-  const throttled = await throttleAuthAction("register", { limit: 5, windowMs: 60 * 60_000 });
+  const throttled = await throttleAuthAction("register", {
+    limit: 5,
+    windowMs: 60 * 60_000,
+    identity: parsed.data.email,
+  });
   if (throttled) return { ok: false, message: throttled };
 
   if (isSupabaseConfigured()) {
@@ -139,6 +178,23 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
     if (admin) {
       const availability = await ignAvailability(admin, parsed.data.username);
       if (!availability.available) {
+        // auth.users and profiles exist before the signup OTP is confirmed.
+        // Never compare the submitted email with the username owner until the
+        // caller has proved the pending account's password; otherwise this
+        // branch becomes an email-to-public-username enumeration oracle.
+        if (
+          availability.userId &&
+          (await pendingRegistrationCredentialsMatch(parsed.data.email, parsed.data.password))
+        ) {
+          const { data: owner } = await admin.auth.admin.getUserById(availability.userId);
+          const sameEmail = owner.user?.email?.toLowerCase() === parsed.data.email.toLowerCase();
+          if (sameEmail && !owner.user?.email_confirmed_at) {
+            // Do not send mail from a registration collision. The OTP screen's
+            // explicit Resend action owns that side effect and has its own
+            // stricter rate limit.
+            return { ok: true, message: "Your pending registration was found. Enter the code to continue." };
+          }
+        }
         return {
           ok: false,
           errors: { username: "That Minecraft username is already taken. Please choose another." },
@@ -179,26 +235,18 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
       };
     }
 
+    // Supabase returns an obfuscated user with no identities for duplicate
+    // signups. Never create public/profile data for that placeholder. The OTP
+    // screen remains intentionally neutral so this cannot enumerate emails.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { ok: true };
+    }
+
     // Keep account creation complete even on projects where the database
     // signup trigger has not been applied yet.
     if (data.user && admin && !(await ensureUserProfile(data.user))) {
       await admin.auth.admin.deleteUser(data.user.id);
       return { ok: false, message: "That account could not be created. Try another username or email." };
-    }
-
-    // Point the new account's Minecraft link + skin avatar at the IGN. The site
-    // handle is already the IGN (the signup trigger set it from metadata); this
-    // adds the minecraft_accounts row and the skin head. Best-effort on purpose:
-    // the account already exists and the player can (re)link from the dashboard,
-    // so a hiccup here must not fail an otherwise-successful signup.
-    if (data.user && admin) {
-      const linked = await linkMinecraftIgn(admin, data.user.id, parsed.data.username).catch((linkError) => {
-        console.error("Registration IGN link failed:", linkError);
-        return null;
-      });
-      if (linked && !linked.ok) {
-        console.error("Registration IGN link did not fully apply for user", data.user.id);
-      }
     }
 
     if (data.session) redirect("/");
@@ -221,6 +269,13 @@ export async function oauthAction(_previous: AuthResult, formData: FormData): Pr
   if (provider !== "google" && provider !== "discord") {
     return { ok: false, message: "That sign-in provider is not supported." };
   }
+
+  const throttled = await throttleAuthAction(`oauth-start:${provider}`, {
+    limit: 10,
+    windowMs: 15 * 60_000,
+  });
+  if (throttled) return { ok: false, message: throttled };
+
   if (!isSupabaseConfigured()) {
     return { ok: false, message: "Connect Supabase and enable this provider before using social login." };
   }
@@ -245,6 +300,13 @@ export async function oauthAction(_previous: AuthResult, formData: FormData): Pr
   // "Manual Linking" toggle in Supabase Authentication settings.
   const { data: existingUser } = await supabase.auth.getUser();
   if (existingUser?.user) {
+    const linkThrottled = await throttleAuthAction("oauth-link", {
+      limit: 10,
+      windowMs: 15 * 60_000,
+      identity: existingUser.user.id,
+    });
+    if (linkThrottled) return { ok: false, message: linkThrottled };
+
     // Refuse to attach a second identity for a provider the account already
     // has. Supabase happily allows it, and the result is an account holding two
     // Discord logins where nothing can say which one owns an order — the state
@@ -293,6 +355,16 @@ export async function confirmEmailAction(_previous: AuthResult, formData: FormDa
   const type = otpTypes.find((t) => t === typeValue) as OtpType | undefined;
   if (!tokenHash || !type) return { ok: false, message: "This confirmation link is invalid." };
 
+  // Token hashes are secret and high entropy, but verification still performs
+  // an authentication write. The identity is hashed again by the limiter, so
+  // the raw token is never stored in Redis or process memory as a key.
+  const throttled = await throttleAuthAction("confirm-link", {
+    limit: 5,
+    windowMs: 15 * 60_000,
+    identity: tokenHash,
+  });
+  if (throttled) return { ok: false, message: throttled };
+
   if (!isSupabaseConfigured()) return { ok: false, message: "Authentication has not been configured yet." };
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
@@ -305,7 +377,53 @@ export async function confirmEmailAction(_previous: AuthResult, formData: FormDa
     };
   }
 
+  if (type === "signup" || type === "email") await linkVerifiedRegistration(supabase);
+
   redirect(type === "recovery" ? "/reset-password" : "/");
+}
+
+/**
+ * Confirms a new account from the 6-digit code emailed at signup (the
+ * {{ .Token }} in the "Confirm signup" template), typed on the "check your
+ * inbox" screen. On success the email is verified AND a session is created, so
+ * the new member lands signed in. The emailed link (/confirm-email above)
+ * stays as a fallback for anyone who would rather click.
+ *
+ * A code the user types cannot be pre-consumed by an email link-scanner the way
+ * a URL can, so this is also sturdier than the link against that failure.
+ */
+export async function confirmEmailCodeAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
+  const parsed = resetCodeSchema.safeParse(authFormValues(formData));
+  if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
+
+  // A 6-digit code is only 10^6 possibilities, so it is throttled exactly like
+  // the password-reset code — bucketed per email so guesses for one account
+  // cannot be spread across many addresses.
+  const throttled = await throttleAuthAction("confirm-verify", {
+    limit: 5,
+    windowMs: 15 * 60_000,
+    identity: parsed.data.email,
+  });
+  if (throttled) return { ok: false, message: throttled };
+
+  if (!isSupabaseConfigured()) {
+    if (isDemoAuthEnabled()) redirect("/");
+    return { ok: false, message: "Authentication has not been configured yet." };
+  }
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
+
+  const { error } = await supabase.auth.verifyOtp({
+    email: parsed.data.email,
+    token: parsed.data.token,
+    type: "signup",
+  });
+  if (error) return { ok: false, errors: { token: "That code is incorrect or has expired." } };
+
+  await linkVerifiedRegistration(supabase);
+
+  // Verified — a session now exists, so the new member lands signed in.
+  redirect("/");
 }
 
 /** Re-sends the signup confirmation email, for the "email not verified" prompt on the login form. */
@@ -330,9 +448,14 @@ export async function resendConfirmationAction(_previous: AuthResult, formData: 
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
   const { error } = await supabase.auth.resend({ type: "signup", email });
-  if (error) return { ok: false, message: "That email could not be resent. Try again shortly." };
+  if (error) {
+    // Keep the public response identical for unknown, confirmed and pending
+    // accounts. The detailed failure is useful operationally but must not turn
+    // this endpoint into an account-existence oracle.
+    console.error("Confirmation resend failed:", { status: error.status, code: error.code, message: error.message });
+  }
 
-  return { ok: true, message: "A new confirmation email has been sent." };
+  return { ok: true, message: "If an unverified account exists, a new confirmation email has been sent." };
 }
 
 export async function requestPasswordResetAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
@@ -554,6 +677,13 @@ export async function switchDiscordAction(_previous: AuthResult): Promise<AuthRe
   const { data, error: userError } = await supabase.auth.getUser();
   if (userError || !data.user) return { ok: false, message: "You must be signed in to switch accounts." };
 
+  const throttled = await throttleAuthAction("discord-switch", {
+    limit: 5,
+    windowMs: 15 * 60_000,
+    identity: data.user.id,
+  });
+  if (throttled) return { ok: false, message: throttled };
+
   const discordIdentity = pickDiscordIdentity(data.user.identities);
   if (!discordIdentity) return { ok: false, message: "No Discord account is linked." };
 
@@ -605,6 +735,18 @@ export async function switchDiscordAccountAction(
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
+  // This action is an alternate OAuth entry point used by checkout. Requiring
+  // the existing session and throttling before sign-out prevents it from being
+  // used as a public bypass around oauthAction's initiation limit.
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) return { ok: false, message: "You must be signed in to switch accounts." };
+  const throttled = await throttleAuthAction("discord-account-switch", {
+    limit: 5,
+    windowMs: 15 * 60_000,
+    identity: userData.user.id,
+  });
+  if (throttled) return { ok: false, message: throttled };
+
   const nextValue = formData.get("next");
   const next = safeNext(typeof nextValue === "string" ? nextValue : undefined);
 
@@ -639,6 +781,13 @@ export async function unlinkDiscordAction(_previous: AuthResult): Promise<AuthRe
 
   const { data, error: userError } = await supabase.auth.getUser();
   if (userError || !data.user) return { ok: false, message: "You must be signed in to unlink an account." };
+
+  const throttled = await throttleAuthAction("discord-unlink", {
+    limit: 5,
+    windowMs: 15 * 60_000,
+    identity: data.user.id,
+  });
+  if (throttled) return { ok: false, message: throttled };
 
   // Every Discord identity goes, not just the first one found: an account that
   // picked up a duplicate before duplicates were blocked would otherwise keep a

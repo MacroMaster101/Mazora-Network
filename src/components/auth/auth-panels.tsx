@@ -5,7 +5,7 @@ import { MailCheck } from "lucide-react";
 import { otpTypes } from "@/lib/validation/auth";
 import { AuthCard } from "./auth-card";
 import { AuthFlowLink } from "./auth-dialog-provider";
-import { ConfirmEmailForm, ForgotPasswordFlow, LoginForm, PasswordResetForm, RegisterForm } from "./auth-forms";
+import { ConfirmEmailForm, ForgotPasswordFlow, LoginForm, PasswordResetForm, RegisterForm, VerifyEmailCodeForm } from "./auth-forms";
 
 const loginErrors: Record<string, string> = {
   oauth_failed: "Social login could not be completed. Please try again.",
@@ -14,7 +14,7 @@ const loginErrors: Record<string, string> = {
 
 export function LoginPanel({ next, error }: { next?: string; error?: string }) {
   return (
-    <AuthCard kicker="Player portal" title="Welcome back, adventurer." subtitle="Sign in to continue your journey across every Mazora world.">
+    <AuthCard kicker="Player portal" title="Welcome back." subtitle="Your worlds, purchases, events, and community identity—one secure sign-in away.">
       {error && <p className="auth-form-message mb-4" role="alert">{loginErrors[error] ?? "Sign in could not be completed."}</p>}
       <LoginForm next={next} />
     </AuthCard>
@@ -46,22 +46,33 @@ export function VerifyEmailPanel({ email }: { email?: string }) {
   return (
     <AuthCard
       kicker="Final checkpoint"
-      title="Check your inbox."
-      subtitle={email ? `We've sent a verification link to ${email}.` : "We've sent a verification link to your email address."}
+      title="Enter your secure code."
+      subtitle={
+        email
+          ? "Use the six-digit code we sent to activate your Mazora identity."
+          : "We've sent a verification code to your email address."
+      }
     >
-      <div className="auth-success-state">
-        <span>
-          <MailCheck size={26} />
-        </span>
-        <h2>Verify your email</h2>
-        <p>
-          Open the email and click <strong>Confirm email address</strong> to activate your account. Didn&apos;t get it?
-          Check your spam folder, or try logging in to resend the confirmation.
-        </p>
-        <AuthFlowLink view="login" href="/login" className="btn btn-ghost auth-submit">
-          Back to login
-        </AuthFlowLink>
-      </div>
+      {email ? (
+        // The normal post-register path has the email, so show the code entry.
+        <VerifyEmailCodeForm email={email} />
+      ) : (
+        // Reached via the bare /verify-email URL with no email in context: fall
+        // back to the guidance state (the email also carries a one-click link).
+        <div className="auth-success-state">
+          <span>
+            <MailCheck size={26} />
+          </span>
+          <h2>Verify your email</h2>
+          <p>
+            Open the email and enter the 6-digit code, or click <strong>Confirm email address</strong>. Didn&apos;t get
+            it? Check your spam folder, or try logging in to resend the confirmation.
+          </p>
+          <AuthFlowLink view="login" href="/login" className="btn btn-ghost auth-submit">
+            Back to login
+          </AuthFlowLink>
+        </div>
+      )}
     </AuthCard>
   );
 }
@@ -94,7 +105,7 @@ export function ConfirmEmailPanel({ tokenHash, type }: { tokenHash?: string; typ
 
 export function ResetPasswordPanel() {
   return (
-    <AuthCard kicker="Secure your account" title="Choose a new password." subtitle="Use a strong password you don't use anywhere else.">
+    <AuthCard kicker="Security checkpoint" title="Create a new password." subtitle="Choose something unique to Mazora that you don't use anywhere else.">
       <PasswordResetForm />
     </AuthCard>
   );

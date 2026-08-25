@@ -8,6 +8,7 @@ export interface UserProfile {
   display_name: string;
   bio: string | null;
   avatar_url: string | null;
+  account_status: "pending" | "active" | "suspended" | "deleted";
 }
 
 function cleanUsername(value: unknown): string {
@@ -25,7 +26,7 @@ export async function ensureUserProfile(user: User): Promise<UserProfile | null>
 
   const existing = await admin
     .from("profiles")
-    .select("username,display_name,bio,avatar_url")
+    .select("username,display_name,bio,avatar_url,account_status")
     .eq("user_id", user.id)
     .maybeSingle();
   if (existing.data) return existing.data as UserProfile;
@@ -42,8 +43,13 @@ export async function ensureUserProfile(user: User): Promise<UserProfile | null>
   for (const username of [requested, fallback]) {
     const created = await admin
       .from("profiles")
-      .insert({ user_id: user.id, username, display_name: displayName })
-      .select("username,display_name,bio,avatar_url")
+      .insert({
+        user_id: user.id,
+        username,
+        display_name: displayName,
+        account_status: user.email_confirmed_at ? "active" : "pending",
+      })
+      .select("username,display_name,bio,avatar_url,account_status")
       .maybeSingle();
     if (created.data) return created.data as UserProfile;
     if (created.error?.code !== "23505") return null;
@@ -51,11 +57,11 @@ export async function ensureUserProfile(user: User): Promise<UserProfile | null>
     // A concurrent request may have created this user's row first.
     const concurrent = await admin
       .from("profiles")
-      .select("username,display_name,bio,avatar_url")
+      .select("username,display_name,bio,avatar_url,account_status")
       .eq("user_id", user.id)
       .maybeSingle();
     if (concurrent.data) return concurrent.data as UserProfile;
   }
 
   return null;
-}
+}
