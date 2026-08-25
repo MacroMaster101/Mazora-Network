@@ -1,5 +1,6 @@
 "use server";
 
+import sharp from "sharp";
 import { revalidatePath } from "next/cache";
 import { getDiscordIdentity } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -10,13 +11,41 @@ import { AVATAR_BUCKET, ensureAvatarBucket } from "@/lib/storage/avatar-bucket";
 import type { AccountActionResult } from "@/lib/actions/account";
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
-const MIME_EXTENSIONS = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-} as const;
+/** Avatars render at ~256px; 512 keeps them crisp on retina without storing more. */
+const MAX_AVATAR_DIMENSION = 512;
+/** Formats accepted for upload. Everything is re-encoded to WebP before storage. */
+type AvatarMime = "image/jpeg" | "image/png" | "image/webp";
 
-type AvatarMime = keyof typeof MIME_EXTENSIONS;
+/**
+ * Re-encode an accepted upload through sharp before it is ever stored.
+ *
+ * Magic-byte + MIME validation only proves the file STARTS with an image
+ * header; it says nothing about what follows. Storing the original bytes
+ * verbatim would serve them back to every visitor untouched — carrying any
+ * EXIF/GPS metadata the member's camera wrote, and any payload appended after
+ * the image data (a valid-header "polyglot"). Decoding to raw pixels and
+ * re-encoding discards both: only the pixels survive, and sharp drops metadata
+ * unless explicitly asked to keep it. `.rotate()` bakes in the EXIF orientation
+ * first, so stripping that metadata cannot leave a sideways photo. The result
+ * is a bounded, static WebP regardless of what was uploaded.
+ *
+ * Returns null when the bytes cannot be decoded, so a file that slipped past
+ * the header check is refused rather than stored.
+ */
+async function sanitizeAvatar(bytes: Uint8Array): Promise<Buffer | null> {
+  try {
+    return await sharp(bytes)
+      .rotate()
+      .resize(MAX_AVATAR_DIMENSION, MAX_AVATAR_DIMENSION, {
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 82 })
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
 
 async function authenticatedUser() {
   if (!isSupabaseConfigured()) return null;
@@ -111,15 +140,24 @@ export async function uploadProfileAvatarAction(
     return { ok: false, errors: { avatar: "Use a valid PNG, JPEG, or WebP image." } };
   }
 
+  // Re-encode before storing: strips EXIF/GPS metadata and any bytes appended
+  // after the image (see sanitizeAvatar). The magic-byte check above only
+  // vouches for the header, so the raw upload is never the thing we serve back.
+  const sanitized = await sanitizeAvatar(bytes);
+  if (!sanitized) {
+    return { ok: false, errors: { avatar: "That image could not be processed. Try a different file." } };
+  }
+
   const admin = getSupabaseAdmin();
   if (!admin || !(await ensureAvatarBucket())) {
     return { ok: false, message: "Profile photo storage is temporarily unavailable." };
   }
 
-  const filename = `avatar-${Date.now()}.${MIME_EXTENSIONS[mime]}`;
+  // Always stored as WebP: sanitizeAvatar re-encodes every accepted format to it.
+  const filename = `avatar-${Date.now()}.webp`;
   const objectPath = `${auth.user.id}/${filename}`;
-  const { error: uploadError } = await admin.storage.from(AVATAR_BUCKET).upload(objectPath, bytes, {
-    contentType: mime,
+  const { error: uploadError } = await admin.storage.from(AVATAR_BUCKET).upload(objectPath, sanitized, {
+    contentType: "image/webp",
     cacheControl: "3600",
     upsert: false,
   });
