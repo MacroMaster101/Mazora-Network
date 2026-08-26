@@ -49,6 +49,9 @@ export function isLaunchModeEnabled(): boolean {
 
 /** Paths that are ready even when the dashboard children gate is active. */
 const dashboardExclusions = new Set([
+  // Account notifications are live and backed by persisted per-user rows.
+  // Keeping this gated made role broadcasts invisible to regular members.
+  "/dashboard/notifications",
   "/dashboard/settings",
   "/dashboard/minecraft",
   "/dashboard/statistics",
