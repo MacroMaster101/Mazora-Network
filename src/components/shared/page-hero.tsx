@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { BackLink } from "./back-link";
 
 /** Standard interior-page hero band with eyebrow, title, lead copy, optional floating illustration, optional back link, and optional children. */
 export function PageHero({
@@ -24,13 +23,7 @@ export function PageHero({
       <div className="page-hero-inner shell">
         {backLink && (
           <div className="mb-4">
-            <Link
-              href={backLink.href}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-slate-800 dark:text-purple-200 bg-white/90 dark:bg-purple-950/60 border border-slate-300 dark:border-purple-500/30 hover:bg-purple-600 hover:text-white dark:hover:bg-purple-600 dark:hover:text-white hover:border-purple-600 shadow-sm backdrop-blur-xl transition-all duration-200 group"
-            >
-              <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-1 text-purple-600 dark:text-purple-400 group-hover:text-white" />
-              {backLink.label}
-            </Link>
+            <BackLink href={backLink.href} label={backLink.label} />
           </div>
         )}
         <div className="flex flex-col-reverse md:flex-row items-center md:items-center justify-between gap-6 md:gap-8">

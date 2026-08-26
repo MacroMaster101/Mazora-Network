@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Award, Trophy } from "lucide-react";
+import { Award, Trophy } from "lucide-react";
 import { getPlayer } from "@/lib/data/players";
 import { publicPageMetadata } from "@/lib/seo";
-import { MinecraftAvatar, RoleBadge, Reveal } from "@/components/shared";
+import { BackLink, MinecraftAvatar, RoleBadge, Reveal } from "@/components/shared";
 import { fmtDate, kd, playtime, relative, withCommas } from "@/lib/utils";
 
 // Per-request so an unknown player returns a real 404 instead of a soft 200,
@@ -53,9 +52,7 @@ export default async function PlayerProfile({ params }: { params: Promise<{ user
     <>
       <section className="page-detail-hero">
         <div className="shell py-12">
-          <Link href="/players" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
-            <ArrowLeft size={15} /> All players
-          </Link>
+          <BackLink href="/players" label="All players" className="mb-6" />
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
             <div className="relative w-fit">
               <MinecraftAvatar username={player.username} skinUrl={player.customSkinUrl} size={104} rounded="rounded-2xl" />

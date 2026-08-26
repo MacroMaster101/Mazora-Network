@@ -1,6 +1,7 @@
 export { Icon } from "./icon";
 export { SectionHeader } from "./section-header";
 export { PageHero } from "./page-hero";
+export { BackLink } from "./back-link";
 export { Reveal } from "./reveal";
 export { EmptyState } from "./empty-state";
 export { CopyIpButton } from "./copy-ip-button";
