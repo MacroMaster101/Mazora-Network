@@ -39,7 +39,7 @@ export async function SiteHeader({ world = false, stable = false }: { world?: bo
         <div className="header-shell shell flex h-[4.85rem] items-center justify-between gap-4">
           {/* Left: Single unified Brand Logo (responsive sizing via CSS) */}
           <div className="shrink-0 flex items-center">
-            <Logo height={130} className="header-brand-logo animate-float" priority />
+            <Logo height={130} className="header-brand-logo animate-float" />
           </div>
 
           {/* Center: Desktop Navigation Links (hidden on mobile/tablet < 1100px) */}

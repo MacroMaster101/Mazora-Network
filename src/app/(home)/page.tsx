@@ -91,20 +91,16 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
           {/*
             This image is the page's LCP element on both mobile and desktop.
 
-            The <link rel=preload> that `priority` would emit is written by
-            hand at the top of HomePage instead, from getImageProps, so that it
-            lands in <head> ahead of this subtree. fetchPriority stays here
-            because Next does not put fetchpriority="high" on the <img> itself,
-            and that attribute is what Lighthouse's "LCP request discovery"
-            audit checks for. Without it the request competes at default
-            priority with the other images the browser has discovered by then.
+            Its preload is written by hand at the top of HomePage, from
+            getImageProps, so that it lands in <head> ahead of this subtree.
+            Do not also set `priority`, `fetchPriority`, or `loading="eager"`:
+            React turns each of those hints into another preload. The explicit
+            preload already discovers the exact responsive URL at high priority.
           */}
           <Image
             src="/images/mazora-community-hero.webp"
             alt=""
             fill
-            priority
-            fetchPriority="high"
             quality={60}
             sizes="100vw"
             className="hero-backdrop object-cover object-center"
