@@ -62,6 +62,18 @@ const MINECRAFT_EYEBROW_PRESETS = [
   "Economy",
 ] as const;
 
+const PRODUCT_ERROR_TARGETS: Record<string, string> = {
+  name: "product-name",
+  price: "product-price",
+  description: "product-description",
+  salePrice: "product-sale",
+  billing: "product-billing",
+  subcategory: "product-subcategory",
+  imageFile: "product-image-file",
+  imageUrl: "product-art",
+  features: "product-features",
+};
+
 import { storeArtFor } from "@/lib/store-art";
 
 function slugify(value: string) {
@@ -271,6 +283,7 @@ export function StoreCatalogManager({
   const [originalArtworkUrl, setOriginalArtworkUrl] = useState("");
   const [artworkChanged, setArtworkChanged] = useState(false);
   const [artworkRemoved, setArtworkRemoved] = useState(false);
+  const [productErrors, setProductErrors] = useState<Record<string, string>>({});
   const artworkInput = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
   const router = useRouter();
@@ -280,6 +293,7 @@ export function StoreCatalogManager({
   const [categoryLayout, setCategoryLayout] = useState<"cards" | "rows">("cards");
 
   function openProduct(product: ProductDraft) {
+    setProductErrors({});
     setProductDraft(product);
     setName(product?.name ?? "");
     setCategory(product?.category ?? selectedCategory);
@@ -323,6 +337,30 @@ export function StoreCatalogManager({
       if (result.ok) {
         close();
         router.refresh();
+      }
+    });
+  }
+
+  function submitProduct(formData: FormData) {
+    start(async () => {
+      const result = await saveStoreProductAction(formData);
+      toast(result.message, result.ok ? "success" : "error");
+      if (result.ok) {
+        setProductErrors({});
+        setProductDraft(undefined);
+        router.refresh();
+        return;
+      }
+
+      const nextErrors = result.errors ?? {};
+      setProductErrors(nextErrors);
+      const firstTarget = Object.keys(nextErrors).map((key) => PRODUCT_ERROR_TARGETS[key]).find(Boolean);
+      if (firstTarget) {
+        requestAnimationFrame(() => {
+          const field = document.getElementById(firstTarget);
+          field?.scrollIntoView({ behavior: "smooth", block: "center" });
+          field?.focus({ preventScroll: true });
+        });
       }
     });
   }
@@ -838,7 +876,7 @@ export function StoreCatalogManager({
         )}
       </Modal>
       <Modal open={productDraft !== undefined} onClose={() => setProductDraft(undefined)} label={productDraft ? "Edit Store product" : "Create Store product"} size="editor">
-        <form key={productDraft?.id ?? "new-product"} action={(data) => submit(data, saveStoreProductAction, () => setProductDraft(undefined))} className="store-admin-modal panel overflow-hidden">
+        <form key={productDraft?.id ?? "new-product"} action={submitProduct} className="store-admin-modal panel overflow-hidden" noValidate>
           <div className="store-admin-modal-head border-b border-line px-6 py-5">
             <div>
               <p className="eyebrow">{productDraft ? "Edit catalog item" : "New catalog item"}</p>
@@ -850,6 +888,18 @@ export function StoreCatalogManager({
           </div>
 
           <div className="store-admin-form-body grid gap-5 p-6 md:grid-cols-2">
+            {Object.keys(productErrors).length > 0 && (
+              <div className="md:col-span-2 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300" role="alert" aria-live="polite">
+                <strong className="block font-extrabold">Fix the highlighted product fields</strong>
+                <ul className="mt-1.5 list-disc space-y-1 pl-5">
+                  {Object.entries(productErrors).map(([key, message]) => (
+                    <li key={key}>
+                      {PRODUCT_ERROR_TARGETS[key] ? <a className="font-semibold underline underline-offset-2" href={`#${PRODUCT_ERROR_TARGETS[key]}`}>{message}</a> : message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {productDraft?.id && <input type="hidden" name="id" value={productDraft.id} />}
             <input type="hidden" name="gameModeSlug" value={productDraft?.gameModeSlug ?? selectedModeSlug ?? "survival-smp"} />
             <input type="hidden" name="sortOrder" value={productDraft?.sortOrder ?? visibleProducts.length * 10} />
@@ -863,30 +913,30 @@ export function StoreCatalogManager({
                 <div><h3 id="store-product-basics">Product basics</h3><p>Name it, describe it, and set pricing.</p></div>
               </header>
               <div className="grid gap-5 md:grid-cols-2">
-                <FormRow label="Product name" htmlFor="product-name">
-                  <Input id="product-name" name="name" value={name} onChange={(event) => setName(event.target.value)} required />
+                <FormRow label="Product name" htmlFor="product-name" error={productErrors.name}>
+                  <Input id="product-name" name="name" value={name} onChange={(event) => setName(event.target.value)} required aria-invalid={Boolean(productErrors.name)} aria-describedby={productErrors.name ? "product-name-error" : undefined} className={productErrors.name ? "border-red-500 ring-1 ring-red-500/30" : undefined} />
                 </FormRow>
 
-                <FormRow label="Price (USD)" htmlFor="product-price">
-                  <Input id="product-price" name="price" type="number" min="0" step="0.01" defaultValue={productDraft?.price ?? 0} required />
+                <FormRow label="Price (USD)" htmlFor="product-price" error={productErrors.price}>
+                  <Input id="product-price" name="price" type="number" min="0" step="0.01" defaultValue={productDraft?.price ?? 0} required aria-invalid={Boolean(productErrors.price)} aria-describedby={productErrors.price ? "product-price-error" : undefined} className={productErrors.price ? "border-red-500 ring-1 ring-red-500/30" : undefined} />
                 </FormRow>
 
                 <div className="md:col-span-2">
-                  <FormRow label="Description" htmlFor="product-description" hint="Shown on cards and details">
-                    <Textarea id="product-description" name="description" rows={3} defaultValue={productDraft?.description ?? ""} required />
+                  <FormRow label="Description" htmlFor="product-description" hint="Shown on cards and details" error={productErrors.description}>
+                    <Textarea id="product-description" name="description" rows={3} defaultValue={productDraft?.description ?? ""} required aria-invalid={Boolean(productErrors.description)} aria-describedby={productErrors.description ? "product-description-error" : undefined} className={productErrors.description ? "border-red-500 ring-1 ring-red-500/30" : undefined} />
                   </FormRow>
                 </div>
 
-                <FormRow label="Sale price" htmlFor="product-sale" hint="Optional">
-                  <Input id="product-sale" name="salePrice" type="number" min="0" step="0.01" defaultValue={productDraft?.salePrice ?? ""} />
+                <FormRow label="Sale price" htmlFor="product-sale" hint="Optional" error={productErrors.salePrice}>
+                  <Input id="product-sale" name="salePrice" type="number" min="0" step="0.01" defaultValue={productDraft?.salePrice ?? ""} aria-invalid={Boolean(productErrors.salePrice)} aria-describedby={productErrors.salePrice ? "product-sale-error" : undefined} className={productErrors.salePrice ? "border-red-500 ring-1 ring-red-500/30" : undefined} />
                 </FormRow>
 
                 {category === "Ranks" && (
                   initialSubcategory ? (
                     <input type="hidden" name="billing" value={initialSubcategory} />
                   ) : (
-                    <FormRow label="Billing period" htmlFor="product-billing">
-                      <Select id="product-billing" name="billing" defaultValue={productDraft?.billing ?? "Monthly"} required>
+                    <FormRow label="Billing period" htmlFor="product-billing" error={productErrors.billing}>
+                      <Select id="product-billing" name="billing" defaultValue={productDraft?.billing ?? "Monthly"} required aria-invalid={Boolean(productErrors.billing)} aria-describedby={productErrors.billing ? "product-billing-error" : undefined} className={productErrors.billing ? "border-red-500 ring-1 ring-red-500/30" : undefined}>
                         <option>Monthly</option><option>Permanent</option>
                       </Select>
                     </FormRow>
@@ -898,8 +948,8 @@ export function StoreCatalogManager({
                     <input type="hidden" name="subcategory" value={initialSubcategory} />
                   ) : (
                     <div className="md:col-span-2">
-                      <FormRow label="Subcategory" htmlFor="product-subcategory" hint={`Choose where this item appears inside ${productCategoryConfig.label}`}>
-                        <Select id="product-subcategory" name="subcategory" defaultValue={productDraft?.subcategory ?? productCategoryConfig.subcategories[0]?.key} required>
+                      <FormRow label="Subcategory" htmlFor="product-subcategory" hint={`Choose where this item appears inside ${productCategoryConfig.label}`} error={productErrors.subcategory}>
+                        <Select id="product-subcategory" name="subcategory" defaultValue={productDraft?.subcategory ?? productCategoryConfig.subcategories[0]?.key} required aria-invalid={Boolean(productErrors.subcategory)} aria-describedby={productErrors.subcategory ? "product-subcategory-error" : undefined} className={productErrors.subcategory ? "border-red-500 ring-1 ring-red-500/30" : undefined}>
                           {productCategoryConfig.subcategories.map((item) => <option key={item.key} value={item.key}>{item.label}{item.enabled ? "" : " · Hidden"}</option>)}
                         </Select>
                       </FormRow>
@@ -986,7 +1036,7 @@ export function StoreCatalogManager({
                       <code className="mt-1.5 block break-all text-xs font-semibold text-foreground">{originalArtworkUrl}</code>
                     </div>
                   )}
-                  <FormRow label="Or paste an artwork URL" htmlFor="product-art" hint="External links are copied to storage">
+                  <FormRow label="Or paste an artwork URL" htmlFor="product-art" hint="External links are copied to storage" error={productErrors.imageFile ?? productErrors.imageUrl}>
                     <Input id="product-art" name="imageUrl" value={artworkUrl} onChange={(event) => {
                       const nextUrl = event.target.value;
                       setArtworkUrl(nextUrl);
@@ -994,7 +1044,7 @@ export function StoreCatalogManager({
                       setArtworkChanged(nextUrl !== originalArtworkUrl);
                       setArtworkRemoved(false);
                       if (artworkInput.current) artworkInput.current.value = "";
-                    }} placeholder="https://… or /images/store/…" />
+                    }} placeholder="https://… or /images/store/…" aria-invalid={Boolean(productErrors.imageFile ?? productErrors.imageUrl)} aria-describedby={(productErrors.imageFile ?? productErrors.imageUrl) ? "product-art-error" : undefined} className={(productErrors.imageFile ?? productErrors.imageUrl) ? "border-red-500 ring-1 ring-red-500/30" : undefined} />
                   </FormRow>
                   <div>
                     <div className="mb-2 flex items-end justify-between gap-3">
@@ -1021,8 +1071,8 @@ export function StoreCatalogManager({
                 <span>03</span>
                 <div><h3 id="store-product-details">Included details</h3><p>Each line becomes a benefit on the public product page.</p></div>
               </header>
-              <FormRow label="Included features" htmlFor="product-features" hint="One per line">
-                <Textarea id="product-features" name="features" rows={5} defaultValue={productDraft?.features.join("\n") ?? ""} placeholder="Permanent access&#10;Survival SMP&#10;Staff delivery" />
+              <FormRow label="Included features" htmlFor="product-features" hint="One per line" error={productErrors.features}>
+                <Textarea id="product-features" name="features" rows={5} defaultValue={productDraft?.features.join("\n") ?? ""} placeholder="Permanent access&#10;Survival SMP&#10;Staff delivery" aria-invalid={Boolean(productErrors.features)} aria-describedby={productErrors.features ? "product-features-error" : undefined} className={productErrors.features ? "border-red-500 ring-1 ring-red-500/30" : undefined} />
               </FormRow>
             </section>
 
