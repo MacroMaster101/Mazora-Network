@@ -58,7 +58,6 @@ export default async function NewsPage({
                 alt="Mazora Network"
                 width={300}
                 height={200}
-                priority
                 className="newsroom-mast-logo animate-float"
               />
             </div>

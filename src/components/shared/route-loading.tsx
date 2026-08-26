@@ -66,7 +66,6 @@ export function RouteLoading({
             alt=""
             width={216}
             height={144}
-            priority
             className="route-loading-logo"
           />
         </div>

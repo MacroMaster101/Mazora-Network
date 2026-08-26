@@ -117,7 +117,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 alt="Mazora Network"
                 width={300}
                 height={200}
-                priority
                 className="news-detail-logo animate-float"
               />
             </div>
