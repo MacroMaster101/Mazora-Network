@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, BadgeCheck, CalendarDays, Clock3, Radio } from "lucide-react";
+import { ArrowRight, BadgeCheck, CalendarDays, Clock3, Radio } from "lucide-react";
 import { getArticle, getRelatedArticles } from "@/lib/data/content";
 import { getNewsArticleReadCount } from "@/lib/data/news-visitors";
 import { fmtDate } from "@/lib/utils";
-import { ArticleArt, NewsAuthor, NewsCard, Reveal } from "@/components/shared";
+import { ArticleArt, BackLink, NewsAuthor, NewsCard, Reveal } from "@/components/shared";
 import { NewsVisitorStat } from "@/components/shared/news-visitor-stat";
 import { ShareButtons } from "@/components/shared/share-buttons";
 import { JsonLd } from "@/components/shared/json-ld";
@@ -94,9 +94,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         <div className="news-detail-hero-backdrop" aria-hidden="true" />
         <div className="shell news-detail-hero-shell">
           <div className="news-detail-topline">
-            <Link href="/news" className="news-detail-back">
-              <ArrowLeft size={15} /> Back to news
-            </Link>
+            <BackLink href="/news" label="Back to news" />
             <div className="news-detail-live"><Radio size={13} /> Mazora dispatch</div>
           </div>
 
