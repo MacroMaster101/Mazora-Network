@@ -9,40 +9,18 @@ import { getDb, schema } from "@/lib/db/client";
 import { rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 import { isUuid } from "@/lib/validation/id";
+import {
+  parseStoreProductForm,
+  STORE_PRODUCT_ACCENTS,
+  storeProductSlug,
+  storeRankFamily,
+} from "@/lib/store-product-validation";
 
 export interface StoreAdminActionResult {
   ok: boolean;
   message: string;
   errors?: Record<string, string>;
 }
-
-const accents = ["green", "gold", "cyan", "rose", "violet", "orange"] as const;
-
-const productSchema = z.object({
-  id: z.string().uuid().optional(),
-  name: z.string().trim().min(2, "Enter a product name.").max(100),
-  description: z.string().trim().min(5, "Add a short description.").max(1000),
-  category: z.string().trim().min(1, "Choose a category.").max(60),
-  price: z.coerce.number().min(0).max(100000),
-  salePrice: z.union([z.literal(""), z.coerce.number().min(0).max(100000)]),
-  imageUrl: z.string().trim().max(1000),
-  features: z.string().max(3000),
-  accent: z.enum(accents),
-  badge: z.string().trim().max(50),
-  billing: z.enum(["", "Monthly", "Permanent"]),
-  subcategory: z.string().trim().max(60),
-  gameModeSlug: z.string().trim().min(1).max(100),
-  sortOrder: z.coerce.number().int().min(-10000).max(10000),
-  enabled: z.boolean(),
-}).superRefine((value, context) => {
-  if (value.salePrice !== "" && value.salePrice > value.price) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["salePrice"],
-      message: "Sale price cannot be higher than the regular price.",
-    });
-  }
-});
 
 const modeSchema = z.object({
   id: z.string().uuid().optional(),
@@ -52,7 +30,7 @@ const modeSchema = z.object({
   tagline: z.string().trim().max(120),
   version: z.string().trim().min(1).max(30),
   icon: z.string().trim().min(1).max(60),
-  accent: z.enum(accents),
+  accent: z.enum(STORE_PRODUCT_ACCENTS),
   storeStatus: z.enum(["live", "coming_soon"]),
   features: z.string().max(3000),
   rules: z.string().max(3000),
@@ -79,33 +57,6 @@ function errors(error: z.ZodError): Record<string, string> {
     output[key] ??= issue.message;
   }
   return output;
-}
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 100)
-    .replace(/-$/g, "");
-}
-
-function productSlug(value: z.infer<typeof productSchema>): string {
-  return slugify([
-    value.gameModeSlug,
-    value.category,
-    value.subcategory || value.billing,
-    value.name,
-  ].filter(Boolean).join(" "));
-}
-
-function rankFamily(name: string): string {
-  const family = name
-    .replace(/\s*\((?:monthly|permanent)\)\s*$/i, "")
-    .replace(/\s+(?:monthly|permanent)\s*$/i, "")
-    .trim();
-  return family || name.trim();
 }
 
 function refreshStore(slug?: string) {
@@ -148,26 +99,6 @@ async function resolveStoreArtwork(
   return { url: hosted.url };
 }
 
-function productInput(formData: FormData) {
-  return productSchema.safeParse({
-    id: text(formData, "id") || undefined,
-    name: text(formData, "name"),
-    description: text(formData, "description"),
-    category: text(formData, "category"),
-    price: text(formData, "price"),
-    salePrice: text(formData, "salePrice"),
-    imageUrl: text(formData, "imageUrl"),
-    features: text(formData, "features"),
-    accent: text(formData, "accent"),
-    badge: text(formData, "badge"),
-    billing: text(formData, "billing"),
-    subcategory: text(formData, "subcategory"),
-    gameModeSlug: text(formData, "gameModeSlug"),
-    sortOrder: text(formData, "sortOrder") || "0",
-    enabled: formData.get("enabled") === "on" || formData.get("enabled") === "true",
-  });
-}
-
 function modeInput(formData: FormData) {
   return modeSchema.safeParse({
     id: text(formData, "id") || undefined,
@@ -192,13 +123,13 @@ export async function saveStoreProductAction(formData: FormData): Promise<StoreA
   if (!session) return { ok: false, message: "You do not have permission to manage Store products." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
-  const parsed = productInput(formData);
+  const parsed = parseStoreProductForm(formData);
   if (!parsed.success) return { ok: false, message: "Check the highlighted product fields.", errors: errors(parsed.error) };
   const value = parsed.data;
   const before = value.id
     ? (await db.select().from(schema.products).where(eq(schema.products.id, value.id)).limit(1))[0]
     : null;
-  const slug = before?.slug ?? productSlug(value);
+  const slug = before?.slug ?? storeProductSlug(value);
   const [duplicate] = await db
     .select({ id: schema.products.id })
     .from(schema.products)
@@ -220,7 +151,7 @@ export async function saveStoreProductAction(formData: FormData): Promise<StoreA
     features: value.features.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
     accent: value.accent,
     badge: value.badge || null,
-    family: value.category === "Ranks" ? rankFamily(value.name) : null,
+    family: value.category === "Ranks" ? storeRankFamily(value.name) : null,
     billing: value.category === "Ranks" ? value.billing || null : null,
     subcategory: value.category === "Ranks" ? null : value.subcategory || null,
     gameModeSlug: value.gameModeSlug,
@@ -228,18 +159,28 @@ export async function saveStoreProductAction(formData: FormData): Promise<StoreA
     enabled: value.enabled,
     updatedAt: new Date(),
   };
-  const [saved] = value.id
-    ? await db.update(schema.products).set(patch).where(eq(schema.products.id, value.id)).returning()
-    : await db.insert(schema.products).values(patch).returning();
+  const actorId = await getSessionUserId();
+  let saved: typeof schema.products.$inferSelect | null = null;
+  try {
+    saved = await db.transaction(async (tx) => {
+      const [product] = value.id
+        ? await tx.update(schema.products).set(patch).where(eq(schema.products.id, value.id)).returning()
+        : await tx.insert(schema.products).values(patch).returning();
+      if (!product) return null;
+      await tx.insert(schema.auditLogs).values({
+        actorId,
+        action: value.id ? "store.product.update" : "store.product.create",
+        targetType: "product",
+        targetId: product.id,
+        metadata: { by: session.username, before, after: product },
+      });
+      return product;
+    });
+  } catch (error) {
+    console.error("Failed to save Store product", error);
+    return { ok: false, message: "The product could not be saved. No changes were applied." };
+  }
   if (!saved) return { ok: false, message: "The product could not be saved." };
-
-  await db.insert(schema.auditLogs).values({
-    actorId: await getSessionUserId(),
-    action: value.id ? "store.product.update" : "store.product.create",
-    targetType: "product",
-    targetId: saved.id,
-    metadata: { by: session.username, before, after: saved },
-  });
   refreshStore(before?.slug);
   refreshStore(saved.slug);
   return { ok: true, message: value.id ? "Product updated." : "Product created." };
@@ -254,15 +195,20 @@ export async function toggleStoreProductAction(formData: FormData): Promise<Stor
   if (!isUuid(id)) return { ok: false, message: "That product no longer exists." };
   const enabled = text(formData, "enabled") === "true";
   try {
-    const [saved] = await db.update(schema.products).set({ enabled, updatedAt: new Date() }).where(eq(schema.products.id, id)).returning();
-    if (!saved) return { ok: false, message: "That product no longer exists." };
-    await db.insert(schema.auditLogs).values({
-      actorId: await getSessionUserId(),
-      action: enabled ? "store.product.enable" : "store.product.disable",
-      targetType: "product",
-      targetId: saved.id,
-      metadata: { by: session.username, slug: saved.slug },
+    const actorId = await getSessionUserId();
+    const saved = await db.transaction(async (tx) => {
+      const [product] = await tx.update(schema.products).set({ enabled, updatedAt: new Date() }).where(eq(schema.products.id, id)).returning();
+      if (!product) return null;
+      await tx.insert(schema.auditLogs).values({
+        actorId,
+        action: enabled ? "store.product.enable" : "store.product.disable",
+        targetType: "product",
+        targetId: product.id,
+        metadata: { by: session.username, slug: product.slug },
+      });
+      return product;
     });
+    if (!saved) return { ok: false, message: "That product no longer exists." };
     refreshStore(saved.slug);
     return { ok: true, message: enabled ? "Product is live." : "Product hidden from the Store." };
   } catch (error) {
@@ -411,16 +357,27 @@ export async function deleteStoreProductAction(formData: FormData): Promise<Stor
   if (!db) return { ok: false, message: "The database is not connected." };
   const id = text(formData, "id");
   if (!isUuid(id)) return { ok: false, message: "That product no longer exists." };
-  const [before] = await db.select().from(schema.products).where(eq(schema.products.id, id)).limit(1);
+  const actorId = await getSessionUserId();
+  let before: typeof schema.products.$inferSelect | null = null;
+  try {
+    before = await db.transaction(async (tx) => {
+      const [product] = await tx.select().from(schema.products).where(eq(schema.products.id, id)).limit(1);
+      if (!product) return null;
+      await tx.delete(schema.products).where(eq(schema.products.id, id));
+      await tx.insert(schema.auditLogs).values({
+        actorId,
+        action: "store.product.delete",
+        targetType: "product",
+        targetId: product.id,
+        metadata: { by: session.username, before: product },
+      });
+      return product;
+    });
+  } catch (error) {
+    console.error("Failed to delete Store product", error);
+    return { ok: false, message: "The product could not be deleted. No changes were applied." };
+  }
   if (!before) return { ok: false, message: "That product no longer exists." };
-  await db.delete(schema.products).where(eq(schema.products.id, id));
-  await db.insert(schema.auditLogs).values({
-    actorId: await getSessionUserId(),
-    action: "store.product.delete",
-    targetType: "product",
-    targetId: before.id,
-    metadata: { by: session.username, before },
-  });
   refreshStore(before.slug);
   revalidatePath(`/admin/store/catalog/${before.gameModeSlug}`);
   return { ok: true, message: `${before.name} deleted.` };

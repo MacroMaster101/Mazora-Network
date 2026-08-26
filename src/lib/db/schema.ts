@@ -373,6 +373,25 @@ export const voteHistory = pgTable("vote_history", {
   votedAt: timestamp("voted_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({ ownerIdx: index("votes_owner_idx").on(t.userId, t.votedAt.desc()) }));
 
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    category: text("category").notNull().default("system"),
+    sender: text("sender").notNull().default("mazora"),
+    href: text("href"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    userCreatedIdx: index("notifications_user_created_idx").on(t.userId, t.createdAt.desc()),
+    unreadIdx: index("notifications_unread_idx").on(t.userId, t.createdAt.desc()).where(sql`${t.readAt} is null`),
+  }),
+);
+
 export const galleryImages = pgTable("gallery_images", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: text("title").notNull(),

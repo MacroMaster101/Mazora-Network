@@ -25,6 +25,11 @@ import { cn } from "@/lib/utils";
 import { MinecraftAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
 import type { Role } from "@/lib/types";
+import {
+  sendBroadcastNotificationAction,
+  sendDirectNotificationAction,
+  type NotificationCategory,
+} from "@/lib/actions/notifications";
 
 export interface UserOption {
   id: string;
@@ -220,6 +225,7 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
   const [broadcastChannel, setBroadcastChannel] = useState<"mazora" | "account">("mazora");
   const [sending, setSending] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [feedbackError, setFeedbackError] = useState(false);
 
   // Direct User Dispatcher state
   const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
@@ -272,13 +278,23 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
   const [editTplTitle, setEditTplTitle] = useState("");
   const [editTplMessage, setEditTplMessage] = useState("");
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!titleText.trim() || !message.trim()) return;
 
     setSending(true);
-    setTimeout(() => {
-      const fullTitle = `${titleIcon} ${titleText.trim()}`.trim();
+    const fullTitle = `${titleIcon} ${titleText.trim()}`.trim();
+    const result = await sendBroadcastNotificationAction({
+      title: fullTitle,
+      message: message.trim(),
+      audience: target,
+      category,
+      sender: broadcastChannel === "mazora" ? "mazora" : "staff",
+    });
+    setSending(false);
+    setFeedbackError(!result.ok);
+    setSuccessMsg(result.message);
+    if (result.ok) {
       const newBroadcast: BroadcastItem = {
         id: `b-${Date.now()}`,
         title: fullTitle,
@@ -293,26 +309,31 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
       setBroadcasts((prev) => [newBroadcast, ...prev]);
       setTitleText("");
       setMessage("");
-      setSending(false);
-      setSuccessMsg("Broadcast sent successfully to targeted users!");
-
-      setTimeout(() => setSuccessMsg(""), 4000);
-    }, 400);
+    }
+    setTimeout(() => setSuccessMsg(""), 4000);
   };
 
-  const handleDirectDispatch = (e: React.FormEvent) => {
+  const handleDirectDispatch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser || !directTitleText.trim() || !directMessage.trim()) return;
 
     setSending(true);
-    setTimeout(() => {
-      setSending(false);
-      const channelLabel = deliveryChannel === "mazora" ? "Mazora Team" : "User Account";
-      setSuccessMsg(`Notification delivered to '${selectedUser.username}' via ${channelLabel} channel!`);
+    const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+    const result = await sendDirectNotificationAction({
+      userId: selectedUser.id,
+      title: `${directTitleIcon} ${directTitleText.trim()}`.trim(),
+      message: directMessage.trim(),
+      category: (selectedTemplate?.category ?? "system") as NotificationCategory,
+      sender: deliveryChannel === "mazora" ? "mazora" : "staff",
+    });
+    setSending(false);
+    setFeedbackError(!result.ok);
+    setSuccessMsg(result.message);
+    if (result.ok) {
       setSelectedUser(null);
       setUserQuery("");
-      setTimeout(() => setSuccessMsg(""), 4000);
-    }, 400);
+    }
+    setTimeout(() => setSuccessMsg(""), 4000);
   };
 
   const selectTemplateForDirect = (tplId: string) => {
@@ -367,6 +388,7 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
       )
     );
     setEditingId(null);
+    setFeedbackError(false);
     setSuccessMsg("Broadcast details updated!");
     setTimeout(() => setSuccessMsg(""), 3000);
   };
@@ -390,6 +412,7 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
       )
     );
     setEditingTplId(null);
+    setFeedbackError(false);
     setSuccessMsg("Default template updated!");
     setTimeout(() => setSuccessMsg(""), 3000);
   };
@@ -472,8 +495,13 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
       </div>
 
       {successMsg && (
-        <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-bold flex items-center gap-2 animate-fade-up">
-          <Check size={16} />
+        <div className={cn(
+          "p-3.5 rounded-xl border text-xs font-bold flex items-center gap-2 animate-fade-up",
+          feedbackError
+            ? "border-red-500/30 bg-red-500/10 text-red-500 dark:text-red-400"
+            : "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+        )}>
+          {feedbackError ? <ShieldAlert size={16} /> : <Check size={16} />}
           <span>{successMsg}</span>
         </div>
       )}
