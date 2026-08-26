@@ -9,7 +9,12 @@ import { ProductCard } from "./product-card";
 import { RankOfferCard } from "./rank-offer-card";
 import { Icon } from "./icon";
 import { cn } from "@/lib/utils";
-import { readStoreReturnState, STORE_RETURN_KEY, STORE_RETURN_PENDING_KEY } from "@/lib/store-navigation";
+import {
+  readStoreReturnState,
+  STORE_DETAIL_FROM_STORE_KEY,
+  STORE_RETURN_KEY,
+  STORE_RETURN_PENDING_KEY,
+} from "@/lib/store-navigation";
 
 type StoreView = Product["category"] | "All";
 
@@ -179,6 +184,9 @@ export function StoreExplorer({
       scrollY: window.scrollY,
       savedAt: Date.now(),
     }));
+    // Lets the detail page use the cached history entry instead of requesting
+    // the dynamic Store route again. The marker is consumed by Back.
+    window.sessionStorage.setItem(STORE_DETAIL_FROM_STORE_KEY, "1");
   }
 
   function chooseFromMenu(

@@ -1,5 +1,6 @@
 export const STORE_RETURN_KEY = "mazora-store-return";
 export const STORE_RETURN_PENDING_KEY = "mazora-store-return-pending";
+export const STORE_DETAIL_FROM_STORE_KEY = "mazora-store-detail-from-store";
 
 export type StoreReturnState = {
   activeMode: string;

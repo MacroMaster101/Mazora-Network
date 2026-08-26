@@ -2065,6 +2065,11 @@ body:has(.store-detail-page) {
   background: rgb(33 18 55 / 0.84);
 }
 
+.store-detail-back:focus-visible {
+  outline: 2px solid rgb(216 180 254 / 0.95);
+  outline-offset: 3px;
+}
+
 .store-detail-back-icon {
   display: grid;
   width: 2.25rem;
