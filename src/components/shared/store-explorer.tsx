@@ -301,7 +301,6 @@ export function StoreExplorer({
                     fill
                     sizes="(max-width: 900px) 100vw, 480px"
                     className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
-                    priority
                     onError={(e) => {
                       const target = e.currentTarget;
                       if (!target.src.endsWith("/images/vote-world-bg-v2.webp")) {

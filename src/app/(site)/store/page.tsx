@@ -97,7 +97,6 @@ export default async function StorePage({
                 alt="Mazora Network"
                 width={300}
                 height={200}
-                priority
                 sizes="(max-width: 640px) 190px, 270px"
                 className="store-hero-v2-logo animate-float"
               />

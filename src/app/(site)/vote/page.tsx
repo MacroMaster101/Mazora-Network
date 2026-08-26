@@ -76,7 +76,6 @@ export default async function VotePage() {
                 alt="Mazora Network"
                 width={300}
                 height={200}
-                priority
                 sizes="(max-width: 640px) 190px, 270px"
                 className="animate-float"
               />
