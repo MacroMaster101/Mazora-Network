@@ -20,8 +20,11 @@ import { cn } from "@/lib/utils";
 import { DashHeader, DashEmpty } from "@/components/dashboard/dash-ui";
 
 import {
+  deleteNotification,
   getStoredNotifications,
-  saveStoredNotifications,
+  NOTIFICATIONS_UPDATED_EVENT,
+  setAllNotificationsRead,
+  setNotificationRead,
   type NotificationItem,
 } from "@/lib/notifications-store";
 
@@ -35,14 +38,24 @@ export function AccountNotificationsFeed() {
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
 
   useEffect(() => {
-    setItems(getStoredNotifications());
+    let active = true;
+    const load = async () => {
+      const next = await getStoredNotifications();
+      if (active) setItems(next);
+    };
+    void load();
 
     function handleUpdate() {
-      setItems(getStoredNotifications());
+      void load();
     }
 
-    window.addEventListener("mazora_notifs_updated", handleUpdate);
-    return () => window.removeEventListener("mazora_notifs_updated", handleUpdate);
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, handleUpdate);
+    window.addEventListener("focus", handleUpdate);
+    return () => {
+      active = false;
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, handleUpdate);
+      window.removeEventListener("focus", handleUpdate);
+    };
   }, []);
 
   const unreadCount = items.filter((n) => !n.read).length;
@@ -54,33 +67,35 @@ export function AccountNotificationsFeed() {
     return true;
   });
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     const updated = items.map((n) => ({ ...n, read: true }));
     setItems(updated);
-    saveStoredNotifications(updated);
+    await setAllNotificationsRead(true);
   };
 
-  const markAllUnread = () => {
+  const markAllUnread = async () => {
     const updated = items.map((n) => ({ ...n, read: false }));
     setItems(updated);
-    saveStoredNotifications(updated);
+    await setAllNotificationsRead(false);
   };
 
-  const toggleRead = (id: string) => {
+  const toggleRead = async (id: string) => {
+    const current = items.find((n) => n.id === id);
+    if (!current) return;
     const updated = items.map((n) => (n.id === id ? { ...n, read: !n.read } : n));
     setItems(updated);
-    saveStoredNotifications(updated);
+    await setNotificationRead(id, !current.read);
   };
 
-  const deleteNotif = (id: string) => {
+  const deleteNotif = async (id: string) => {
     const updated = items.filter((n) => n.id !== id);
     setItems(updated);
-    saveStoredNotifications(updated);
+    await deleteNotification(id);
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
     setItems([]);
-    saveStoredNotifications([]);
+    await deleteNotification();
   };
 
   const getCategoryBadge = (category: NotificationItem["category"]) => {
@@ -93,6 +108,10 @@ export function AccountNotificationsFeed() {
         return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/25"><ShieldAlert size={11} /> Community</span>;
       case "security":
         return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"><MailCheck size={11} /> Security</span>;
+      case "announcement":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/25"><Bell size={11} /> Announcement</span>;
+      case "event":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-pink-500/15 text-pink-400 border border-pink-500/25"><Sparkles size={11} /> Event</span>;
     }
   };
 

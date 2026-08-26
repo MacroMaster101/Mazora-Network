@@ -13,7 +13,9 @@ import { cn } from "@/lib/utils";
 
 import {
   getStoredNotifications,
-  saveStoredNotifications,
+  NOTIFICATIONS_UPDATED_EVENT,
+  setAllNotificationsRead,
+  setNotificationRead,
   type NotificationItem,
 } from "@/lib/notifications-store";
 
@@ -32,21 +34,29 @@ export function HeaderActions({ session }: { session: Session | null }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    setNotifs(getStoredNotifications());
+    let active = true;
+    const load = async () => {
+      const next = await getStoredNotifications();
+      if (active) setNotifs(next);
+    };
+    void load();
 
     function onClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
     }
     function handleUpdate() {
-      setNotifs(getStoredNotifications());
+      void load();
     }
 
     document.addEventListener("mousedown", onClick);
-    window.addEventListener("mazora_notifs_updated", handleUpdate);
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, handleUpdate);
+    window.addEventListener("focus", handleUpdate);
     return () => {
+      active = false;
       document.removeEventListener("mousedown", onClick);
-      window.removeEventListener("mazora_notifs_updated", handleUpdate);
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, handleUpdate);
+      window.removeEventListener("focus", handleUpdate);
     };
   }, []);
 
@@ -89,16 +99,18 @@ export function HeaderActions({ session }: { session: Session | null }) {
 
   const unreadCount = notifs.filter((n) => !n.read).length;
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     const updated = notifs.map((n) => ({ ...n, read: true }));
     setNotifs(updated);
-    saveStoredNotifications(updated);
+    await setAllNotificationsRead(true);
   };
 
-  const toggleNotifRead = (id: string) => {
+  const toggleNotifRead = async (id: string) => {
+    const current = notifs.find((n) => n.id === id);
+    if (!current) return;
     const updated = notifs.map((n) => (n.id === id ? { ...n, read: !n.read } : n));
     setNotifs(updated);
-    saveStoredNotifications(updated);
+    await setNotificationRead(id, !current.read);
   };
 
   return (

@@ -1,60 +1,58 @@
 "use client";
 
-export interface NotificationItem {
-  id: string;
-  title: string;
-  message: string;
+import {
+  deleteNotificationAction,
+  listMyNotificationsAction,
+  setAllNotificationsReadAction,
+  setNotificationReadAction,
+  type AccountNotification,
+  type NotificationCategory,
+  type NotificationSender,
+} from "@/lib/actions/notifications";
+
+export interface NotificationItem extends Omit<AccountNotification, "createdAt" | "category" | "sender"> {
   time: string;
-  category: "welcome" | "system" | "support" | "security";
-  read: boolean;
-  sender: "mazora" | "staff" | "system";
-  href?: string;
+  category: NotificationCategory;
+  sender: NotificationSender;
 }
 
-export const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "notif-welcome",
-    title: "🎉 Welcome to Mazora Network",
-    message: "Your account is active. Connect to mc.mazora.us to claim your starter pack and explore survival mode!",
-    time: "Just now",
-    category: "welcome",
-    read: false,
-    sender: "mazora",
-  },
-  {
-    id: "notif-security",
-    title: "🔒 Session Verification",
-    message: "Your login session was verified successfully. If you suspect unauthorized activity, change your password in account settings.",
-    time: "1d ago",
-    category: "security",
-    read: false,
-    sender: "mazora",
-  },
-];
+export const NOTIFICATIONS_UPDATED_EVENT = "mazora_notifs_updated";
 
-const NOTIFS_KEY = "mazora_user_notifications_v4";
-
-export function getStoredNotifications(): NotificationItem[] {
-  if (typeof window === "undefined") return DEFAULT_NOTIFICATIONS;
-  try {
-    const raw = localStorage.getItem(NOTIFS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    // Fallback to default
-  }
-  try {
-    localStorage.setItem(NOTIFS_KEY, JSON.stringify(DEFAULT_NOTIFICATIONS));
-  } catch {}
-  return DEFAULT_NOTIFICATIONS;
+function relativeTime(iso: string): string {
+  const elapsed = Math.max(0, Date.now() - new Date(iso).getTime());
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(iso));
 }
 
-export function saveStoredNotifications(items: NotificationItem[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(NOTIFS_KEY, JSON.stringify(items));
-    window.dispatchEvent(new Event("mazora_notifs_updated"));
-  } catch {}
+function announceUpdate() {
+  window.dispatchEvent(new Event(NOTIFICATIONS_UPDATED_EVENT));
+}
+
+export async function getStoredNotifications(): Promise<NotificationItem[]> {
+  const items = await listMyNotificationsAction();
+  return items.map(({ createdAt, ...item }) => ({ ...item, time: relativeTime(createdAt) }));
+}
+
+export async function setNotificationRead(id: string, read: boolean) {
+  const result = await setNotificationReadAction(id, read);
+  if (result.ok) announceUpdate();
+  return result;
+}
+
+export async function setAllNotificationsRead(read: boolean) {
+  const result = await setAllNotificationsReadAction(read);
+  if (result.ok) announceUpdate();
+  return result;
+}
+
+export async function deleteNotification(id?: string) {
+  const result = await deleteNotificationAction(id);
+  if (result.ok) announceUpdate();
+  return result;
 }
