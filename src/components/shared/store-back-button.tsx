@@ -2,15 +2,30 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { readStoreReturnState, STORE_RETURN_PENDING_KEY } from "@/lib/store-navigation";
+import {
+  readStoreReturnState,
+  STORE_DETAIL_FROM_STORE_KEY,
+  STORE_RETURN_PENDING_KEY,
+} from "@/lib/store-navigation";
 
 export function StoreBackButton() {
   const router = useRouter();
 
   function returnToStore() {
-    if (readStoreReturnState()) {
+    const hasReturnState = Boolean(readStoreReturnState());
+    const openedFromStore = window.sessionStorage.getItem(STORE_DETAIL_FROM_STORE_KEY) === "1";
+
+    if (hasReturnState) {
       window.sessionStorage.setItem(STORE_RETURN_PENDING_KEY, "1");
     }
+
+    if (hasReturnState && openedFromStore) {
+      window.sessionStorage.removeItem(STORE_DETAIL_FROM_STORE_KEY);
+      router.back();
+      return;
+    }
+
+    window.sessionStorage.removeItem(STORE_DETAIL_FROM_STORE_KEY);
     router.replace("/store");
   }
 

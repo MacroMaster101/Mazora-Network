@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Check, Gift, Trophy, Users } from "lucide-react";
+import { Check, Gift, Trophy, Users } from "lucide-react";
 import { getEvent } from "@/lib/data/content";
 import { publicPageMetadata } from "@/lib/seo";
 import { fmtDate } from "@/lib/utils";
-import { Countdown, Icon, MinecraftAvatar, Reveal } from "@/components/shared";
+import { BackLink, Countdown, Icon, MinecraftAvatar, Reveal } from "@/components/shared";
 import { accentStyles } from "@/components/shared/accent";
 import { cn } from "@/lib/utils";
 
@@ -47,9 +47,7 @@ export default async function EventDetail({ params }: { params: Promise<{ slug: 
     <>
       <section className="page-detail-hero">
         <div className="shell relative py-14 sm:py-20">
-          <Link href="/events" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
-            <ArrowLeft size={15} /> All events
-          </Link>
+          <BackLink href="/events" label="All events" className="mb-6" />
           <div className="flex flex-wrap items-center gap-3">
             <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold uppercase", statusTone[event.status])}>
               {event.status === "live" && <span className="dot animate-pulse" />}
