@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, CheckCheck, ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, Sparkles, User } from "lucide-react";
+import { Bell, CheckCheck, ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, Shield, Sparkles, User } from "lucide-react";
 import type { Session } from "@/lib/auth";
 import { isStaff } from "@/lib/auth/roles";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
@@ -21,15 +21,15 @@ import {
 
 /** Account menu for regular members — personal account screens under /dashboard. */
 const MEMBER_MENU = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Settings", href: "/dashboard/settings", icon: Settings },
+  { label: "My Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "My Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 export function HeaderActions({ session }: { session: Session | null }) {
   const [open, setOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifs, setNotifs] = useState<NotificationItem[]>([]);
-  const ref = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
@@ -41,32 +41,33 @@ export function HeaderActions({ session }: { session: Session | null }) {
     };
     void load();
 
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
-    }
-    function handleUpdate() {
-      void load();
-    }
-
-    document.addEventListener("mousedown", onClick);
-    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, handleUpdate);
-    window.addEventListener("focus", handleUpdate);
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, load);
     return () => {
       active = false;
-      document.removeEventListener("mousedown", onClick);
-      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, handleUpdate);
-      window.removeEventListener("focus", handleUpdate);
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, load);
     };
   }, []);
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    setOpen(false);
+    setNotifOpen(false);
+  }, [pathname]);
+
   if (!session) {
-    // The account dock that wraps this becomes visible at min-[1100px] (see
-    // site-header.tsx), and the mobile drawer (which also carries Log in /
-    // Join) hides at that same width — so this must be visible starting at
-    // 1100px too, not later, or there is a width range with no way to sign in
-    // from the header at all. Labels follow the same icon-then-text pattern
-    // NavLinks uses: icon only on compact desktops, full text from 1280px, so
+    // Unauthenticated: two triggers rendered directly in the header row so
     // the 1100-1279px range doesn't force wrapping.
     return (
       <div className="hidden items-center gap-1.5 min-[1100px]:flex">
@@ -82,15 +83,14 @@ export function HeaderActions({ session }: { session: Session | null }) {
     );
   }
 
-  // Staff manage the community from /admin and don't use the member dashboard,
-  // so their menu points at their own role dashboard instead.
   const staff = isStaff(session.role);
-  const notifPath = staff ? "/admin/account/notifications" : "/dashboard/notifications";
-  const settingsPath = staff ? "/admin/account#notification-settings" : "/dashboard/settings#notification-settings";
+  const notifPath = "/dashboard/notifications";
+  const settingsPath = "/dashboard/settings#notification-settings";
   const menu = staff
     ? [
-        { label: "Control Room", href: "/admin", icon: LayoutDashboard },
-        { label: "My Settings", href: "/admin/account", icon: Settings },
+        { label: "Control Room", href: "/admin", icon: Shield },
+        { label: "My Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        { label: "My Settings", href: "/dashboard/settings", icon: Settings },
       ]
     : MEMBER_MENU;
   const activeMenuHref = menu
@@ -240,7 +240,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
 
       {/* Account Avatar Dropdown Trigger (desktop only). Keep this breakpoint
           aligned with SiteHeader's desktop navigation/dock handoff. */}
-      <div className="hidden min-[1100px]:block relative" ref={ref}>
+      <div className="hidden min-[1100px]:block relative" ref={dropdownRef}>
         <button
           onClick={() => {
             setOpen((o) => !o);

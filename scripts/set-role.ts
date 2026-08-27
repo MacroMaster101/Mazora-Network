@@ -45,7 +45,9 @@ async function main() {
   const { error } = await admin.auth.admin.updateUserById(userId, { app_metadata: { role } });
   if (error) { console.error(error.message); process.exit(1); }
 
-  console.log(`Set ${email}${username ? ` (${username})` : ""} to role "${role}". They must re-login for it to take effect.`);
+  await admin.from("profiles").update({ role }).eq("user_id", userId);
+
+  console.log(`Set ${email}${username ? ` (${username})` : ""} to role "${role}".`);
   process.exit(0);
 }
 

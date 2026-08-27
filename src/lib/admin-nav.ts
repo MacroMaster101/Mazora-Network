@@ -1,6 +1,5 @@
 import {
   Bell,
-  BellRing,
   Blocks,
   Bot,
   CalendarDays,
@@ -16,7 +15,6 @@ import {
   Settings,
   ShieldCheck,
   ShoppingBag,
-  UserCog,
   Users,
   UsersRound,
   Vote,
@@ -135,15 +133,6 @@ export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
         { label: "Permissions", href: "/admin/permissions", icon: KeyRound, minRole: "owner" },
         { label: "Settings", href: "/admin/settings", icon: Settings, minRole: "it" },
         { label: "Audit Logs", href: "/admin/audit-logs", icon: UsersRound, minRole: "it" },
-      ],
-    },
-    {
-      // The staffer's OWN account — distinct from the community-wide tools above.
-      heading: "My Account",
-      items: [
-        { label: "My Settings", href: "/admin/account", icon: UserCog, minRole: "helper", exact: true },
-        { label: "My Notifications", href: "/admin/account/notifications", icon: BellRing, minRole: "helper" },
-        { label: "My Purchases", href: "/admin/account/purchases", icon: Receipt, minRole: "helper" },
       ],
     },
   ];

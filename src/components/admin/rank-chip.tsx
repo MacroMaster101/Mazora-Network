@@ -3,14 +3,7 @@ import { roleLabel } from "@/lib/auth/roles";
 import type { Role } from "@/lib/types";
 
 /**
- * Rank as a visible tier rather than a word.
- *
- * Mazora's ten-rung ladder is the thing that actually governs the admin area —
- * who sees which board, who may change whose role — but the UI used to render
- * it as plain grey text, so every rank looked equally weighty. Grouping the
- * rungs into four tiers and giving each its own colour makes seniority
- * scannable: you can see at a glance that a list is mostly members with two
- * owners, without reading a single label.
+ * Role badge with high-contrast, theme-adaptive coloring across Light & Dark modes.
  */
 
 type Tier = "leadership" | "staff" | "supporter" | "player";
@@ -28,11 +21,17 @@ const TIER_OF: Record<Role, Tier> = {
   guest: "player",
 };
 
-const TIER_STYLE: Record<Tier, string> = {
-  leadership: "border-amber-500/45 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-extrabold",
-  staff: "border-accent/40 bg-accent/15 text-accent-bright font-extrabold shadow-sm",
-  supporter: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold",
-  player: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-500/50 dark:bg-slate-400/15 dark:text-slate-100 font-extrabold",
+const ROLE_STYLES: Partial<Record<Role, string>> = {
+  it: "border-amber-400/80 bg-amber-100 text-amber-950 dark:border-amber-500/50 dark:bg-amber-500/20 dark:text-amber-300",
+  owner: "border-amber-400/80 bg-amber-100 text-amber-950 dark:border-amber-500/50 dark:bg-amber-500/20 dark:text-amber-300",
+  administrator: "border-rose-400/70 bg-rose-100 text-rose-950 dark:border-rose-500/50 dark:bg-rose-500/20 dark:text-rose-300",
+  senior_moderator: "border-indigo-400/70 bg-indigo-100 text-indigo-950 dark:border-indigo-500/50 dark:bg-indigo-500/20 dark:text-indigo-200",
+  moderator: "border-indigo-400/70 bg-indigo-100 text-indigo-950 dark:border-indigo-500/50 dark:bg-indigo-500/20 dark:text-indigo-200",
+  helper: "border-purple-400/70 bg-purple-100 text-purple-950 dark:border-purple-500/50 dark:bg-purple-500/20 dark:text-purple-200",
+  vip: "border-emerald-400/70 bg-emerald-100 text-emerald-950 dark:border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-300",
+  sponsor: "border-emerald-400/70 bg-emerald-100 text-emerald-950 dark:border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-300",
+  member: "border-slate-300 bg-slate-100 text-slate-900 dark:border-slate-600/60 dark:bg-slate-800/60 dark:text-slate-200",
+  guest: "border-slate-300 bg-slate-100 text-slate-900 dark:border-slate-600/60 dark:bg-slate-800/60 dark:text-slate-200",
 };
 
 export function rankTier(role: Role): Tier {
@@ -40,11 +39,13 @@ export function rankTier(role: Role): Tier {
 }
 
 export function RankChip({ role, className }: { role: Role; className?: string }) {
+  const style = ROLE_STYLES[role] ?? "border-slate-300 bg-slate-100 text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200";
+
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap",
-        TIER_STYLE[rankTier(role)],
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide whitespace-nowrap shadow-xs",
+        style,
         className,
       )}
     >

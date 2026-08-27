@@ -35,10 +35,14 @@ function readDraft(): OrderDraft {
 export function OrderRequestForm({
   configured,
   appliedCode,
+  onOrderSubmitted,
+  onReset,
 }: {
   configured: boolean;
   /** Applied on the cart review step; shown and submitted here. */
   appliedCode: CreatorCodePreviewResult | null;
+  onOrderSubmitted?: () => void;
+  onReset?: () => void;
 }) {
   const { items, clear } = useCart();
   const exampleIgn = useExampleIgn();
@@ -112,9 +116,14 @@ export function OrderRequestForm({
   };
 
   useEffect(() => {
-    if (state.ok && state.message) toast(state.message, "success");
-    else if (!state.ok && state.message) toast(state.message, "error");
-  }, [state, toast]);
+    if (state.ok) {
+      clear();
+      onOrderSubmitted?.();
+      if (state.message) toast(state.message, "success");
+    } else if (!state.ok && state.message) {
+      toast(state.message, "error");
+    }
+  }, [state, toast, clear, onOrderSubmitted]);
 
   useEffect(() => {
     if (!oauthState.ok && oauthState.message) toast(oauthState.message, "error");
@@ -191,7 +200,14 @@ export function OrderRequestForm({
           Open Mazora Discord
         </a>
         <p className="mt-3 text-xs text-muted">Save the reference above. No payment has been taken.</p>
-        <button type="button" onClick={clear} className="btn btn-ghost btn-sm mt-4">
+        <button
+          type="button"
+          onClick={() => {
+            clear();
+            onReset?.();
+          }}
+          className="btn btn-ghost btn-sm mt-4"
+        >
           Start a new order
         </button>
       </div>
