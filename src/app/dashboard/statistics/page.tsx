@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3, Receipt, Gamepad2, Shield, Calendar, ArrowRight } from "lucide-react";
+import { Receipt, Gamepad2, Shield, ArrowRight } from "lucide-react";
 import { requireSession, getSessionUserId } from "@/lib/auth";
 import { roleLabel } from "@/lib/auth/roles";
 import { getOrdersForUser } from "@/lib/data/orders";

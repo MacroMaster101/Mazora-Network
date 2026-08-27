@@ -21,8 +21,8 @@ import {
 
 /** Account menu for regular members — personal account screens under /dashboard. */
 const MEMBER_MENU = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Settings", href: "/dashboard/settings", icon: Settings },
+  { label: "My Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "My Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 export function HeaderActions({ session }: { session: Session | null }) {
@@ -92,10 +92,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
         { label: "My Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "My Settings", href: "/dashboard/settings", icon: Settings },
       ]
-    : [
-        { label: "My Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        { label: "My Settings", href: "/dashboard/settings", icon: Settings },
-      ];
+    : MEMBER_MENU;
   const activeMenuHref = menu
     .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;

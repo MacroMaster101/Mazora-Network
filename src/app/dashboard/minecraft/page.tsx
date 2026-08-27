@@ -11,7 +11,7 @@ import { MinecraftAvatar } from "@/components/shared/minecraft-avatar";
 export const metadata: Metadata = { title: "Minecraft Account" };
 
 export default async function MinecraftPage() {
-  const session = await requireSession("/dashboard/minecraft");
+  await requireSession("/dashboard/minecraft");
   const userId = await getSessionUserId();
 
   let minecraftAccount: {
