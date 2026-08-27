@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getSession, isStaff, roleDashboardPath } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";

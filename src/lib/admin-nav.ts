@@ -1,6 +1,5 @@
 import {
   Bell,
-  BellRing,
   Blocks,
   Bot,
   CalendarDays,
@@ -16,7 +15,6 @@ import {
   Settings,
   ShieldCheck,
   ShoppingBag,
-  UserCog,
   Users,
   UsersRound,
   Vote,
