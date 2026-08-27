@@ -159,12 +159,12 @@ export function accountNavFor(staff: boolean) {
   return staff
     ? [
         { label: "Control Room", href: "/admin" },
-        { label: "My Settings", href: "/admin/account" },
-        { label: "Purchases", href: "/admin/account/purchases" },
+        { label: "My Dashboard", href: "/dashboard" },
+        { label: "My Settings", href: "/dashboard/settings" },
       ]
     : [
-        { label: "Dashboard", href: "/dashboard" },
-        { label: "Settings", href: "/dashboard/settings" },
+        { label: "My Dashboard", href: "/dashboard" },
+        { label: "My Settings", href: "/dashboard/settings" },
         { label: "Purchases", href: "/dashboard/purchases" },
       ];
 }

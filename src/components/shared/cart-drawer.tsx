@@ -35,10 +35,12 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
     total,
     setQty,
     remove,
+    clear,
     ready,
   } = useCart();
   const [step, setStep] = useState<"cart" | "details">("cart");
   const [appliedCode, setAppliedCode] = useState<CreatorCodePreviewResult | null>(null);
+  const [orderCompleted, setOrderCompleted] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
   const isStoreRoute = pathname.startsWith("/store");
@@ -81,7 +83,10 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
     }
 
     setShown(false);
-    const timer = window.setTimeout(() => setMounted(false), CLOSE_MS);
+    const timer = window.setTimeout(() => {
+      setMounted(false);
+      setOrderCompleted(false);
+    }, CLOSE_MS);
     return () => window.clearTimeout(timer);
   }, [isOpen]);
 
@@ -96,6 +101,7 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
   useEffect(() => {
     if (!isOpen) {
       setStep("cart");
+      setOrderCompleted(false);
       return;
     }
 
@@ -185,7 +191,7 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
                 <div className="cart-skeleton h-24 animate-pulse rounded-2xl" />
                 <div className="cart-skeleton h-24 animate-pulse rounded-2xl" />
               </div>
-            ) : count === 0 ? (
+            ) : count === 0 && !orderCompleted ? (
               <div className="flex flex-1 flex-col items-center justify-center px-7 text-center">
                 <span className="cart-empty-icon grid h-20 w-20 place-items-center rounded-3xl">
                   <ShoppingCart size={30} />
@@ -201,6 +207,20 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
             ) : step === "cart" ? (
               <>
                 <div className="store-drawer-scroll flex-1 space-y-3 overflow-y-auto px-5 py-5 sm:px-7">
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="cart-kicker text-[11px] font-bold uppercase tracking-wider text-muted">
+                      Selected items ({count})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clear}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-muted transition hover:bg-danger/10 hover:text-danger"
+                      aria-label="Clear all items from cart"
+                    >
+                      <Trash2 size={13} />
+                      Clear all
+                    </button>
+                  </div>
                   {items.map((item) => (
                     <div
                       key={item.slug}
@@ -304,67 +324,76 @@ export function CartDrawer({ requestsConfigured }: { requestsConfigured: boolean
               </>
             ) : (
               <div className="store-drawer-scroll flex-1 overflow-y-auto px-5 pb-8 sm:px-7">
-                <button
-                  type="button"
-                  onClick={() => setStep("cart")}
-                  className="cart-back-btn mt-5 inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition"
-                >
-                  <ArrowLeft size={14} /> Back to cart
-                </button>
+                {!orderCompleted && (
+                  <button
+                    type="button"
+                    onClick={() => setStep("cart")}
+                    className="cart-back-btn mt-5 inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition"
+                  >
+                    <ArrowLeft size={14} /> Back to cart
+                  </button>
+                )}
 
-                <section className="cart-summary mt-4 overflow-hidden rounded-2xl" aria-label="Order summary">
-                  <div className="flex items-center justify-between px-4 pt-3.5">
-                    <p className="cart-muted text-[10px] font-bold uppercase tracking-[0.16em]">
-                      Your order · {count} {count === 1 ? "item" : "items"}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setStep("cart")}
-                      className="cart-link-muted text-xs font-semibold underline-offset-2 transition hover:underline"
-                    >
-                      Edit
-                    </button>
-                  </div>
-                  <ul className="mt-2.5 space-y-2.5 px-4">
-                    {items.map((item) => (
-                      <li key={item.slug} className="flex items-center gap-3">
-                        <span className="cart-item-art relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
-                          <StoreArtwork src={storeArtFor(item)} alt="" sizes="40px" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-xs font-bold">{item.name}</span>
-                          <span className="cart-muted block text-[11px]">
-                            {item.qty} × {usd(item.price)}
-                          </span>
-                        </span>
-                        <span className="telemetry text-xs font-bold">{usd(item.price * item.qty)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {discount > 0 && (
-                    <div className="flex items-center justify-between px-4 pt-1 text-xs">
-                      <span className="cart-muted">
-                        {appliedCode?.code} · {appliedCode?.percentOff}% off
-                      </span>
-                      <span className="telemetry font-bold text-success">−{usd(discount)}</span>
+                {!orderCompleted && items.length > 0 && (
+                  <section className="cart-summary mt-4 overflow-hidden rounded-2xl" aria-label="Order summary">
+                    <div className="flex items-center justify-between px-4 pt-3.5">
+                      <p className="cart-muted text-[10px] font-bold uppercase tracking-[0.16em]">
+                        Your order · {count} {count === 1 ? "item" : "items"}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setStep("cart")}
+                        className="cart-link-muted text-xs font-semibold underline-offset-2 transition hover:underline"
+                      >
+                        Edit
+                      </button>
                     </div>
-                  )}
-                  <div className="cart-summary-total mt-3.5 flex items-center justify-between px-4 py-3">
-                    <span className="cart-muted text-xs">
-                      Estimated total <span className="cart-muted-2">· no charge today</span>
-                    </span>
-                    <span className="flex items-baseline gap-2">
-                      {discount > 0 && (
-                        <span className="cart-muted-2 telemetry text-xs line-through">{usd(shownSubtotal)}</span>
-                      )}
-                      <span className="telemetry text-[1rem] font-black">{usd(shownTotal)}</span>
-                    </span>
-                  </div>
-                </section>
+                    <ul className="mt-2.5 space-y-2.5 px-4">
+                      {items.map((item) => (
+                        <li key={item.slug} className="flex items-center gap-3">
+                          <span className="cart-item-art relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
+                            <StoreArtwork src={storeArtFor(item)} alt="" sizes="40px" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xs font-bold">{item.name}</span>
+                            <span className="cart-muted block text-[11px]">
+                              {item.qty} × {usd(item.price)}
+                            </span>
+                          </span>
+                          <span className="telemetry text-xs font-bold">{usd(item.price * item.qty)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {discount > 0 && (
+                      <div className="flex items-center justify-between px-4 pt-1 text-xs">
+                        <span className="cart-muted">
+                          {appliedCode?.code} · {appliedCode?.percentOff}% off
+                        </span>
+                        <span className="telemetry font-bold text-success">−{usd(discount)}</span>
+                      </div>
+                    )}
+                    <div className="cart-summary-total mt-3.5 flex items-center justify-between px-4 py-3">
+                      <span className="cart-muted text-xs">
+                        Estimated total <span className="cart-muted-2">· no charge today</span>
+                      </span>
+                      <span className="flex items-baseline gap-2">
+                        {discount > 0 && (
+                          <span className="cart-muted-2 telemetry text-xs line-through">{usd(shownSubtotal)}</span>
+                        )}
+                        <span className="telemetry text-[1rem] font-black">{usd(shownTotal)}</span>
+                      </span>
+                    </div>
+                  </section>
+                )}
 
                 <OrderRequestForm
                   configured={requestsConfigured}
                   appliedCode={appliedCode}
+                  onOrderSubmitted={() => setOrderCompleted(true)}
+                  onReset={() => {
+                    setOrderCompleted(false);
+                    setStep("cart");
+                  }}
                 />
               </div>
             )}

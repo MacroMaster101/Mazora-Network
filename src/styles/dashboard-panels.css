@@ -11,12 +11,10 @@
   grid-template-columns: auto minmax(0, 1fr);
   gap: 1.15rem;
   align-items: center;
-  border: 1px solid rgb(var(--line) / 0.82);
+  border: 1px solid rgb(var(--line-strong));
   border-radius: 1rem;
-  background:
-    radial-gradient(circle at 0 0, rgb(var(--accent) / 0.13), transparent 42%),
-    rgb(var(--surface) / 0.54);
-  padding: 1rem;
+  background: rgb(var(--card));
+  padding: 1.15rem;
 }
 .profile-avatar-visual {
   position: relative;

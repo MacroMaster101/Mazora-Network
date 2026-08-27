@@ -13,18 +13,12 @@ import Link from "next/link";
  */
 export function DashHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
-    <div className="dash-header mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="panel p-6 sm:p-7 mb-6 border-line-strong bg-card/90 dark:bg-card/80 backdrop-blur-xl shadow-lg flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h1 className="font-display text-2xl font-bold">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+        <h1 className="font-display text-2xl font-bold sm:text-3xl text-ink">{title}</h1>
+        {subtitle && <p className="mt-1 text-xs text-muted font-medium">{subtitle}</p>}
       </div>
-      {/*
-        Page actions first, refresh last. The page's own links are what someone
-        came to the header for — "Store dashboard", "Public store" — while
-        refresh is a utility that applies to any screen. Leading with it pushed
-        the meaningful links rightward on every one of these pages.
-      */}
-      <div className="dash-header-actions">
+      <div className="dash-header-actions flex items-center gap-2">
         {action}
         <RefreshButton iconOnly />
       </div>
@@ -45,12 +39,12 @@ export function DashEmpty({
   cta?: { label: string; href: string };
 }) {
   return (
-    <div className="dash-empty-state glass flex flex-col items-center justify-center px-6 py-16 text-center">
+    <div className="dash-empty-state panel border-line-strong bg-card/90 dark:bg-card/80 backdrop-blur-xl shadow-lg flex flex-col items-center justify-center px-6 py-16 text-center">
       <span className="grid h-14 w-14 place-items-center rounded-xl border border-line-strong bg-ink/5 text-muted">{icon}</span>
-      <h2 className="mt-4 font-display text-lg font-semibold">{title}</h2>
+      <h2 className="mt-4 font-display text-lg font-bold text-ink">{title}</h2>
       <p className="mt-1.5 max-w-sm text-sm text-muted">{message}</p>
       {cta && (
-        <Link href={cta.href} className="btn btn-ghost btn-sm mt-5">
+        <Link href={cta.href} className="btn btn-primary btn-sm mt-5">
           {cta.label}
         </Link>
       )}
