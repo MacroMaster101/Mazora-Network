@@ -30,3 +30,8 @@ export { GoogleFormEmbed } from "./google-form-embed";
 export { DiscordTicketGuide } from "./discord-ticket-guide";
 export { FloatingBrandLogo } from "./floating-brand-logo";
 export { RanksHelpPopover } from "./ranks-help-popover";
+export {
+  NotificationDetailDialog,
+  NOTIFICATION_CATEGORY_CHIPS,
+  NOTIFICATION_SENDER_LABELS,
+} from "./notification-detail-dialog";

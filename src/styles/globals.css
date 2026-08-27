@@ -5095,6 +5095,14 @@ html {
   border-color: #c7d2fe !important;
 }
 
+/* The expanded card keeps its accent edge — the .notif-item rule above is
+   !important, so the Tailwind border utility alone cannot win here. */
+:root[data-theme="light"] .header-notif-dropdown .notif-item-expanded,
+:root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-item-expanded {
+  background: #faf5ff !important;
+  border-color: #c4b5fd !important;
+}
+
 :root[data-theme="light"] .header-notif-dropdown .notif-item-title,
 :root[data-theme="light"] .hero-nav .header-notif-dropdown .notif-item-title {
   color: #0f172a !important;
@@ -10129,11 +10137,28 @@ body:has(.admin-recovery-overlay) {
   color: rgb(72 58 91) !important;
 }
 
-/* Public light-theme surface contract.
+/* Light-theme surface contract.
    Cards sit over detailed world artwork, so translucent fills make text and
    borders look muddy. Keep the artwork around each card, but give reusable
-   card surfaces the same opaque lilac-white finish as the Play join cards. */
-:root[data-theme="light"] .site-world-main :is(
+   card surfaces the same opaque lilac-white finish as the Play join cards.
+
+   Scoped to the page-content shells rather than the public one alone:
+   `.site-world-main` is the public site's <main>, and `.account-layout` is the
+   <main> of both the member dashboard and the admin control room. It
+   previously named only `.site-world-main`, so every dashboard and admin card
+   fell through to the raw `bg-card/90` utility — which in light mode is
+   `--card: 255 255 255`, i.e. a flat 90%-opaque pure-white slab with a 24px
+   backdrop-blur running behind it doing nothing.
+
+   BOTH selectors must stay on the <main>, never on a whole-page wrapper. On
+   the public side SiteHeader is a sibling of <main>, but under
+   `.account-area` it is a CHILD, so scoping to that wrapper drags the site
+   chrome in and flattens the nav dock and account pill — they are frosted
+   glass floating over artwork and must keep their translucency and blur.
+
+   Any new route under these shells inherits the finish automatically; a new
+   shell must be added here, and must name its content <main>. */
+:root[data-theme="light"] :is(.site-world-main, .account-layout) :is(
   .panel,
   .glass,
   [class*="bg-card/"],

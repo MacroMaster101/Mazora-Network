@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Role } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/auth/profile";
+import { dispatchSignInNotifications } from "@/lib/notifications-auto";
 import { landingPathFor, ROLES } from "@/lib/auth/roles";
 import { safeNext } from "@/lib/safe-redirect";
 import { resolvePublicOrigin } from "@/lib/site";
@@ -41,7 +42,13 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       const { data } = await supabase.auth.getUser();
-      if (data.user) await ensureUserProfile(data.user);
+      if (data.user) {
+        await ensureUserProfile(data.user);
+        // Social sign-in is a sign-in like any other, so the fixed default
+        // templates fire here too. Both dispatches are deduplicated and never
+        // throw, so a failure cannot break the OAuth redirect.
+        await dispatchSignInNotifications(data.user.id);
+      }
       // No explicit destination → route by role (staff → their dashboard,
       // everyone else → home). An explicit `next` (e.g. account linking) wins.
       const raw = data.user?.app_metadata?.role;

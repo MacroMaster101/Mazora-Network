@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import type { Role } from "@/lib/types";
-import { createSession, getSession, isStaff, landingPathFor, pickDiscordIdentity, ROLES } from "@/lib/auth";
+import { createSession, getSession, getSessionUserId, isStaff, landingPathFor, pickDiscordIdentity, ROLES } from "@/lib/auth";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { site } from "@/lib/site";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
@@ -11,6 +11,7 @@ import { getSupabaseConfig, isDemoAuthEnabled, isSupabaseConfigured } from "@/li
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { ignAvailability, linkMinecraftIgn } from "@/lib/minecraft/link";
+import { dispatchSignInNotifications } from "@/lib/notifications-auto";
 import { throttleAuthAction } from "@/lib/rate-limit";
 import {
   authFormValues,
@@ -60,7 +61,13 @@ async function linkVerifiedRegistration(
 ): Promise<void> {
   const { data } = await supabase.auth.getUser();
   const admin = getSupabaseAdmin();
-  if (!data.user || !admin) return;
+  if (!data.user) return;
+
+  // The account is verified from here on, so the fixed default templates fire
+  // whether or not an IGN link follows. Best-effort — it never blocks signup.
+  await dispatchSignInNotifications(data.user.id);
+
+  if (!admin) return;
 
   const username = String(data.user.user_metadata?.username ?? "").trim();
   if (!username) return;
@@ -136,6 +143,13 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
       }
       return { ok: false, message: "The email or password is incorrect." };
     }
+
+    // Fire the fixed default templates before any redirect — redirect() throws
+    // to unwind the request, so anything after it never runs. The welcome
+    // notice is a no-op once an account already has one, which is also what
+    // backfills accounts created before this dispatch existed.
+    await dispatchSignInNotifications(await getSessionUserId());
+
     // Honour an explicit destination; otherwise route by role (staff → their
     // dashboard, everyone else → home).
     if (parsed.data.next && parsed.data.next !== "/") redirect(safeNext(parsed.data.next));
