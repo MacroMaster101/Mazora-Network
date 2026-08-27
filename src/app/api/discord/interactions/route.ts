@@ -27,6 +27,7 @@ import {
   handleStaffNoticeAutocomplete,
   handleStaffNoticeCommand,
 } from "@/lib/discord/staff-notice-command";
+import { site } from "@/lib/site";
 
 /**
  * Discord interactions endpoint (HTTP-only bot — no gateway process).
@@ -353,6 +354,11 @@ async function runConfirm(context: DecisionContext): Promise<void> {
   }
 
   const link = ticketId && guildId ? channelUrl(guildId, ticketId) : null;
+  const supportUrl = link ?? site.discordSupportTickets;
+  const botDisclaimer =
+    `\n\n— — —\n🤖 This message was sent by an automated bot, which **cannot read replies**. ` +
+    `To respond, open a ticket and a staff member will get back to you:\n${supportUrl}`;
+
   const dmSent = await sendBotDirectMessage(context.botToken, context.customerId, {
     embeds: [
       {
@@ -366,7 +372,8 @@ async function runConfirm(context: DecisionContext): Promise<void> {
           (context.items ? `**Order Summary**\n${context.items}\n\n` : "") +
           (context.total ? `**Total:** ${context.total}\n` : "") +
           (context.creatorCode ? `**Discount code:** ${context.creatorCode}\n` : "") +
-          "_No payment has been taken yet — staff will never ask for card details in chat._",
+          "_No payment has been taken yet — staff will never ask for card details in chat._" +
+          botDisclaimer,
         color: 0x34d399,
       },
     ],
@@ -693,6 +700,10 @@ async function runTicketLifecycle(context: TicketLifecycleContext): Promise<void
 }
 /** Reject: DM the buyer, no ticket is created. */
 async function runReject(context: DecisionContext): Promise<void> {
+  const botDisclaimer =
+    `\n\n— — —\n🤖 This message was sent by an automated bot, which **cannot read replies**. ` +
+    `To respond, open a ticket and a staff member will get back to you:\n${site.discordSupportTickets}`;
+
   const dmSent = await sendBotDirectMessage(context.botToken, context.customerId, {
     embeds: [
       {
@@ -700,7 +711,8 @@ async function runReject(context: DecisionContext): Promise<void> {
         title: "❌ Order Declined",
         description:
           `Your Mazora Network order (\`${context.reference}\`) was reviewed and declined by **${context.actorName}**.\n` +
-          "If you believe this is a mistake or have questions, please reach out in the Mazora Discord server.",
+          "If you believe this is a mistake or have questions, please reach out in the Mazora Discord server." +
+          botDisclaimer,
         color: 0xf87171,
       },
     ],

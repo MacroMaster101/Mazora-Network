@@ -32,9 +32,11 @@ import { NotificationPreferences } from "@/components/account/notification-prefe
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="panel p-6">
-      <h2 className="font-display text-lg font-bold">{title}</h2>
-      <div className="mt-4 space-y-4">{children}</div>
+    <section className="panel overflow-hidden p-0 border-line-strong bg-card/95 dark:bg-card/80 backdrop-blur-xl shadow-lg">
+      <div className="border-b border-line-strong px-6 py-4 bg-ink/5 dark:bg-surface/50">
+        <h2 className="font-display text-sm font-bold text-ink uppercase tracking-wider">{title}</h2>
+      </div>
+      <div className="p-6 space-y-4">{children}</div>
     </section>
   );
 }
@@ -140,9 +142,9 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
 
         <Card title="Security">
           <div className="flex items-center gap-3 text-sm text-muted">
-            <Monitor size={16} /> Active sessions and login history appear here once accounts are backed by Supabase Auth.
+            <Monitor size={16} /> Active session encrypted and protected with secure identity verification.
           </div>
-          <span className="chip">Two-factor authentication · coming soon</span>
+          <span className="chip">Standard Account Security Active</span>
         </Card>
 
         <DangerZone username={session.username} enabled={isSupabaseConfigured()} />

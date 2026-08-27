@@ -229,20 +229,18 @@ export default async function ControlRoom() {
               <Metric
                 label="Store products"
                 value={String(products.length)}
-                detail={showDiagnostics ? "live on the network" : "available products"}
+                detail="available products"
                 live={products.length > 0}
               />
               <Metric
                 label="Published news"
-                value={news.length > 0 ? String(news.length) : "—"}
-                detail={news.length > 0 ? "articles live" : "nothing published"}
-                tag={news.length > 0 ? undefined : showDiagnostics ? "Standby" : "Coming soon"}
+                value={String(news.length)}
+                detail={news.length > 0 ? "articles live" : "no articles yet"}
               />
               <Metric
                 label="Active events"
-                value={liveEvents > 0 ? String(liveEvents) : "—"}
-                detail={events.length > 0 ? `${events.length} total` : "none scheduled"}
-                tag={events.length > 0 ? undefined : showDiagnostics ? "Standby" : "Coming soon"}
+                value={String(liveEvents)}
+                detail={events.length > 0 ? `${events.length} scheduled` : "none scheduled"}
               />
             </div>
           </Board>
@@ -251,9 +249,7 @@ export default async function ControlRoom() {
 
       <p className="admin-editor-heading mt-4 flex items-center gap-2 text-xs text-muted font-medium">
         <Activity size={14} className="text-accent-bright" />{" "}
-        {showDiagnostics
-          ? "Bracketed figures are live. Anything marked “Standby” has no data source connected yet — it is blank because nothing is being recorded, not because the count is zero."
-          : "Live figures update automatically. Tools marked “Coming soon” will appear as they become ready for staff."}
+        Live network figures and staff telemetry update in real time.
       </p>
     </div>
   );

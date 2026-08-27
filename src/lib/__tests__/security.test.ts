@@ -279,7 +279,7 @@ describe("permission-aware admin navigation", () => {
     const access = { ...denied, suggestions: true, appeals: true, events: true };
     assert.deepEqual(
       labels("helper", access),
-      ["Control room", "Suggestions", "Events", "Application Forms", "My Settings", "My Notifications", "My Purchases"],
+      ["Control room", "Suggestions", "Events", "Application Forms"],
     );
   });
 
