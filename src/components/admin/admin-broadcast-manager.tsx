@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Check,
   ChevronDown,
@@ -26,8 +27,12 @@ import { MinecraftAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
 import type { Role } from "@/lib/types";
 import {
+  deleteBroadcastNotificationAction,
   sendBroadcastNotificationAction,
   sendDirectNotificationAction,
+  setNotificationTemplateEnabledAction,
+  updateBroadcastNotificationAction,
+  updateNotificationTemplateAction,
   type NotificationCategory,
 } from "@/lib/actions/notifications";
 
@@ -135,6 +140,7 @@ export interface BroadcastItem {
   priority: "normal" | "important" | "urgent";
   category: "announcement" | "system" | "event" | "security";
   sender: string;
+  delivered: number;
   createdAt: string;
 }
 
@@ -147,73 +153,99 @@ export interface DefaultTemplate {
   category: "welcome" | "system" | "support" | "security";
   enabled: boolean;
   fixed?: boolean;
+  /** "website_email" earns the Website + Email badge. */
+  delivery?: string;
 }
 
-const INITIAL_BROADCASTS: BroadcastItem[] = [];
+/**
+ * The rows as the server sends them. Declared structurally rather than
+ * imported so this Client Component never pulls in a "server-only" module.
+ */
+export interface BroadcastRecord {
+  id: string;
+  title: string;
+  message: string;
+  audience: "all" | "staff" | "moderators" | "users";
+  category: string;
+  sender: string;
+  priority: "normal" | "important" | "urgent";
+  delivered: number;
+  actorName: string | null;
+  createdAt: string;
+}
 
-const INITIAL_TEMPLATES: DefaultTemplate[] = [
-  {
-    id: "tpl-welcome",
-    name: "New Player Welcome Message",
-    trigger: "Automatically sent on first login via Website + Email. This is a fixed default — it cannot be manually dispatched and is delivered to every new user.",
-    title: "🎉 Welcome to Mazora Network",
-    message: "Your account is active. Connect to mc.mazora.us to claim your starter pack and explore survival mode!",
-    category: "welcome",
-    enabled: true,
-    fixed: true,
-  },
-  {
-    id: "tpl-security",
-    name: "Account Session Verification",
-    trigger: "Automatically sent on first login or new device session via Website only. Fixed default — fires automatically.",
-    title: "🔒 Session Verification",
-    message: "Your login session was verified successfully. If you suspect unauthorized activity, change your password in account settings.",
-    category: "security",
-    enabled: true,
-    fixed: true,
-  },
-  {
-    id: "tpl-form",
-    name: "Form Response / Staff Application Result",
-    trigger: "Admin dispatches manually after reviewing Google Form staff applications or other user submissions.",
-    title: "📋 Staff Form Application Update",
-    message: "Your application form submission has been reviewed by the administrative team. Check Discord for next steps!",
-    category: "support",
-    enabled: true,
-  },
-  {
-    id: "tpl-ticket",
-    name: "Support Ticket Status Update / Staff Reply",
-    trigger: "Admin dispatches manually when staff responds to or resolves a ticket thread.",
-    title: "🎫 Support Ticket Update",
-    message: "A staff member has updated your ticket status. Click here to view the full response.",
-    category: "support",
-    enabled: true,
-  },
-  {
-    id: "tpl-appeal",
-    name: "Ban Appeal Decision Notice",
-    trigger: "Admin dispatches manually when an appeal is approved, rejected, or updated.",
-    title: "🛡️ Appeal Review Notice",
-    message: "Your punishment appeal has been reviewed by staff. Click to view the decision details.",
-    category: "support",
-    enabled: true,
-  },
-  {
-    id: "tpl-store",
-    name: "Store Package & Rank Delivery",
-    trigger: "Admin dispatches manually when a store purchase or vote reward is processed.",
-    title: "🛒 Store Package Delivered",
-    message: "Your rank, keys, and perks have been assigned to your connected Minecraft account!",
-    category: "system",
-    enabled: true,
-  },
-];
+export interface TemplateRecord {
+  id: string;
+  name: string;
+  triggerNote: string;
+  title: string;
+  message: string;
+  category: string;
+  sender: string;
+  delivery: string;
+  fixed: boolean;
+  enabled: boolean;
+  sortOrder: number;
+}
 
-export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) {
+function relativeTime(iso: string): string {
+  const elapsed = Math.max(0, Date.now() - new Date(iso).getTime());
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(iso));
+}
+
+function toBroadcastItem(record: BroadcastRecord): BroadcastItem {
+  return {
+    id: record.id,
+    title: record.title,
+    message: record.message,
+    target: record.audience,
+    priority: record.priority,
+    category: record.category as BroadcastItem["category"],
+    sender: record.actorName ?? "Mazora Team",
+    delivered: record.delivered,
+    createdAt: relativeTime(record.createdAt),
+  };
+}
+
+function toTemplate(record: TemplateRecord): DefaultTemplate {
+  return {
+    id: record.id,
+    name: record.name,
+    trigger: record.triggerNote,
+    title: record.title,
+    message: record.message,
+    category: record.category as DefaultTemplate["category"],
+    enabled: record.enabled,
+    fixed: record.fixed,
+    delivery: record.delivery,
+  };
+}
+
+export function AdminBroadcastManager({
+  users = [],
+  broadcasts: broadcastRecords = [],
+  templates: templateRecords = [],
+}: {
+  users?: UserOption[];
+  broadcasts?: BroadcastRecord[];
+  templates?: TemplateRecord[];
+}) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"broadcasts" | "templates" | "direct">("broadcasts");
-  const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>(INITIAL_BROADCASTS);
-  const [templates, setTemplates] = useState<DefaultTemplate[]>(INITIAL_TEMPLATES);
+
+  // Both lists are owned by the server. They are mapped rather than held in
+  // their own state so a router.refresh() after any mutation is what updates
+  // the screen — the previous local-state version silently discarded every
+  // edit on reload.
+  const broadcasts = useMemo(() => broadcastRecords.map(toBroadcastItem), [broadcastRecords]);
+  const templates = useMemo(() => templateRecords.map(toTemplate), [templateRecords]);
 
   // Broadcast composer state
   const [titleIcon, setTitleIcon] = useState("🎉");
@@ -233,7 +265,9 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const userPickerRef = useRef<HTMLDivElement>(null);
   const [deliveryChannel, setDeliveryChannel] = useState<"account" | "mazora">("mazora");
-  const dispatchableTemplates = templates.filter((t) => !t.fixed);
+  // Fixed templates fire from an auth flow, and a disabled one is switched
+  // off — neither belongs in the manual dispatcher's template list.
+  const dispatchableTemplates = templates.filter((t) => !t.fixed && t.enabled);
   const [selectedTemplateId, setSelectedTemplateId] = useState(dispatchableTemplates[0]?.id || "");
   const firstTpl = dispatchableTemplates[0];
   const initialDirect = parseTitleIconAndText(firstTpl?.title || "");
@@ -289,26 +323,16 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
       message: message.trim(),
       audience: target,
       category,
+      priority,
       sender: broadcastChannel === "mazora" ? "mazora" : "staff",
     });
     setSending(false);
     setFeedbackError(!result.ok);
     setSuccessMsg(result.message);
     if (result.ok) {
-      const newBroadcast: BroadcastItem = {
-        id: `b-${Date.now()}`,
-        title: fullTitle,
-        message: message.trim(),
-        target,
-        priority,
-        category,
-        sender: broadcastChannel === "mazora" ? "Mazora Team" : "User Account",
-        createdAt: "Just now",
-      };
-
-      setBroadcasts((prev) => [newBroadcast, ...prev]);
       setTitleText("");
       setMessage("");
+      router.refresh();
     }
     setTimeout(() => setSuccessMsg(""), 4000);
   };
@@ -372,29 +396,35 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
     setEditCategory(item.category);
   };
 
-  const saveEditBroadcast = (id: string) => {
-    setBroadcasts((prev) =>
-      prev.map((b) =>
-        b.id === id
-          ? {
-              ...b,
-              title: editTitle.trim(),
-              message: editMessage.trim(),
-              target: editTarget,
-              priority: editPriority,
-              category: editCategory,
-            }
-          : b
-      )
-    );
-    setEditingId(null);
-    setFeedbackError(false);
-    setSuccessMsg("Broadcast details updated!");
-    setTimeout(() => setSuccessMsg(""), 3000);
+  const saveEditBroadcast = async (id: string) => {
+    if (!editTitle.trim() || !editMessage.trim()) return;
+    setSending(true);
+    const result = await updateBroadcastNotificationAction({
+      id,
+      title: editTitle.trim(),
+      message: editMessage.trim(),
+      audience: editTarget,
+      priority: editPriority,
+      category: editCategory,
+    });
+    setSending(false);
+    setFeedbackError(!result.ok);
+    setSuccessMsg(result.message);
+    if (result.ok) {
+      setEditingId(null);
+      router.refresh();
+    }
+    setTimeout(() => setSuccessMsg(""), 4000);
   };
 
-  const handleDelete = (id: string) => {
-    setBroadcasts((prev) => prev.filter((b) => b.id !== id));
+  const handleDelete = async (id: string) => {
+    setSending(true);
+    const result = await deleteBroadcastNotificationAction(id);
+    setSending(false);
+    setFeedbackError(!result.ok);
+    setSuccessMsg(result.message);
+    if (result.ok) router.refresh();
+    setTimeout(() => setSuccessMsg(""), 4000);
   };
 
   const startEditTemplate = (tpl: DefaultTemplate) => {
@@ -403,24 +433,32 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
     setEditTplMessage(tpl.message);
   };
 
-  const saveEditTemplate = (id: string) => {
-    setTemplates((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, title: editTplTitle.trim(), message: editTplMessage.trim() }
-          : t
-      )
-    );
-    setEditingTplId(null);
-    setFeedbackError(false);
-    setSuccessMsg("Default template updated!");
-    setTimeout(() => setSuccessMsg(""), 3000);
+  const saveEditTemplate = async (id: string) => {
+    if (!editTplTitle.trim() || !editTplMessage.trim()) return;
+    setSending(true);
+    const result = await updateNotificationTemplateAction({
+      id,
+      title: editTplTitle.trim(),
+      message: editTplMessage.trim(),
+    });
+    setSending(false);
+    setFeedbackError(!result.ok);
+    setSuccessMsg(result.message);
+    if (result.ok) {
+      setEditingTplId(null);
+      router.refresh();
+    }
+    setTimeout(() => setSuccessMsg(""), 4000);
   };
 
-  const toggleTemplateEnabled = (id: string) => {
-    setTemplates((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, enabled: !t.enabled } : t))
-    );
+  const toggleTemplateEnabled = async (tpl: DefaultTemplate) => {
+    setSending(true);
+    const result = await setNotificationTemplateEnabledAction(tpl.id, !tpl.enabled);
+    setSending(false);
+    setFeedbackError(!result.ok);
+    setSuccessMsg(result.message);
+    if (result.ok) router.refresh();
+    setTimeout(() => setSuccessMsg(""), 4000);
   };
 
   const getPriorityBadge = (p: BroadcastItem["priority"]) => {
@@ -737,7 +775,7 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
 
                       <div className="flex justify-end gap-2 pt-1">
                         <button type="button" onClick={() => setEditingId(null)} className="px-3 py-1.5 rounded-xl border border-line bg-surface text-muted text-xs font-bold hover:text-ink">Cancel</button>
-                        <button type="button" onClick={() => saveEditBroadcast(item.id)} className="px-4 py-1.5 rounded-xl bg-accent text-white text-xs font-bold shadow-md shadow-accent/20 flex items-center gap-1.5">
+                        <button type="button" disabled={sending} onClick={() => void saveEditBroadcast(item.id)} className="px-4 py-1.5 rounded-xl bg-accent text-white text-xs font-bold shadow-md shadow-accent/20 flex items-center gap-1.5 disabled:opacity-50">
                           <Save size={13} /> Save Changes
                         </button>
                       </div>
@@ -755,7 +793,7 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
                           <button type="button" onClick={() => startEditBroadcast(item)} className="px-2.5 py-1.5 rounded-xl border border-line bg-surface hover:bg-surface/80 text-ink text-xs font-bold flex items-center gap-1 transition-all" title="Edit broadcast details">
                             <Edit3 size={13} /><span>Edit Details</span>
                           </button>
-                          <button type="button" onClick={() => handleDelete(item.id)} title="Delete broadcast entry" className="p-1.5 rounded-xl border border-transparent hover:border-red-500/40 hover:bg-red-500/10 text-muted hover:text-red-400 transition-all">
+                          <button type="button" disabled={sending} onClick={() => void handleDelete(item.id)} title="Withdraw this broadcast from every recipient's feed" className="p-1.5 rounded-xl border border-transparent hover:border-red-500/40 hover:bg-red-500/10 text-muted hover:text-red-400 transition-all disabled:opacity-50">
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -763,7 +801,9 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
                       <p className="text-sm text-ink/80 dark:text-muted font-medium leading-relaxed">{item.message}</p>
                       <div className="text-xs text-muted/80 font-semibold pt-1 border-t border-line/40 flex items-center justify-between">
                         <span>Sent by {item.sender}</span>
-                        <span className="text-accent-bright font-bold">Active in user feeds</span>
+                        <span className="text-accent-bright font-bold">
+                          Active in {item.delivered} user feed{item.delivered === 1 ? "" : "s"}
+                        </span>
                       </div>
                     </>
                   )}
@@ -1058,7 +1098,7 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
 
                     <div className="flex justify-end gap-2 pt-1">
                       <button type="button" onClick={() => setEditingTplId(null)} className="px-3.5 py-2 rounded-xl border border-line bg-surface text-muted text-xs font-bold hover:text-ink">Cancel</button>
-                      <button type="button" onClick={() => saveEditTemplate(tpl.id)} className="px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold shadow-md shadow-accent/20 flex items-center gap-1.5">
+                      <button type="button" disabled={sending} onClick={() => void saveEditTemplate(tpl.id)} className="px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold shadow-md shadow-accent/20 flex items-center gap-1.5 disabled:opacity-50">
                         <Save size={14} /> Save Template
                       </button>
                     </div>
@@ -1071,57 +1111,62 @@ export function AdminBroadcastManager({ users = [] }: { users?: UserOption[] }) 
                         <div className="flex items-center gap-2">
                           <h4 className="font-display text-base font-bold text-ink">{tpl.name}</h4>
 
-                          {tpl.fixed ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border bg-accent/15 text-accent-bright border-accent/25">
-                                <Lock size={10} /> Fixed Default
-                              </span>
-                              {tpl.id === "tpl-welcome" && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border bg-blue-500/15 text-blue-400 border-blue-500/25">
-                                  <Mail size={10} /> Website + Email Delivery
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className={cn(
-                              "px-2 py-0.5 rounded-full text-[10px] font-extrabold border",
-                              tpl.enabled
-                                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                                : "bg-surface text-muted border-line"
-                            )}>
-                              {tpl.enabled ? "Active" : "Disabled"}
+                          {tpl.fixed && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border bg-accent/15 text-accent-bright border-accent/25">
+                              <Lock size={10} /> Fixed Default
                             </span>
                           )}
+                          {tpl.delivery === "website_email" && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border bg-blue-500/15 text-blue-400 border-blue-500/25">
+                              <Mail size={10} /> Website + Email Delivery
+                            </span>
+                          )}
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full text-[10px] font-extrabold border",
+                            tpl.enabled
+                              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                              : "bg-surface text-muted border-line"
+                          )}>
+                            {tpl.enabled ? "Active" : "Disabled"}
+                          </span>
                         </div>
                         <p className="text-xs text-muted font-medium pt-0.5">{tpl.trigger}</p>
                       </div>
 
                       <div className="flex items-center gap-2">
                         {!tpl.fixed && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => triggerTplForUser(tpl)}
-                              className="px-3 py-1.5 rounded-xl border border-accent/40 bg-accent/15 text-accent-bright hover:bg-accent/25 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-                            >
-                              <Send size={13} />
-                              <span>Dispatch to User</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => toggleTemplateEnabled(tpl.id)}
-                              className={cn(
-                                "px-3 py-1.5 rounded-xl border text-xs font-bold transition-all",
-                                tpl.enabled
-                                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-                                  : "border-line bg-surface text-muted hover:text-ink"
-                              )}
-                            >
-                              {tpl.enabled ? "Disable" : "Enable"}
-                            </button>
-                          </>
+                          <button
+                            type="button"
+                            onClick={() => triggerTplForUser(tpl)}
+                            className="px-3 py-1.5 rounded-xl border border-accent/40 bg-accent/15 text-accent-bright hover:bg-accent/25 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                          >
+                            <Send size={13} />
+                            <span>Dispatch to User</span>
+                          </button>
                         )}
+
+                        {/* Fixed templates can be switched off too — that is what
+                            stops the auto-dispatch from firing on sign-in. */}
+                        <button
+                          type="button"
+                          disabled={sending}
+                          onClick={() => void toggleTemplateEnabled(tpl)}
+                          title={
+                            tpl.fixed
+                              ? tpl.enabled
+                                ? "Stop this default firing automatically on sign-in"
+                                : "Resume automatic delivery on sign-in"
+                              : undefined
+                          }
+                          className={cn(
+                            "px-3 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-50",
+                            tpl.enabled
+                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                              : "border-line bg-surface text-muted hover:text-ink"
+                          )}
+                        >
+                          {tpl.enabled ? "Disable" : "Enable"}
+                        </button>
 
                         <button
                           type="button"

@@ -4,6 +4,7 @@ import { Bell, Receipt, Shield, ArrowRight, ShoppingBag, ExternalLink } from "lu
 import { requireSession, isStaff, getSessionUserId } from "@/lib/auth";
 import { roleLabel } from "@/lib/auth/roles";
 import { getOrdersForUser } from "@/lib/data/orders";
+import { countUnreadNotifications } from "@/lib/notifications-auto";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -21,6 +22,7 @@ export default async function DashboardOverview() {
   const userId = await getSessionUserId();
 
   const orders = userId ? await getOrdersForUser(userId) : [];
+  const unreadNotifications = userId ? await countUnreadNotifications(userId) : 0;
 
   let minecraftUsername: string | null = null;
   if (userId && isSupabaseConfigured()) {
@@ -152,12 +154,14 @@ export default async function DashboardOverview() {
               <Bell size={20} />
             </span>
             <div>
-              <div className="telemetry text-2xl font-black text-ink">0</div>
+              <div className="telemetry text-2xl font-black text-ink">{unreadNotifications}</div>
               <div className="text-xs font-bold text-ink group-hover:text-accent-bright transition-colors">
                 Notifications
               </div>
               <div className="text-[11px] text-muted font-medium mt-0.5">
-                View alerts & dispatches
+                {unreadNotifications > 0
+                  ? `${unreadNotifications} unread alert${unreadNotifications === 1 ? "" : "s"}`
+                  : "View alerts & dispatches"}
               </div>
             </div>
           </div>

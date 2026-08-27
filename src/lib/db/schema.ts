@@ -373,6 +373,47 @@ export const voteHistory = pgTable("vote_history", {
   votedAt: timestamp("voted_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({ ownerIdx: index("votes_owner_idx").on(t.userId, t.votedAt.desc()) }));
 
+/**
+ * The editable default notification templates shown on /admin/notifications.
+ * `fixed` templates fire automatically from an auth flow (welcome, session
+ * verification) and cannot be dispatched by hand — only their text is editable.
+ */
+export const notificationTemplates = pgTable("notification_templates", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  triggerNote: text("trigger_note").notNull().default(""),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  category: text("category").notNull().default("system"),
+  sender: text("sender").notNull().default("mazora"),
+  delivery: text("delivery").notNull().default("website"),
+  fixed: boolean("fixed").notNull().default(false),
+  enabled: boolean("enabled").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** History of sent broadcasts, so admins can list, edit, and withdraw them. */
+export const notificationBroadcasts = pgTable(
+  "notification_broadcasts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    audience: text("audience").notNull().default("all"),
+    category: text("category").notNull().default("announcement"),
+    sender: text("sender").notNull().default("mazora"),
+    priority: text("priority").notNull().default("normal"),
+    href: text("href"),
+    delivered: integer("delivered").notNull().default(0),
+    actorId: uuid("actor_id"),
+    actorName: text("actor_name"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({ createdIdx: index("notification_broadcasts_created_idx").on(t.createdAt.desc()) }),
+);
+
 export const notifications = pgTable(
   "notifications",
   {
@@ -383,12 +424,15 @@ export const notifications = pgTable(
     category: text("category").notNull().default("system"),
     sender: text("sender").notNull().default("mazora"),
     href: text("href"),
+    /** Set when this row was delivered by a broadcast; cascades on withdrawal. */
+    broadcastId: uuid("broadcast_id").references(() => notificationBroadcasts.id, { onDelete: "cascade" }),
     readAt: timestamp("read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
     userCreatedIdx: index("notifications_user_created_idx").on(t.userId, t.createdAt.desc()),
     unreadIdx: index("notifications_unread_idx").on(t.userId, t.createdAt.desc()).where(sql`${t.readAt} is null`),
+    broadcastIdx: index("notifications_broadcast_idx").on(t.broadcastId).where(sql`${t.broadcastId} is not null`),
   }),
 );
 
