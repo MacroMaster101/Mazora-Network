@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, ChevronDown, Home, LayoutDashboard, LogOut, Menu, X } from "lucide-react";
-import { isStaff, roleDashboardPath } from "@/lib/auth/roles";
+import { ArrowUpRight, ChevronDown, Home, LayoutDashboard, LogOut, Menu, Shield, X } from "lucide-react";
+import { isStaff } from "@/lib/auth/roles";
+import { accountMenuFor, type AccountMenuIcon as AccountMenuIconName } from "@/lib/account-menu";
 import { primaryNav, site } from "@/lib/site";
 import type { Session } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -14,6 +15,14 @@ import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 import { NavIcon } from "./nav-icon";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
+
+/** Draws the icon the shared account menu names for an entry. */
+function AccountMenuIcon({ icon }: { icon: AccountMenuIconName }) {
+  const tint = "text-purple-600 dark:text-purple-400";
+  if (icon === "control-room") return <Shield size={14} className={tint} />;
+  if (icon === "dashboard") return <LayoutDashboard size={14} className={tint} />;
+  return <NavIcon label="Settings" size={14} />;
+}
 
 export interface DrawerNavGroup {
   heading: string;
@@ -245,8 +254,11 @@ export function MobileMenu({
                   <div className="mt-4 border-t border-slate-200/80 dark:border-purple-900/40 pt-4">
                     <p className="mb-2.5 px-2 text-[10px] uppercase tracking-[0.2em] font-black text-purple-600 dark:text-purple-400/80">Account</p>
                     <div className="grid gap-2">
+                      {/* The hero card shows personal identity, so it goes to
+                          the personal dashboard for staff too — the Control
+                          Room has its own button below. */}
                       <Link
-                        href={staff ? roleDashboardPath(session.role) : "/dashboard"}
+                        href="/dashboard"
                         className={cn(
                           "group relative flex items-center justify-between rounded-2xl border p-3.5 transition-all duration-200 shadow-sm",
                           staff
@@ -266,27 +278,32 @@ export function MobileMenu({
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0 text-xs font-black text-purple-600 dark:text-purple-400 group-hover:translate-x-0.5 transition-transform">
-                          <span className="hidden sm:inline">Dashboard</span>
+                          <span className="hidden sm:inline">My Dashboard</span>
                           <ArrowUpRight size={17} />
                         </div>
                       </Link>
 
-                      {/* Quick Shortcut Buttons */}
+                      {/* Quick Shortcut Buttons — the same destinations the
+                          desktop account menu offers, minus the hero card's
+                          own /dashboard link, so nothing is duplicated and
+                          nothing is missing. An odd last item spans the row. */}
                       <div className="grid grid-cols-2 gap-2">
-                        <Link
-                          href={staff ? roleDashboardPath(session.role) : "/dashboard"}
-                          className="flex items-center justify-center gap-2 rounded-xl border border-slate-200/80 dark:border-purple-900/30 bg-slate-50 dark:bg-purple-950/20 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-900/40 hover:text-purple-700 dark:hover:text-white transition-all"
-                        >
-                          <LayoutDashboard size={14} className="text-purple-600 dark:text-purple-400" />
-                          <span>{staff ? "Control Room" : "Dashboard"}</span>
-                        </Link>
-                        <Link
-                          href="/dashboard/settings"
-                          className="flex items-center justify-center gap-2 rounded-xl border border-slate-200/80 dark:border-purple-900/30 bg-slate-50 dark:bg-purple-950/20 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-900/40 hover:text-purple-700 dark:hover:text-white transition-all"
-                        >
-                          <NavIcon label="Settings" size={14} />
-                          <span>My Settings</span>
-                        </Link>
+                        {accountMenuFor(session.role)
+                          // The hero card above is already this destination.
+                          .filter((entry) => entry.icon !== "dashboard")
+                          .map((shortcut, index, all) => (
+                          <Link
+                            key={shortcut.href}
+                            href={shortcut.href}
+                            className={cn(
+                              "flex items-center justify-center gap-2 rounded-xl border border-slate-200/80 dark:border-purple-900/30 bg-slate-50 dark:bg-purple-950/20 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-900/40 hover:text-purple-700 dark:hover:text-white transition-all",
+                              all.length % 2 === 1 && index === all.length - 1 && "col-span-2",
+                            )}
+                          >
+                            <AccountMenuIcon icon={shortcut.icon} />
+                            <span>{shortcut.label}</span>
+                          </Link>
+                        ))}
                       </div>
                     </div>
                   </div>
