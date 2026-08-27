@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashHeader, DashEmpty } from "@/components/dashboard/dash-ui";
+import { NotificationDetailDialog } from "@/components/shared/notification-detail-dialog";
 
 import {
   deleteNotification,
@@ -36,12 +37,25 @@ export function AccountNotificationsFeed() {
 
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
+  /**
+   * True until the first fetch resolves. Without it this screen rendered a
+   * definitive "No notifications" (and every count as 0) while the request was
+   * still in flight, which reads as data loss rather than as loading.
+   */
+  const [loading, setLoading] = useState(true);
+  /**
+   * Held by id rather than by value so the open dialog tracks the live item —
+   * a read toggle updates it, and deleting it closes the dialog on its own.
+   */
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     const load = async () => {
       const next = await getStoredNotifications();
-      if (active) setItems(next);
+      if (!active) return;
+      setItems(next);
+      setLoading(false);
     };
     void load();
 
@@ -95,7 +109,16 @@ export function AccountNotificationsFeed() {
 
   const clearAll = async () => {
     setItems([]);
+    setDetailId(null);
     await deleteNotification();
+  };
+
+  const detailItem = items.find((n) => n.id === detailId) ?? null;
+
+  /** Opening a notification is what marks it read, matching the header bell. */
+  const openDetail = (item: NotificationItem) => {
+    setDetailId(item.id);
+    if (!item.read) void toggleRead(item.id);
   };
 
   const getCategoryBadge = (category: NotificationItem["category"]) => {
@@ -191,7 +214,7 @@ export function AccountNotificationsFeed() {
                 : "text-ink/70 hover:text-ink hover:bg-surface"
             )}
           >
-            All ({items.length})
+            All{loading ? "" : ` (${items.length})`}
           </button>
           <button
             type="button"
@@ -204,7 +227,7 @@ export function AccountNotificationsFeed() {
             )}
           >
             Unread
-            {unreadCount > 0 && (
+            {!loading && unreadCount > 0 && (
               <span className={cn(
                 "px-1.5 py-0.2 rounded-full text-[10px] font-extrabold",
                 filter === "unread" ? "bg-white/20 text-white" : "bg-accent/20 text-accent-bright"
@@ -223,7 +246,7 @@ export function AccountNotificationsFeed() {
                 : "text-ink/70 hover:text-ink hover:bg-surface"
             )}
           >
-            Read ({readCount})
+            Read{loading ? "" : ` (${readCount})`}
           </button>
         </div>
 
@@ -263,7 +286,26 @@ export function AccountNotificationsFeed() {
       </div>
 
       {/* Notifications Feed */}
-      {filteredItems.length === 0 ? (
+      {loading ? (
+        <div className="space-y-3.5" aria-busy="true" aria-live="polite">
+          <span className="sr-only">Loading your notifications…</span>
+          {[0, 1, 2].map((row) => (
+            <div
+              key={row}
+              className="p-5 rounded-2xl border border-gray-200 dark:border-line bg-white dark:bg-card shadow-md backdrop-blur-xl"
+            >
+              <div className="flex items-start gap-3.5">
+                <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200/80 dark:bg-surface animate-pulse" />
+                <div className="flex-1 space-y-2.5 py-0.5">
+                  <div className="h-3.5 w-2/5 rounded-full bg-gray-200/80 dark:bg-surface animate-pulse" />
+                  <div className="h-3 w-full rounded-full bg-gray-200/60 dark:bg-surface/70 animate-pulse" />
+                  <div className="h-3 w-3/5 rounded-full bg-gray-200/60 dark:bg-surface/70 animate-pulse" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredItems.length === 0 ? (
         <DashEmpty
           icon={<Bell size={24} />}
           title={
@@ -286,11 +328,23 @@ export function AccountNotificationsFeed() {
               key={item.id}
               className={cn(
                 "group relative p-5 rounded-2xl border transition-all duration-200 shadow-md backdrop-blur-xl",
+                "hover:border-accent/50 hover:shadow-lg",
                 item.read
                   ? "border-gray-200 dark:border-line bg-white dark:bg-card text-ink/75"
                   : "border-accent/40 bg-white dark:bg-card text-ink shadow-accent/5 ring-1 ring-accent/15"
               )}
             >
+              {/* Covers the card so clicking anywhere opens the detail dialog.
+                  A real button keeps it keyboard- and screen-reader-reachable;
+                  the action controls below sit above it on z-[2]. */}
+              <button
+                type="button"
+                onClick={() => openDetail(item)}
+                className="absolute inset-0 z-[1] rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+              >
+                <span className="sr-only">Open notification: {item.title}</span>
+              </button>
+
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex items-start gap-3.5 min-w-0">
                   {/* Sender Avatar / Status */}
@@ -331,10 +385,13 @@ export function AccountNotificationsFeed() {
                       </h4>
                       {getCategoryBadge(item.category)}
                     </div>
-                    <p className="text-sm text-ink/80 dark:text-muted font-medium leading-relaxed">
+                    {/* Clamped so one long notification cannot push the rest of
+                        the list off screen. The card opens the detail dialog,
+                        which shows the message in full. */}
+                    <p className="text-sm text-ink/80 dark:text-muted font-medium leading-relaxed line-clamp-4">
                       {item.message}
                     </p>
-                    <div className="flex items-center gap-3 pt-0.5">
+                    <div className="flex flex-wrap items-center gap-3 pt-0.5">
                       {getSenderInfo(item.sender)}
                       <span className="text-[10px] text-muted/70 font-medium">·</span>
                       <span className="text-xs text-muted font-semibold">
@@ -344,8 +401,8 @@ export function AccountNotificationsFeed() {
                   </div>
                 </div>
 
-                {/* Individual Item Actions */}
-                <div className="flex items-center gap-2 shrink-0 self-end sm:self-start pt-2 sm:pt-0">
+                {/* Individual Item Actions — above the card-wide open button. */}
+                <div className="relative z-[2] flex items-center gap-2 shrink-0 self-end sm:self-start pt-2 sm:pt-0">
                   <button
                     type="button"
                     onClick={() => toggleRead(item.id)}
@@ -384,6 +441,13 @@ export function AccountNotificationsFeed() {
           ))}
         </div>
       )}
+
+      <NotificationDetailDialog
+        item={detailItem}
+        onClose={() => setDetailId(null)}
+        onToggleRead={toggleRead}
+        onDelete={deleteNotif}
+      />
     </div>
   );
 }
