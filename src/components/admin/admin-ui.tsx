@@ -6,7 +6,7 @@ import { DashEmpty } from "@/components/dashboard/dash-ui";
 export { AdminTable, type Column } from "./admin-table";
 
 const FRIENDLY_UNAVAILABLE_NOTE =
-  "This management tool is coming soon. It will appear here when it is ready for staff use.";
+  "This module is currently in standby mode or being configured by administrators.";
 
 export async function ReadOnlyBanner({ note }: { note?: string }) {
   const session = await getSession();
@@ -18,7 +18,7 @@ export async function ReadOnlyBanner({ note }: { note?: string }) {
       <p className="text-sm text-muted">
         {showDiagnostics
           ? note ?? "Read-only preview. Creating and editing content activates once the service connection and audit logging are configured."
-          : FRIENDLY_UNAVAILABLE_NOTE}
+          : "Read-only mode. Content updates and changes require elevated administrator permissions."}
       </p>
     </div>
   );
@@ -29,7 +29,7 @@ export async function AdminPlaceholder({
   title,
   message,
   technical = true,
-  friendlyTitle = "Coming soon",
+  friendlyTitle = "Service standby",
   friendlyMessage = FRIENDLY_UNAVAILABLE_NOTE,
 }: {
   icon: ReactNode;

@@ -278,10 +278,10 @@ export function MobileMenu({
                           className="flex items-center justify-center gap-2 rounded-xl border border-slate-200/80 dark:border-purple-900/30 bg-slate-50 dark:bg-purple-950/20 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-900/40 hover:text-purple-700 dark:hover:text-white transition-all"
                         >
                           <LayoutDashboard size={14} className="text-purple-600 dark:text-purple-400" />
-                          <span>Dashboard</span>
+                          <span>{staff ? "Control Room" : "Dashboard"}</span>
                         </Link>
                         <Link
-                          href={staff ? "/admin/account" : "/dashboard/settings"}
+                          href="/dashboard/settings"
                           className="flex items-center justify-center gap-2 rounded-xl border border-slate-200/80 dark:border-purple-900/30 bg-slate-50 dark:bg-purple-950/20 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-900/40 hover:text-purple-700 dark:hover:text-white transition-all"
                         >
                           <NavIcon label="Settings" size={14} />
