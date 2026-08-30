@@ -145,7 +145,7 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Legacy auth | Legacy browser-safe anonymous key; used only when no publishable key is set. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Admin features | Server-only Supabase service key used for user, invitation, staff, and avatar administration. Never expose it publicly. |
 | `AUTH_DEMO_MODE` | Local only | Set to `true` only for local UI previews without Supabase. Never enable in production. |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | No | Optional shared rate-limit store (Upstash Redis REST). When set, auth/support/store throttles enforce one global window across all serverless instances; unset, an in-memory per-instance window is used. |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | No | Optional shared rate-limit store (Upstash Redis REST). When set, auth/support/store throttles enforce one global window across all serverless instances; unset, an in-memory per-instance window is used. The daily news cron also sends a read-only `PING` to keep a lightly used free-tier database active. |
 
 The live integrations fail safely:
 

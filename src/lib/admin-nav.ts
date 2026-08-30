@@ -95,7 +95,6 @@ export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
       items: [
         { label: "Users", href: "/admin/users", icon: Users, minRole: "owner", visible: access.users },
         { label: "Minecraft Players", href: "/admin/players", icon: Blocks, minRole: "moderator", visible: access.minecraft },
-        { label: "Suggestions", href: "/admin/suggestions", icon: Lightbulb, minRole: "moderator", visible: access.suggestions },
         { label: "Staff", href: "/admin/staff", icon: ShieldCheck, minRole: "owner", visible: access.staff },
       ],
     },
@@ -115,6 +114,7 @@ export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
       items: [
         { label: "Support Pages", href: "/admin/support", icon: LifeBuoy, minRole: "administrator", visible: access.support },
         { label: "Application Forms", href: "/admin/appeals", icon: Gavel, minRole: "administrator", visible: access.appeals },
+        { label: "Suggestions", href: "/admin/suggestions", icon: Lightbulb, minRole: "moderator", visible: access.suggestions },
       ],
     },
     {

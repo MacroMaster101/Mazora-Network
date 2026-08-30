@@ -64,11 +64,73 @@ export async function dispatchWelcomeNotification(userId: string): Promise<void>
 }
 
 /**
+ * Whether this sign-in looks unrecognised for this account.
+ *
+ * Supabase records `user_agent` and `ip` on every row in `auth.sessions`, so
+ * the account's own history is the fingerprint store — nothing new to persist.
+ * The newest session is the one that was just created by this login; if any
+ * OLDER session carries the same user agent, the account has signed in from
+ * this browser/device before and there is nothing to tell the member.
+ *
+ * KNOWN LIMIT IN THIS DEPLOYMENT, measured rather than assumed: Supabase auth
+ * is called from the Next.js server, so Supabase records the SERVER as the
+ * client. Across all 27 sessions in this project, zero carry a browser user
+ * agent — they read "Vercel Edge Functions", "Next.js Middleware" or "node" —
+ * and the `ip` column holds the Vercel function's address (13.x/18.x/54.x),
+ * not the member's.
+ *
+ * So this cannot currently distinguish one member device from another. What it
+ * does in practice is fire once per account, on the first sign-in, and stay
+ * silent afterwards, because every later session reports the same server user
+ * agent. That is a large improvement on a notice per login and it is the
+ * behaviour the bell now has — but it is NOT true new-device detection, and
+ * this comment exists so nobody later reads the function name and believes it
+ * is.
+ *
+ * Making it real needs the browser's own user agent, which the Next.js server
+ * CAN see via `headers()` at login, hashed and stored per account. That is a
+ * table this project does not have yet.
+ *
+ * Keyed on `user_agent` and NOT on `ip` regardless: the ip column rotates per
+ * function invocation (24 distinct IPs across 27 sessions), so an IP-keyed
+ * rule would fire on nearly every login — worse than the noise it replaced.
+ *
+ * Fails toward notifying. If the history cannot be read, or the session has no
+ * user agent to compare, the member gets the notice: a spurious "new device"
+ * message is a far cheaper mistake than staying silent about a real one.
+ */
+async function isUnrecognisedSession(userId: string): Promise<boolean> {
+  const db = getDb();
+  if (!db) return true;
+  try {
+    const rows = (await db.execute(
+      sql`select user_agent from auth.sessions where user_id = ${userId}::uuid order by created_at desc limit 50`,
+    )) as unknown as Array<{ user_agent: string | null }>;
+
+    const [current, ...previous] = rows ?? [];
+    if (!current?.user_agent) return true;
+    return !previous.some((row) => row.user_agent === current.user_agent);
+  } catch (error) {
+    console.error("New-device check failed", error);
+    return true;
+  }
+}
+
+/**
  * Sends the session-verification notice after a successful sign-in.
  *
- * Deduplicated within a one-hour window so a rapid re-login (or an OAuth round
- * trip that lands back on the callback) does not flood the feed. `broadcastId
- * is null` keeps an admin's `security` broadcast from suppressing it.
+ * Only fires when the sign-in comes from a device the account has not used
+ * before — which is what this template's own trigger note always promised
+ * ("first login or new device session") and what the code did not previously
+ * do. Sent on every login it was noise: a member signing in daily accumulated
+ * a notice a day saying nothing actionable, which trains people to ignore the
+ * bell that also carries the notices that matter.
+ *
+ * Still deduplicated within a one-hour window as a backstop, so a rapid
+ * re-login (or an OAuth round trip that lands back on the callback) cannot
+ * double-send even if the user agent varies between the two hops.
+ * `broadcastId is null` keeps an admin's `security` broadcast from
+ * suppressing it.
  */
 export async function dispatchSessionVerificationNotification(userId: string): Promise<void> {
   const db = getDb();
@@ -76,6 +138,9 @@ export async function dispatchSessionVerificationNotification(userId: string): P
   try {
     const template = await getNotificationTemplate(SESSION_TEMPLATE_ID);
     if (!template || !template.enabled) return;
+
+    // A device this account has used before is not news; say nothing.
+    if (!(await isUnrecognisedSession(userId))) return;
 
     const cutoff = new Date(Date.now() - SESSION_DEDUP_MS);
     const [recent] = await db
@@ -130,5 +195,37 @@ export async function countUnreadNotifications(userId: string): Promise<number> 
     return row?.total ?? 0;
   } catch {
     return 0;
+  }
+}
+
+/**
+ * Tells the right person that someone replied: the suggestion's author for a
+ * top-level reply, or the specific person answered (the parent reply's
+ * author) for a nested reply — the `context` field picks the wording so a
+ * nested-reply recipient isn't told they got a reply "to your suggestion"
+ * when the suggestion may belong to someone else entirely. Best-effort like
+ * every dispatch here: a notification failure must never fail the reply
+ * itself. Replying to your own suggestion or your own reply notifies nobody.
+ */
+export async function dispatchSuggestionReplyNotification(input: {
+  authorId: string; replierId: string; suggestionId: string;
+  suggestionTitle: string; replierName: string; context: "suggestion" | "reply";
+}): Promise<void> {
+  const db = getDb();
+  if (!db || !input.authorId || input.authorId === input.replierId) return;
+  const isNested = input.context === "reply";
+  try {
+    await db.insert(schema.notifications).values({
+      userId: input.authorId,
+      title: isNested ? "💬 New reply to your comment" : "💬 New reply to your suggestion",
+      message: isNested
+        ? `${input.replierName} replied to your comment on "${input.suggestionTitle}".`
+        : `${input.replierName} replied to "${input.suggestionTitle}".`,
+      category: "support",
+      sender: "mazora",
+      href: `/support/suggestions/${input.suggestionId}`,
+    });
+  } catch (error) {
+    console.error("Suggestion reply notification dispatch failed", error);
   }
 }
