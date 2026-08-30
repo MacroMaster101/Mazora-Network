@@ -6,6 +6,8 @@ import { throttleAuthAction } from "@/lib/rate-limit";
 import { getDb } from "@/lib/db/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import * as schema from "@/lib/db/schema";
+import { storeSuggestionImages, storeSuggestionImagesFromUrls } from "@/lib/suggestions/image-store";
+import { attachmentCountError, filesFromFormData, imageSizeError, urlsFromFormData } from "@/lib/suggestion-image-rules";
 
 export interface ActionResult {
   ok: boolean;
@@ -101,14 +103,81 @@ export async function submitSuggestion(_prev: ActionResult, formData: FormData):
   if ("ok" in auth) return auth;
   const parsed = suggestionSchema.safeParse(fields(formData));
   if (!parsed.success) return { ok: false, errors: zodErrors(parsed.error) };
-  const saved = await persist(async () =>
-    getDb()!.insert(schema.suggestions).values({
-      userId: auth.userId!,
-      title: parsed.data.title,
-      category: parsed.data.category,
-      description: parsed.data.description,
-    }),
-  );
+
+  // Pure input validation: refuse an over-cap batch BEFORE anything is written,
+  // so a member never sees a failure message for a suggestion that was in fact
+  // created. (Storage failures below are different — those come after the save
+  // and must never roll it back.)
+  const files = filesFromFormData(formData, "images");
+  const imageUrls = urlsFromFormData(formData, "imageUrls");
+  const countError = attachmentCountError(files.length, imageUrls.length);
+  if (countError) return { ok: false, message: countError };
+  for (const file of files) {
+    const sizeError = imageSizeError(file.size);
+    if (sizeError) return { ok: false, message: sizeError };
+  }
+
+  let suggestionId: string | undefined;
+  const saved = await persist(async () => {
+    const [row] = await getDb()!
+      .insert(schema.suggestions)
+      .values({
+        userId: auth.userId!,
+        title: parsed.data.title,
+        category: parsed.data.category,
+        description: parsed.data.description,
+      })
+      .returning({ id: schema.suggestions.id });
+    suggestionId = row?.id;
+  });
   if (!saved) return { ok: false, message: SAVE_FAILED };
-  return { ok: true, message: "Suggestion submitted. The community can vote on it soon." };
+
+  // Images are attached after the suggestion is saved and never roll it back:
+  // losing someone's written idea because one attachment was malformed is the
+  // worse failure. A rejected file is reported in the message instead.
+  const requestedImages = files.length + imageUrls.length;
+  let attached = 0;
+  let attachFailed = false;
+  if (suggestionId && (files.length || imageUrls.length)) {
+    const target = { kind: "suggestion" as const, id: suggestionId };
+    const uploaded = await storeSuggestionImages(files, target);
+    // Links continue the sort order after the uploads, so a post mixing
+    // both keeps them in the order the member gave them.
+    const linked = await storeSuggestionImagesFromUrls(imageUrls, target, uploaded.length);
+    const stored = [...uploaded, ...linked];
+    if (stored.length) {
+      try {
+        await getDb()!
+          .insert(schema.suggestionImages)
+          .values(
+            stored.map((image) => ({
+              suggestionId,
+              userId: auth.userId!,
+              url: image.url,
+              storageKey: image.storageKey,
+              sortOrder: image.sortOrder,
+            })),
+          );
+        attached = stored.length;
+      } catch (error) {
+        // The suggestion itself is already committed above; a failure here
+        // (dropped connection, FK issue) must not surface as a failed
+        // submission — that would invite a duplicate retry of a suggestion
+        // that is already live. Log, leave `attached` at 0 so imageNote
+        // reports honestly, and fall through to the success return. These
+        // files DID pass validation (storeSuggestionImages already accepted
+        // them) — this is a server fault, not a bad-file problem, so the
+        // message below must not blame the member's files for it.
+        console.error("Failed to attach images to suggestion", error);
+        attachFailed = true;
+      }
+    }
+  }
+
+  const imageNote = attachFailed
+    ? ` We couldn't save your images because of a server error — please try attaching them again.`
+    : requestedImages && attached < requestedImages
+      ? ` ${attached} of ${requestedImages} images were attached — the rest could not be read.`
+      : "";
+  return { ok: true, message: `Suggestion submitted. The community can vote on it soon.${imageNote}` };
 }

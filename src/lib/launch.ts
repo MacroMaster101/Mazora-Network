@@ -26,14 +26,6 @@ export const launchGates: LaunchGate[] = [
     message: "Live profiles and statistics will open after the Minecraft account pipeline has completed verification.",
   },
   {
-    path: "/support/suggestions",
-    icon: "Sparkles",
-    eyebrow: "Community launch",
-    title: "Suggestions will open soon.",
-    message: "Voting, moderation and account attribution are being completed before ideas are accepted.",
-  },
-
-  {
     path: "/dashboard",
     match: "children",
     icon: "Activity",
