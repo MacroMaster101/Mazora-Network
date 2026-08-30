@@ -279,7 +279,10 @@ describe("permission-aware admin navigation", () => {
     const access = { ...denied, suggestions: true, appeals: true, events: true };
     assert.deepEqual(
       labels("helper", access),
-      ["Control room", "Suggestions", "Events", "Application Forms"],
+      // Suggestions sits last in the Support group (after Support Pages and
+      // Application Forms), and Support follows Content — so it trails "Events"
+      // and "Application Forms" here. Order is section order, not permission order.
+      ["Control room", "Events", "Application Forms", "Suggestions"],
     );
   });
 

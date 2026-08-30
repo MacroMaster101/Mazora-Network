@@ -22,6 +22,10 @@ export interface SiteGeneralSettings {
   storeEnabled: boolean;
   votingEnabled: boolean;
   liveMapEnabled: boolean;
+  /** When false, /support/suggestions serves the launch "coming soon" view
+   *  instead of the board. A runtime switch, so opening or closing the
+   *  feature does not need a code change and a redeploy. */
+  suggestionsEnabled: boolean;
   ogImageUrl: string;
 }
 
@@ -42,6 +46,7 @@ export const DEFAULT_SITE_SETTINGS: SiteGeneralSettings = {
   storeEnabled: true,
   votingEnabled: true,
   liveMapEnabled: false,
+  suggestionsEnabled: true,
   ogImageUrl: "/images/og-default.webp",
 };
 
@@ -67,6 +72,14 @@ function mergeSettings(value: unknown): SiteGeneralSettings {
     storeEnabled: stored.storeEnabled !== undefined ? Boolean(stored.storeEnabled) : true,
     votingEnabled: stored.votingEnabled !== undefined ? Boolean(stored.votingEnabled) : true,
     liveMapEnabled: Boolean(stored.liveMapEnabled),
+    // Absent means "not yet configured", which must fall back to the default
+    // (true) rather than to Boolean(undefined) === false. Every settings row
+    // written before this key existed lacks it, so a plain Boolean() here
+    // would take the live board down the moment settings were next read.
+    suggestionsEnabled:
+      stored.suggestionsEnabled === undefined
+        ? DEFAULT_SITE_SETTINGS.suggestionsEnabled
+        : Boolean(stored.suggestionsEnabled),
     ogImageUrl: typeof stored.ogImageUrl === "string" && stored.ogImageUrl.trim() ? stored.ogImageUrl.trim() : DEFAULT_SITE_SETTINGS.ogImageUrl,
   };
 }

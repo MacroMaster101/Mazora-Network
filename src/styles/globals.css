@@ -2286,6 +2286,30 @@ html {
     box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.14);
   }
 
+  select.field {
+    color-scheme: light;
+    background-color: rgb(var(--card));
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b5a78' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.8rem center;
+    background-repeat: no-repeat;
+  }
+
+  select.field option {
+    background: #ffffff;
+    color: #21172a;
+  }
+
+  :root[data-theme="dark"] select.field {
+    color-scheme: dark;
+    background-color: rgb(var(--card));
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23d8b4fe' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  :root[data-theme="dark"] select.field option {
+    background: #171020;
+    color: #f5effa;
+  }
+
   textarea.field {
     height: auto;
     padding-block: 0.7rem;

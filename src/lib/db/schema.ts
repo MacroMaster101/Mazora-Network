@@ -17,6 +17,7 @@ import {
   primaryKey,
   check,
   foreignKey,
+  AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -209,16 +210,21 @@ export const suggestions = pgTable("suggestions", {
   category: text("category").notNull().default("Gameplay"),
   description: text("description").notNull(),
   status: text("status").notNull().default("open"),
+  locked: boolean("locked").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const suggestionVotes = pgTable("suggestion_votes", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  suggestionId: uuid("suggestion_id").notNull(),
-  userId: uuid("user_id").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const suggestionVotes = pgTable(
+  "suggestion_votes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    suggestionId: uuid("suggestion_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({ voterIdx: uniqueIndex("suggestion_votes_unique_voter").on(t.suggestionId, t.userId) }),
+);
 
 export const products = pgTable(
   "products",
@@ -487,4 +493,68 @@ export const siteSettings = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({ keyIdx: uniqueIndex("site_settings_key_idx").on(t.settingKey) }),
+);
+
+export const suggestionReplies = pgTable(
+  "suggestion_replies",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    suggestionId: uuid("suggestion_id").notNull().references(() => suggestions.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    editedAt: timestamp("edited_at", { withTimezone: true }),
+    /** Soft delete: the row stays so the thread keeps its shape. */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    /** One-level nesting: a top-level parent reply, or null. Depth beyond one
+     *  is prevented in the post action, not here. */
+    parentId: uuid("parent_id").references((): AnyPgColumn => suggestionReplies.id, { onDelete: "cascade" }),
+  },
+  (t) => ({
+    threadIdx: index("suggestion_replies_thread_idx").on(t.suggestionId, t.createdAt),
+    parentIdx: index("suggestion_replies_parent_idx").on(t.parentId).where(sql`${t.parentId} is not null`),
+  }),
+);
+
+export const suggestionImages = pgTable(
+  "suggestion_images",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    /** Exactly one of these is set — see the CHECK in migration 042. */
+    suggestionId: uuid("suggestion_id").references(() => suggestions.id, { onDelete: "cascade" }),
+    replyId: uuid("reply_id").references(() => suggestionReplies.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    url: text("url").notNull(),
+    /** Kept so a delete can remove the stored object, not just this row. */
+    storageKey: text("storage_key").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    suggestionIdx: index("suggestion_images_suggestion_idx").on(t.suggestionId, t.sortOrder).where(sql`${t.suggestionId} is not null`),
+    replyIdx: index("suggestion_images_reply_idx").on(t.replyId, t.sortOrder).where(sql`${t.replyId} is not null`),
+  }),
+);
+
+/**
+ * Community reports against a suggestion or a reply. Exactly one target column
+ * is set; the SQL CHECK enforces it. Uniqueness is two partial indexes, which
+ * the Drizzle builder cannot express, so it is declared in migration 039 only —
+ * see the comment there before changing either side.
+ */
+export const contentReports = pgTable(
+  "content_reports",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    reporterId: uuid("reporter_id").notNull(),
+    suggestionId: uuid("suggestion_id").references(() => suggestions.id, { onDelete: "cascade" }),
+    replyId: uuid("reply_id").references(() => suggestionReplies.id, { onDelete: "cascade" }),
+    reason: text("reason").notNull(),
+    note: text("note"),
+    status: text("status").notNull().default("open"),
+    resolvedBy: uuid("resolved_by"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({ queueIdx: index("content_reports_queue_idx").on(t.status, t.createdAt.desc()) }),
 );
