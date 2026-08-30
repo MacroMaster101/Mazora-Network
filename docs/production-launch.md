@@ -16,10 +16,10 @@ When launch mode is on, unfinished URLs keep their original address but render t
 
 - Forums
 - Player directory and player profiles
-- Player reports, bug reports and suggestions
+- Player reports and bug reports
 - Dashboard subpages except settings, Minecraft linking, statistics and purchases; the dashboard overview remains available
 
-Home, Play, Status, Game Modes, Gallery, News, Events, Team, Rules, Discord, voting, Store, Support Center, appeals, staff applications, content-creator applications, legal pages, authentication and the dashboard overview remain available.
+Home, Play, Status, Game Modes, Gallery, News, Events, Team, Rules, Discord, voting, Store, Support Center, suggestions, appeals, staff applications, content-creator applications, legal pages, authentication and the dashboard overview remain available.
 
 The launch list lives in `src/lib/launch.ts`. To release one feature, remove only its entry from `launchGates`, run the checks below, commit and deploy. Other unfinished features stay protected.
 

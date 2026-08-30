@@ -32,6 +32,7 @@ const siteSettingsSchema = z.object({
   maintenanceMode: z.boolean(),
   registrationEnabled: z.boolean(),
   storeEnabled: z.boolean(),
+  suggestionsEnabled: z.boolean(),
   votingEnabled: z.boolean(),
   // Present in the stored shape (src/lib/data/site-settings.ts) and in the
   // editor's form, but it was missing here — so parsed.data never carried it,
@@ -81,6 +82,7 @@ export async function saveSiteGeneralSettingsAction(
     storeEnabled: formData.get("storeEnabled") === "on",
     votingEnabled: formData.get("votingEnabled") === "on",
     liveMapEnabled: formData.get("liveMapEnabled") === "on",
+    suggestionsEnabled: formData.get("suggestionsEnabled") === "on",
     ogImageUrl: String(formData.get("ogImageUrl") ?? "").trim() || "/images/og-default.webp",
   };
 

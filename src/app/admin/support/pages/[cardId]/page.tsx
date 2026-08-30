@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { SUPPORT_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
@@ -15,6 +15,14 @@ export const metadata: Metadata = { title: "Support page details · Admin" };
 export default async function AdminSupportCardDetailsPage({ params }: { params: Promise<{ cardId: string }> }) {
   await requireModuleAccess(SUPPORT_PERMISSION_KEY, "/admin/support/pages");
   const { cardId } = await params;
+  // The suggestions card has its own dedicated editor. Its managed-page fields
+  // (ticket type, preparation checklist, privacy note) are never rendered by
+  // /support/suggestions — that route draws the board instead — so the shared
+  // editor here would offer three sections that cannot change the page. Send
+  // staff to the editor that only shows what actually applies, whichever door
+  // they came through.
+  if (decodeURIComponent(cardId) === "suggestions") redirect("/admin/suggestions/page-edit");
+
   const cards = await getSupportCards();
   const card = cards.find((item) => item.id === decodeURIComponent(cardId));
   if (!card) notFound();

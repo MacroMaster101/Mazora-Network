@@ -731,6 +731,13 @@ export function SiteSettingsEditor({
             onChange={(val) => setFormState((p) => ({ ...p, storeEnabled: val }))}
           />
           <FeatureToggleCard
+            name="suggestionsEnabled"
+            label="Suggestions Board"
+            desc="Open the public suggestions board. Turn off to show the “coming soon” page instead — existing ideas and replies are kept, just hidden."
+            checked={formState.suggestionsEnabled}
+            onChange={(val) => setFormState((p) => ({ ...p, suggestionsEnabled: val }))}
+          />
+          <FeatureToggleCard
             name="votingEnabled"
             label="Server Voting"
             desc="Allow community voting for daily rewards and bonuses."
