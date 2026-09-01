@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { presenceLabels } from "./presence-status.js";
+import { isFatalLoginError, presenceLabels } from "./presence-status.js";
 
 test("uses the live Minecraft capacity and shows both Discord counts", () => {
   const labels = presenceLabels({
@@ -58,4 +58,26 @@ test("does not invent a maximum when an online provider omits it", () => {
   });
 
   assert.equal(labels.minecraft, "⛏️ mc.mazora.us • 12 online");
+});
+
+test("gives up only on failures that cannot fix themselves", () => {
+  // Both observed from discord.js directly: the second was reproduced live by
+  // requesting GuildPresences before enabling it in the Developer Portal.
+  assert.equal(isFatalLoginError("An invalid token was provided."), true);
+  assert.equal(isFatalLoginError("Used disallowed intents"), true);
+});
+
+test("keeps retrying a rate-limit ban and other transient failures", () => {
+  // Verbatim from Discord's 429 body on Render's shared outbound IP — the
+  // exact case that must never exit, or the service crash-loops until the ban
+  // happens to lift during a restart.
+  assert.equal(
+    isFatalLoginError(
+      "You are being blocked from accessing our API temporarily due to exceeding global rate limits.",
+    ),
+    false,
+  );
+  assert.equal(isFatalLoginError("fetch failed"), false);
+  assert.equal(isFatalLoginError("getaddrinfo ENOTFOUND discord.com"), false);
+  assert.equal(isFatalLoginError("The operation was aborted due to timeout"), false);
 });
