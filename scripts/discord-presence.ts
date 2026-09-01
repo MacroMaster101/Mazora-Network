@@ -17,7 +17,7 @@ type MinecraftFallbackStatus = {
   };
 };
 
-type DiscordInviteStats = {
+type DiscordCounts = {
   approximate_presence_count?: number;
   approximate_member_count?: number;
 };
@@ -34,15 +34,12 @@ const siteOrigin = (() => {
   }
 })();
 
-const inviteUrl = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL?.trim() || "https://discord.gg/ZPrzyGpMyt";
-const inviteCode = (() => {
-  try {
-    const parsed = new URL(inviteUrl);
-    return parsed.pathname.split("/").filter(Boolean).at(-1) || "ZPrzyGpMyt";
-  } catch {
-    return "ZPrzyGpMyt";
-  }
-})();
+/*
+  The guild whose counts we report. Optional: at READY the bot already knows
+  which guilds it is in, so this only needs setting if the bot ever joins a
+  second guild and the wrong one would otherwise be picked.
+*/
+let guildId = process.env.DISCORD_GUILD_ID?.trim() || null;
 
 const refreshMs = Math.max(30_000, Number(process.env.DISCORD_PRESENCE_REFRESH_MS) || 60_000);
 const rotateMs = Math.max(15_000, Number(process.env.DISCORD_PRESENCE_ROTATE_MS) || 20_000);
@@ -63,17 +60,71 @@ let snapshot: PresenceSnapshot = {
 };
 let activityIndex = 0;
 
-async function fetchJson<T>(url: string): Promise<T | null> {
+/**
+ * Never swallow the reason a probe failed.
+ *
+ * This used to `return null` both on a non-2xx response and on a thrown
+ * request, which made an HTTP rejection indistinguishable from a dead network
+ * in the logs — the presence line just read "Count unavailable" forever with
+ * nothing anywhere saying why. The status code is the whole diagnosis, so log
+ * it.
+ *
+ * `extraHeaders` carries the bot token, so only the URL's host is ever
+ * printed, never the headers.
+ */
+async function fetchJson<T>(url: string, extraHeaders: Record<string, string> = {}): Promise<T | null> {
+  const host = (() => {
+    try {
+      return new URL(url).host;
+    } catch {
+      return url;
+    }
+  })();
+
   try {
     const response = await fetch(url, {
-      headers: { "User-Agent": "MazoraNetworkPresence/1.0" },
+      headers: { "User-Agent": "MazoraNetworkPresence/1.0", ...extraHeaders },
       signal: AbortSignal.timeout(8_000),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      console.warn(`[presence] GET ${host} -> HTTP ${response.status} ${body.slice(0, 160)}`);
+      return null;
+    }
     return (await response.json()) as T;
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[presence] GET ${host} failed: ${message}`);
     return null;
   }
+}
+
+/**
+ * Read the counts over the bot's own authenticated session.
+ *
+ * The anonymous invite lookup this replaces could not work from Render. That
+ * endpoint sits behind Cloudflare and returns no x-ratelimit-* headers at all,
+ * so it is not on Discord's per-route bucket system — it is filtered at the
+ * edge on source-IP reputation. From a residential IP, 25 rapid requests all
+ * returned 200 with the counts present; from Render's shared datacenter egress
+ * the same one-per-minute request was rejected nearly every time, succeeding
+ * only for a minute or two after a fresh deploy. The invite code, the URL, the
+ * parsing and the rate were all correct the whole time, which is exactly why
+ * this was so hard to see.
+ *
+ * GET /guilds/{id}?with_counts=true carries the bot token, is an ordinary
+ * rate-limited API route rather than an edge-filtered public one, and needs no
+ * privileged intent — only that the bot is in the guild, which it is.
+ */
+async function fetchDiscordCounts(): Promise<DiscordCounts | null> {
+  if (!guildId) {
+    console.warn("[presence] no guild id known yet; skipping Discord counts");
+    return null;
+  }
+  return fetchJson<DiscordCounts>(
+    `https://discord.com/api/v10/guilds/${encodeURIComponent(guildId)}?with_counts=true`,
+    { Authorization: `Bot ${token}` },
+  );
 }
 
 async function isReachable(url: string): Promise<boolean> {
@@ -94,9 +145,7 @@ async function refreshSnapshot(): Promise<void> {
   const [websiteOnline, primaryMinecraft, discord] = await Promise.all([
     isReachable(siteOrigin),
     fetchJson<MinecraftStatus>(`${siteOrigin}/api/status`),
-    fetchJson<DiscordInviteStats>(
-      `https://discord.com/api/v10/invites/${encodeURIComponent(inviteCode)}?with_counts=true`,
-    ),
+    fetchDiscordCounts(),
   ]);
 
   const primaryIsOnline =
@@ -233,6 +282,14 @@ client.once(Events.ClientReady, async (readyClient) => {
   discordReady = true;
   connectedAt = new Date().toISOString();
   console.log(`[presence] connected as ${readyClient.user.tag}`);
+  if (!guildId) {
+    guildId = readyClient.guilds.cache.first()?.id ?? null;
+  }
+  console.log(
+    guildId
+      ? `[presence] reading counts from guild ${guildId} (of ${readyClient.guilds.cache.size} joined)`
+      : "[presence] bot is in no guild; Discord counts will stay unavailable",
+  );
   await refreshSnapshot();
   console.log(
     `[presence] snapshot: Website ${snapshot.websiteOnline ? "online" : "offline"}, Minecraft ${snapshot.minecraftOnline ? `${snapshot.minecraftPlayers}/${snapshot.minecraftMax ?? "unknown max"}` : "offline"}, Discord ${snapshot.discordOnline === null ? "unavailable" : `${snapshot.discordOnline} online`} (${snapshot.discordMembers ?? "?"} members)`,
