@@ -1,4 +1,4 @@
-import { ActivityType, Client, Events, GatewayIntentBits } from "discord.js";
+import { ActivityType, Client, Events, GatewayIntentBits, Routes } from "discord.js";
 import { createServer } from "node:http";
 import { isFatalLoginError, presenceLabels, type PresenceSnapshot } from "./presence-status.js";
 
@@ -398,6 +398,61 @@ const CLOSE_CODES: Record<number, string> = {
   4014: "disallowed intents — enable them in the Developer Portal",
 };
 
+/*
+  What discord.js asks REST for before it can open the socket, and what to
+  answer with when REST will not answer at all.
+
+  Discord publishes wss://gateway.discord.gg as the stable gateway address and
+  expects clients to cache what /gateway/bot returns rather than call it every
+  time, so falling back to it is not a guess. One shard is correct here: this
+  bot is in a single guild, and the recommended count only ever rises above one
+  for very large bots.
+*/
+const FALLBACK_GATEWAY_INFO = {
+  url: "wss://gateway.discord.gg",
+  shards: 1,
+  session_start_limit: { total: 1_000, remaining: 1_000, reset_after: 0, max_concurrency: 1 },
+};
+
+/**
+ * Let the bot connect while the REST API is unreachable.
+ *
+ * The gateway (gateway.discord.gg) and the REST API (discord.com) are separate
+ * hosts, and production proved they fail independently: from Render the REST
+ * probe returns 429 from a Cloudflare ban on the shared outbound IP while the
+ * gateway socket opens in under a second. The only thing standing between that
+ * banned host and a working bot is discord.js's one REST lookup of the gateway
+ * URL — so answer it locally when, and only when, REST refuses.
+ *
+ * This is deliberately a fallback and not a replacement. A healthy REST call
+ * still wins, so the real shard count and session limits are used everywhere
+ * they are available, and this path costs nothing until it is needed.
+ *
+ * Once connected, nothing else here needs REST: GUILD_CREATE carries the
+ * counts and presence updates travel over the socket.
+ */
+function installGatewayFallback(target: Client): void {
+  const rest = target.rest;
+  const originalGet = rest.get.bind(rest);
+
+  rest.get = (async (route: string, options?: unknown) => {
+    if (route !== Routes.gatewayBot()) {
+      return originalGet(route as never, options as never);
+    }
+
+    try {
+      return await originalGet(route as never, options as never);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[presence] REST /gateway/bot unavailable (${message}) — ` +
+          "falling back to the well-known gateway URL and connecting anyway",
+      );
+      return FALLBACK_GATEWAY_INFO;
+    }
+  }) as typeof rest.get;
+}
+
 function createClient(): Client {
   const next = new Client({
     intents: usePresenceIntent
@@ -431,6 +486,8 @@ function createClient(): Client {
     discordReady = true;
     connectedAt = new Date().toISOString();
   });
+
+  installGatewayFallback(next);
 
   return next;
 }
