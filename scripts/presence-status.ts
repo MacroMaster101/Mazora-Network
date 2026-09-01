@@ -14,6 +14,22 @@ export interface PresenceLabels {
 }
 
 /**
+ * Which login failures are worth retrying.
+ *
+ * A wrong token or a privileged intent that is not enabled in the Developer
+ * Portal will never fix itself, so the worker exits and lets someone correct
+ * the configuration. Everything else — most importantly a 429 Cloudflare ban
+ * on a shared outbound IP, but equally a DNS blip or a refused socket — clears
+ * on its own, so the worker must stay alive and keep trying.
+ *
+ * Getting this backwards is the difference between a service that heals itself
+ * and one that crash-loops, which is why it is tested rather than inlined.
+ */
+export function isFatalLoginError(message: string): boolean {
+  return /invalid token|disallowed intents|invalid intents/i.test(message);
+}
+
+/**
  * Produce the exact text sent to Discord. Offline services intentionally omit
  * their capacity so an old `0/500` value can never look like a live reading.
  */

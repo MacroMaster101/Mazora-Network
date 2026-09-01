@@ -1,6 +1,6 @@
 import { ActivityType, Client, Events, GatewayIntentBits } from "discord.js";
 import { createServer } from "node:http";
-import { presenceLabels, type PresenceSnapshot } from "./presence-status.js";
+import { isFatalLoginError, presenceLabels, type PresenceSnapshot } from "./presence-status.js";
 
 type MinecraftStatus = {
   live?: boolean;
@@ -102,19 +102,19 @@ async function fetchJson<T>(url: string, extraHeaders: Record<string, string> = 
 /**
  * Read the counts over the bot's own authenticated session.
  *
- * The anonymous invite lookup this replaces could not work from Render. That
- * endpoint sits behind Cloudflare and returns no x-ratelimit-* headers at all,
- * so it is not on Discord's per-route bucket system — it is filtered at the
- * edge on source-IP reputation. From a residential IP, 25 rapid requests all
- * returned 200 with the counts present; from Render's shared datacenter egress
- * the same one-per-minute request was rejected nearly every time, succeeding
- * only for a minute or two after a fresh deploy. The invite code, the URL, the
- * parsing and the rate were all correct the whole time, which is exactly why
- * this was so hard to see.
+ * This replaces an anonymous /invites/{code}?with_counts=true lookup. The
+ * authenticated route is the correct one regardless: it is on Discord's normal
+ * per-guild bucket system, and it needs no privileged intent — only that the
+ * bot is in the guild, which it is.
  *
- * GET /guilds/{id}?with_counts=true carries the bot token, is an ordinary
- * rate-limited API route rather than an edge-filtered public one, and needs no
- * privileged intent — only that the bot is in the guild, which it is.
+ * It is NOT, however, a defence against the real failure seen in production.
+ * Render's free tier shares an outbound IP between tenants, and that IP gets
+ * Cloudflare-banned for exceeding Discord's global rate limit (10k requests /
+ * 10 min). The ban covers the whole API — authenticated routes included, and
+ * even the unauthenticated /gateway probe, which returned 429 at startup. This
+ * worker issues roughly one Discord request per minute, so it is never the
+ * cause; it is collateral damage. The fix for that is a cleaner outbound IP,
+ * not a different endpoint.
  */
 async function fetchDiscordCounts(): Promise<DiscordCounts | null> {
   if (!guildId) {
@@ -141,11 +141,66 @@ async function isReachable(url: string): Promise<boolean> {
   }
 }
 
+type ResolvedCounts = { online: number | null; members: number | null };
+
+/**
+ * Counts the gateway already gave us, for free.
+ *
+ * GUILD_CREATE carries `member_count`, so the member total costs no request at
+ * all. The online total is only populated when the GuildPresences intent is
+ * enabled, hence the opt-in flag.
+ */
+function gatewayCounts(): ResolvedCounts {
+  const guild = guildId ? client?.guilds.cache.get(guildId) : undefined;
+  if (!guild) return { online: null, members: null };
+
+  const members = typeof guild.memberCount === "number" ? guild.memberCount : null;
+
+  /*
+    Trust the presence cache only when it looks populated.
+
+    Discord truncates GUILD_CREATE for large guilds, and discord.js fills this
+    cache from that payload. If the intent is off, or the cache has not filled
+    yet, or it came back empty for a guild that plainly has members, the honest
+    answer is "I do not know" — return null and let REST answer instead. A
+    silently wrong count is worse than a missing one, because nothing about the
+    presence line would look broken.
+  */
+  const cached = usePresenceIntent
+    ? guild.presences.cache.filter((presence) => presence.status !== "offline").size
+    : 0;
+  const online = usePresenceIntent && cached > 0 ? cached : null;
+
+  return { online, members };
+}
+
+/**
+ * Prefer the gateway, fall back to REST only for what it could not supply.
+ *
+ * With the presence intent enabled this makes zero HTTP requests, which is the
+ * point: an IP-level Cloudflare ban cannot break a number that never travels
+ * over the REST API. Without it, only the online count still needs a request.
+ */
+async function resolveDiscordCounts(): Promise<ResolvedCounts> {
+  const gateway = gatewayCounts();
+  if (gateway.online !== null && gateway.members !== null) return gateway;
+
+  const rest = await fetchDiscordCounts();
+  return {
+    online:
+      gateway.online ??
+      (typeof rest?.approximate_presence_count === "number" ? rest.approximate_presence_count : null),
+    members:
+      gateway.members ??
+      (typeof rest?.approximate_member_count === "number" ? rest.approximate_member_count : null),
+  };
+}
+
 async function refreshSnapshot(): Promise<void> {
   const [websiteOnline, primaryMinecraft, discord] = await Promise.all([
     isReachable(siteOrigin),
     fetchJson<MinecraftStatus>(`${siteOrigin}/api/status`),
-    fetchDiscordCounts(),
+    resolveDiscordCounts(),
   ]);
 
   const primaryIsOnline =
@@ -182,14 +237,8 @@ async function refreshSnapshot(): Promise<void> {
     // Never retain a last-known value: a failed probe must become Offline.
     minecraftPlayers: minecraftOnline ? minecraftPlayers : null,
     minecraftMax: minecraftOnline ? minecraftMax : null,
-    discordOnline:
-      typeof discord?.approximate_presence_count === "number"
-        ? discord.approximate_presence_count
-        : null,
-    discordMembers:
-      typeof discord?.approximate_member_count === "number"
-        ? discord.approximate_member_count
-        : null,
+    discordOnline: discord.online,
+    discordMembers: discord.members,
   };
   lastSnapshotAt = new Date().toISOString();
 }
@@ -215,7 +264,22 @@ function updatePresence(client: Client): void {
   console.log(`[presence] ${ActivityType[activity.type]} ${activity.name}`);
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+/*
+  GuildPresences is privileged. It must be enabled in the Developer Portal
+  first — requesting it without enabling it makes Discord close the gateway
+  with 4014 — so it is opt-in and defaults to off. With it on, the online count
+  comes off the gateway and the REST API is never touched after startup.
+*/
+const usePresenceIntent = /^(1|true|yes|on)$/i.test(process.env.DISCORD_PRESENCE_INTENT?.trim() ?? "");
+
+/*
+  Rebuilt on every login attempt, so this cannot be `const`. A failed
+  login() calls client.destroy() internally, and a destroyed WebSocketManager
+  sets destroyed=true permanently to stop shards reconnecting — so a retry has
+  to start from a brand new Client.
+*/
+let client: Client | null = null;
+let timersStarted = false;
 const healthServer = createServer((request, response) => {
   const path = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`).pathname;
 
@@ -277,7 +341,7 @@ const connectionTimeout = setTimeout(() => {
   );
 }, 60_000);
 
-client.once(Events.ClientReady, async (readyClient) => {
+async function onReady(readyClient: Client<true>): Promise<void> {
   clearTimeout(connectionTimeout);
   discordReady = true;
   connectedAt = new Date().toISOString();
@@ -294,25 +358,27 @@ client.once(Events.ClientReady, async (readyClient) => {
   console.log(
     `[presence] snapshot: Website ${snapshot.websiteOnline ? "online" : "offline"}, Minecraft ${snapshot.minecraftOnline ? `${snapshot.minecraftPlayers}/${snapshot.minecraftMax ?? "unknown max"}` : "offline"}, Discord ${snapshot.discordOnline === null ? "unavailable" : `${snapshot.discordOnline} online`} (${snapshot.discordMembers ?? "?"} members)`,
   );
-  updatePresence(client);
+  updatePresence(readyClient);
 
   if (once) {
     setTimeout(() => {
-      client.destroy();
+      void readyClient.destroy();
       healthServer.close(() => process.exit(0));
     }, 2_000);
     return;
   }
 
+  // Guarded: a reconnect runs onReady again, and duplicate intervals would
+  // rotate the presence twice as fast and double the probe traffic.
+  if (timersStarted) return;
+  timersStarted = true;
   setInterval(() => {
     void refreshSnapshot();
   }, refreshMs);
-  setInterval(() => updatePresence(client), rotateMs);
-});
-
-client.on(Events.Error, (error) => {
-  console.error("[presence] Discord client error", error.message);
-});
+  setInterval(() => {
+    if (client) updatePresence(client);
+  }, rotateMs);
+}
 
 /**
  * Discord's close code is the only thing that says WHY the gateway dropped,
@@ -332,29 +398,47 @@ const CLOSE_CODES: Record<number, string> = {
   4014: "disallowed intents — enable them in the Developer Portal",
 };
 
-client.on(Events.ShardDisconnect, (event, shardId) => {
-  discordReady = false;
-  const code = event?.code;
-  const explained = code !== undefined ? (CLOSE_CODES[code] ?? "see Discord gateway close codes") : "unknown";
-  console.warn(
-    `[presence] Gateway disconnected (shard ${shardId}) code=${code ?? "none"} ` +
-      `reason=${event?.reason || "none"} — ${explained}`,
-  );
-});
+function createClient(): Client {
+  const next = new Client({
+    intents: usePresenceIntent
+      ? [GatewayIntentBits.Guilds, GatewayIntentBits.GuildPresences]
+      : [GatewayIntentBits.Guilds],
+  });
 
-client.on(Events.ShardError, (error, shardId) => {
-  console.error(`[presence] Gateway error (shard ${shardId}): ${error.message}`);
-});
+  next.once(Events.ClientReady, (readyClient) => {
+    void onReady(readyClient);
+  });
 
-client.on(Events.ShardReady, () => {
-  discordReady = true;
-  connectedAt = new Date().toISOString();
-});
+  next.on(Events.Error, (error) => {
+    console.error("[presence] Discord client error", error.message);
+  });
+
+  next.on(Events.ShardDisconnect, (event, shardId) => {
+    discordReady = false;
+    const code = event?.code;
+    const explained = code !== undefined ? (CLOSE_CODES[code] ?? "see Discord gateway close codes") : "unknown";
+    console.warn(
+      `[presence] Gateway disconnected (shard ${shardId}) code=${code ?? "none"} ` +
+        `reason=${event?.reason || "none"} — ${explained}`,
+    );
+  });
+
+  next.on(Events.ShardError, (error, shardId) => {
+    console.error(`[presence] Gateway error (shard ${shardId}): ${error.message}`);
+  });
+
+  next.on(Events.ShardReady, () => {
+    discordReady = true;
+    connectedAt = new Date().toISOString();
+  });
+
+  return next;
+}
 
 function shutdown(signal: string): void {
   console.log(`[presence] received ${signal}; disconnecting`);
   discordReady = false;
-  client.destroy();
+  void client?.destroy();
   healthServer.close(() => process.exit(0));
 }
 
@@ -395,14 +479,51 @@ async function probeDiscordReachability(): Promise<void> {
 
 void probeDiscordReachability();
 
-console.log("[presence] connecting to Discord Gateway");
-void client
-  .login(token)
-  .then(() => console.log("[presence] login() resolved — REST auth OK, waiting for gateway READY"))
-  .catch((error: unknown) => {
-  clearTimeout(connectionTimeout);
-  const message = error instanceof Error ? error.message : "Unknown login error";
-  console.error(`[presence] login failed: ${message}`);
-  client.destroy();
-  healthServer.close(() => process.exit(1));
-});
+const MAX_BACKOFF_MS = 15 * 60_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Keep trying to log in instead of exiting on the first failure.
+ *
+ * Exiting made this unrecoverable in exactly the case that matters. Render's
+ * free tier shares an outbound IP, and when that IP trips Discord's global
+ * rate limit the whole API answers 429 — including the unauthenticated
+ * /gateway route login() needs. process.exit(1) then handed Render a crash
+ * loop: every restart cold-started into the same ban, and the service only
+ * came back if a restart happened to land after it lifted.
+ *
+ * Backing off instead means the ban simply expires underneath a process that
+ * is still alive and still holding its health endpoint open. A bad token or a
+ * missing privileged intent will never fix itself, so those still exit.
+ */
+async function connectWithRetry(): Promise<void> {
+  for (let attempt = 1; ; attempt += 1) {
+    client = createClient();
+    try {
+      console.log(`[presence] connecting to Discord Gateway (attempt ${attempt})`);
+      await client.login(token);
+      console.log("[presence] login() resolved — REST auth OK, waiting for gateway READY");
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown login error";
+
+      if (isFatalLoginError(message)) {
+        clearTimeout(connectionTimeout);
+        console.error(`[presence] login failed permanently: ${message}`);
+        healthServer.close(() => process.exit(1));
+        return;
+      }
+
+      const delay = Math.min(MAX_BACKOFF_MS, 30_000 * 2 ** (attempt - 1));
+      console.warn(
+        `[presence] login attempt ${attempt} failed: ${message} — retrying in ${Math.round(delay / 1_000)}s`,
+      );
+      await sleep(delay);
+    }
+  }
+}
+
+void connectWithRetry();
