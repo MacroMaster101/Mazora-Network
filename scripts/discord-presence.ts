@@ -42,7 +42,17 @@ const siteOrigin = (() => {
 let guildId = process.env.DISCORD_GUILD_ID?.trim() || null;
 
 const refreshMs = Math.max(30_000, Number(process.env.DISCORD_PRESENCE_REFRESH_MS) || 60_000);
-const rotateMs = Math.max(15_000, Number(process.env.DISCORD_PRESENCE_ROTATE_MS) || 20_000);
+/*
+  Discord allows 5 presence updates per 20 seconds on a gateway session, which
+  puts the hard floor at 4s. 5s keeps a little headroom and still cycles all
+  three lines in 15s. The previous 15s floor was far more cautious than the
+  limit requires.
+
+  Refreshing the underlying data stays slow on purpose: rotating faster only
+  re-displays numbers already held in memory, so this costs no extra requests
+  to mazora.us, mcsrvstat or Discord.
+*/
+const rotateMs = Math.max(5_000, Number(process.env.DISCORD_PRESENCE_ROTATE_MS) || 5_000);
 const once = process.argv.includes("--once");
 const port = Number(process.env.PORT) || 10000;
 
@@ -428,11 +438,15 @@ async function onReady(readyClient: Client<true>): Promise<void> {
     The first snapshot runs while the instance is still cold, so it is the one
     most likely to have probes time out. Re-check shortly after instead of
     leaving a wrong "Offline" on display for a full refresh interval.
+
+    Only the data is refreshed here. This used to push a presence update too,
+    which was harmless at a 20s rotation but is not at 5s: the extra write
+    landed between two scheduled ones and put six updates inside a 20s window,
+    over Discord's limit of five. The next rotation tick is at most 5s away and
+    picks up the corrected numbers on its own.
   */
   setTimeout(() => {
-    void refreshSnapshot().then(() => {
-      if (client) updatePresence(client);
-    });
+    void refreshSnapshot();
   }, 10_000);
   setInterval(() => {
     void refreshSnapshot();
