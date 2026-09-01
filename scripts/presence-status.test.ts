@@ -81,3 +81,19 @@ test("keeps retrying a rate-limit ban and other transient failures", () => {
   assert.equal(isFatalLoginError("getaddrinfo ENOTFOUND discord.com"), false);
   assert.equal(isFatalLoginError("The operation was aborted due to timeout"), false);
 });
+
+test("falls back to the member count when the online count is unavailable", () => {
+  // The gateway-only state: GUILD_CREATE gives the member total, but without
+  // the presence intent there is no online figure and REST cannot supply one.
+  // Showing what we know beats showing nothing.
+  const labels = presenceLabels({
+    websiteOnline: true,
+    minecraftOnline: true,
+    minecraftPlayers: 8,
+    minecraftMax: 100,
+    discordOnline: null,
+    discordMembers: 645,
+  });
+
+  assert.equal(labels.discord, "🟣 Discord • 645 members");
+});

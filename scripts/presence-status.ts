@@ -47,7 +47,9 @@ export function presenceLabels(snapshot: PresenceSnapshot): PresenceLabels {
     // number we actually have.
     discord:
       snapshot.discordOnline === null
-        ? "🟣 Discord • Count unavailable"
+        ? snapshot.discordMembers === null
+          ? "🟣 Discord • Count unavailable"
+          : `🟣 Discord • ${snapshot.discordMembers} members`
         : snapshot.discordMembers === null
           ? `🟣 Discord • ${snapshot.discordOnline} online`
           : `🟣 Discord • ${snapshot.discordOnline} online (${snapshot.discordMembers} members)`,
