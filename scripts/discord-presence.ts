@@ -60,6 +60,22 @@ let snapshot: PresenceSnapshot = {
 };
 let activityIndex = 0;
 
+/*
+  Probe tuning. The old 8s timeout with no retry was too tight for a free-tier
+  cold start: the first outbound request of the process regularly exceeded it,
+  and one timeout was enough to paint a healthy service as "Offline".
+
+  Retrying is the right answer rather than remembering the previous value —
+  a stale count that looks live is the thing this worker must never print.
+*/
+const PROBE_TIMEOUT_MS = 15_000;
+const PROBE_ATTEMPTS = 2;
+const RETRY_PAUSE_MS = 1_500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Never swallow the reason a probe failed.
  *
@@ -81,22 +97,30 @@ async function fetchJson<T>(url: string, extraHeaders: Record<string, string> = 
     }
   })();
 
-  try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": "MazoraNetworkPresence/1.0", ...extraHeaders },
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!response.ok) {
+  for (let attempt = 1; attempt <= PROBE_ATTEMPTS; attempt += 1) {
+    const last = attempt === PROBE_ATTEMPTS;
+    try {
+      const response = await fetch(url, {
+        headers: { "User-Agent": "MazoraNetworkPresence/1.0", ...extraHeaders },
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      });
+      if (response.ok) return (await response.json()) as T;
+
       const body = await response.text().catch(() => "");
-      console.warn(`[presence] GET ${host} -> HTTP ${response.status} ${body.slice(0, 160)}`);
+      console.warn(
+        `[presence] GET ${host} -> HTTP ${response.status}${last ? "" : " (retrying)"} ${body.slice(0, 160)}`,
+      );
+      // A 4xx/5xx is an answer, not a hiccup; retrying will not change it.
       return null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[presence] GET ${host} failed${last ? "" : " (retrying)"}: ${message}`);
+      if (last) return null;
+      await sleep(RETRY_PAUSE_MS);
     }
-    return (await response.json()) as T;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn(`[presence] GET ${host} failed: ${message}`);
-    return null;
   }
+
+  return null;
 }
 
 /**
@@ -127,18 +151,45 @@ async function fetchDiscordCounts(): Promise<DiscordCounts | null> {
   );
 }
 
+/**
+ * Is the site answering?
+ *
+ * Retried, because a single slow response used to be reported as "Offline" —
+ * and on a cold free-tier instance the first outbound request of the process
+ * is exactly the one most likely to be slow. That produced a presence line
+ * claiming the site was down while it was serving 200s perfectly well.
+ *
+ * GET is tried after HEAD because some CDNs and edge runtimes answer HEAD
+ * differently, or not at all, even for a page they will happily GET.
+ */
 async function isReachable(url: string): Promise<boolean> {
-  try {
-    const response = await fetch(url, {
-      method: "HEAD",
-      headers: { "User-Agent": "MazoraNetworkPresence/1.0" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(8_000),
-    });
-    return response.ok;
-  } catch {
-    return false;
+  const host = (() => {
+    try {
+      return new URL(url).host;
+    } catch {
+      return url;
+    }
+  })();
+
+  for (let attempt = 1; attempt <= PROBE_ATTEMPTS; attempt += 1) {
+    for (const method of ["HEAD", "GET"] as const) {
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: { "User-Agent": "MazoraNetworkPresence/1.0" },
+          redirect: "follow",
+          signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+        });
+        if (response.ok) return true;
+      } catch {
+        // Fall through to the next method, then the next attempt.
+      }
+    }
+    if (attempt < PROBE_ATTEMPTS) await sleep(RETRY_PAUSE_MS);
   }
+
+  console.warn(`[presence] ${host} unreachable after ${PROBE_ATTEMPTS} attempts`);
+  return false;
 }
 
 type ResolvedCounts = { online: number | null; members: number | null };
@@ -372,6 +423,17 @@ async function onReady(readyClient: Client<true>): Promise<void> {
   // rotate the presence twice as fast and double the probe traffic.
   if (timersStarted) return;
   timersStarted = true;
+
+  /*
+    The first snapshot runs while the instance is still cold, so it is the one
+    most likely to have probes time out. Re-check shortly after instead of
+    leaving a wrong "Offline" on display for a full refresh interval.
+  */
+  setTimeout(() => {
+    void refreshSnapshot().then(() => {
+      if (client) updatePresence(client);
+    });
+  }, 10_000);
   setInterval(() => {
     void refreshSnapshot();
   }, refreshMs);
@@ -601,10 +663,6 @@ void probeDiscordReachability();
 void probeGatewaySocket();
 
 const MAX_BACKOFF_MS = 15 * 60_000;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 /**
  * Keep trying to log in instead of exiting on the first failure.
