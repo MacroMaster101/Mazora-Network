@@ -14,6 +14,18 @@ export interface PresenceLabels {
 }
 
 /**
+ * Did Discord refuse a privileged intent we asked for?
+ *
+ * Close code 4014. It means the intent is requested in code but not enabled
+ * under Developer Portal -> Bot -> Privileged Gateway Intents. Worth telling
+ * apart from other login failures, because it is recoverable without anyone
+ * touching the portal: drop the intent and connect with less.
+ */
+export function isMissingPrivilegedIntent(message: string): boolean {
+  return /disallowed intents/i.test(message);
+}
+
+/**
  * Which login failures are worth retrying.
  *
  * A wrong token or a privileged intent that is not enabled in the Developer

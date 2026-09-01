@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isFatalLoginError, presenceLabels } from "./presence-status.js";
+import { isFatalLoginError, isMissingPrivilegedIntent, presenceLabels } from "./presence-status.js";
 
 test("uses the live Minecraft capacity and shows both Discord counts", () => {
   const labels = presenceLabels({
@@ -96,4 +96,11 @@ test("falls back to the member count when the online count is unavailable", () =
   });
 
   assert.equal(labels.discord, "🟣 Discord • 645 members");
+});
+
+test("recognises a privileged intent that was never enabled", () => {
+  // discord.js's message for gateway close code 4014, reproduced live by
+  // requesting GuildPresences before ticking it in the Developer Portal.
+  assert.equal(isMissingPrivilegedIntent("Used disallowed intents"), true);
+  assert.equal(isMissingPrivilegedIntent("An invalid token was provided."), false);
 });
