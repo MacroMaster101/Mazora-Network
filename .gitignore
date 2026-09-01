@@ -1,6 +1,7 @@
 node_modules/
 
 .env
+.env.bot
 .env.local
 .env.*.local
 
