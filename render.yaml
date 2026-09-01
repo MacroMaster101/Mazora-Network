@@ -13,9 +13,16 @@ services:
         sync: false
       - key: NEXT_PUBLIC_SITE_URL
         value: https://mazora.us
-      - key: NEXT_PUBLIC_DISCORD_INVITE_URL
+      # Auto-detected from the guild the bot is in; pinned so a second guild
+      # could never change which one is reported.
+      - key: DISCORD_GUILD_ID
         sync: false
+      # Requires Presence Intent enabled under Developer Portal -> Bot.
+      # Without it the online count is unavailable while REST is rate limited.
+      - key: DISCORD_PRESENCE_INTENT
+        value: "true"
       - key: DISCORD_PRESENCE_REFRESH_MS
         value: "60000"
+      # Discord permits 5 presence updates per 20s, so 4s is the hard floor.
       - key: DISCORD_PRESENCE_ROTATE_MS
-        value: "20000"
+        value: "5000"
