@@ -1,6 +1,11 @@
 import { ActivityType, Client, Events, GatewayIntentBits, Routes } from "discord.js";
 import { createServer } from "node:http";
-import { isFatalLoginError, presenceLabels, type PresenceSnapshot } from "./presence-status.js";
+import {
+  isFatalLoginError,
+  isMissingPrivilegedIntent,
+  presenceLabels,
+  type PresenceSnapshot,
+} from "./presence-status.js";
 
 type MinecraftStatus = {
   live?: boolean;
@@ -331,7 +336,7 @@ function updatePresence(client: Client): void {
   with 4014 — so it is opt-in and defaults to off. With it on, the online count
   comes off the gateway and the REST API is never touched after startup.
 */
-const usePresenceIntent = /^(1|true|yes|on)$/i.test(process.env.DISCORD_PRESENCE_INTENT?.trim() ?? "");
+let usePresenceIntent = /^(1|true|yes|on)$/i.test(process.env.DISCORD_PRESENCE_INTENT?.trim() ?? "");
 
 /*
   Rebuilt on every login attempt, so this cannot be `const`. A failed
@@ -730,6 +735,23 @@ async function connectWithRetry(): Promise<void> {
       return;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown login error";
+
+      /*
+        Asking for GuildPresences without enabling it in the portal is a
+        configuration mismatch, not a dead end. Exiting here turned one unticked
+        checkbox into a permanent crash loop; dropping the intent instead gets a
+        working bot with the member count and no online count, which is the same
+        state as never having asked for it.
+      */
+      if (usePresenceIntent && isMissingPrivilegedIntent(message)) {
+        usePresenceIntent = false;
+        console.warn(
+          "[presence] DISCORD_PRESENCE_INTENT is on but the Presence Intent is not enabled in " +
+            "the Developer Portal (Bot -> Privileged Gateway Intents). Reconnecting without it: " +
+            "the member count will work, the online count will not.",
+        );
+        continue;
+      }
 
       if (isFatalLoginError(message)) {
         clearTimeout(connectionTimeout);
