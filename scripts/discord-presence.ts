@@ -470,6 +470,13 @@ const CLOSE_CODES: Record<number, string> = {
   bot is in a single guild, and the recommended count only ever rises above one
   for very large bots.
 */
+/*
+  How long to wait for /gateway/bot before giving up on REST. Generous enough
+  that a merely slow answer is still used, short enough that a banned instance
+  connects promptly instead of waiting out someone else's retry_after.
+*/
+const GATEWAY_LOOKUP_TIMEOUT_MS = 10_000;
+
 const FALLBACK_GATEWAY_INFO = {
   url: "wss://gateway.discord.gg",
   shards: 1,
@@ -502,8 +509,27 @@ function installGatewayFallback(target: Client): void {
       return originalGet(route as never, options as never);
     }
 
+    /*
+      A timeout, not just a catch.
+
+      @discordjs/rest defaults to rejectOnRateLimit: null, and on a 429 it does
+      `await sleep(retryAfter)` and retries rather than throwing. A Cloudflare
+      ban carries a long retry_after, so this call does not fail — it hangs,
+      for as long as the ban says. An earlier catch-only version of this
+      fallback therefore never ran, and the worker sat at "connecting" with
+      nothing in the logs to explain it.
+    */
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      return await originalGet(route as never, options as never);
+      return await Promise.race([
+        originalGet(route as never, options as never),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error(`no answer within ${GATEWAY_LOOKUP_TIMEOUT_MS}ms`)),
+            GATEWAY_LOOKUP_TIMEOUT_MS,
+          );
+        }),
+      ]);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn(
@@ -511,6 +537,8 @@ function installGatewayFallback(target: Client): void {
           "falling back to the well-known gateway URL and connecting anyway",
       );
       return FALLBACK_GATEWAY_INFO;
+    } finally {
+      clearTimeout(timer);
     }
   }) as typeof rest.get;
 }
