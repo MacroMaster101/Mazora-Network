@@ -26,9 +26,14 @@ export function presenceLabels(snapshot: PresenceSnapshot): PresenceLabels {
           ? `⛏️ mc.mazora.us • ${snapshot.minecraftPlayers}/${snapshot.minecraftMax}`
           : `⛏️ mc.mazora.us • ${snapshot.minecraftPlayers} online`
         : "⛏️ mc.mazora.us • Offline",
+    // The member count is a bonus, not a requirement: when it is missing we
+    // still show the online count rather than inventing a total or hiding a
+    // number we actually have.
     discord:
       snapshot.discordOnline === null
         ? "🟣 Discord • Count unavailable"
-        : `🟣 Discord • ${snapshot.discordOnline} online`,
+        : snapshot.discordMembers === null
+          ? `🟣 Discord • ${snapshot.discordOnline} online`
+          : `🟣 Discord • ${snapshot.discordOnline} online (${snapshot.discordMembers} members)`,
   };
 }
