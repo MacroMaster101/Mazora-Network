@@ -477,7 +477,71 @@ async function probeDiscordReachability(): Promise<void> {
   }
 }
 
+/**
+ * Is the gateway reachable when the REST API is not?
+ *
+ * These are different hosts: REST is discord.com, the gateway is
+ * gateway.discord.gg. The 429 seen in production is a Cloudflare ban on the
+ * discord.com zone, and it is not obvious that it covers the gateway zone too.
+ *
+ * The distinction decides what to do next. discord.js only touches REST to
+ * look up the gateway URL (fetchGatewayInformation, which it caches), and this
+ * worker needs nothing else from REST once the presence intent supplies the
+ * counts — presence updates travel over the socket. So if the socket opens
+ * while REST is banned, this service can run gateway-only from a banned IP. If
+ * the socket is blocked too, the IP is finished for Discord and the only real
+ * fix is somewhere else to run from.
+ *
+ * Diagnostic only: it opens a socket, reports, and closes. Nothing depends on
+ * the result yet.
+ */
+async function probeGatewaySocket(): Promise<void> {
+  const started = Date.now();
+  const url = "wss://gateway.discord.gg/?v=10&encoding=json";
+
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = (line: string, socket?: WebSocket): void => {
+      if (settled) return;
+      settled = true;
+      console.log(line);
+      try {
+        socket?.close();
+      } catch {
+        // Closing a socket that never opened is not interesting.
+      }
+      resolve();
+    };
+
+    try {
+      const socket = new WebSocket(url);
+      const timer = setTimeout(
+        () => finish(`[probe] WS gateway.discord.gg TIMEOUT after ${Date.now() - started}ms`, socket),
+        10_000,
+      );
+      socket.onopen = () => {
+        clearTimeout(timer);
+        finish(
+          `[probe] WS gateway.discord.gg OPEN in ${Date.now() - started}ms ` +
+            "— gateway reachable; a gateway-only bot can work from this IP",
+          socket,
+        );
+      };
+      socket.onerror = () => {
+        clearTimeout(timer);
+        finish(
+          `[probe] WS gateway.discord.gg FAILED in ${Date.now() - started}ms ` +
+            "— gateway blocked too; this IP cannot reach Discord at all",
+        );
+      };
+    } catch (error) {
+      finish(`[probe] WS gateway.discord.gg threw: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
+}
+
 void probeDiscordReachability();
+void probeGatewaySocket();
 
 const MAX_BACKOFF_MS = 15 * 60_000;
 
