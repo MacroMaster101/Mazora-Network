@@ -148,3 +148,51 @@
 @media (max-width: 390px) {
   .connected-account-row > .connected-account-actions { padding-left: 0; }
 }
+
+/* ── Bot console: live presence card ──
+   Mirrors Discord's own activity rendering — one activity at a time, cycling
+   on the worker's interval — so the panel shows what a member actually sees
+   rather than a list nobody is shown. */
+.presence-card {
+  border: 1px solid rgb(var(--line));
+  border-radius: var(--radius);
+  background: rgb(var(--surface));
+  padding: 0.875rem 1rem;
+}
+
+.presence-progress {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.12);
+}
+
+.presence-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  width: 0;
+  border-radius: inherit;
+  background: rgb(var(--accent));
+  animation-name: presence-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes presence-fill {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* The bar exists to show time passing. With motion reduced, the elapsed
+   animation is the part to drop — the position dots still say which status is
+   showing, so no information is lost. */
+@media (prefers-reduced-motion: reduce) {
+  .presence-progress-fill {
+    animation: none;
+    width: 100%;
+  }
+}

@@ -6,7 +6,7 @@ import { getSession, hasAtLeast } from "@/lib/auth";
 import { ROLES } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 import {
-  ALWAYS_ALLOWED,
+  alwaysAllowedFor,
   getModulePermissions,
   NEWS_PERMISSION_KEY,
   GALLERY_PERMISSION_KEY,
@@ -26,6 +26,8 @@ import {
   NOTIFICATIONS_PERMISSION_KEY,
   MAZORA_BOT_PERMISSION_KEY,
   ALL_PERMISSION_KEYS,
+  AUDIT_PERMISSION_KEY,
+  SETTINGS_PERMISSION_KEY,
 } from "@/lib/auth/permissions";
 
 export interface PermissionActionResult {
@@ -52,7 +54,7 @@ export async function saveModulePermissionAction(
 
   const selected = formData.getAll("roles").filter((v): v is string => typeof v === "string");
   const roles = Array.from(
-    new Set<Role>([...selected.filter((r): r is Role => ROLES.includes(r as Role)), ...ALWAYS_ALLOWED])
+    new Set<Role>([...selected.filter((r): r is Role => ROLES.includes(r as Role)), ...alwaysAllowedFor(settingKey)])
   );
 
   const rawUserIds = formData.getAll("userIds");
@@ -84,6 +86,12 @@ export async function saveModulePermissionAction(
   return { ok: true, message: `${label} permissions saved.` };
 }
 
+export async function saveAuditPermissionsAction(fd: FormData) {
+  return saveModulePermissionAction(AUDIT_PERMISSION_KEY, "Audit Logs", fd);
+}
+export async function saveSettingsPermissionsAction(fd: FormData) {
+  return saveModulePermissionAction(SETTINGS_PERMISSION_KEY, "Site Settings", fd);
+}
 export async function saveNewsPermissionsAction(fd: FormData) {
   return saveModulePermissionAction(NEWS_PERMISSION_KEY, "News", fd);
 }

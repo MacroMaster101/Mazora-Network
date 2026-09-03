@@ -1,7 +1,15 @@
 import "server-only";
 
 import { fetchWithDeadline } from "@/lib/data/upstream";
-import type { PresenceSnapshot } from "@/lib/presence-status";
+
+export interface PresenceSnapshot {
+  websiteOnline: boolean;
+  minecraftOnline: boolean;
+  minecraftPlayers: number | null;
+  minecraftMax: number | null;
+  discordOnline: number | null;
+  discordMembers: number | null;
+}
 
 const DEFAULT_HEALTH_URL = "https://mazora-network.onrender.com/health";
 const PING_INTERVAL_MS = 5 * 60_000;
@@ -76,21 +84,14 @@ export interface PresenceHealth {
   discord: string;
   connectedAt: string | null;
   lastSnapshotAt: string | null;
-  /**
-   * Coerced to plain booleans (absent/malformed -> false) because this is what
-   * feeds `presenceLabels`, `src/lib/presence-status.ts`'s pure renderer of
-   * "the exact text sent to Discord" — a copy kept byte-for-byte identical to
-   * the `discord-bot-presence` branch, so its `PresenceSnapshot` type is not
-   * widened to `boolean | null` here. For a truthful "known vs unknown"
-   * reading of the same two fields, see `online` below.
-   */
+  /** Coerced snapshot values used alongside the lossless `online` state below. */
   snapshot: PresenceSnapshot;
   /**
    * `websiteOnline` / `minecraftOnline` as the worker's response actually
    * reported them: `null` when the field was missing or not a boolean, rather
    * than `snapshot`'s silent false-default. The numeric fields already degrade
    * this honestly (see `numberOrNull`); this gives the two booleans the same
-   * treatment for display, without disturbing the presence-status.ts copy.
+   * treatment for display and template token construction.
    */
   online: { website: boolean | null; minecraft: boolean | null };
 }

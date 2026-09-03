@@ -104,10 +104,34 @@ export interface StaffNoticeInput {
    * support ticket channel; overridable so this stays unit-testable.
    */
   supportUrl?: string;
+  /**
+   * Per-send wording edits from the composer's preview.
+   *
+   * Blank means "use the template" — an empty edit box must never produce an
+   * empty headline or a bodyless notice. The reply footer is deliberately NOT
+   * overridable: it is the only route to a human, and the body is truncated to
+   * protect it.
+   */
+  titleOverride?: string;
+  openingOverride?: string;
 }
 
 export const MAX_REASON_LENGTH = 1000;
 export const MAX_TITLE_LENGTH = 120;
+
+/**
+ * Cap on an edited opening line.
+ *
+ * Generous, but bounded: the description also carries the reason and the reply
+ * footer, and Discord rejects an embed description over 4096 characters.
+ */
+export const MAX_OPENING_LENGTH = 2000;
+
+/** A trimmed override, or null when it is absent or blank. */
+function override(value: string | undefined, max: number): string | null {
+  const trimmed = (value ?? "").trim();
+  return trimmed ? trimmed.slice(0, max) : null;
+}
 
 /** Discord rejects an embed description over 4096 characters. */
 const MAX_DESCRIPTION = 4096;
@@ -183,21 +207,49 @@ function escapeMarkdown(value: string): string {
   return value.replace(/[\\*_~`|>]/g, (match) => `\\${match}`);
 }
 
+/**
+ * The notice as plain text, for anywhere that is not a Discord embed.
+ *
+ * renderStaffNotice returns an embed object, which the site inbox cannot use.
+ * Deriving both from the same definitions keeps the DM and the inbox row from
+ * drifting into two subtly different messages about the same event.
+ */
+export function staffNoticeText(input: StaffNoticeInput): { title: string; message: string } {
+  const username = input.username.trim();
+  const reason = input.reason.trim();
+
+  const title =
+    override(input.titleOverride, MAX_TITLE_LENGTH) ??
+    (input.template === "custom"
+      ? (input.customTitle ?? "").trim().slice(0, MAX_TITLE_LENGTH)
+      : DEFINITIONS[input.template].title);
+
+  const opening =
+    override(input.openingOverride, MAX_OPENING_LENGTH) ??
+    (input.template === "custom"
+      ? `Hi ${username}, a message from the Mazora Network team.`
+      : DEFINITIONS[input.template].body(username));
+
+  return { title, message: `${opening}\n\n${reason}` };
+}
+
 export function renderStaffNotice(input: StaffNoticeInput): Record<string, unknown> {
   const username = escapeMarkdown(input.username.trim());
   const reason = input.reason.trim();
 
   const title =
-    input.template === "custom"
+    override(input.titleOverride, MAX_TITLE_LENGTH) ??
+    (input.template === "custom"
       ? (input.customTitle ?? "").trim().slice(0, MAX_TITLE_LENGTH)
-      : DEFINITIONS[input.template].title;
+      : DEFINITIONS[input.template].title);
 
   const colour = input.template === "custom" ? 0x8b5cf6 : DEFINITIONS[input.template].colour;
 
   const opening =
-    input.template === "custom"
+    override(input.openingOverride, MAX_OPENING_LENGTH) ??
+    (input.template === "custom"
       ? `Hi ${username}, a message from the Mazora Network team.`
-      : DEFINITIONS[input.template].body(username);
+      : DEFINITIONS[input.template].body(username));
 
   /*
     The bot that sends these has no gateway connection, so it cannot read a
