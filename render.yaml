@@ -11,6 +11,8 @@ services:
     envVars:
       - key: DISCORD_BOT_TOKEN
         sync: false
+      - key: BOT_CONFIG_SECRET
+        sync: false
       - key: NEXT_PUBLIC_SITE_URL
         value: https://mazora.us
       # Auto-detected from the guild the bot is in; pinned so a second guild
