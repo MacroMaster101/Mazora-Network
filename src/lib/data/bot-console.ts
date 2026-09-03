@@ -1,57 +1,39 @@
 import "server-only";
 
 import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
-import { BOT_VAR_SPECS, classifyBotVar, type BotVarStatus } from "@/lib/bot-config";
+import { classifyBotVar } from "@/lib/bot-config";
 import { getDb, schema } from "@/lib/db/client";
-import { fetchChannel, getDiscordBotToken } from "@/lib/discord";
+import { fetchChannel, getDiscordBotToken, getDiscordGuildId, listGuildRoles } from "@/lib/discord";
+import { describeBotAuditRow } from "@/lib/bot-activity-labels";
 
 /**
  * Readers for the /admin/mazora-bot console.
  *
  * Every function returns a discriminated result rather than throwing, so one
  * unreachable dependency degrades a single card instead of blanking the page.
- * Nothing here returns a secret: the config matrix reports verdicts only.
+ * Nothing here returns a secret: environment checks report verdicts only.
  */
-
-export interface BotVarReport {
-  name: string;
-  label: string;
-  impact: string;
-  status: BotVarStatus;
-}
-
-/** Synchronous: reads process.env, hits nothing over the network. */
-export function readConfigMatrix(): BotVarReport[] {
-  return BOT_VAR_SPECS.map((spec) => ({
-    name: spec.name,
-    label: spec.label,
-    impact: spec.impact,
-    // Only the verdict escapes this function. The value never does.
-    status: classifyBotVar(spec.kind, process.env[spec.name]),
-  }));
-}
 
 export interface BotHealthFlags {
   tokenSet: boolean;
   keyOk: boolean;
+  guildSet: boolean;
+  appIdSet: boolean;
 }
 
 /**
- * The two raw-token checks BotHealthPanel needs, read here instead of in the
- * component itself.
+ * The secret-presence checks the health panel shows as chips.
  *
- * This module's contract — stated at the top of this file — is that the
- * token never enters any module the client bundles. Reading
- * `process.env.DISCORD_BOT_TOKEN` directly inside a component file is one
- * stray `"use client"` away from breaking that, even though nothing today
- * leaks it (Next only inlines `NEXT_PUBLIC_*`). Keeping every `classifyBotVar`
- * call against a secret in this server-only reader means the invariant is
- * enforced by where the code lives, not by remembering not to add a directive.
+ * This replaces the Configuration panel, which listed every DISCORD_* variable
+ * by name. Only the verdict escapes this server-only module; no environment
+ * value enters a component or a client bundle.
  */
 export function readBotHealthFlags(): BotHealthFlags {
   return {
     tokenSet: classifyBotVar("text", process.env.DISCORD_BOT_TOKEN) === "set",
     keyOk: classifyBotVar("hex64", process.env.DISCORD_APP_PUBLIC_KEY) === "set",
+    guildSet: classifyBotVar("text", process.env.DISCORD_GUILD_ID) === "set",
+    appIdSet: classifyBotVar("text", process.env.DISCORD_APPLICATION_ID) === "set",
   };
 }
 
@@ -164,9 +146,9 @@ export async function readNewsSync(): Promise<
 
 export interface BotActivityEntry {
   id: string;
-  kind: "order" | "notice";
+  kind: "order" | "notice" | "role" | "rank";
   label: string;
-  /** Order reference, or the notified username. */
+  /** Order reference, the notified username, a role name, or a rank movement. */
   detail: string | null;
   actor: string | null;
   /** ISO timestamp. */
@@ -182,6 +164,12 @@ export interface BotActivityEntry {
  * order activity is read from the orders table, which is where it actually
  * lives. Staff notices do write audit rows, so those come from audit_logs.
  */
+/*
+  The audit actions this panel reports. Anything else written to audit_logs —
+  store failures, content edits — belongs to the full audit log, not here.
+*/
+const BOT_AUDIT_ACTIONS = ["staff.notice", "discord.role", "role.change"];
+
 export async function readBotActivity(): Promise<
   { ok: true; entries: BotActivityEntry[] } | { ok: false; reason: string }
 > {
@@ -210,14 +198,33 @@ export async function readBotActivity(): Promise<
       db
         .select({
           id: schema.auditLogs.id,
+          action: schema.auditLogs.action,
           metadata: schema.auditLogs.metadata,
           createdAt: schema.auditLogs.createdAt,
         })
         .from(schema.auditLogs)
-        .where(eq(schema.auditLogs.action, "staff.notice"))
+        .where(inArray(schema.auditLogs.action, BOT_AUDIT_ACTIONS))
         .orderBy(desc(schema.auditLogs.createdAt))
         .limit(15),
     ]);
+
+    /*
+      Resolve role names only when a role row is actually present. discord.role
+      stores a snowflake, and "Discord role added · 123456789012345678" tells an
+      operator nothing. Skipping the lookup when no role row exists keeps the
+      common case free of a Discord call, and a failed lookup degrades to the
+      raw id rather than dropping the entry.
+    */
+    const roleNames = new Map<string, string>();
+    if (notices.some((row) => row.action === "discord.role")) {
+      const token = getDiscordBotToken();
+      const guildId = getDiscordGuildId();
+      if (token && guildId) {
+        for (const role of (await listGuildRoles(token, guildId)) ?? []) {
+          roleNames.set(role.id, role.name);
+        }
+      }
+    }
 
     const entries: BotActivityEntry[] = [
       ...decisions.map((row) => ({
@@ -229,17 +236,21 @@ export async function readBotActivity(): Promise<
         // Non-null by the isNotNull filter above; the ?? keeps TypeScript happy.
         at: (row.handledAt ?? new Date()).toISOString(),
       })),
-      ...notices.map((row) => {
-        const metadata = (row.metadata as Record<string, unknown> | null) ?? {};
-        return {
-          id: `notice-${row.id}`,
-          kind: "notice" as const,
-          label:
-            metadata.delivered === false ? "Staff notice failed" : "Staff notice sent",
-          detail: typeof metadata.username === "string" ? metadata.username : null,
-          actor: typeof metadata.by === "string" ? metadata.by : null,
+      ...notices.flatMap((row) => {
+        const metadata = row.metadata as Record<string, unknown> | null;
+        const roleId = typeof metadata?.roleId === "string" ? metadata.roleId : null;
+        const described = describeBotAuditRow(row.action, metadata, roleId ? (roleNames.get(roleId) ?? null) : null);
+        // A row whose action this panel does not report is dropped rather than
+        // rendered as a blank line.
+        if (!described) return [];
+        return [{
+          id: `audit-${row.id}`,
+          kind: described.kind,
+          label: described.label,
+          detail: described.detail,
+          actor: described.actor,
           at: row.createdAt.toISOString(),
-        };
+        }];
       }),
     ];
 

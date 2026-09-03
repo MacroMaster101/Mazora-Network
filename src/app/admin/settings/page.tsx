@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { SETTINGS_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { SiteSettingsEditor } from "@/components/admin/site-settings-editor";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminSettingsPage() {
-  await requireRole("it", "/admin/settings");
+  await requireModuleAccess(SETTINGS_PERMISSION_KEY, "/admin/settings");
   const settings = await getSiteGeneralSettings();
 
   return (

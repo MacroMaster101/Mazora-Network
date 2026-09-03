@@ -4,14 +4,30 @@ import { relative } from "@/lib/utils";
 
 type ActivityResult = { ok: true; entries: BotActivityEntry[] } | { ok: false; reason: string };
 
-export function BotActivityPanel({ activity }: { activity: ActivityResult }) {
+export function BotActivityPanel({
+  activity,
+  canViewAuditLog,
+}: {
+  activity: ActivityResult;
+  /**
+   * Whether this viewer can actually open /admin/audit-logs.
+   *
+   * Bot-console access and audit access are separate permissions: audit is
+   * IT-tier, the bot console is not. Rendering the link for someone the audit
+   * page will bounce is an invitation to a redirect, so it is hidden rather
+   * than shown-and-refused.
+   */
+  canViewAuditLog: boolean;
+}) {
   return (
     <section className="panel p-6">
       <header className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold">Recent bot activity</h2>
-        <Link href="/admin/audit-logs" className="btn btn-ghost btn-sm">
-          Full audit log
-        </Link>
+        {canViewAuditLog && (
+          <Link href="/admin/audit-logs" className="btn btn-ghost btn-sm">
+            Full audit log
+          </Link>
+        )}
       </header>
 
       {!activity.ok && <p className="text-sm text-muted">{activity.reason}</p>}

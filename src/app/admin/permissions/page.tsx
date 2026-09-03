@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { getSessionUserId, requireRole } from "@/lib/auth";
 import { hasAtLeast, ROLES } from "@/lib/auth/roles";
 import { listAccounts } from "@/lib/data/accounts";
 import {
+  alwaysAllowedFor,
+  canManageModule,
+  SETTINGS_PERMISSION_KEY,
+  AUDIT_PERMISSION_KEY,
   ALWAYS_ALLOWED,
   getAllModulePermissions,
   NEWS_PERMISSION_KEY,
@@ -41,6 +45,8 @@ import {
   saveStaffPermissionsAction,
   saveNotificationsPermissionsAction,
   saveBotPermissionsAction,
+  saveAuditPermissionsAction,
+  saveSettingsPermissionsAction,
 } from "@/lib/actions/permissions";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { PermissionsManager, type PermissionModuleConfig } from "@/components/admin/permissions-editor";
@@ -50,7 +56,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminPermissionsPage() {
-  await requireRole("owner", "/admin/permissions");
+  const session = await requireRole("owner", "/admin/permissions");
+  const viewerId = await getSessionUserId();
 
   const [perms, accounts] = await Promise.all([getAllModulePermissions(), listAccounts()]);
 
@@ -226,7 +233,53 @@ export default async function AdminPermissionsPage() {
       userIds: perms[MAZORA_BOT_PERMISSION_KEY].userIds,
       saveAction: saveBotPermissionsAction,
     },
+    {
+      id: "settings",
+      category: "System",
+      title: "Site Settings",
+      description: "Change global site configuration: launch mode, registration, feature toggles and network-wide defaults.",
+      selected: perms[SETTINGS_PERMISSION_KEY].roles,
+      userIds: perms[SETTINGS_PERMISSION_KEY].userIds,
+      saveAction: saveSettingsPermissionsAction,
+    },
+    {
+      id: "audit",
+      category: "System",
+      title: "Audit Logs",
+      description: "Read every sensitive action recorded across the network, including rank changes and account deletions.",
+      selected: perms[AUDIT_PERMISSION_KEY].roles,
+      userIds: perms[AUDIT_PERMISSION_KEY].userIds,
+      // IT-tier: owner is NOT force-included here, so it must not render locked-on.
+      locked: alwaysAllowedFor(AUDIT_PERMISSION_KEY),
+      saveAction: saveAuditPermissionsAction,
+    },
   ];
+
+  /*
+    Show only the modules this viewer can actually manage.
+
+    Rendering a module an owner cannot reach invites them to hand out access
+    they do not hold, and the save would be refused anyway. Audit is the case
+    that matters: it is IT-only, so canManageModule returns false for an owner
+    unless IT has explicitly granted it — and then it appears, which is the
+    point. Filtering here is safe because each card saves independently, so a
+    hidden module's stored configuration is never rewritten.
+  */
+  const moduleKeys: Record<string, string> = {
+    settings: SETTINGS_PERMISSION_KEY,
+    audit: AUDIT_PERMISSION_KEY,
+  };
+  const visibleModules = (
+    await Promise.all(
+      modules.map(async (module) => {
+        const key = moduleKeys[module.id];
+        // Only the IT-tier modules can be hidden; everything else has always
+        // been visible to owners and stays that way.
+        if (!key) return module;
+        return (await canManageModule(key, session, viewerId)) ? module : null;
+      }),
+    )
+  ).filter((module): module is PermissionModuleConfig => module !== null);
 
   return (
     <>
@@ -235,7 +288,7 @@ export default async function AdminPermissionsPage() {
         subtitle="Control which staff roles and individual users can manage site content, store items, moderation queues and network tools."
       />
       <PermissionsManager
-        modules={modules}
+        modules={visibleModules}
         staffRoles={staffRoles}
         locked={ALWAYS_ALLOWED}
         allAccounts={allAccounts}
