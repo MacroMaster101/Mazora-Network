@@ -19,6 +19,12 @@ export interface PermissionModuleConfig {
   selected: Role[];
   userIds: string[];
   saveAction: (formData: FormData) => Promise<PermissionActionResult>;
+  /**
+   * Roles that cannot be unticked for THIS module. Defaults to the manager's
+   * global set. An IT-tier module overrides it, because owner is not always
+   * included there and showing it locked-on would be a lie.
+   */
+  locked?: Role[];
 }
 
 /**
@@ -122,7 +128,11 @@ export function PermissionsEditor({
           {title}
         </h2>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          {description} <span className="font-medium text-ink/70">Owner and IT are always included.</span>
+          {description}{" "}
+          <span className="font-medium text-ink/70">
+            {locked.map((role) => roleLabel(role)).join(" and ")}{" "}
+            {locked.length === 1 ? "is" : "are"} always included.
+          </span>
         </p>
       </div>
 
@@ -365,7 +375,7 @@ export function PermissionsManager({
               description={mod.description}
               staffRoles={staffRoles}
               selected={mod.selected}
-              locked={locked}
+              locked={mod.locked ?? locked}
               userIds={mod.userIds}
               allAccounts={allAccounts}
               saveAction={mod.saveAction}

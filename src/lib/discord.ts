@@ -1,5 +1,12 @@
 import "server-only";
 import { createPublicKey, verify as cryptoVerify } from "node:crypto";
+import { parseRoleIdList } from "./discord-roles-shared";
+
+// Re-exported so existing importers of `parseRoleIdList` from this module keep
+// working — the implementation lives in `discord-roles-shared.ts`, which does
+// not import "server-only", so it (and its tests) can be imported outside a
+// server-only context.
+export { parseRoleIdList };
 
 /**
  * Server-side Discord helpers for the store order flow.
@@ -112,9 +119,7 @@ export function getStoreTicketsCategoryId(): string | null {
  * several bot roles carry it.
  */
 export function getStoreStaffRoleIds(): string[] {
-  const raw = process.env.DISCORD_STORE_STAFF_ROLE_ID?.trim();
-  if (!raw) return [];
-  return [...new Set(raw.split(",").map((id) => id.trim()).filter((id) => /^\d{17,20}$/.test(id)))];
+  return parseRoleIdList(process.env.DISCORD_STORE_STAFF_ROLE_ID);
 }
 
 /**
@@ -125,6 +130,77 @@ export function getStoreStaffRoleIds(): string[] {
  */
 export function getStoreStaffRoleId(): string | null {
   return getStoreStaffRoleIds()[0] ?? null;
+}
+
+/**
+ * Roles staff may grant or remove from the notice composer.
+ *
+ * Unset means no role control renders and every request is refused. Discord's
+ * own hierarchy is a second, independent limit — it refuses any role at or
+ * above the bot's highest — but relying on that alone would be wrong, because
+ * the bot's role usually sits above most of the ladder.
+ */
+export function getGrantableRoleIds(): string[] {
+  return parseRoleIdList(process.env.DISCORD_GRANTABLE_ROLE_IDS);
+}
+
+export interface GuildRole {
+  id: string;
+  name: string;
+  /** Discord's integer colour; 0 means "no colour set". */
+  colour: number;
+}
+
+export async function listGuildRoles(token: string, guildId: string): Promise<GuildRole[] | null> {
+  try {
+    const res = await botRequest(token, `/guilds/${guildId}/roles`, undefined, "GET");
+    if (!res.ok) {
+      console.error("Discord guild roles fetch failed", res.status, res.json);
+      return null;
+    }
+    const rows = res.json as Array<{ id?: string; name?: string; color?: number }> | null;
+    if (!Array.isArray(rows)) return null;
+    return rows
+      .filter((row): row is { id: string; name: string; color?: number } =>
+        typeof row.id === "string" && typeof row.name === "string")
+      .map((row) => ({ id: row.id, name: row.name, colour: typeof row.color === "number" ? row.color : 0 }));
+  } catch {
+    return null;
+  }
+}
+
+export async function addGuildMemberRole(
+  token: string,
+  guildId: string,
+  userId: string,
+  roleId: string,
+): Promise<boolean> {
+  try {
+    const res = await botRequest(token, `/guilds/${guildId}/members/${userId}/roles/${roleId}`, undefined, "PUT");
+    if (!res.ok) {
+      console.error("Discord guild member role grant failed", res.status, res.json, { roleId, userId });
+    }
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function removeGuildMemberRole(
+  token: string,
+  guildId: string,
+  userId: string,
+  roleId: string,
+): Promise<boolean> {
+  try {
+    const res = await botRequest(token, `/guilds/${guildId}/members/${userId}/roles/${roleId}`, undefined, "DELETE");
+    if (!res.ok) {
+      console.error("Discord guild member role removal failed", res.status, res.json, { roleId, userId });
+    }
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** Public invite shown to buyers who have not joined the server yet. */
@@ -213,6 +289,7 @@ export async function fetchGuildMember(
     }
     const row = res.json as {
       nick?: string | null;
+      roles?: string[];
       user?: { id?: string; username?: string; global_name?: string | null; avatar?: string | null; bot?: boolean };
     } | null;
     const user = row?.user;
@@ -227,6 +304,7 @@ export async function fetchGuildMember(
           ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
           : null,
         bot: user.bot === true,
+        roles: Array.isArray(row?.roles) ? row.roles.filter((id): id is string => typeof id === "string") : [],
       },
     };
   } catch {
@@ -416,6 +494,8 @@ export interface GuildMemberMatch {
   displayName: string | null;
   avatarUrl: string | null;
   bot: boolean;
+  /** Role ids the member currently holds. Empty when Discord omitted them. */
+  roles: string[];
 }
 
 /**
@@ -476,6 +556,7 @@ export async function searchGuildMembers(
           ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
           : null,
         bot: user.bot === true,
+        roles: [],
       },
     ];
   });
