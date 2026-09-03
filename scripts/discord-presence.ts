@@ -6,6 +6,14 @@ import {
   presenceLabels,
   type PresenceSnapshot,
 } from "./presence-status.js";
+import {
+  MIN_REFRESH_MS,
+  MIN_ROTATE_MS,
+  clampPresenceInterval,
+  parseRemoteConfig,
+  type RemoteConfig,
+} from "./presence-config.js";
+import { resolveStatusText, type PresenceTokens } from "./presence-template.js";
 
 type MinecraftStatus = {
   live?: boolean;
@@ -39,6 +47,8 @@ const siteOrigin = (() => {
   }
 })();
 
+const configSecret = process.env.BOT_CONFIG_SECRET?.trim();
+
 /*
   The guild whose counts we report. Optional: at READY the bot already knows
   which guilds it is in, so this only needs setting if the bot ever joins a
@@ -46,7 +56,7 @@ const siteOrigin = (() => {
 */
 let guildId = process.env.DISCORD_GUILD_ID?.trim() || null;
 
-const refreshMs = Math.max(30_000, Number(process.env.DISCORD_PRESENCE_REFRESH_MS) || 60_000);
+const refreshMs = clampPresenceInterval(process.env.DISCORD_PRESENCE_REFRESH_MS, MIN_REFRESH_MS, 60_000);
 /*
   Discord allows 5 presence updates per 20 seconds on a gateway session, which
   puts the hard floor at 4s. 5s keeps a little headroom and still cycles all
@@ -57,7 +67,7 @@ const refreshMs = Math.max(30_000, Number(process.env.DISCORD_PRESENCE_REFRESH_M
   re-displays numbers already held in memory, so this costs no extra requests
   to mazora.us, mcsrvstat or Discord.
 */
-const rotateMs = Math.max(5_000, Number(process.env.DISCORD_PRESENCE_ROTATE_MS) || 5_000);
+const rotateMs = clampPresenceInterval(process.env.DISCORD_PRESENCE_ROTATE_MS, MIN_ROTATE_MS, 5_000);
 const once = process.argv.includes("--once");
 const port = Number(process.env.PORT) || 10000;
 
@@ -74,6 +84,13 @@ let snapshot: PresenceSnapshot = {
   discordMembers: null,
 };
 let activityIndex = 0;
+
+/*
+  Last good config. The dashboard is a convenience, not a dependency: if the
+  website is down, mid-deploy, or the secret is wrong, the bot keeps the last
+  usable response. Before the first good response it uses its built-in three.
+*/
+let remoteConfig: RemoteConfig | null = null;
 
 /*
   Probe tuning. The old 8s timeout with no retry was too tight for a free-tier
@@ -136,6 +153,16 @@ async function fetchJson<T>(url: string, extraHeaders: Record<string, string> = 
   }
 
   return null;
+}
+
+async function refreshRemoteConfig(): Promise<void> {
+  if (!configSecret) return;
+
+  const fetched = await fetchJson<unknown>(`${siteOrigin}/api/bot/presence-config`, {
+    Authorization: `Bearer ${configSecret}`,
+  });
+  const next = parseRemoteConfig(fetched);
+  if (next) remoteConfig = next;
 }
 
 /**
@@ -217,6 +244,11 @@ type ResolvedCounts = { online: number | null; members: number | null };
  * enabled, hence the opt-in flag.
  */
 function gatewayCounts(): ResolvedCounts {
+  // A disconnected gateway leaves discord.js's caches populated. Those values
+  // are no longer live, so do not present them as current counts while the
+  // session is down; REST may still provide a fresh answer below.
+  if (!discordReady) return { online: null, members: null };
+
   const guild = guildId ? client?.guilds.cache.get(guildId) : undefined;
   if (!guild) return { online: null, members: null };
 
@@ -267,6 +299,7 @@ async function refreshSnapshot(): Promise<void> {
     isReachable(siteOrigin),
     fetchJson<MinecraftStatus>(`${siteOrigin}/api/status`),
     resolveDiscordCounts(),
+    refreshRemoteConfig(),
   ]);
 
   const primaryIsOnline =
@@ -309,7 +342,35 @@ async function refreshSnapshot(): Promise<void> {
   lastSnapshotAt = new Date().toISOString();
 }
 
+function tokensFromSnapshot(): PresenceTokens {
+  return {
+    site_status: snapshot.websiteOnline ? "Live" : "Offline",
+    mc_players:
+      snapshot.minecraftOnline && snapshot.minecraftPlayers !== null
+        ? String(snapshot.minecraftPlayers)
+        : null,
+    mc_max: snapshot.minecraftMax !== null ? String(snapshot.minecraftMax) : null,
+    discord_online: snapshot.discordOnline !== null ? String(snapshot.discordOnline) : null,
+    discord_members: snapshot.discordMembers !== null ? String(snapshot.discordMembers) : null,
+  };
+}
+
 function activities(): Array<{ name: string; type: ActivityType }> {
+  if (remoteConfig) {
+    const tokens = tokensFromSnapshot();
+    const configured = remoteConfig.statuses
+      .filter((status) => status.enabled)
+      .map((status) => {
+        const name = resolveStatusText(status, tokens);
+        return name === null
+          ? null
+          : { name, type: ActivityType[status.activityType] ?? ActivityType.Playing };
+      })
+      .filter((activity): activity is { name: string; type: ActivityType } => activity !== null);
+
+    if (configured.length > 0) return configured;
+  }
+
   const labels = presenceLabels(snapshot);
 
   return [
@@ -346,6 +407,20 @@ let usePresenceIntent = /^(1|true|yes|on)$/i.test(process.env.DISCORD_PRESENCE_I
 */
 let client: Client | null = null;
 let timersStarted = false;
+
+const scheduleRefresh = (): void => {
+  setTimeout(() => {
+    void refreshSnapshot().finally(scheduleRefresh);
+  }, Math.max(MIN_REFRESH_MS, remoteConfig?.refreshMs ?? refreshMs));
+};
+
+const scheduleRotation = (): void => {
+  setTimeout(() => {
+    if (client) updatePresence(client);
+    scheduleRotation();
+  }, Math.max(MIN_ROTATE_MS, remoteConfig?.rotateMs ?? rotateMs));
+};
+
 const healthServer = createServer((request, response) => {
   const path = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`).pathname;
 
@@ -453,12 +528,8 @@ async function onReady(readyClient: Client<true>): Promise<void> {
   setTimeout(() => {
     void refreshSnapshot();
   }, 10_000);
-  setInterval(() => {
-    void refreshSnapshot();
-  }, refreshMs);
-  setInterval(() => {
-    if (client) updatePresence(client);
-  }, rotateMs);
+  scheduleRefresh();
+  scheduleRotation();
 }
 
 /**
@@ -579,6 +650,9 @@ function createClient(): Client {
 
   next.on(Events.ShardDisconnect, (event, shardId) => {
     discordReady = false;
+    // Invalidate cached numbers immediately instead of displaying them until
+    // the next refresh discovers that Discord is unavailable.
+    snapshot = { ...snapshot, discordOnline: null, discordMembers: null };
     const code = event?.code;
     const explained = code !== undefined ? (CLOSE_CODES[code] ?? "see Discord gateway close codes") : "unknown";
     console.warn(
