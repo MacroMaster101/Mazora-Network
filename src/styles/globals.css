@@ -2185,6 +2185,58 @@ html {
     color: rgb(var(--accent-bright));
   }
 
+  /*
+    Form fields.
+
+    This class was used by nine components without ever being defined, so every
+    one of them fell back to the browser's default control: a flat grey box in
+    dark and a near-invisible white one against the white .panel in light.
+
+    One rule covers both themes because the tokens are symmetric. .panel is
+    rgb(var(--card)), and --surface sits recessed relative to --card on both
+    sides — 240 237 248 against white, 15 11 24 against 23 17 35 — so the field
+    reads as inset either way without a [data-theme] override.
+
+    No width, and nothing else callers routinely override: Tailwind utilities
+    compile after this layer, so w-full, rounded-xl, pl-9 and min-h-24 all still
+    win. The focus ring is deliberately left to the global :focus-visible rule
+    near the top of this file.
+  */
+  .input {
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+    border-radius: var(--radius);
+    color: rgb(var(--ink));
+    padding: 0.55rem 0.75rem;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  }
+
+  .input::placeholder {
+    color: rgb(var(--muted) / 0.7);
+  }
+
+  .input:hover:not(:disabled):not(:focus) {
+    border-color: rgb(var(--line-strong));
+  }
+
+  .input:focus {
+    border-color: rgb(var(--accent) / 0.7);
+  }
+
+  .input:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  /* Compact variant for dense editor rows. */
+  .input-xs {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.78rem;
+    border-radius: 10px;
+  }
+
   .btn {
     display: inline-flex;
     align-items: center;

@@ -1,16 +1,13 @@
 /**
- * The config matrix is the console's highest-value panel: nine Discord settings
- * currently have no UI at all. It is only useful if it never disagrees with the
- * runtime, so these tests pin the classifier to the same shapes the runtime
- * enforces — notably the /^\d{17,20}$/ snowflake test used by
- * getDiscordBotConfig and getDiscordIdentity.
+ * These tests pin the environment classifier to the same shapes the runtime
+ * enforces, notably the /^\d{17,20}$/ snowflake test used by Discord readers.
  *
  * Run with: npm test
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { BOT_VAR_SPECS, classifyBotVar } from "@/lib/bot-config";
+import { classifyBotVar } from "@/lib/bot-config";
 
 describe("classifyBotVar", () => {
   test("treats undefined, empty and whitespace as unset", () => {
@@ -48,34 +45,5 @@ describe("classifyBotVar", () => {
 
   test("accepts any non-empty text", () => {
     assert.equal(classifyBotVar("text", "anything"), "set");
-  });
-});
-
-describe("BOT_VAR_SPECS", () => {
-  test("covers every Discord variable the console reports on", () => {
-    const names = BOT_VAR_SPECS.map((spec) => spec.name);
-    for (const expected of [
-      "DISCORD_BOT_TOKEN",
-      "DISCORD_APP_PUBLIC_KEY",
-      "DISCORD_GUILD_ID",
-      "DISCORD_ORDERS_CHANNEL_ID",
-      "DISCORD_STORE_WEBHOOK_URL",
-      "DISCORD_STORE_STAFF_ROLE_ID",
-      "DISCORD_STORE_TICKETS_CATEGORY_ID",
-      "DISCORD_TICKET_LOGS_CHANNEL_ID",
-      "DISCORD_BUYERS_CHANNEL_ID",
-      "DISCORD_ANNOUNCEMENTS_CHANNEL_ID",
-      "DISCORD_PATCH_CHANNEL_ID",
-      "DISCORD_STAFF_NOTICE_ROLE_ID",
-    ]) {
-      assert.ok(names.includes(expected), `${expected} is missing from BOT_VAR_SPECS`);
-    }
-  });
-
-  test("every spec explains what breaks when it is missing", () => {
-    for (const spec of BOT_VAR_SPECS) {
-      assert.ok(spec.impact.length > 0, `${spec.name} has no impact note`);
-      assert.ok(spec.label.length > 0, `${spec.name} has no label`);
-    }
   });
 });

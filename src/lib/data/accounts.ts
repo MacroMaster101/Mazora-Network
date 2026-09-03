@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { ROLES, hasAtLeast } from "@/lib/auth/roles";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -7,7 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 type AuthUserRecord = Awaited<ReturnType<NonNullable<ReturnType<typeof getSupabaseAdmin>>["auth"]["admin"]["listUsers"]>>["data"]["users"][number];
 import { getDb, schema } from "@/lib/db/client";
 import { isMinecraftAvatarUrl, resolveAvatarUrl } from "@/lib/avatar-source";
-import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
+import { buildDiscordIdentityMap } from "@/lib/discord-identity-map";
 import { isPlaceholderUsername, realDisplayName } from "@/lib/auth/placeholder";
 import type { Role } from "@/lib/types";
 
@@ -54,6 +54,13 @@ export interface AccountSummary {
    * so this adds no round trip.
    */
   discordUserId: string | null;
+  /**
+   * EVERY Discord id linked to this account, not just the first.
+   *
+   * One real account here holds two. Matching on the single id above made the
+   * notice composer silently fail whenever the second account was chosen.
+   */
+  discordUserIds: string[];
 }
 
 export type PublicStaffMember = Pick<
@@ -194,6 +201,45 @@ export async function listAllAuthUsers(
 }
 
 /** Every account, newest rank-holders included. Returns null when unconfigured. */
+/**
+ * Read every Discord link straight from Supabase's auth schema.
+ *
+ * listUsers() returns `identities: null` — the field exists but is never
+ * populated — so deriving Discord ids from it produced null for every account,
+ * which is why nothing ever matched. getUserById() does return them, but that
+ * is one request per user: measured at ~300ms for 18 accounts and growing
+ * linearly, against ~360ms flat for this single query.
+ *
+ * The cost is coupling to `auth.identities`, Supabase's own table rather than
+ * a published contract. It is contained here on purpose: if that shape ever
+ * changes, this one function breaks and the failure is obvious.
+ *
+ * Returns an empty map on failure so the account list still renders. Losing
+ * Discord matching degrades one feature; throwing here would take out the admin
+ * users page, the staff page and notifications with it.
+ */
+async function discordIdentityMap(): Promise<Map<string, string[]>> {
+  const db = getDb();
+  if (!db) return new Map();
+  try {
+    const result = await db.execute(
+      sql`select user_id, identity_data->>'provider_id' as provider_id
+          from auth.identities
+          where provider = 'discord'`,
+    );
+    const rows = (Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? [])) as {
+      user_id?: unknown;
+      provider_id?: unknown;
+    }[];
+    return buildDiscordIdentityMap(
+      rows.map((row) => ({ userId: row.user_id, providerId: row.provider_id })),
+    );
+  } catch (error) {
+    console.error("Failed to read Discord identities", error);
+    return new Map();
+  }
+}
+
 export async function listAccounts(): Promise<AccountSummary[] | null> {
   const admin = getSupabaseAdmin();
   if (!admin) return null;
@@ -208,7 +254,11 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
 
     // Independent queries; awaiting them in sequence doubled the latency of
     // every admin user-list render for no reason.
-    const [names, minecraft] = await Promise.all([profileNames(), minecraftProfiles()]);
+    const [names, minecraft, discordIds] = await Promise.all([
+      profileNames(),
+      minecraftProfiles(),
+      discordIdentityMap(),
+    ]);
 
     return (data?.users ?? []).map((user) => {
       const profile = names.get(user.id);
@@ -247,17 +297,10 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
         // Existing staff and newly promoted accounts are public by default.
         // Only an explicit protected metadata flag hides someone.
         publicStaffVisible: user.app_metadata?.staff_public !== false,
-        discordUserId: (() => {
-          const identity = pickDiscordIdentity(user.identities);
-          const raw = String(
-            (identity?.identity_data as Record<string, unknown> | undefined)?.provider_id ??
-              (identity?.identity_data as Record<string, unknown> | undefined)?.sub ??
-              "",
-          ).trim();
-          // Same shape test getDiscordIdentity applies, so a malformed id is
-          // treated as "not linked" rather than being handed to the Discord API.
-          return /^\d{17,20}$/.test(raw) ? raw : null;
-        })(),
+        // Read from auth.identities, not user.identities: listUsers() leaves
+        // the latter null, which is why this was always null before.
+        discordUserIds: discordIds.get(user.id) ?? [],
+        discordUserId: (discordIds.get(user.id) ?? [])[0] ?? null,
       };
     });
   } catch (error) {

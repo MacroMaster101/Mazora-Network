@@ -2,9 +2,16 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
-import { Loader2, Search, Send, ShieldAlert, UserRound, X } from "lucide-react";
-import { searchDiscordMembers, sendStaffNotice } from "@/lib/actions/staff-notices";
+import { Loader2, Pencil, RotateCcw, Search, Send, ShieldAlert, UserRound, X } from "lucide-react";
+import {
+  getRecipientContext,
+  searchDiscordMembers,
+  sendStaffNotice,
+  setRecipientDiscordRole,
+  type RecipientContext,
+} from "@/lib/actions/staff-notices";
 import type { GuildMemberMatch } from "@/lib/discord";
+import { roleLabel } from "@/lib/auth/roles";
 import {
   MAX_REASON_LENGTH,
   renderStaffNotice,
@@ -12,6 +19,7 @@ import {
   templateMentionsStaffTeam,
   type StaffNoticeTemplate,
 } from "@/lib/staff-notices";
+import type { Role } from "@/lib/types";
 
 const TEMPLATE_LABELS: Record<StaffNoticeTemplate, string> = {
   warning: "Warning",
@@ -31,6 +39,23 @@ const TEMPLATE_ORDER: StaffNoticeTemplate[] = ["warning", "custom", "promotion",
  * markup these templates emit, so this stays deliberately tiny rather than
  * pulling in a markdown parser.
  */
+/*
+  Undo markdown escaping for display only.
+
+  renderStaffNotice escapes the username so Discord prints it literally, which
+  is right for Discord but wrong here: this preview shows the pre-Discord
+  string, so a name containing a pipe showed the escaping backslash that
+  Discord itself never displays.
+
+  Stripping the backslash before ANY character is deliberate: this output is
+  only ever read by a human in the preview panel, never sent anywhere, so the
+  worst case of over-stripping is a cosmetically wrong preview rather than a
+  wrong message. The real string still goes to Discord untouched.
+*/
+function unescapeForPreview(text: string) {
+  return text.replace(/\\(.)/g, "$1");
+}
+
 function renderBold(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((chunk, index) =>
     chunk.startsWith("**") && chunk.endsWith("**") && chunk.length > 4 ? (
@@ -73,6 +98,11 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
   const [searchError, setSearchError] = useState<string | null>(null);
   const [target, setTarget] = useState<GuildMemberMatch | null>(null);
 
+  const [context, setContext] = useState<RecipientContext | null>(null);
+  const [pendingRank, setPendingRank] = useState<Role | null>(null);
+  const [roleMessage, setRoleMessage] = useState<string | null>(null);
+  const [rolePending, startRole] = useTransition();
+
   const [template, setTemplate] = useState<StaffNoticeTemplate>("warning");
   const [reason, setReason] = useState("");
   const [customTitle, setCustomTitle] = useState("");
@@ -83,6 +113,12 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
   const [sending, startSend] = useTransition();
 
   const titleNeeded = template === "custom" && !customTitle.trim();
+  /** Only these two templates carry a rank change. Mirrored server-side. */
+  const rankTemplate = template === "promotion" || template === "terminated";
+  const [editing, setEditing] = useState(false);
+  const [titleOverride, setTitleOverride] = useState("");
+  const [openingOverride, setOpeningOverride] = useState("");
+  const edited = Boolean(titleOverride.trim() || openingOverride.trim());
   const ready = target !== null && reason.trim().length > 0 && !titleNeeded;
 
   /**
@@ -94,6 +130,17 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
    * stale ones. Only the newest request is allowed to write state.
    */
   const searchSeq = useRef(0);
+
+  /**
+   * Always holds the currently-selected recipient's Discord id.
+   *
+   * A rank or role mutation's post-mutation refresh has no natural tie to the
+   * target-change effect's own `cancelled` flag — it runs in a `startTransition`
+   * callback outside that effect entirely. Without this ref, picking a new
+   * recipient while a previous recipient's mutation is still in flight lets the
+   * stale refresh land last and overwrite the new recipient's context.
+   */
+  const currentTargetId = useRef<string | null>(null);
 
   // Search as the operator types. 300ms is long enough that a normal typing
   // burst collapses into one request, short enough to feel immediate.
@@ -126,6 +173,23 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
     return () => clearTimeout(timer);
   }, [query, target]);
 
+  // Cleared before the fetch so a stale recipient's rank can never be shown
+  // against a newly picked one.
+  useEffect(() => {
+    currentTargetId.current = target?.id ?? null;
+    setContext(null);
+    setPendingRank(null);
+    setRoleMessage(null);
+    if (!target?.id) return;
+    let cancelled = false;
+    void getRecipientContext(target.id).then((next) => {
+      if (!cancelled) setContext(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [target?.id]);
+
   // Rendered with the same pure function the server sends, so what is approved
   // here is exactly what the recipient receives.
   const previewEmbed = target
@@ -135,6 +199,10 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
           username: target.displayName ?? target.username,
           reason: reason.trim() || "…",
           customTitle,
+          // Live: the preview must show what an edit actually produces, not the
+          // template it replaced.
+          titleOverride,
+          openingOverride,
         }).embeds as Record<string, unknown>[]
       )[0] as { title: string; description: string; color: number })
     : null;
@@ -147,9 +215,15 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
         template,
         reason,
         customTitle,
+        titleOverride,
+        openingOverride,
+        // Only ever sent for the two templates that show the picker; the
+        // server re-checks this rather than trusting it.
+        newRole: rankTemplate && pendingRank ? pendingRank : undefined,
       });
       setResult(outcome);
       setConfirming(false);
+      if (outcome.ok) setPendingRank(null);
       if (outcome.ok) {
         setReason("");
         setCustomTitle("");
@@ -162,8 +236,8 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
       <header className="mb-5">
         <h2 className="font-display text-lg font-bold">Message a Discord member</h2>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          Sends a direct message from the Mazora bot. This does not change anyone&apos;s rank — use
-          Users for that.
+          Sends a direct message from the Mazora bot. Can also update site rank and Discord
+          roles when the recipient has a site account or is in the Discord server.
         </p>
       </header>
 
@@ -284,6 +358,49 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
           )}
         </div>
 
+        {context && !context.ok && context.message && (
+          <p className="text-xs text-muted">{context.message}</p>
+        )}
+
+
+        {context?.ok && context.discordRoles.length > 0 && (
+          <section className="grid gap-2 rounded-xl border border-white/10 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Discord role</p>
+            <ul className="flex flex-wrap gap-2">
+              {context.discordRoles.map((role) => (
+                <li key={role.id}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={rolePending}
+                    onClick={() => {
+                      if (!target) return;
+                      const discordUserId = target.id;
+                      startRole(async () => {
+                        const result = await setRecipientDiscordRole({
+                          discordUserId,
+                          roleId: role.id,
+                          grant: !role.held,
+                        });
+                        if (currentTargetId.current !== discordUserId) return;
+                        setRoleMessage(result.message);
+                        if (result.ok) {
+                          const refreshed = await getRecipientContext(discordUserId);
+                          if (currentTargetId.current !== discordUserId) return;
+                          setContext(refreshed);
+                        }
+                      });
+                    }}
+                  >
+                    {role.held ? `Remove ${role.name}` : `Add ${role.name}`}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {roleMessage && <p className="text-xs text-muted">{roleMessage}</p>}
+          </section>
+        )}
+
         {/* ---------- 2. Message ---------- */}
         <div className="grid gap-3">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -320,6 +437,68 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
               This wording refers to the staff team. It sends to anyone — check the preview reads
               correctly for this recipient.
             </p>
+          )}
+
+          {rankTemplate && context?.ok && context.account && context.grantableRanks.length > 0 && (
+            <div className="grid gap-2 rounded-xl border border-white/10 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                {template === "promotion" ? "Promote to" : "Demote to"}
+              </p>
+              <p className="text-sm">
+                {context.account.username} is currently{" "}
+                <span className="rounded-md border border-accent/40 bg-accent/10 px-2 py-0.5 font-semibold text-ink">
+                  {roleLabel(context.account.role)}
+                </span>
+              </p>
+              <div
+                role="group"
+                aria-label={template === "promotion" ? "Promote to rank" : "Demote to rank"}
+                className="flex flex-wrap gap-2"
+              >
+                {/* "Leave unchanged" is first and selected by default: sending a
+                    notice must never move someone's rank just because a control
+                    happened to be on screen. */}
+                <button
+                  type="button"
+                  aria-pressed={pendingRank === null}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    pendingRank === null
+                      ? "border-accent bg-accent/20 text-ink"
+                      : "border-line text-muted hover:bg-ink/[0.06]"
+                  }`}
+                  onClick={() => setPendingRank(null)}
+                >
+                  Leave unchanged
+                </button>
+                {context.grantableRanks
+                  .filter((role) => role !== context.account?.role)
+                  .map((role) => {
+                    const picked = pendingRank === role;
+                    return (
+                      <button
+                        key={role}
+                        type="button"
+                        aria-pressed={picked}
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          picked
+                            ? "border-accent bg-accent/20 text-ink"
+                            : "border-line text-muted hover:bg-ink/[0.06]"
+                        }`}
+                        onClick={() => setPendingRank(role)}
+                      >
+                        {roleLabel(role)}
+                      </button>
+                    );
+                  })}
+              </div>
+              {pendingRank && (
+                <p className="text-xs text-muted">
+                  Sending will also change their rank from{" "}
+                  <strong>{roleLabel(context.account.role)}</strong> to{" "}
+                  <strong>{roleLabel(pendingRank)}</strong>.
+                </p>
+              )}
+            </div>
           )}
 
           {template === "custom" && (
@@ -369,9 +548,67 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
         {/* ---------- 3. Preview & send ---------- */}
         {previewEmbed && (
           <div className="grid gap-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-              3 · Preview
-            </span>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                3 · Preview{edited && <span className="ml-2 normal-case text-accent-bright">edited</span>}
+              </span>
+              <div className="flex items-center gap-1">
+                {edited && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    title="Restore the template wording"
+                    onClick={() => {
+                      setTitleOverride("");
+                      setOpeningOverride("");
+                    }}
+                  >
+                    <RotateCcw size={14} aria-hidden />
+                    Reset
+                  </button>
+                )}
+                <button
+                  type="button"
+                  aria-pressed={editing}
+                  className="btn btn-ghost btn-sm"
+                  title="Edit the message wording for this send only"
+                  onClick={() => setEditing((open) => !open)}
+                >
+                  <Pencil size={14} aria-hidden />
+                  {editing ? "Done" : "Edit"}
+                </button>
+              </div>
+            </div>
+
+            {editing && (
+              <div className="grid gap-2 rounded-xl border border-white/10 p-3">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted">Title</span>
+                  <input
+                    className="input"
+                    value={titleOverride}
+                    maxLength={120}
+                    placeholder={previewEmbed.title}
+                    onChange={(event) => setTitleOverride(event.target.value)}
+                  />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted">Opening line</span>
+                  <textarea
+                    className="input min-h-16"
+                    value={openingOverride}
+                    maxLength={2000}
+                    placeholder="Replace the template's opening sentence"
+                    onChange={(event) => setOpeningOverride(event.target.value)}
+                  />
+                </label>
+                <p className="text-[11px] text-muted">
+                  Applies to this notice only — the template is unchanged. Leave a field blank to
+                  keep the standard wording. The reply footer cannot be edited: it is the only
+                  route the recipient has to reach a human.
+                </p>
+              </div>
+            )}
             <div className="flex gap-0 overflow-hidden rounded-lg bg-ink/[0.04]">
               <span
                 className="w-1 shrink-0"
@@ -381,7 +618,7 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
               <div className="min-w-0 p-3">
                 <p className="text-sm font-semibold">{previewEmbed.title}</p>
                 <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted">
-                  {renderBold(previewEmbed.description)}
+                  {renderBold(unescapeForPreview(previewEmbed.description))}
                 </p>
                 <p className="mt-2 text-[10px] text-muted">Mazora Network</p>
               </div>

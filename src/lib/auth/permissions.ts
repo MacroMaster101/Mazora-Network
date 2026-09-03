@@ -5,6 +5,7 @@ import type { Role } from "@/lib/types";
 import type { Session } from "@/lib/auth";
 import type { AdminNavAccess } from "@/lib/admin-nav";
 import { hasAtLeast, ROLES } from "@/lib/auth/roles";
+import { canAccessModule } from "@/lib/auth/module-access-shared";
 import { getDb, schema } from "@/lib/db/client";
 
 export const NEWS_PERMISSION_KEY = "news.permissions";
@@ -29,6 +30,22 @@ export const MAZORA_BOT_PERMISSION_KEY = "bot.permissions";
 
 /** Owner and IT can never be removed, so the owner cannot lock themselves out. */
 export const ALWAYS_ALLOWED: Role[] = ["owner", "it"];
+
+/**
+ * Roles force-included in one module's list, whatever is stored or submitted.
+ *
+ * Owner is excluded for an IT-tier module. ALWAYS_ALLOWED is injected on both
+ * read and write, so leaving owner in it would put "owner" into the audit
+ * module's own role list — and the access check consults that list once the
+ * owner short-circuit is skipped. The IT-only rule would be defeated silently,
+ * by the very mechanism meant to guarantee access.
+ *
+ * IT is never removed: it is TOP_ROLE, and a module nobody can reach is a
+ * module nobody can fix.
+ */
+export function alwaysAllowedFor(key?: string): Role[] {
+  return key && IT_ONLY_MODULES.has(key) ? ["it"] : [...ALWAYS_ALLOWED];
+}
 
 export interface ModulePermissions {
   roles: Role[];
@@ -57,12 +74,12 @@ function defaults(key?: string): ModulePermissions {
   return { roles: defaultRolesForModule(key), userIds: [] };
 }
 
-function failClosed(): ModulePermissions {
-  return { roles: [...ALWAYS_ALLOWED], userIds: [] };
+function failClosed(key?: string): ModulePermissions {
+  return { roles: alwaysAllowedFor(key), userIds: [] };
 }
 
 function normalise(value: unknown, key?: string): ModulePermissions {
-  if (!value || typeof value !== "object") return failClosed();
+  if (!value || typeof value !== "object") return failClosed(key);
   const raw = value as { roles?: unknown; userIds?: unknown };
   const roles = Array.isArray(raw.roles)
     ? raw.roles.filter((r): r is Role => typeof r === "string" && ROLES.includes(r as Role))
@@ -70,7 +87,7 @@ function normalise(value: unknown, key?: string): ModulePermissions {
   const userIds = Array.isArray(raw.userIds)
     ? raw.userIds.filter((u): u is string => typeof u === "string" && u.length > 0).slice(0, 100)
     : [];
-  return { roles: Array.from(new Set([...roles, ...ALWAYS_ALLOWED])), userIds };
+  return { roles: Array.from(new Set([...roles, ...alwaysAllowedFor(key)])), userIds };
 }
 
 export const getModulePermissions = cache(async (key: string): Promise<ModulePermissions> => {
@@ -84,7 +101,7 @@ export const getModulePermissions = cache(async (key: string): Promise<ModulePer
       .limit(1);
     return row ? normalise(row.settingValue, key) : defaults(key);
   } catch {
-    return failClosed();
+    return failClosed(key);
   }
 });
 
@@ -107,6 +124,8 @@ export const ALL_PERMISSION_KEYS = [
   STAFF_PERMISSION_KEY,
   NOTIFICATIONS_PERMISSION_KEY,
   MAZORA_BOT_PERMISSION_KEY,
+  SETTINGS_PERMISSION_KEY,
+  AUDIT_PERMISSION_KEY,
 ] as const;
 
 export const getAllModulePermissions = cache(
@@ -131,12 +150,48 @@ export const getAllModulePermissions = cache(
   },
 );
 
+/*
+  Modules an owner must not reach by rank alone.
+
+  Everything else keeps the long-standing owner short-circuit. Audit is the
+  exception because it exposes every sensitive action taken across the site,
+  including actions taken against owners — which is the one record an owner
+  should not be able to quietly grant themselves.
+
+  Settings is deliberately NOT here: owners are expected to reach it.
+
+  An owner can still be given audit access; IT grants it from the permissions
+  page and the grant lands in the module's own role list, which the check below
+  consults after the short-circuit is skipped.
+*/
+const IT_ONLY_MODULES: ReadonlySet<string> = new Set([AUDIT_PERMISSION_KEY]);
+
+export function isItOnlyModule(key: string): boolean {
+  return IT_ONLY_MODULES.has(key);
+}
+
 export async function canManageModule(key: string, session: Session | null, userId?: string | null): Promise<boolean> {
   if (!session) return false;
-  if (hasAtLeast(session.role, "owner")) return true;
+  const itOnly = IT_ONLY_MODULES.has(key);
+
+  /*
+    Answer without touching the database where the answer cannot depend on it.
+
+    This mirrors the first two branches of canAccessModule exactly, and exists
+    for availability rather than speed: getModulePermissions fails CLOSED on a
+    database error, so reading it first would lock owners out of every admin
+    page during an outage — which is how this behaved before IT-only modules
+    existed, and must keep behaving.
+  */
+  if (!itOnly && hasAtLeast(session.role, "owner")) return true;
+
   const perms = await getModulePermissions(key);
-  if (perms.roles.includes(session.role)) return true;
-  return Boolean(userId && perms.userIds.includes(userId));
+  return canAccessModule(session.role, {
+    itOnly,
+    configuredRoles: perms.roles,
+    configuredUserIds: perms.userIds,
+    userId,
+  });
 }
 
 // Module-specific aliases & guards
