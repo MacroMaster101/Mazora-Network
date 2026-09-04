@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { nextPresenceIndex, shouldRotate } from "../presence-rotation.js";
+import { holdMsAt, nextPresenceIndex, shouldRotate } from "../presence-rotation.js";
 
 test("advances through the cycle and wraps at the end", () => {
   assert.equal(nextPresenceIndex(0, 3), 1);
@@ -34,4 +34,25 @@ test("an index left beyond the end after statuses are disabled comes back in ran
 test("an empty list cannot produce a negative or NaN index", () => {
   assert.equal(nextPresenceIndex(0, 0), 0);
   assert.equal(nextPresenceIndex(5, 0), 0);
+});
+
+test("each status is held for its own duration, not one shared interval", () => {
+  const holds = [5_000, 10_000, 5_000];
+  assert.equal(holdMsAt(holds, 0, 5_000), 5_000);
+  assert.equal(holdMsAt(holds, 1, 5_000), 10_000);
+  assert.equal(holdMsAt(holds, 2, 5_000), 5_000);
+});
+
+test("a missing or nonsensical hold falls back instead of scheduling a zero-delay timer", () => {
+  // A zero delay would spin the card as fast as the browser could repaint,
+  // which is the one failure mode worth guarding here.
+  for (const bad of [undefined, 0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.equal(holdMsAt([bad as number], 0, 8_000), 8_000);
+  }
+  assert.equal(holdMsAt([], 3, 8_000), 8_000);
+});
+
+test("an unusable fallback still yields a positive delay", () => {
+  assert.equal(holdMsAt([], 0, 0), 5_000);
+  assert.equal(holdMsAt([], 0, Number.NaN), 5_000);
 });

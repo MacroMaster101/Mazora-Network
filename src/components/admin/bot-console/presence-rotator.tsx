@@ -1,24 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { nextPresenceIndex, shouldRotate } from "@/lib/presence-rotation";
+import { holdMsAt, nextPresenceIndex, shouldRotate } from "@/lib/presence-rotation";
 
 export interface PresenceRow {
   id: string;
   /** Discord's activity verb: Playing, Watching, Listening, Competing. */
   verb: string;
   text: string;
+  /** How long this status stays on screen, matching the worker's own hold. */
+  holdMs: number;
 }
 
 /**
  * Mirror what the bot is showing in Discord, one status at a time.
  *
  * The point of this card is that it is not a list. Discord only ever displays
- * one activity, cycling on the worker's own interval, so a static list of three
- * lines showed something the recipient never sees. This runs the same cycle at
- * the same `rotateMs` the worker uses, which is why the two stay in step.
+ * one activity, and each status now holds for its own duration, so a static
+ * list of three lines showed neither what a member sees nor how long they see
+ * it. This runs the same per-status schedule the worker runs, which is why the
+ * two stay in step.
  */
-export function PresenceRotator({ rows, rotateMs }: { rows: PresenceRow[]; rotateMs: number }) {
+export function PresenceRotator({ rows, fallbackHoldMs }: { rows: PresenceRow[]; fallbackHoldMs: number }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 
@@ -26,14 +29,21 @@ export function PresenceRotator({ rows, rotateMs }: { rows: PresenceRow[]; rotat
   // Repairs an index left over from a longer list, e.g. after a status stops
   // resolving, without waiting for the next tick to come round.
   const safeIndex = rows.length > 0 ? index % rows.length : 0;
+  const holdMs = holdMsAt(
+    rows.map((row) => row.holdMs),
+    safeIndex,
+    fallbackHoldMs,
+  );
 
   useEffect(() => {
     if (!rotating || paused) return;
-    const timer = setInterval(() => {
+    // A timeout rather than an interval: the delay changes with each status,
+    // so the next tick has to be scheduled from the row currently showing.
+    const timer = setTimeout(() => {
       setIndex((current) => nextPresenceIndex(current, rows.length));
-    }, rotateMs);
-    return () => clearInterval(timer);
-  }, [rotating, paused, rotateMs, rows.length]);
+    }, holdMs);
+    return () => clearTimeout(timer);
+  }, [rotating, paused, holdMs, rows.length, safeIndex]);
 
   if (rows.length === 0) return null;
   const row = rows[safeIndex];
@@ -59,7 +69,7 @@ export function PresenceRotator({ rows, rotateMs }: { rows: PresenceRow[]; rotat
             <span
               key={`${safeIndex}-${paused}`}
               className="presence-progress-fill"
-              style={{ animationDuration: `${rotateMs}ms`, animationPlayState: paused ? "paused" : "running" }}
+              style={{ animationDuration: `${holdMs}ms`, animationPlayState: paused ? "paused" : "running" }}
             />
           </span>
           <span className="flex shrink-0 gap-1.5">

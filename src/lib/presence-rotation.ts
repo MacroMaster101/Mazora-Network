@@ -23,3 +23,17 @@ export function nextPresenceIndex(current: number, length: number): number {
 export function shouldRotate(length: number): boolean {
   return length > 1;
 }
+
+/**
+ * How long the status at `index` should stay on screen.
+ *
+ * Each row carries its own hold time, so the value comes from the row rather
+ * than from one interval shared by the whole loop. A missing or nonsensical
+ * hold falls back rather than scheduling a zero-delay timer, which would spin
+ * the card as fast as the browser could repaint.
+ */
+export function holdMsAt(holds: readonly number[], index: number, fallback: number): number {
+  const safeFallback = Number.isFinite(fallback) && fallback > 0 ? Math.floor(fallback) : 5_000;
+  const value = holds[index];
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : safeFallback;
+}
