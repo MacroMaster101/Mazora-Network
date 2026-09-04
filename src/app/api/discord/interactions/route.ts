@@ -22,6 +22,11 @@ import {
   verifyDiscordSignature,
 } from "@/lib/discord";
 import { claimOrderForConfirm, markOrderDecision } from "@/lib/data/orders";
+import {
+  buildConfirmedDescription,
+  buildDeclinedDescription,
+  getStoreMessages,
+} from "@/lib/data/store-messages";
 import { rateLimitShared } from "@/lib/rate-limit";
 import {
   handleStaffNoticeAutocomplete,
@@ -355,25 +360,27 @@ async function runConfirm(context: DecisionContext): Promise<void> {
 
   const link = ticketId && guildId ? channelUrl(guildId, ticketId) : null;
   const supportUrl = link ?? site.discordSupportTickets;
-  const botDisclaimer =
-    `\n\n— — —\n🤖 This message was sent by an automated bot, which **cannot read replies**. ` +
-    `To respond, open a ticket and a staff member will get back to you:\n${supportUrl}`;
+  // Wording only. The reference, summary, total and the payment warning are
+  // assembled by buildConfirmedDescription and never come from the panel.
+  const messages = await getStoreMessages();
 
   const dmSent = await sendBotDirectMessage(context.botToken, context.customerId, {
     embeds: [
       {
         author: MAZORA_AUTHOR,
-        title: "✅ Order Confirmed!",
-        description:
-          `Your Mazora Network order (\`${context.reference}\`) has just been confirmed by **${context.actorName}**.\n` +
-          (link
-            ? `A private ticket has been opened for you — continue there: ${link}\n\n`
-            : "A staff member will reach out to you here shortly to arrange payment and finalize the delivery.\n\n") +
-          (context.items ? `**Order Summary**\n${context.items}\n\n` : "") +
-          (context.total ? `**Total:** ${context.total}\n` : "") +
-          (context.creatorCode ? `**Discount code:** ${context.creatorCode}\n` : "") +
-          "_No payment has been taken yet — staff will never ask for card details in chat._" +
-          botDisclaimer,
+        title: messages.confirmed.title,
+        description: buildConfirmedDescription(
+          messages.confirmed,
+          {
+            reference: context.reference,
+            staff: context.actorName,
+            ticketLink: link,
+            items: context.items,
+            total: context.total,
+            creatorCode: context.creatorCode,
+          },
+          supportUrl,
+        ),
         color: 0x34d399,
       },
     ],
@@ -700,19 +707,18 @@ async function runTicketLifecycle(context: TicketLifecycleContext): Promise<void
 }
 /** Reject: DM the buyer, no ticket is created. */
 async function runReject(context: DecisionContext): Promise<void> {
-  const botDisclaimer =
-    `\n\n— — —\n🤖 This message was sent by an automated bot, which **cannot read replies**. ` +
-    `To respond, open a ticket and a staff member will get back to you:\n${site.discordSupportTickets}`;
+  const messages = await getStoreMessages();
 
   const dmSent = await sendBotDirectMessage(context.botToken, context.customerId, {
     embeds: [
       {
         author: MAZORA_AUTHOR,
-        title: "❌ Order Declined",
-        description:
-          `Your Mazora Network order (\`${context.reference}\`) was reviewed and declined by **${context.actorName}**.\n` +
-          "If you believe this is a mistake or have questions, please reach out in the Mazora Discord server." +
-          botDisclaimer,
+        title: messages.declined.title,
+        description: buildDeclinedDescription(
+          messages.declined,
+          { reference: context.reference, staff: context.actorName },
+          site.discordSupportTickets,
+        ),
         color: 0xf87171,
       },
     ],

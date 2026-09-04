@@ -11,10 +11,12 @@ import {
   readNewsSync,
 } from "@/lib/data/bot-console";
 import { DEFAULT_BOT_PRESENCE, getBotPresenceConfig } from "@/lib/data/bot-presence-config";
+import { DEFAULT_STORE_MESSAGES, getStoreMessages } from "@/lib/data/store-messages";
 import { BotHealthPanel } from "@/components/admin/bot-console/bot-health-panel";
 import { ChannelRoutingPanel } from "@/components/admin/bot-console/channel-routing-panel";
 import { LivePresencePanel } from "@/components/admin/bot-console/live-presence-panel";
 import { PresenceEditorPanel } from "@/components/admin/bot-console/presence-editor-panel";
+import { StoreMessagesPanel } from "@/components/admin/bot-console/store-messages-panel";
 import { NewsSyncPanel } from "@/components/admin/bot-console/news-sync-panel";
 import { BotActivityPanel } from "@/components/admin/bot-console/bot-activity-panel";
 import { StaffNoticeComposer } from "@/components/admin/bot-console/staff-notice-composer";
@@ -35,12 +37,13 @@ export default async function MazoraBotPage() {
   // with no site account at all — a staff-only dropdown could not reach them.
 
   // allSettled so an unexpected throw in one reader still renders the rest.
-  const [presence, routes, news, activity, presenceConfig] = await Promise.allSettled([
+  const [presence, routes, news, activity, presenceConfig, storeMessages] = await Promise.allSettled([
     readPresenceHealth(),
     readChannelRoutes(),
     readNewsSync(),
     readBotActivity(),
     getBotPresenceConfig(),
+    getStoreMessages(),
   ]);
 
   const settled = <T,>(
@@ -53,6 +56,7 @@ export default async function MazoraBotPage() {
   const newsResult = settled(news, { ok: false, reason: "The news reader failed." } as const);
   const activityResult = settled(activity, { ok: false, reason: "The activity reader failed." } as const);
   const presenceConfigResult = settled(presenceConfig, DEFAULT_BOT_PRESENCE);
+  const storeMessagesResult = settled(storeMessages, DEFAULT_STORE_MESSAGES);
 
   const snapshot = presenceResult.ok ? presenceResult.health.snapshot : null;
   const online = presenceResult.ok ? presenceResult.health.online : null;
@@ -82,6 +86,7 @@ export default async function MazoraBotPage() {
         <BotHealthPanel presence={presenceResult} routes={routesResult} {...readBotHealthFlags()} />
         <LivePresencePanel presence={presenceResult} config={presenceConfigResult} tokens={tokensFromHealth} />
         <PresenceEditorPanel config={presenceConfigResult} tokens={tokensFromHealth} />
+        <StoreMessagesPanel config={storeMessagesResult} />
         <ChannelRoutingPanel routes={routesResult} />
         <NewsSyncPanel news={newsResult} />
         <BotActivityPanel activity={activityResult} canViewAuditLog={canViewAuditLog} />
