@@ -83,19 +83,23 @@ export default async function MazoraBotPage() {
 
       <div className="grid gap-4">
         {/*
-          Read down, then act, then review: what the bot is right now, then the
-          settings that shape it, then the one tool that sends something, then
-          the record of what has been sent. The composer used to open the page,
-          which put a "message a member" form above the reason anyone came here
-          — checking the bot was alive.
+          Health first, because a broken bot explains everything below it. Then
+          the composer: it is the one thing on this page people come to *do*,
+          and burying it under six read-only cards made it a scroll away. Then
+          each area of the bot, and last the record of what was done.
         */}
         <BotHealthPanel presence={presenceResult} routes={routesResult} {...readBotHealthFlags()} />
+        <StaffNoticeComposer canTerminate={hasAtLeast(session.role, "owner")} />
+
+        {/* The presence card and the editor that drives it, kept adjacent so a
+            change can be checked against what is actually showing. */}
         <LivePresencePanel presence={presenceResult} config={presenceConfigResult} tokens={tokensFromHealth} />
         <PresenceEditorPanel config={presenceConfigResult} tokens={tokensFromHealth} />
-        <StoreMessagesPanel config={storeMessagesResult} />
+
         <ChannelRoutingPanel routes={routesResult} />
         <NewsSyncPanel news={newsResult} />
-        <StaffNoticeComposer canTerminate={hasAtLeast(session.role, "owner")} />
+        <StoreMessagesPanel config={storeMessagesResult} />
+
         <BotActivityPanel activity={activityResult} canViewAuditLog={canViewAuditLog} />
       </div>
     </>
