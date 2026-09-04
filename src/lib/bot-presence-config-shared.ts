@@ -3,11 +3,21 @@ export const MIN_REFRESH_MS = 30_000;
 export const MAX_ROTATE_MS = 600_000;
 export const MAX_REFRESH_MS = 3_600_000;
 
+/**
+ * Hold time given to a newly added status.
+ *
+ * Discord allows five presence updates per twenty seconds. Five is therefore
+ * both the floor and the sensible starting point — anything shorter would be
+ * dropped by Discord rather than displayed faster.
+ */
+export const DEFAULT_HOLD_MS = 5_000;
+
 export const ACTIVITY_TYPES = ["Playing", "Watching", "Listening", "Competing"] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
 export const DEFAULT_KINDS = ["website", "minecraft", "discord"] as const;
-export type StatusKind = (typeof DEFAULT_KINDS)[number] | "custom";
+export type DefaultKind = (typeof DEFAULT_KINDS)[number];
+export type StatusKind = DefaultKind | "custom";
 
 export interface PresenceStatusRow {
   id: string;
@@ -16,13 +26,37 @@ export interface PresenceStatusRow {
   fallbackTemplate: string | null;
   activityType: ActivityType;
   enabled: boolean;
+  /**
+   * How long this one status stays on screen before the loop moves on.
+   *
+   * Per-row rather than global because the lines are not equally worth
+   * reading: a player count rewards a longer look than a static "Live".
+   */
+  holdMs: number;
 }
 
 export interface BotPresenceConfig {
   statuses: PresenceStatusRow[];
+  /**
+   * Hold time handed to newly added statuses, and the value a row inherits if
+   * it was stored before per-status timing existed. Rotation itself is driven
+   * by each row's own holdMs.
+   */
   rotateMs: number;
   refreshMs: number;
 }
+
+/**
+ * The two sanctioned Discord lines.
+ *
+ * How much detail to show is a display choice, so both are offered. Neither
+ * changes what the line claims, which is why the pair can stay switchable
+ * while free-text editing of the default is closed off.
+ */
+export const DISCORD_TEMPLATES = {
+  online: "🟣 Discord • {discord_online} online",
+  members: "🟣 Discord • {discord_online} online ({discord_members} members)",
+} as const;
 
 export const DEFAULT_BOT_PRESENCE: BotPresenceConfig = {
   statuses: [
@@ -33,6 +67,7 @@ export const DEFAULT_BOT_PRESENCE: BotPresenceConfig = {
       fallbackTemplate: "🌐 mazora.us • Offline",
       activityType: "Playing",
       enabled: true,
+      holdMs: 5_000,
     },
     {
       id: "minecraft",
@@ -41,17 +76,20 @@ export const DEFAULT_BOT_PRESENCE: BotPresenceConfig = {
       fallbackTemplate: "⛏️ mc.mazora.us • Offline",
       activityType: "Watching",
       enabled: true,
+      // The player count is the line people actually read, so it gets longer.
+      holdMs: 10_000,
     },
     {
       id: "discord",
       kind: "discord",
-      template: "🟣 Discord • {discord_online} online ({discord_members} members)",
+      template: DISCORD_TEMPLATES.members,
       fallbackTemplate: "🟣 Discord • Count unavailable",
       activityType: "Watching",
       enabled: true,
+      holdMs: 5_000,
     },
   ],
-  rotateMs: 5_000,
+  rotateMs: DEFAULT_HOLD_MS,
   refreshMs: 60_000,
 };
 
@@ -66,40 +104,54 @@ const text = (value: unknown, fallback: string): string =>
 const idText = (value: unknown, fallback: string): string =>
   typeof value === "string" && value.trim() ? value.trim().slice(0, 64) : fallback;
 
-const TOKEN_PATTERN = /\{([a-z_]+)\}/g;
-export const DEFAULT_TOKEN_RULES = {
-  website: { required: ["site_status"], allowed: ["site_status"] },
-  minecraft: { required: ["mc_players", "mc_max"], allowed: ["mc_players", "mc_max"] },
-  // Member count is an optional display enhancement. Online count is the
-  // truthful minimum the built-in Discord status must keep.
-  discord: {
-    required: ["discord_online"],
-    allowed: ["discord_online", "discord_members"],
-  },
-} as const satisfies Record<
-  (typeof DEFAULT_KINDS)[number],
-  { required: readonly string[]; allowed: readonly string[] }
->;
+const defaultRow = (kind: DefaultKind): PresenceStatusRow =>
+  DEFAULT_BOT_PRESENCE.statuses.find((row) => row.kind === kind)!;
 
-function tokensIn(...templates: Array<string | null>): Set<string> {
-  const tokens = new Set<string>();
-  for (const template of templates) {
-    for (const match of template?.matchAll(TOKEN_PATTERN) ?? []) tokens.add(match[1]);
-  }
-  return tokens;
+/**
+ * The status text a default row is allowed to carry, canonical value first.
+ *
+ * The three built-in lines name real services and carry the tokens the worker
+ * substitutes. Left as free text they could be rewritten into something that
+ * still looked official while saying anything at all, so they are fixed, and
+ * only the Discord pair varies.
+ */
+export function allowedTemplatesFor(kind: DefaultKind): readonly string[] {
+  if (kind === "discord") return [DISCORD_TEMPLATES.members, DISCORD_TEMPLATES.online];
+  return [defaultRow(kind).template];
 }
 
-export function hasValidDefaultTokens(row: PresenceStatusRow): boolean {
+/** The one fallback line a default row is allowed to carry. */
+export function canonicalFallbackFor(kind: DefaultKind): string | null {
+  return defaultRow(kind).fallbackTemplate;
+}
+
+/**
+ * Whether a default row's text is something the dashboard could have produced.
+ *
+ * The fallback counts. It is what shows whenever live data is missing — which
+ * is exactly when people look — so a locked default whose fallback could say
+ * anything would not be locked in any way that mattered.
+ */
+export function hasLockedDefaultText(row: PresenceStatusRow): boolean {
   if (row.kind === "custom") return true;
-  const actual = tokensIn(row.template, row.fallbackTemplate);
-  const rule = DEFAULT_TOKEN_RULES[row.kind];
   return (
-    rule.required.every((token) => actual.has(token)) &&
-    [...actual].every((token) => (rule.allowed as readonly string[]).includes(token))
+    allowedTemplatesFor(row.kind).includes(row.template) &&
+    row.fallbackTemplate === canonicalFallbackFor(row.kind)
   );
 }
 
-function sanitiseRow(value: unknown, index: number): PresenceStatusRow | null {
+/** Force a default row back onto sanctioned text, keeping a legal variant. */
+function lockDefaultText(row: PresenceStatusRow): PresenceStatusRow {
+  if (row.kind === "custom") return row;
+  const allowed = allowedTemplatesFor(row.kind);
+  return {
+    ...row,
+    template: allowed.includes(row.template) ? row.template : allowed[0],
+    fallbackTemplate: canonicalFallbackFor(row.kind),
+  };
+}
+
+function sanitiseRow(value: unknown, index: number, fallbackHoldMs: number): PresenceStatusRow | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Partial<PresenceStatusRow>;
   const kind: StatusKind =
@@ -119,6 +171,9 @@ function sanitiseRow(value: unknown, index: number): PresenceStatusRow | null {
       ? (row.activityType as ActivityType)
       : "Playing",
     enabled: row.enabled !== false,
+    // Rows written before per-status timing carry no holdMs and inherit the
+    // old global interval, so an upgrade changes nothing visible.
+    holdMs: clamp(row.holdMs, MIN_ROTATE_MS, MAX_ROTATE_MS, fallbackHoldMs),
   };
 }
 
@@ -127,14 +182,17 @@ export function sanitiseBotPresence(value: unknown): BotPresenceConfig {
     return structuredClone(DEFAULT_BOT_PRESENCE);
   }
   const stored = value as Partial<BotPresenceConfig>;
+  const rotateMs = clamp(stored.rotateMs, MIN_ROTATE_MS, MAX_ROTATE_MS, DEFAULT_BOT_PRESENCE.rotateMs);
   const parsedRows = Array.isArray(stored.statuses)
-    ? stored.statuses.map(sanitiseRow).filter((row): row is PresenceStatusRow => row !== null)
+    ? stored.statuses
+        .map((row, index) => sanitiseRow(row, index, rotateMs))
+        .filter((row): row is PresenceStatusRow => row !== null)
     : [];
 
   // Stored JSON is not assumed to have come through the admin action. Enforce
   // the protected-row invariants here too so a direct or legacy database write
-  // cannot duplicate a default, change its id/token set, or make React keys
-  // collide in the dashboard.
+  // cannot duplicate a default, rewrite its locked text, change its id, or make
+  // React keys collide in the dashboard.
   const seenDefaultKinds = new Set<string>();
   const seenIds = new Set<string>();
   const rows: PresenceStatusRow[] = [];
@@ -143,13 +201,7 @@ export function sanitiseBotPresence(value: unknown): BotPresenceConfig {
     if (row.kind !== "custom") {
       if (seenDefaultKinds.has(row.kind)) continue;
       seenDefaultKinds.add(row.kind);
-      const fallback = DEFAULT_BOT_PRESENCE.statuses.find((candidate) => candidate.kind === row.kind)!;
-      row = hasValidDefaultTokens(row)
-        ? { ...row, id: row.kind }
-        : { ...row, id: row.kind, template: fallback.template, fallbackTemplate: fallback.fallbackTemplate };
-      if (row.kind === "website" && row.fallbackTemplate === null) {
-        row = { ...row, fallbackTemplate: fallback.fallbackTemplate };
-      }
+      row = lockDefaultText({ ...row, id: row.kind });
     } else if ((DEFAULT_KINDS as readonly string[]).includes(row.id)) {
       row = { ...row, id: `${row.id}-custom` };
     }
@@ -178,7 +230,7 @@ export function sanitiseBotPresence(value: unknown): BotPresenceConfig {
 
   return {
     statuses: rows.length ? rows : structuredClone(DEFAULT_BOT_PRESENCE.statuses),
-    rotateMs: clamp(stored.rotateMs, MIN_ROTATE_MS, MAX_ROTATE_MS, DEFAULT_BOT_PRESENCE.rotateMs),
+    rotateMs,
     refreshMs: clamp(stored.refreshMs, MIN_REFRESH_MS, MAX_REFRESH_MS, DEFAULT_BOT_PRESENCE.refreshMs),
   };
 }

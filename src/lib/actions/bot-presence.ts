@@ -9,13 +9,12 @@ import {
   ACTIVITY_TYPES,
   BOT_PRESENCE_KEY,
   DEFAULT_KINDS,
-  DEFAULT_TOKEN_RULES,
   MAX_REFRESH_MS,
   MAX_ROTATE_MS,
   MIN_REFRESH_MS,
   MIN_ROTATE_MS,
   getBotPresenceConfig,
-  hasValidDefaultTokens,
+  hasLockedDefaultText,
   sanitiseBotPresence,
 } from "@/lib/data/bot-presence-config";
 
@@ -31,6 +30,11 @@ const rowSchema = z.object({
   fallbackTemplate: z.string().trim().max(128).nullable(),
   activityType: z.enum(ACTIVITY_TYPES),
   enabled: z.boolean(),
+  holdMs: z
+    .number()
+    .int()
+    .min(MIN_ROTATE_MS, `A status cannot show for less than ${MIN_ROTATE_MS / 1000}s.`)
+    .max(MAX_ROTATE_MS),
 });
 
 const configSchema = z.object({
@@ -94,13 +98,13 @@ export async function saveBotPresenceAction(formData: FormData): Promise<BotPres
       return { ok: false, message: `The ${status.kind} status kind cannot be changed.` };
     }
 
-    if (!hasValidDefaultTokens(status)) {
-      const rule = DEFAULT_TOKEN_RULES[status.kind];
+    // The dashboard renders these three as read-only, so a mismatch here means
+    // the request did not come from the editor. Reject rather than silently
+    // correct, so tampering gets an answer instead of a quiet success.
+    if (!hasLockedDefaultText(status)) {
       return {
         ok: false,
-        message: `The ${status.kind} status must keep these data tokens: ${rule.required
-          .map((token) => `{${token}}`)
-          .join(", ")}.`,
+        message: `The ${status.kind} status text is fixed and cannot be edited.`,
       };
     }
   }

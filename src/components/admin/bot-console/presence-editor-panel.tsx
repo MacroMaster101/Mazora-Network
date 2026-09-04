@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ComponentType } from "react";
+import { useEffect, useState, useTransition, type ComponentType } from "react";
 import {
   Bot,
   ChevronDown,
@@ -8,15 +8,19 @@ import {
   Clock3,
   Eye,
   Globe2,
+  Info,
+  Lock,
   Pickaxe,
   Plus,
   Save,
   Sparkles,
   UsersRound,
+  X,
 } from "lucide-react";
 import { saveBotPresenceAction } from "@/lib/actions/bot-presence";
 import {
   ACTIVITY_TYPES,
+  DISCORD_TEMPLATES,
   MAX_ROTATE_MS,
   MIN_ROTATE_MS,
   type BotPresenceConfig,
@@ -24,7 +28,14 @@ import {
 } from "@/lib/bot-presence-config-shared";
 import { resolveStatusText, type PresenceTokens } from "@/lib/presence-template";
 
-const TOKENS = ["site_status", "mc_players", "mc_max", "discord_online", "discord_members"];
+/** Each token and what the worker swaps in for it, used by the chips and the guide. */
+const TOKEN_HELP: ReadonlyArray<[token: string, meaning: string]> = [
+  ["site_status", "Live or Offline, from the website health check"],
+  ["mc_players", "Players currently on mc.mazora.us"],
+  ["mc_max", "That server's player slot count"],
+  ["discord_online", "Members showing as online right now"],
+  ["discord_members", "Total members in the guild"],
+];
 
 const KIND_META: Record<
   PresenceStatusRow["kind"],
@@ -66,10 +77,8 @@ const KIND_META: Record<
   },
 };
 
-const DISCORD_TEMPLATES = {
-  online: "🟣 Discord • {discord_online} online",
-  members: "🟣 Discord • {discord_online} online ({discord_members} members)",
-} as const;
+/** Seconds, rounded for display — holdMs is always a whole number of seconds here. */
+const seconds = (ms: number) => Math.round(ms / 1000);
 
 export function PresenceEditorPanel({
   config,
@@ -81,7 +90,19 @@ export function PresenceEditorPanel({
   const [rows, setRows] = useState<PresenceStatusRow[]>(config.statuses);
   const [rotateMs, setRotateMs] = useState(config.rotateMs);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  // Escape closes the guide. Registered only while it is open so the dashboard
+  // keeps its own Escape behaviour the rest of the time.
+  useEffect(() => {
+    if (!guideOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setGuideOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [guideOpen]);
 
   const update = (id: string, patch: Partial<PresenceStatusRow>) =>
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
@@ -105,6 +126,7 @@ export function PresenceEditorPanel({
         fallbackTemplate: null,
         activityType: "Playing",
         enabled: true,
+        holdMs: rotateMs,
       },
     ]);
 
@@ -118,7 +140,8 @@ export function PresenceEditorPanel({
     });
   };
 
-  const enabledCount = rows.filter((row) => row.enabled).length;
+  const active = rows.filter((row) => row.enabled);
+  const loopSeconds = seconds(active.reduce((total, row) => total + row.holdMs, 0));
 
   return (
     <section className="panel overflow-hidden p-0">
@@ -133,21 +156,37 @@ export function PresenceEditorPanel({
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-display text-lg font-bold">Presence rotation</h2>
                 <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-500">
-                  {enabledCount} active
+                  {active.length} active
                 </span>
+                {loopSeconds > 0 && (
+                  <span className="rounded-full border border-line bg-card/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted">
+                    {loopSeconds}s loop
+                  </span>
+                )}
               </div>
               <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted">
-                Build the status loop players see in Discord. Reorder the cards and preview every line before saving.
+                Build the status loop players see in Discord. Give each line its own hold time, reorder the cards, and
+                preview every line before saving.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 lg:max-w-md lg:justify-end" aria-label="Available template tokens">
-            {TOKENS.map((token) => (
-              <code key={token} className="rounded-lg border border-line bg-card/70 px-2 py-1 text-[10px] text-muted">
-                {`{${token}}`}
-              </code>
-            ))}
+          <div className="flex items-start gap-2 lg:justify-end">
+            <div className="flex flex-wrap gap-1.5 lg:max-w-sm lg:justify-end" aria-label="Available template tokens">
+              {TOKEN_HELP.map(([token]) => (
+                <code key={token} className="rounded-lg border border-line bg-card/70 px-2 py-1 text-[10px] text-muted">
+                  {`{${token}}`}
+                </code>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setGuideOpen(true)}
+              aria-label="How presence rotation works"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line bg-card/70 text-muted transition hover:border-accent/40 hover:text-accent-bright"
+            >
+              <Info size={15} aria-hidden />
+            </button>
           </div>
         </div>
       </header>
@@ -158,6 +197,7 @@ export function PresenceEditorPanel({
           const meta = KIND_META[row.kind];
           const Icon = meta.icon;
           const label = row.kind === "custom" ? `custom status ${index + 1}` : `${row.kind} status`;
+          const locked = row.kind !== "custom";
           const discordMode = row.kind === "discord" && row.template.includes("{discord_members}") ? "members" : "online";
 
           return (
@@ -201,6 +241,27 @@ export function PresenceEditorPanel({
                       {row.enabled ? "Active" : "Paused"}
                     </label>
 
+                    <label className="flex items-center gap-1.5 rounded-xl border border-line bg-card/70 px-2.5 py-2 text-xs font-semibold">
+                      <Clock3 size={13} className="text-accent-bright" aria-hidden />
+                      <span className="sr-only">Seconds {label} stays on screen</span>
+                      <input
+                        type="number"
+                        min={MIN_ROTATE_MS / 1000}
+                        max={MAX_ROTATE_MS / 1000}
+                        value={seconds(row.holdMs)}
+                        onChange={(event) => {
+                          const value = event.target.valueAsNumber;
+                          if (!Number.isFinite(value)) return;
+                          update(row.id, {
+                            holdMs: Math.min(MAX_ROTATE_MS, Math.max(MIN_ROTATE_MS, Math.round(value) * 1000)),
+                          });
+                        }}
+                        className="input input-xs w-12 rounded-lg text-center"
+                        aria-label={`Seconds ${label} stays on screen`}
+                      />
+                      <span className="text-muted">sec</span>
+                    </label>
+
                     <label className="relative">
                       <span className="sr-only">Activity type for {label}</span>
                       <select
@@ -241,7 +302,7 @@ export function PresenceEditorPanel({
                       </button>
                     </div>
 
-                    {row.kind === "custom" && (
+                    {!locked && (
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm text-rose-500"
@@ -284,32 +345,47 @@ export function PresenceEditorPanel({
                   </div>
                 )}
 
-                <div className={`grid gap-4 ${row.kind === "custom" ? "" : "lg:grid-cols-2"}`}>
-                  <label className="grid gap-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Status message</span>
-                    <input
-                      value={row.template}
-                      maxLength={128}
-                      spellCheck={false}
-                      onChange={(event) => update(row.id, { template: event.target.value })}
-                      className="input w-full rounded-xl font-mono text-sm"
-                      aria-label={`${label} text`}
-                    />
-                  </label>
-
-                  {row.kind !== "custom" && (
-                    <label className="grid gap-1.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Fallback message</span>
+                <div className={`grid gap-4 ${locked ? "lg:grid-cols-2" : ""}`}>
+                  <div className="grid gap-1.5">
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
+                      Status message
+                      {locked && (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-line bg-card/70 px-1.5 py-0.5 text-[9px] normal-case tracking-normal">
+                          <Lock size={9} aria-hidden /> Locked
+                        </span>
+                      )}
+                    </span>
+                    {locked ? (
+                      <p className="input w-full break-words rounded-xl font-mono text-sm opacity-70" aria-label={`${label} text`}>
+                        {row.template}
+                      </p>
+                    ) : (
                       <input
-                        value={row.fallbackTemplate ?? ""}
+                        value={row.template}
                         maxLength={128}
                         spellCheck={false}
-                        onChange={(event) => update(row.id, { fallbackTemplate: event.target.value || null })}
+                        onChange={(event) => update(row.id, { template: event.target.value })}
                         className="input w-full rounded-xl font-mono text-sm"
-                        placeholder="Shown when live data is unavailable"
-                        aria-label={`${label} fallback text`}
+                        aria-label={`${label} text`}
                       />
-                    </label>
+                    )}
+                  </div>
+
+                  {locked && (
+                    <div className="grid gap-1.5">
+                      <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
+                        Fallback message
+                        <span className="inline-flex items-center gap-1 rounded-md border border-line bg-card/70 px-1.5 py-0.5 text-[9px] normal-case tracking-normal">
+                          <Lock size={9} aria-hidden /> Locked
+                        </span>
+                      </span>
+                      <p
+                        className="input w-full break-words rounded-xl font-mono text-sm opacity-70"
+                        aria-label={`${label} fallback text`}
+                      >
+                        {row.fallbackTemplate}
+                      </p>
+                    </div>
                   )}
                 </div>
 
@@ -344,20 +420,20 @@ export function PresenceEditorPanel({
 
             <label className="flex items-center gap-2 rounded-xl border border-line bg-card/70 px-3 py-2 text-xs font-semibold">
               <Clock3 size={14} className="text-accent-bright" aria-hidden />
-              Rotate every
+              New statuses start at
               <input
                 type="number"
                 min={MIN_ROTATE_MS / 1000}
                 max={MAX_ROTATE_MS / 1000}
-                value={rotateMs / 1000}
+                value={seconds(rotateMs)}
                 onChange={(event) => {
-                  const seconds = event.target.valueAsNumber;
-                  if (Number.isFinite(seconds)) {
-                    setRotateMs(Math.min(MAX_ROTATE_MS, Math.max(MIN_ROTATE_MS, seconds * 1000)));
+                  const value = event.target.valueAsNumber;
+                  if (Number.isFinite(value)) {
+                    setRotateMs(Math.min(MAX_ROTATE_MS, Math.max(MIN_ROTATE_MS, Math.round(value) * 1000)));
                   }
                 }}
                 className="input h-8 w-16 rounded-lg px-2 text-center text-xs"
-                aria-label="Rotate every seconds"
+                aria-label="Seconds a newly added status starts at"
               />
               seconds
             </label>
@@ -388,6 +464,92 @@ export function PresenceEditorPanel({
           </p>
         )}
       </footer>
+
+      {guideOpen && (
+        <div
+          className="presence-guide-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="How presence rotation works"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setGuideOpen(false);
+          }}
+        >
+          <div className="presence-guide">
+            <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+              <div>
+                <h3 className="font-display text-base font-bold">How presence rotation works</h3>
+                <p className="mt-1 text-xs text-muted">What each control changes, and how it reaches Discord.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGuideOpen(false)}
+                aria-label="Close"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line bg-card/70 text-muted transition hover:text-ink"
+              >
+                <X size={15} aria-hidden />
+              </button>
+            </header>
+
+            <div className="grid gap-5 overflow-y-auto px-5 py-5 text-sm">
+              <section>
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted">Data tokens</h4>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted">
+                  The worker replaces these with live values each time it refreshes. Anything else you type is shown as
+                  written.
+                </p>
+                <dl className="mt-3 grid gap-1.5">
+                  {TOKEN_HELP.map(([token, meaning]) => (
+                    <div key={token} className="flex flex-wrap items-baseline gap-2">
+                      <dt>
+                        <code className="rounded-lg border border-line bg-card/70 px-2 py-1 text-[10px]">{`{${token}}`}</code>
+                      </dt>
+                      <dd className="text-xs text-muted">{meaning}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+
+              <section>
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted">Timing</h4>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted">
+                  Each status holds for its own number of seconds, so the player count can linger while a short line
+                  moves on quickly. The loop runs top to bottom and repeats; one full pass currently takes{" "}
+                  <strong className="text-ink">{loopSeconds}s</strong>. Paused statuses are skipped entirely.
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-muted">
+                  {MIN_ROTATE_MS / 1000} seconds is the floor because Discord accepts only five presence updates every
+                  twenty seconds. Setting anything lower would be throttled by Discord rather than shown faster.
+                </p>
+              </section>
+
+              <section>
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted">Locked defaults</h4>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted">
+                  Website, Minecraft and Discord carry fixed text. They name real services and report real numbers, so
+                  their wording is not editable — a line that still looked official while saying something else would be
+                  misleading. You can still pause them, reorder them, change the activity verb, set their hold time, and
+                  switch the Discord line between the two count styles.
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-muted">
+                  The fallback message is what shows when live data cannot be read. It is locked for the same reason.
+                  Custom statuses you add are yours to write freely.
+                </p>
+              </section>
+
+              <section>
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted">Reaching the bot</h4>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted">
+                  Saving writes this configuration to the site database. The presence worker polls it every{" "}
+                  <strong className="text-ink">{seconds(config.refreshMs)}s</strong> over an authenticated endpoint and
+                  swaps to the new loop on its next pass, so a change can take up to that long to appear in Discord. If
+                  the worker cannot reach the site it keeps running the last configuration it read.
+                </p>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
