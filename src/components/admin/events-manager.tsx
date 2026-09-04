@@ -116,7 +116,10 @@ export function EventsManager({
             />
           </div>
 
-          <div className="flex items-center gap-1">
+          {/* Wraps because the page cannot scroll sideways: body is
+              overflow-x:hidden, so a row this wide put "cancelled" past the
+              screen edge on a phone with no way to reach it. */}
+          <div className="flex flex-wrap items-center gap-1">
             {["all", "upcoming", "live", "completed", "cancelled"].map((st) => (
               <button
                 key={st}

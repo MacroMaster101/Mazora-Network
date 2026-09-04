@@ -322,7 +322,16 @@ export interface RecipientContext {
   /** Ranks the actor may grant. Empty when they may not manage this account. */
   grantableRanks: Role[];
   /** Allowlisted roles, with whether the recipient currently holds each. */
-  discordRoles: { id: string; name: string; held: boolean }[];
+  discordRoles: { id: string; name: string; colour: number; held: boolean }[];
+  /**
+   * Every Discord role the recipient holds, highest first — including ones
+   * that cannot be changed from here.
+   *
+   * Shown rather than hidden because "what do they have now" is the question
+   * asked before "what should they have": the allowlist is usually one or two
+   * roles, so a picker alone said nothing about the account being looked at.
+   */
+  currentDiscordRoles: { id: string; name: string; colour: number }[];
 }
 
 /**
@@ -333,7 +342,13 @@ export interface RecipientContext {
  * site account for each would mean listing every auth user per keystroke.
  */
 export async function getRecipientContext(discordUserId: string): Promise<RecipientContext> {
-  const empty: RecipientContext = { ok: false, account: null, grantableRanks: [], discordRoles: [] };
+  const empty: RecipientContext = {
+    ok: false,
+    account: null,
+    grantableRanks: [],
+    discordRoles: [],
+    currentDiscordRoles: [],
+  };
 
   const auth = await authorize();
   if (!auth.ok) return { ...empty, message: auth.message };
@@ -374,7 +389,10 @@ export async function getRecipientContext(discordUserId: string): Promise<Recipi
   const allowlist = getGrantableRoleIds();
 
   let discordRoles: RecipientContext["discordRoles"] = [];
-  if (token && guildId && allowlist.length > 0) {
+  let currentDiscordRoles: RecipientContext["currentDiscordRoles"] = [];
+  // No allowlist check here any more: showing what someone already has is
+  // useful even on a server where nothing may be granted from this panel.
+  if (token && guildId) {
     const [lookup, guildRoles] = await Promise.all([
       fetchGuildMember(token, guildId, discordUserId),
       listGuildRoles(token, guildId),
@@ -386,9 +404,18 @@ export async function getRecipientContext(discordUserId: string): Promise<Recipi
     // misleading hierarchy error.
     if (lookup?.member) {
       const held = new Set(lookup.member.roles ?? []);
-      discordRoles = (guildRoles ?? [])
+      const roles = guildRoles ?? [];
+
+      discordRoles = roles
         .filter((role) => allowlist.includes(role.id))
-        .map((role) => ({ id: role.id, name: role.name, held: held.has(role.id) }));
+        .map((role) => ({ id: role.id, name: role.name, colour: role.colour, held: held.has(role.id) }));
+
+      currentDiscordRoles = roles
+        // @everyone shares the guild's id and is implicit for all members, so
+        // listing it would say nothing about this person.
+        .filter((role) => held.has(role.id) && role.id !== guildId)
+        .sort((a, b) => b.position - a.position)
+        .map((role) => ({ id: role.id, name: role.name, colour: role.colour }));
     }
   }
 
@@ -397,6 +424,7 @@ export async function getRecipientContext(discordUserId: string): Promise<Recipi
     account: matched ? { userId: matched.userId, username: matched.username, role: matched.role } : null,
     grantableRanks,
     discordRoles,
+    currentDiscordRoles,
   };
 }
 
