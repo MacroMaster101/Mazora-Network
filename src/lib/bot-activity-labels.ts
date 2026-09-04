@@ -12,6 +12,15 @@ export interface BotAuditDescription {
   label: string;
   detail: string | null;
   actor: string | null;
+  /**
+   * Whether the action actually completed.
+   *
+   * This is what the console needs to show first — a refused role grant read
+   * exactly like a successful one when the only difference was a word buried
+   * in the label. It means "the operation did what it was asked to do", not
+   * "the outcome was favourable": a role deliberately removed is `true`.
+   */
+  ok: boolean;
 }
 
 const text = (value: unknown): string | null =>
@@ -42,6 +51,7 @@ export function describeBotAuditRow(
       label: meta.delivered === false ? "Staff notice failed" : "Staff notice sent",
       detail: text(meta.username),
       actor,
+      ok: meta.delivered !== false,
     };
   }
 
@@ -56,7 +66,9 @@ export function describeBotAuditRow(
           ? "Discord role removed"
           : "Discord role added";
 
-    return { kind: "role", label, detail: roleName ?? text(meta.roleId), actor };
+    // Removing a role on purpose is a success. Only Discord refusing the
+    // change is a failure.
+    return { kind: "role", label, detail: roleName ?? text(meta.roleId), actor, ok: meta.applied !== false };
   }
 
   if (action === "role.change") {
@@ -70,6 +82,8 @@ export function describeBotAuditRow(
       label: "Rank changed",
       detail: [username, movement].filter(Boolean).join(" · ") || null,
       actor,
+      // A rank row is only written once the change has been applied.
+      ok: true,
     };
   }
 

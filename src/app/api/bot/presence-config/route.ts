@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { bearerMatches, readBearer } from "@/lib/bot-config-auth";
 import { getBotPresenceConfig } from "@/lib/data/bot-presence-config";
 
 /** Config must never be served from a cache; the worker polls for changes. */
@@ -22,8 +23,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Not configured." }, { status: 503 });
   }
 
-  const offered = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
-  if (offered !== secret) {
+  const offered = readBearer(request.headers.get("authorization"));
+  if (!bearerMatches(offered, secret)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 

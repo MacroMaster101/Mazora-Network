@@ -196,3 +196,50 @@
     width: 100%;
   }
 }
+
+/* ── Bot console: presence guide ──
+   The "how this works" dialog behind the info button. Fixed rather than
+   absolute so it is not clipped by the panel's own overflow:hidden, which is
+   what rounds the card's corners. */
+.presence-guide-overlay {
+  position: fixed;
+  z-index: 60;
+  display: grid;
+  padding: 1rem;
+  place-items: center;
+  background: rgb(0 0 0 / 0.55);
+  inset: 0;
+  backdrop-filter: blur(2px);
+  animation: presence-guide-in 160ms ease-out;
+}
+
+.presence-guide {
+  display: flex;
+  width: min(38rem, 100%);
+  max-height: min(85vh, 44rem);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgb(var(--line-strong));
+  border-radius: 1rem;
+  background: rgb(var(--card));
+  box-shadow: 0 30px 70px -30px rgb(0 0 0 / 0.75);
+  animation: presence-guide-rise 180ms ease-out;
+}
+
+@keyframes presence-guide-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes presence-guide-rise {
+  from { transform: translateY(0.75rem); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* The dialog still needs to appear; only the travel is dropped. */
+@media (prefers-reduced-motion: reduce) {
+  .presence-guide-overlay,
+  .presence-guide {
+    animation: none;
+  }
+}
