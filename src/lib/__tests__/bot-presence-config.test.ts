@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEFAULT_BOT_PRESENCE,
+  DISCORD_TEMPLATES,
   MAX_REFRESH_MS,
   MAX_ROTATE_MS,
   MIN_REFRESH_MS,
   MIN_ROTATE_MS,
+  hasLockedDefaultText,
   sanitiseBotPresence,
 } from "../bot-presence-config-shared.js";
 
@@ -118,4 +120,64 @@ test("keeps a visible website offline fallback and allows Discord online-only mo
     config.statuses.find((status) => status.kind === "discord")?.template,
     "🟣 Discord • {discord_online} online",
   );
+});
+
+test("each status keeps its own hold time", () => {
+  const config = sanitiseBotPresence({
+    ...DEFAULT_BOT_PRESENCE,
+    statuses: DEFAULT_BOT_PRESENCE.statuses.map((status) =>
+      status.kind === "minecraft" ? { ...status, holdMs: 30_000 } : status,
+    ),
+  });
+  assert.equal(config.statuses.find((status) => status.kind === "minecraft")?.holdMs, 30_000);
+  assert.equal(config.statuses.find((status) => status.kind === "website")?.holdMs, 5_000);
+});
+
+test("clamps a hold time outside what Discord's rate limit allows", () => {
+  const config = sanitiseBotPresence({
+    ...DEFAULT_BOT_PRESENCE,
+    statuses: [
+      { ...DEFAULT_BOT_PRESENCE.statuses[0], holdMs: 100 },
+      { ...DEFAULT_BOT_PRESENCE.statuses[1], holdMs: Number.MAX_SAFE_INTEGER },
+      DEFAULT_BOT_PRESENCE.statuses[2],
+    ],
+  });
+  assert.equal(config.statuses.find((status) => status.kind === "website")?.holdMs, MIN_ROTATE_MS);
+  assert.equal(config.statuses.find((status) => status.kind === "minecraft")?.holdMs, MAX_ROTATE_MS);
+});
+
+test("a row stored before per-status timing inherits the old global interval", () => {
+  // Upgrading an existing config must not visibly change the rotation, so a
+  // row with no holdMs takes the interval the whole loop used to share.
+  const config = sanitiseBotPresence({
+    statuses: [{ id: "a", kind: "custom", template: "hi", fallbackTemplate: null, activityType: "Playing", enabled: true }],
+    rotateMs: 12_000,
+    refreshMs: 60_000,
+  });
+  assert.equal(config.statuses.find((status) => status.kind === "custom")?.holdMs, 12_000);
+});
+
+test("a rewritten default is forced back onto its locked text", () => {
+  const config = sanitiseBotPresence({
+    ...DEFAULT_BOT_PRESENCE,
+    statuses: DEFAULT_BOT_PRESENCE.statuses.map((status) =>
+      status.kind === "minecraft"
+        ? { ...status, template: "⛏️ Totally official • {mc_players}/{mc_max}", fallbackTemplate: "anything at all" }
+        : status,
+    ),
+  });
+  const minecraft = config.statuses.find((status) => status.kind === "minecraft")!;
+  assert.equal(minecraft.template, DEFAULT_BOT_PRESENCE.statuses[1].template);
+  assert.equal(minecraft.fallbackTemplate, DEFAULT_BOT_PRESENCE.statuses[1].fallbackTemplate);
+});
+
+test("locking accepts either Discord count style but nothing else", () => {
+  const discord = DEFAULT_BOT_PRESENCE.statuses[2];
+  assert.ok(hasLockedDefaultText({ ...discord, template: DISCORD_TEMPLATES.online }));
+  assert.ok(hasLockedDefaultText({ ...discord, template: DISCORD_TEMPLATES.members }));
+  assert.ok(!hasLockedDefaultText({ ...discord, template: "🟣 Discord • {discord_online} nerds" }));
+  // The fallback is what shows when data is missing, so it is locked too.
+  assert.ok(!hasLockedDefaultText({ ...discord, fallbackTemplate: "whatever I like" }));
+  // Custom rows are the user's to write.
+  assert.ok(hasLockedDefaultText({ ...discord, kind: "custom", template: "anything" }));
 });

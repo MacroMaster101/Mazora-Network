@@ -153,6 +153,8 @@ export interface BotActivityEntry {
   actor: string | null;
   /** ISO timestamp. */
   at: string;
+  /** Whether the action completed. See BotAuditDescription.ok. */
+  ok: boolean;
 }
 
 /**
@@ -233,6 +235,8 @@ export async function readBotActivity(): Promise<
         label: row.status === "confirmed" ? "Order confirmed" : "Order rejected",
         detail: row.reference,
         actor: row.handledBy,
+        // A rejection is a decision that was carried out, not a failure.
+        ok: true,
         // Non-null by the isNotNull filter above; the ?? keeps TypeScript happy.
         at: (row.handledAt ?? new Date()).toISOString(),
       })),
@@ -250,6 +254,7 @@ export async function readBotActivity(): Promise<
           detail: described.detail,
           actor: described.actor,
           at: row.createdAt.toISOString(),
+          ok: described.ok,
         }];
       }),
     ];

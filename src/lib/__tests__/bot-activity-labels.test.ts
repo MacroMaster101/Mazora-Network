@@ -4,7 +4,7 @@ import { describeBotAuditRow } from "../bot-activity-labels.js";
 
 test("a delivered staff notice names the recipient and the sender", () => {
   const row = describeBotAuditRow("staff.notice", { username: "kaviyaz", by: "kldevsupport", delivered: true });
-  assert.deepEqual(row, { kind: "notice", label: "Staff notice sent", detail: "kaviyaz", actor: "kldevsupport" });
+  assert.deepEqual(row, { kind: "notice", label: "Staff notice sent", detail: "kaviyaz", actor: "kldevsupport", ok: true });
 });
 
 test("a staff notice Discord refused is reported as failed, not sent", () => {
@@ -12,6 +12,7 @@ test("a staff notice Discord refused is reported as failed, not sent", () => {
   // `delivered` back is the only way the panel can tell the two apart.
   const row = describeBotAuditRow("staff.notice", { username: "kaviyaz", by: "kldevsupport", delivered: false });
   assert.equal(row?.label, "Staff notice failed");
+  assert.equal(row?.ok, false);
 });
 
 test("a granted Discord role reads as added, a revoked one as removed", () => {
@@ -25,6 +26,7 @@ test("a granted Discord role reads as added, a revoked one as removed", () => {
     label: "Discord role added",
     detail: "Verified",
     actor: "kldevsupport",
+    ok: true,
   });
 
   const removed = describeBotAuditRow(
@@ -44,6 +46,19 @@ test("a role change Discord rejected is reported as failed", () => {
     "Verified",
   );
   assert.equal(row?.label, "Discord role change failed");
+  assert.equal(row?.ok, false);
+});
+
+test("a role removed on purpose is a success, not a failure", () => {
+  // The console tints failures red. Revoking a role is a completed action, so
+  // conflating "removed" with "refused" would cry wolf on every demotion.
+  const row = describeBotAuditRow(
+    "discord.role",
+    { roleId: "123456789012345678", granted: false, applied: true, by: "kldevsupport" },
+    "Verified",
+  );
+  assert.equal(row?.label, "Discord role removed");
+  assert.equal(row?.ok, true);
 });
 
 test("an unresolved role name falls back to the id rather than showing nothing", () => {
@@ -67,6 +82,7 @@ test("a rank change shows who, from what, to what", () => {
     label: "Rank changed",
     detail: "kaviyaz · member → helper",
     actor: "kldevsupport",
+    ok: true,
   });
 });
 
