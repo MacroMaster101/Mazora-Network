@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { bearerMatches, readBearer } from "../bot-config-auth.js";
 
-const SECRET = "b6f1c0d2e3a4958677889900aabbccddeeff00112233445566778899aabbccdd";
+/*
+  Deliberately low-entropy and self-describing.
+
+  This was a 64-character hex string, which is exactly what a real 256-bit
+  secret looks like — secret scanners flagged it, and so would anyone skimming
+  the file. Nothing here needs the entropy: the comparison is over SHA-256
+  digests, so any two distinct strings exercise the same paths.
+*/
+const SECRET = "not-a-real-secret-value-for-tests-only";
 
 test("accepts the exact secret and nothing else", () => {
   assert.equal(bearerMatches(SECRET, SECRET), true);
@@ -14,7 +22,7 @@ test("accepts the exact secret and nothing else", () => {
 test("a near miss is rejected as firmly as a wild guess", () => {
   // The point of hashing before comparing: neither of these may be treated
   // differently from the other, including in how long they take.
-  assert.equal(bearerMatches("b6f1c0d2e3a4958677889900aabbccddeeff001122334455667788990000000", SECRET), false);
+  assert.equal(bearerMatches("not-a-real-secret-value-for-tests-onlx", SECRET), false);
   assert.equal(bearerMatches("nope", SECRET), false);
 });
 
