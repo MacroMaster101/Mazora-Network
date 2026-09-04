@@ -355,7 +355,14 @@ function tokensFromSnapshot(): PresenceTokens {
   };
 }
 
-function activities(): Array<{ name: string; type: ActivityType }> {
+/** A line to display, and how long it should stay up once shown. */
+interface PresenceChoice {
+  name: string;
+  type: ActivityType;
+  holdMs: number;
+}
+
+function activities(): PresenceChoice[] {
   if (remoteConfig) {
     const tokens = tokensFromSnapshot();
     const configured = remoteConfig.statuses
@@ -364,31 +371,40 @@ function activities(): Array<{ name: string; type: ActivityType }> {
         const name = resolveStatusText(status, tokens);
         return name === null
           ? null
-          : { name, type: ActivityType[status.activityType] ?? ActivityType.Playing };
+          : {
+              name,
+              type: ActivityType[status.activityType] ?? ActivityType.Playing,
+              holdMs: status.holdMs,
+            };
       })
-      .filter((activity): activity is { name: string; type: ActivityType } => activity !== null);
+      .filter((activity): activity is PresenceChoice => activity !== null);
 
     if (configured.length > 0) return configured;
   }
 
+  // No usable dashboard config: the built-in lines share the one interval the
+  // worker was configured with, which is what they did before timing was
+  // per-status.
   const labels = presenceLabels(snapshot);
 
   return [
-    { name: labels.website, type: ActivityType.Playing },
-    { name: labels.minecraft, type: ActivityType.Watching },
-    { name: labels.discord, type: ActivityType.Watching },
+    { name: labels.website, type: ActivityType.Playing, holdMs: rotateMs },
+    { name: labels.minecraft, type: ActivityType.Watching, holdMs: rotateMs },
+    { name: labels.discord, type: ActivityType.Watching, holdMs: rotateMs },
   ];
 }
 
-function updatePresence(client: Client): void {
+/** Shows the next activity and reports how long it should stay up. */
+function updatePresence(client: Client): number {
   const choices = activities();
   const activity = choices[activityIndex % choices.length];
   activityIndex = (activityIndex + 1) % choices.length;
   client.user?.setPresence({
     status: "online",
-    activities: [activity],
+    activities: [{ name: activity.name, type: activity.type }],
   });
-  console.log(`[presence] ${ActivityType[activity.type]} ${activity.name}`);
+  console.log(`[presence] ${ActivityType[activity.type]} ${activity.name} (${activity.holdMs / 1000}s)`);
+  return activity.holdMs;
 }
 
 /*
@@ -414,11 +430,18 @@ const scheduleRefresh = (): void => {
   }, Math.max(MIN_REFRESH_MS, remoteConfig?.refreshMs ?? refreshMs));
 };
 
-const scheduleRotation = (): void => {
+/*
+  Each status carries its own hold time, so the next delay is not a constant —
+  it is however long the line currently on display asked for. updatePresence
+  reports that, and the next tick is scheduled from it. MIN_ROTATE_MS is
+  reapplied here as well as in the parser because this is the last point before
+  a delay reaches Discord.
+*/
+const scheduleRotation = (delayMs: number): void => {
   setTimeout(() => {
-    if (client) updatePresence(client);
-    scheduleRotation();
-  }, Math.max(MIN_ROTATE_MS, remoteConfig?.rotateMs ?? rotateMs));
+    const nextDelay = client ? updatePresence(client) : delayMs;
+    scheduleRotation(nextDelay);
+  }, Math.max(MIN_ROTATE_MS, delayMs));
 };
 
 const healthServer = createServer((request, response) => {
@@ -499,7 +522,8 @@ async function onReady(readyClient: Client<true>): Promise<void> {
   console.log(
     `[presence] snapshot: Website ${snapshot.websiteOnline ? "online" : "offline"}, Minecraft ${snapshot.minecraftOnline ? `${snapshot.minecraftPlayers}/${snapshot.minecraftMax ?? "unknown max"}` : "offline"}, Discord ${snapshot.discordOnline === null ? "unavailable" : `${snapshot.discordOnline} online`} (${snapshot.discordMembers ?? "?"} members)`,
   );
-  updatePresence(readyClient);
+  // The line just put up decides how long the loop waits before the next one.
+  const firstHoldMs = updatePresence(readyClient);
 
   if (once) {
     setTimeout(() => {
@@ -529,7 +553,7 @@ async function onReady(readyClient: Client<true>): Promise<void> {
     void refreshSnapshot();
   }, 10_000);
   scheduleRefresh();
-  scheduleRotation();
+  scheduleRotation(firstHoldMs);
 }
 
 /**

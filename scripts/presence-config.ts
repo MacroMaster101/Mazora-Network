@@ -13,10 +13,16 @@ export interface RemoteStatus {
   fallbackTemplate: string | null;
   activityType: RemoteActivityType;
   enabled: boolean;
+  /** How long this one status stays on screen before the loop moves on. */
+  holdMs: number;
 }
 
 export interface RemoteConfig {
   statuses: RemoteStatus[];
+  /**
+   * Hold time inherited by any status that does not carry its own — which is
+   * every status in a payload written before per-status timing existed.
+   */
   rotateMs: number;
   refreshMs: number;
 }
@@ -39,6 +45,10 @@ export function parseRemoteConfig(value: unknown): RemoteConfig | null {
 
   const candidate = value as Partial<RemoteConfig>;
   if (!Array.isArray(candidate.statuses)) return null;
+
+  // Resolved first: a status with no hold of its own inherits it, which is how
+  // a payload from before per-status timing keeps its original rhythm.
+  const rotateMs = clampPresenceInterval(candidate.rotateMs, MIN_ROTATE_MS, MIN_ROTATE_MS);
 
   const statuses = candidate.statuses
     .map((value, index): RemoteStatus | null => {
@@ -63,6 +73,7 @@ export function parseRemoteConfig(value: unknown): RemoteConfig | null {
             : null,
         activityType,
         enabled: row.enabled !== false,
+        holdMs: clampPresenceInterval(row.holdMs, MIN_ROTATE_MS, rotateMs),
       };
     })
     .filter((status): status is RemoteStatus => status !== null)
@@ -72,7 +83,7 @@ export function parseRemoteConfig(value: unknown): RemoteConfig | null {
 
   return {
     statuses,
-    rotateMs: clampPresenceInterval(candidate.rotateMs, MIN_ROTATE_MS, MIN_ROTATE_MS),
+    rotateMs,
     refreshMs: clampPresenceInterval(candidate.refreshMs, MIN_REFRESH_MS, MIN_REFRESH_MS),
   };
 }

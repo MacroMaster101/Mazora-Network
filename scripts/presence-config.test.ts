@@ -58,3 +58,42 @@ test("caps remote text at the same lengths enforced by the dashboard", () => {
   assert.equal(config?.statuses[0]?.template.length, 128);
   assert.equal(config?.statuses[0]?.fallbackTemplate?.length, 128);
 });
+
+test("keeps each status on its own hold time", () => {
+  const config = parseRemoteConfig({
+    statuses: [
+      { ...status, id: "website", holdMs: 5_000 },
+      { ...status, id: "minecraft", holdMs: 10_000 },
+    ],
+    rotateMs: 5_000,
+    refreshMs: 60_000,
+  });
+
+  assert.equal(config?.statuses[0]?.holdMs, 5_000);
+  assert.equal(config?.statuses[1]?.holdMs, 10_000);
+});
+
+test("a status with no hold of its own inherits the loop interval", () => {
+  // Exactly the shape a payload written before per-status timing has, so an
+  // older dashboard must not push the bot to the 5s floor by accident.
+  const config = parseRemoteConfig({ statuses: [status], rotateMs: 20_000, refreshMs: 60_000 });
+
+  assert.equal(config?.statuses[0]?.holdMs, 20_000);
+});
+
+test("clamps a hold time outside the range Node's timers can carry", () => {
+  const config = parseRemoteConfig({
+    statuses: [
+      { ...status, id: "fast", holdMs: 200 },
+      { ...status, id: "huge", holdMs: 3_000_000_000 },
+      // Not a number at all, so there is nothing to clamp — it inherits.
+      { ...status, id: "junk", holdMs: Infinity },
+    ],
+    rotateMs: 8_000,
+    refreshMs: 60_000,
+  });
+
+  assert.equal(config?.statuses[0]?.holdMs, MIN_ROTATE_MS);
+  assert.equal(config?.statuses[1]?.holdMs, MAX_TIMER_MS);
+  assert.equal(config?.statuses[2]?.holdMs, 8_000);
+});
