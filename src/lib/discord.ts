@@ -149,6 +149,8 @@ export interface GuildRole {
   name: string;
   /** Discord's integer colour; 0 means "no colour set". */
   colour: number;
+  /** Guild hierarchy position. Higher sits higher in Discord's own list. */
+  position: number;
 }
 
 export async function listGuildRoles(token: string, guildId: string): Promise<GuildRole[] | null> {
@@ -158,12 +160,17 @@ export async function listGuildRoles(token: string, guildId: string): Promise<Gu
       console.error("Discord guild roles fetch failed", res.status, res.json);
       return null;
     }
-    const rows = res.json as Array<{ id?: string; name?: string; color?: number }> | null;
+    const rows = res.json as Array<{ id?: string; name?: string; color?: number; position?: number }> | null;
     if (!Array.isArray(rows)) return null;
     return rows
-      .filter((row): row is { id: string; name: string; color?: number } =>
+      .filter((row): row is { id: string; name: string; color?: number; position?: number } =>
         typeof row.id === "string" && typeof row.name === "string")
-      .map((row) => ({ id: row.id, name: row.name, colour: typeof row.color === "number" ? row.color : 0 }));
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        colour: typeof row.color === "number" ? row.color : 0,
+        position: typeof row.position === "number" ? row.position : 0,
+      }));
   } catch {
     return null;
   }

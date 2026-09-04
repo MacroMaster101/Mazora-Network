@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, type ComponentType } from "react";
+import { useState, useTransition, type ComponentType } from "react";
 import {
   Bot,
   ChevronDown,
@@ -8,15 +8,14 @@ import {
   Clock3,
   Eye,
   Globe2,
-  Info,
   Lock,
   Pickaxe,
   Plus,
   Save,
   Sparkles,
   UsersRound,
-  X,
 } from "lucide-react";
+import { ConsoleGuide, ConsoleGuideButton, GuideSection } from "@/components/admin/bot-console/console-guide";
 import { saveBotPresenceAction } from "@/lib/actions/bot-presence";
 import {
   ACTIVITY_TYPES,
@@ -93,17 +92,6 @@ export function PresenceEditorPanel({
   const [guideOpen, setGuideOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  // Escape closes the guide. Registered only while it is open so the dashboard
-  // keeps its own Escape behaviour the rest of the time.
-  useEffect(() => {
-    if (!guideOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setGuideOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [guideOpen]);
-
   const update = (id: string, patch: Partial<PresenceStatusRow>) =>
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
 
@@ -179,14 +167,7 @@ export function PresenceEditorPanel({
                 </code>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => setGuideOpen(true)}
-              aria-label="How presence rotation works"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line bg-card/70 text-muted transition hover:border-accent/40 hover:text-accent-bright"
-            >
-              <Info size={15} aria-hidden />
-            </button>
+            <ConsoleGuideButton label="How presence rotation works" onOpen={() => setGuideOpen(true)} />
           </div>
         </div>
       </header>
@@ -465,91 +446,64 @@ export function PresenceEditorPanel({
         )}
       </footer>
 
-      {guideOpen && (
-        <div
-          className="presence-guide-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="How presence rotation works"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setGuideOpen(false);
-          }}
-        >
-          <div className="presence-guide">
-            <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
-              <div>
-                <h3 className="font-display text-base font-bold">How presence rotation works</h3>
-                <p className="mt-1 text-xs text-muted">What each control changes, and how it reaches Discord.</p>
+      <ConsoleGuide
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        title="How presence rotation works"
+        subtitle="What each control changes, and how it reaches Discord."
+      >
+        <GuideSection title="Data tokens">
+          <p className="mt-1.5 text-xs leading-relaxed text-muted">
+            The worker replaces these with live values each time it refreshes. Anything else you type is shown as
+            written.
+          </p>
+          <dl className="mt-3 grid gap-1.5">
+            {TOKEN_HELP.map(([token, meaning]) => (
+              <div key={token} className="flex flex-wrap items-baseline gap-2">
+                <dt>
+                  <code className="rounded-lg border border-line bg-card/70 px-2 py-1 text-[10px]">{`{${token}}`}</code>
+                </dt>
+                <dd className="text-xs text-muted">{meaning}</dd>
               </div>
-              <button
-                type="button"
-                onClick={() => setGuideOpen(false)}
-                aria-label="Close"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line bg-card/70 text-muted transition hover:text-ink"
-              >
-                <X size={15} aria-hidden />
-              </button>
-            </header>
+            ))}
+          </dl>
+        </GuideSection>
 
-            <div className="grid gap-5 overflow-y-auto px-5 py-5 text-sm">
-              <section>
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted">Data tokens</h4>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted">
-                  The worker replaces these with live values each time it refreshes. Anything else you type is shown as
-                  written.
-                </p>
-                <dl className="mt-3 grid gap-1.5">
-                  {TOKEN_HELP.map(([token, meaning]) => (
-                    <div key={token} className="flex flex-wrap items-baseline gap-2">
-                      <dt>
-                        <code className="rounded-lg border border-line bg-card/70 px-2 py-1 text-[10px]">{`{${token}}`}</code>
-                      </dt>
-                      <dd className="text-xs text-muted">{meaning}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
+        <GuideSection title="Timing">
+          <p className="mt-1.5 text-xs leading-relaxed text-muted">
+            Each status holds for its own number of seconds, so the player count can linger while a short line moves on
+            quickly. The loop runs top to bottom and repeats; one full pass currently takes{" "}
+            <strong className="text-ink">{loopSeconds}s</strong>. Paused statuses are skipped entirely.
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            {MIN_ROTATE_MS / 1000} seconds is the floor because Discord accepts only five presence updates every twenty
+            seconds. Setting anything lower would be throttled by Discord rather than shown faster.
+          </p>
+        </GuideSection>
 
-              <section>
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted">Timing</h4>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted">
-                  Each status holds for its own number of seconds, so the player count can linger while a short line
-                  moves on quickly. The loop runs top to bottom and repeats; one full pass currently takes{" "}
-                  <strong className="text-ink">{loopSeconds}s</strong>. Paused statuses are skipped entirely.
-                </p>
-                <p className="mt-2 text-xs leading-relaxed text-muted">
-                  {MIN_ROTATE_MS / 1000} seconds is the floor because Discord accepts only five presence updates every
-                  twenty seconds. Setting anything lower would be throttled by Discord rather than shown faster.
-                </p>
-              </section>
+        <GuideSection title="Locked defaults">
+          <p className="mt-1.5 text-xs leading-relaxed text-muted">
+            Website, Minecraft and Discord carry fixed text. They name real services and report real numbers, so their
+            wording is not editable — a line that still looked official while saying something else would be misleading.
+            You can still pause them, reorder them, change the activity verb, set their hold time, and switch the
+            Discord line between the two count styles.
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            The fallback message is what shows when live data cannot be read. It is locked for the same reason. Custom
+            statuses you add are yours to write freely.
+          </p>
+        </GuideSection>
 
-              <section>
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted">Locked defaults</h4>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted">
-                  Website, Minecraft and Discord carry fixed text. They name real services and report real numbers, so
-                  their wording is not editable — a line that still looked official while saying something else would be
-                  misleading. You can still pause them, reorder them, change the activity verb, set their hold time, and
-                  switch the Discord line between the two count styles.
-                </p>
-                <p className="mt-2 text-xs leading-relaxed text-muted">
-                  The fallback message is what shows when live data cannot be read. It is locked for the same reason.
-                  Custom statuses you add are yours to write freely.
-                </p>
-              </section>
+        <GuideSection title="Reaching the bot">
+          <p className="mt-1.5 text-xs leading-relaxed text-muted">
+            Saving writes this configuration to the site database. The presence worker polls it every{" "}
+            <strong className="text-ink">{seconds(config.refreshMs)}s</strong> over an authenticated endpoint and swaps
+            to the new loop on its next pass, so a change can take up to that long to appear in Discord. If the worker
+            cannot reach the site it keeps running the last configuration it read.
+          </p>
+        </GuideSection>
+      </ConsoleGuide>
 
-              <section>
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted">Reaching the bot</h4>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted">
-                  Saving writes this configuration to the site database. The presence worker polls it every{" "}
-                  <strong className="text-ink">{seconds(config.refreshMs)}s</strong> over an authenticated endpoint and
-                  swaps to the new loop on its next pass, so a change can take up to that long to appear in Discord. If
-                  the worker cannot reach the site it keeps running the last configuration it read.
-                </p>
-              </section>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
