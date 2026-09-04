@@ -126,8 +126,42 @@ export function AuditBrowser({ entries }: { entries: AuditEntry[] }) {
           </p>
         </div>
       ) : (
-        <div className="panel overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
+        <>
+          {/*
+            Cards on phones, the table from md up. Same reasoning as the users
+            directory: the page cannot scroll sideways, so a 720px table in a
+            phone-width window was a box to swipe rather than a list to read.
+            An audit line is naturally a sentence — what happened, to what, by
+            whom, when — so the card sets it as one.
+          */}
+          <div className="grid gap-2.5 md:hidden">
+            {visible.map((entry) => (
+              <article key={entry.id} className="panel grid gap-2 p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide",
+                      categoryClass(entry.category),
+                    )}
+                  >
+                    {entry.action}
+                  </span>
+                  <span className="telemetry text-[11px] text-muted">{fmtDate(entry.createdAt)}</span>
+                </div>
+
+                {entry.summary ? (
+                  <p className="break-words text-sm font-semibold">{entry.summary}</p>
+                ) : (
+                  <p className="telemetry break-words text-xs text-muted">{entry.target ?? "—"}</p>
+                )}
+
+                {entry.actor && <p className="text-xs text-muted">by {entry.actor}</p>}
+              </article>
+            ))}
+          </div>
+
+          <div className="panel hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs uppercase tracking-widest text-muted">
                 <th className="px-4 py-3 font-medium">Action</th>
@@ -166,8 +200,9 @@ export function AuditBrowser({ entries }: { entries: AuditEntry[] }) {
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
