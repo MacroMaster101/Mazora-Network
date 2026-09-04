@@ -29,6 +29,58 @@ export interface DirectoryRow {
 
 const initialAdminState: AdminActionResult = { ok: false, message: "" };
 
+/**
+ * The identity block: avatar, names, email, invite state.
+ *
+ * Shared by the table row and the mobile card so the two renderings cannot
+ * drift apart — the card is a different layout of the same data, not a second
+ * implementation of it.
+ */
+function Identity({ row }: { row: DirectoryRow }) {
+  return (
+    <span className="flex items-center gap-3">
+      <UserAvatar username={row.username} avatarUrl={row.avatarUrl} size={32} />
+      <span className="min-w-0">
+        <strong className="block truncate font-semibold">{row.username}</strong>
+        {row.displayName && <span className="block truncate text-xs text-ink/70">{row.displayName}</span>}
+        <span className="block truncate text-xs text-muted">{row.email}</span>
+        {row.pendingInvite && (
+          <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-warning">
+            <MailCheck size={11} aria-hidden="true" /> Invite not accepted
+          </span>
+        )}
+      </span>
+    </span>
+  );
+}
+
+function McChip({ row }: { row: DirectoryRow }) {
+  if (!row.minecraftUsername) return <span className="text-xs text-muted">None linked</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-ink/5 px-2.5 py-1 text-xs font-semibold text-ink">
+      <Gamepad2 size={13} className="text-accent-bright" />
+      {row.minecraftUsername}
+    </span>
+  );
+}
+
+function RowActions({ row }: { row: DirectoryRow }) {
+  return (
+    <>
+      {row.minecraftUsername && (
+        <ReleaseMinecraftButton
+          userId={row.userId}
+          username={row.username}
+          minecraftUsername={row.minecraftUsername}
+        />
+      )}
+      {row.lockedReason ? null : <DeleteUserButton userId={row.userId} username={row.username} />}
+    </>
+  );
+}
+
+
+
 function ReleaseMinecraftButton({ userId, username, minecraftUsername }: { userId: string; username: string; minecraftUsername: string }) {
   const [state, formAction, pending] = useActionState(adminReleaseMinecraftUsernameAction, initialAdminState);
   const { toast } = useToast();
@@ -166,8 +218,51 @@ export function UsersDirectory({
           </p>
         </div>
       ) : (
-        <div className="panel overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+        <>
+          {/*
+            Cards on phones, the table from md up.
+
+            The page cannot scroll sideways — body is overflow-x:hidden — so a
+            640px table in a 346px window meant swiping a box back and forth to
+            read one row. The card is the same data relaid out: identity and
+            rank on top, the fields that need a control below, actions last.
+          */}
+          <div className="grid gap-3 md:hidden">
+            {visible.map((row) => (
+              <article key={row.userId} className="panel grid gap-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <Identity row={row} />
+                  <RankChip role={row.role} />
+                </div>
+
+                <dl className="grid gap-3 border-t border-line/60 pt-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <dt className="text-[10px] font-bold uppercase tracking-wider text-muted">Minecraft</dt>
+                    <dd>
+                      <McChip row={row} />
+                    </dd>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <dt className="text-[10px] font-bold uppercase tracking-wider text-muted">Change rank</dt>
+                    <dd>
+                      {row.lockedReason ? (
+                        <span className="text-xs text-muted">{row.lockedReason}</span>
+                      ) : (
+                        <RoleManager userId={row.userId} currentRole={row.role} assignable={assignable} />
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+
+                <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line/60 pt-3">
+                  <RowActions row={row} />
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="panel hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs uppercase tracking-widest text-muted">
                 <th className="px-4 py-3 font-medium">Account</th>
@@ -186,38 +281,10 @@ export function UsersDirectory({
                   className="border-b border-line/60 last:border-0 hover:bg-ink/[0.02]"
                 >
                   <td className="px-4 py-3">
-                    <span className="flex items-center gap-3">
-                      <UserAvatar username={row.username} avatarUrl={row.avatarUrl} size={32} />
-                      <span className="min-w-0">
-                        <strong className="block truncate font-semibold">
-                          {row.username}
-                        </strong>
-                        {row.displayName && (
-                          <span className="block truncate text-xs text-ink/70">
-                            {row.displayName}
-                          </span>
-                        )}
-                        <span className="block truncate text-xs text-muted">
-                          {row.email}
-                        </span>
-                        {row.pendingInvite && (
-                          <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-warning">
-                            <MailCheck size={11} aria-hidden="true" /> Invite
-                            not accepted
-                          </span>
-                        )}
-                      </span>
-                    </span>
+                    <Identity row={row} />
                   </td>
                   <td className="px-4 py-3">
-                    {row.minecraftUsername ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-ink/5 px-2.5 py-1 text-xs font-semibold text-ink">
-                        <Gamepad2 size={13} className="text-accent-bright" />
-                        {row.minecraftUsername}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted">None linked</span>
-                    )}
+                    <McChip row={row} />
                   </td>
                   <td className="px-4 py-3">
                     <RankChip role={row.role} />
@@ -237,26 +304,15 @@ export function UsersDirectory({
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {row.minecraftUsername && (
-                        <ReleaseMinecraftButton
-                          userId={row.userId}
-                          username={row.username}
-                          minecraftUsername={row.minecraftUsername}
-                        />
-                      )}
-                      {row.lockedReason ? null : (
-                        <DeleteUserButton
-                          userId={row.userId}
-                          username={row.username}
-                        />
-                      )}
+                      <RowActions row={row} />
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

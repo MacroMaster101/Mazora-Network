@@ -119,7 +119,10 @@ export function AdminPlayersBrowser({
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Wraps for the same reason as the events filters: the last option
+            ("IGN") sat past the screen edge on a phone, and the page cannot
+            scroll sideways to reach it. */}
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] font-bold uppercase tracking-wider text-muted">Sort By:</span>
           {(
             [

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Lock, Receipt, Save, Sparkles } from "lucide-react";
+import { ConsoleGuide, ConsoleGuideButton, GuideSection } from "@/components/admin/bot-console/console-guide";
 import { saveStoreMessagesAction } from "@/lib/actions/store-messages";
 import {
   MAX_BLOCK,
@@ -88,6 +89,7 @@ function Preview({ title, body, tone }: { title: string; body: string; tone: "ok
 export function StoreMessagesPanel({ config }: { config: StoreMessagesConfig }) {
   const [draft, setDraft] = useState<StoreMessagesConfig>(config);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const setConfirmed = (patch: Partial<StoreMessagesConfig["confirmed"]>) =>
@@ -121,16 +123,18 @@ export function StoreMessagesPanel({ config }: { config: StoreMessagesConfig }) 
           </div>
         </div>
 
-        <dl className="grid gap-1 lg:max-w-xs">
-          {TOKEN_HELP.map(([token, meaning]) => (
-            <div key={token} className="flex flex-wrap items-baseline gap-1.5">
-              <dt>
-                <code className="rounded border border-line bg-card/70 px-1.5 py-0.5 text-[10px]">{`{${token}}`}</code>
-              </dt>
-              <dd className="text-[10px] text-muted">{meaning}</dd>
-            </div>
-          ))}
-        </dl>
+        {/* Chips only here; what each one means lives in the guide, so the
+            header stays a header rather than a reference table. */}
+        <div className="flex items-start gap-2 lg:justify-end">
+          <div className="flex flex-wrap gap-1.5 lg:max-w-xs lg:justify-end" aria-label="Available message tokens">
+            {TOKEN_HELP.map(([token]) => (
+              <code key={token} className="rounded-lg border border-line bg-card/70 px-2 py-1 text-[10px] text-muted">
+                {`{${token}}`}
+              </code>
+            ))}
+          </div>
+          <ConsoleGuideButton label="How store order messages work" onOpen={() => setGuideOpen(true)} />
+        </div>
       </header>
 
       <div className="grid gap-4 p-4 sm:p-6 xl:grid-cols-2">
@@ -275,6 +279,61 @@ export function StoreMessagesPanel({ config }: { config: StoreMessagesConfig }) 
           {message.text}
         </p>
       )}
+      <ConsoleGuide
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        title="How store order messages work"
+        subtitle="What you can reword, what the bot adds, and why."
+      >
+        <GuideSection title="Message tokens">
+          <p className="mt-1.5 text-xs leading-relaxed text-muted">
+            These are replaced with the real order&apos;s values when the message is sent. Anything else you type is
+            shown exactly as written.
+          </p>
+          <dl className="mt-3 grid gap-1.5">
+            {TOKEN_HELP.map(([token, meaning]) => (
+              <div key={token} className="flex flex-wrap items-baseline gap-2">
+                <dt>
+                  <code className="rounded-lg border border-line bg-card/70 px-2 py-1 text-[10px]">{`{${token}}`}</code>
+                </dt>
+                <dd className="text-xs text-muted">{meaning}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            The opening lines must keep <code className="text-[10px]">{"{reference}"}</code> and{" "}
+            <code className="text-[10px]">{"{staff}"}</code>, and the ticket line must keep{" "}
+            <code className="text-[10px]">{"{ticket_link}"}</code>. A buyer who cannot tell which order was declined,
+            or by whom, has no way to dispute it — so saving without them is refused.
+          </p>
+        </GuideSection>
+
+        <GuideSection title="What the bot adds by itself">
+          <p className="mt-1.5 text-xs leading-relaxed text-muted">
+            After your wording, and in this order: the order summary, the total, any discount code, and the payment
+            warning. They are appended by the sender rather than typed into your text, which is what stops this panel
+            being able to compose a convincing but false receipt.
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            The payment warning cannot be edited or removed at all. It is the sentence that separates a real staff
+            message from someone impersonating one, so a panel that could quietly delete it would be a way to make a
+            scam message look exactly like the genuine article.
+          </p>
+        </GuideSection>
+
+        <GuideSection title="When each one is sent">
+          <p className="mt-1.5 text-xs leading-relaxed text-muted">
+            The confirmation goes out when staff press Confirm on the order message in Discord; the decline when they
+            press Decline. The confirmation uses the ticket line when a private ticket was opened successfully, and the
+            other line when one could not be created.
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            Saving takes effect immediately for orders decided from that point on. Messages already sent are unchanged
+            — Discord DMs cannot be rewritten after the fact.
+          </p>
+        </GuideSection>
+      </ConsoleGuide>
+
     </section>
   );
 }
