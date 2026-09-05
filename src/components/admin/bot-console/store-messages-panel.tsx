@@ -258,7 +258,8 @@ export function StoreMessagesPanel({ config }: { config: StoreMessagesConfig }) 
       <footer className="flex flex-col gap-3 border-t border-line bg-ink/[0.025] px-4 py-4 dark:bg-black/10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="text-[10px] leading-relaxed text-muted sm:max-w-md">
           Order reference, item summary, total, discount code and the payment warning are always added by the bot, in
-          that order, whatever you write here.
+          that order, whatever you write here. Links cannot be typed into these fields — the support link is added
+          automatically.
         </p>
         <button type="button" className="btn btn-primary btn-sm min-w-28 shrink-0" onClick={save} disabled={pending}>
           {pending ? <Sparkles size={14} className="animate-pulse" /> : <Save size={14} />}
@@ -318,6 +319,11 @@ export function StoreMessagesPanel({ config }: { config: StoreMessagesConfig }) 
             The payment warning cannot be edited or removed at all. It is the sentence that separates a real staff
             message from someone impersonating one, so a panel that could quietly delete it would be a way to make a
             scam message look exactly like the genuine article.
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            For the same reason, links cannot be typed into any of these fields — not a URL, not an invite, not markdown
+            link syntax. The bot appends the real support link itself, so nothing legitimate needs one, and a message
+            from the bot about someone&apos;s money is exactly what a fake link would trade on.
           </p>
         </GuideSection>
 

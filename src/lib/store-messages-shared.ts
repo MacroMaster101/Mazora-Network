@@ -100,6 +100,28 @@ export function missingTokens(template: string, required: readonly string[]): st
   return required.filter((token) => !present.has(token));
 }
 
+/*
+  A literal URL, an invite, or markdown link syntax.
+
+  `{ticket_link}` is deliberately unaffected: it is a token the sender expands
+  to a channel the bot itself created, not a destination anyone typed here.
+*/
+const LINK_PATTERN = /https?:\/\/|discord\.gg\/|\]\(/i;
+
+/**
+ * Whether a block tries to introduce a link of its own.
+ *
+ * These messages are the bot speaking to a buyer about money, and the sender
+ * already appends the real support link. So nothing legitimate needs to type
+ * one — while an admin account in the wrong hands could use a link here to
+ * point a buyer at a convincing fake. Refusing links costs the operator
+ * nothing and removes the payload from the phishing vector, leaving only text
+ * that cannot be clicked.
+ */
+export function containsLink(template: string): boolean {
+  return LINK_PATTERN.test(template);
+}
+
 const text = (value: unknown, fallback: string, max: number): string =>
   typeof value === "string" && value.trim() ? value.trim().slice(0, max) : fallback;
 
@@ -112,15 +134,16 @@ export function sanitiseStoreMessages(value: unknown): StoreMessagesConfig {
   const declined = (stored.declined ?? {}) as Partial<DeclinedTemplate>;
   const fallback = DEFAULT_STORE_MESSAGES;
 
-  // A stored block that has lost a required token is replaced with the default
-  // rather than sent as-is: this runs on read too, so a direct database write
-  // cannot strip the order reference out of a live buyer notification.
-  const keep = (candidate: string, standard: string, required: readonly string[]): string =>
-    missingTokens(candidate, required).length === 0 ? candidate : standard;
+  // A stored block that has lost a required token, or gained a link, is
+  // replaced with the default rather than sent as-is. This runs on read as
+  // well as write, so a direct database write cannot strip the order reference
+  // out of a live buyer notification, nor slip a phishing link into one.
+  const keep = (candidate: string, standard: string, required: readonly string[] = []): string =>
+    missingTokens(candidate, required).length === 0 && !containsLink(candidate) ? candidate : standard;
 
   return {
     confirmed: {
-      title: text(confirmed.title, fallback.confirmed.title, MAX_TITLE),
+      title: keep(text(confirmed.title, fallback.confirmed.title, MAX_TITLE), fallback.confirmed.title),
       opening: keep(
         text(confirmed.opening, fallback.confirmed.opening, MAX_BLOCK),
         fallback.confirmed.opening,
@@ -131,18 +154,27 @@ export function sanitiseStoreMessages(value: unknown): StoreMessagesConfig {
         fallback.confirmed.withTicket,
         REQUIRED_TOKENS["confirmed.withTicket"],
       ),
-      withoutTicket: text(confirmed.withoutTicket, fallback.confirmed.withoutTicket, MAX_BLOCK),
-      disclaimer: text(confirmed.disclaimer, fallback.confirmed.disclaimer, MAX_BLOCK),
+      withoutTicket: keep(
+        text(confirmed.withoutTicket, fallback.confirmed.withoutTicket, MAX_BLOCK),
+        fallback.confirmed.withoutTicket,
+      ),
+      disclaimer: keep(
+        text(confirmed.disclaimer, fallback.confirmed.disclaimer, MAX_BLOCK),
+        fallback.confirmed.disclaimer,
+      ),
     },
     declined: {
-      title: text(declined.title, fallback.declined.title, MAX_TITLE),
+      title: keep(text(declined.title, fallback.declined.title, MAX_TITLE), fallback.declined.title),
       opening: keep(
         text(declined.opening, fallback.declined.opening, MAX_BLOCK),
         fallback.declined.opening,
         REQUIRED_TOKENS["declined.opening"],
       ),
-      closing: text(declined.closing, fallback.declined.closing, MAX_BLOCK),
-      disclaimer: text(declined.disclaimer, fallback.declined.disclaimer, MAX_BLOCK),
+      closing: keep(text(declined.closing, fallback.declined.closing, MAX_BLOCK), fallback.declined.closing),
+      disclaimer: keep(
+        text(declined.disclaimer, fallback.declined.disclaimer, MAX_BLOCK),
+        fallback.declined.disclaimer,
+      ),
     },
   };
 }
