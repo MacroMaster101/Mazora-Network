@@ -10,6 +10,7 @@ import {
   MAX_TITLE,
   REQUIRED_TOKENS,
   STORE_MESSAGES_KEY,
+  containsLink,
   getStoreMessages,
   missingTokens,
   sanitiseStoreMessages,
@@ -76,6 +77,35 @@ export async function saveStoreMessagesAction(formData: FormData): Promise<Store
   for (const [label, value, required] of checks) {
     const missing = missingTokens(value, required);
     if (missing.length > 0) return { ok: false, message: tokenError(label, missing) };
+  }
+
+  /*
+    No links in the prose.
+
+    The bot already appends the real support link, so nothing legitimate needs
+    to type one — while these messages are the bot talking to a buyer about
+    money, which is exactly what a phishing link would trade on. Refused here
+    with an explanation, and refused again in the sanitiser so a direct
+    database write cannot add one either.
+  */
+  const blocks: Array<[label: string, value: string]> = [
+    ["confirmation title", parsed.data.confirmed.title],
+    ["confirmation opening", parsed.data.confirmed.opening],
+    ["confirmation ticket line", parsed.data.confirmed.withTicket],
+    ["confirmation no-ticket line", parsed.data.confirmed.withoutTicket],
+    ["confirmation bot notice", parsed.data.confirmed.disclaimer],
+    ["decline title", parsed.data.declined.title],
+    ["decline opening", parsed.data.declined.opening],
+    ["decline closing", parsed.data.declined.closing],
+    ["decline bot notice", parsed.data.declined.disclaimer],
+  ];
+  for (const [label, value] of blocks) {
+    if (containsLink(value)) {
+      return {
+        ok: false,
+        message: `The ${label} cannot contain a link. The bot adds the support link automatically.`,
+      };
+    }
   }
 
   const db = getDb();
