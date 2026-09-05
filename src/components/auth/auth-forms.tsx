@@ -377,9 +377,9 @@ export function LoginForm({ next }: { next?: string }) {
       <AuthDivider />
       <form action={action} className="auth-form auth-login-form" noValidate onSubmit={validation.onSubmit} onInput={validation.onInput}>
         {next && <input type="hidden" name="next" value={next} />}
-        <FormRow label="Email address" htmlFor="identifier" error={emailError}>
+        <FormRow label="Email or username" htmlFor="identifier" error={emailError}>
           <FieldShell icon={<UserRound size={17} />}>
-            <Input id="identifier" name="identifier" type="email" required maxLength={254} placeholder="you@example.com" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "identifier-error" : undefined} className="auth-field" />
+            <Input id="identifier" name="identifier" type="text" required maxLength={254} placeholder="you@example.com or username" autoComplete="username" inputMode="text" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "identifier-error" : undefined} className="auth-field" />
           </FieldShell>
         </FormRow>
         <FormRow label="Password" htmlFor="password" error={passwordError}>
