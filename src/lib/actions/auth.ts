@@ -13,6 +13,9 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { ignAvailability, linkMinecraftIgn } from "@/lib/minecraft/link";
 import { dispatchSignInNotifications } from "@/lib/notifications-auto";
 import { throttleAuthAction } from "@/lib/rate-limit";
+import { SIGN_IN_FAILED, UNRESOLVED_IDENTIFIER, looksLikeEmail } from "@/lib/auth/login-identifier";
+import { getDb } from "@/lib/db/client";
+import { sql } from "drizzle-orm";
 import {
   authFormValues,
   authValidationErrors,
@@ -113,6 +116,43 @@ async function pendingRegistrationCredentialsMatch(email: string, password: stri
   return isUnconfirmedEmailError(error);
 }
 
+/**
+ * The email a username belongs to, or the sentinel when it belongs to nobody.
+ *
+ * Runs on the app's own connection rather than the anon client on purpose:
+ * `profiles` is RLS-protected and an unauthenticated reader sees nothing, which
+ * is exactly right for the public API and exactly wrong here, where the server
+ * must look the address up on the caller's behalf without ever revealing it.
+ *
+ * Never returns null. A miss yields UNRESOLVED_IDENTIFIER so the caller still
+ * makes the same Supabase round-trip it would for a real account — an unknown
+ * username must not fail faster, or more quietly, than a wrong password.
+ */
+async function resolveLoginEmail(identifier: string): Promise<string> {
+  if (looksLikeEmail(identifier)) return identifier.toLowerCase();
+
+  const db = getDb();
+  if (!db) return UNRESOLVED_IDENTIFIER;
+
+  try {
+    // Matches profiles_username_lower_idx, the unique index on lower(username),
+    // so this is an index lookup and casing never matters.
+    const result = await db.execute(
+      sql`select u.email
+          from auth.users u
+          join public.profiles p on p.user_id = u.id
+          where lower(p.username) = lower(${identifier})
+          limit 1`,
+    );
+    const rows = result as unknown as Array<{ email?: string | null }>;
+    const email = rows?.[0]?.email;
+    return typeof email === "string" && email ? email.toLowerCase() : UNRESOLVED_IDENTIFIER;
+  } catch (error) {
+    console.error("Username lookup failed", error);
+    return UNRESOLVED_IDENTIFIER;
+  }
+}
+
 export async function loginAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
   const parsed = loginSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
@@ -129,8 +169,12 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
+
+    // A username is translated to its address here; an email passes through.
+    const loginEmail = await resolveLoginEmail(parsed.data.identifier);
+
     const { error } = await supabase.auth.signInWithPassword({
-      email: parsed.data.identifier,
+      email: loginEmail,
       password: parsed.data.password,
     });
     if (error) {
@@ -138,10 +182,14 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
         return {
           ok: false,
           message: "Verify your email before logging in — check your inbox for the confirmation link.",
-          unverifiedEmail: parsed.data.identifier,
+          // The RESOLVED address, never what was typed. Returning the username
+          // here would hand the resend-confirmation flow something it cannot
+          // send to, and would echo the account's login name back to whoever
+          // guessed it.
+          unverifiedEmail: loginEmail,
         };
       }
-      return { ok: false, message: "The email or password is incorrect." };
+      return { ok: false, message: SIGN_IN_FAILED };
     }
 
     // Fire the fixed default templates before any redirect — redirect() throws
