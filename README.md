@@ -144,13 +144,18 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `MAZORA_LAUNCH_MODE` | No | Keep `on` while unfinished routes should show the launch-status page. Set to `off` to restore every implementation. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Legacy auth | Legacy browser-safe anonymous key; used only when no publishable key is set. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Admin features | Server-only Supabase service key used for user, invitation, staff, and avatar administration. Never expose it publicly. |
+| `BOT_CONFIG_SECRET` | Presence worker | Shared secret the standalone Render presence bot presents to read its rotation config from `/api/bot/presence-config`. Must be identical in Vercel and Render. The endpoint refuses every request while this is unset. |
+| `DISCORD_GRANTABLE_ROLE_IDS` | No | Allowlist of Discord role ids staff may add or remove from the admin bot console, comma-separated. Unset means the role picker is read-only and every grant request is refused — Discord's own hierarchy is only a second limit, so this list is the real control. |
+| `RESEND_API_KEY` | Welcome email | Resend API key for the app's OWN sender. Separate from the SMTP credentials configured inside Supabase for auth emails — the app cannot reach those. Unset makes the welcome email a silent no-op; sign-in is unaffected. |
+| `MAIL_FROM` | Welcome email | Sender address for the welcome email, e.g. `noreply@mail.example.com`. Must be on a domain verified in Resend. Required alongside `RESEND_API_KEY`; either one missing disables the send. |
+| `TRUSTED_PROXY_HOPS` | No | How many proxy hops to count in from the right of `x-forwarded-for` when resolving a caller's IP for rate limiting. Defaults to `1`. Raise it only if you add another trusted proxy in front of the app. |
 | `AUTH_DEMO_MODE` | Local only | Set to `true` only for local UI previews without Supabase. Never enable in production. |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | No | Optional shared rate-limit store (Upstash Redis REST). When set, auth/support/store throttles enforce one global window across all serverless instances; unset, an in-memory per-instance window is used. The daily news cron also sends a read-only `PING` to keep a lightly used free-tier database active. |
 
 The live integrations fail safely:
 
 - Minecraft status is fetched server-side and cached for 15 seconds. A backup provider and short stale/failure retries keep transient upstream errors from replacing the last known live result with invented data.
-- Discord counts are fetched from Discord's invite API and cached for 15 seconds. A failed or invalid invite returns a join prompt instead of a fabricated count.
+- Discord counts come from the authenticated guild route (`/guilds/{id}?with_counts=true`) using the bot token, cached for 15 seconds. This replaced an anonymous invite lookup, which Cloudflare blocks from shared cloud egress. A failed lookup returns a join prompt instead of a fabricated count.
 
 ## 🛒 Store orders and Discord tickets
 
@@ -225,6 +230,8 @@ Forums contains staff applications, ban appeals, suggestions, and the discussion
 
 ### 👤 Account areas
 
+- Sign-in accepts a **username or an email address** in the same field. Supabase Auth only understands emails, so a username is resolved to its account address server-side before the password is verified; every failure returns one message so an unknown username cannot be distinguished from a wrong password.
+- New members receive a welcome email on their first sign-in, whichever provider they used. Google and Discord accounts are auto-confirmed and never see a confirmation email, so hanging this off first sign-in is what reaches everyone.
 - Login, registration, and account recovery open in one accessible dialog over the current public page. Every internal auth link is intercepted globally, while direct auth URLs return to the homepage and automatically open the same dialog for refreshes, shared links, protected-route redirects, and OAuth errors.
 - `/dashboard` — the member area: overview with stats, profile avatar editor, connected accounts (Discord), tickets, appeals, reports, events, votes, purchases, notifications, and settings. Features a glass-panel sidebar with Minecraft skin avatar and rank badge.
 - `/admin` — the staff control room with role-based access. Includes live telemetry dashboard, user directory with role management, permissions editor, player management, content tools (news, rules, gallery, store, game modes, events, pages), moderation (reports, tickets, suggestions), orders with Discord ticket lifecycle, voting configuration, site settings, and audit logs. Each staff role sees only the sections relevant to their rank.
