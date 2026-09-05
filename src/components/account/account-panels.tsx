@@ -13,7 +13,7 @@
 import "server-only";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, Monitor, Receipt } from "lucide-react";
+import { ArrowLeft, Receipt } from "lucide-react";
 import { requireSession, getDiscordIdentity, getSessionUserId } from "@/lib/auth";
 import { getOrdersForUser } from "@/lib/data/orders";
 import { OrderCard } from "@/components/shared/order-card";
@@ -29,6 +29,12 @@ import { DangerZone } from "@/components/dashboard/danger-zone";
 import { FormRow, Input } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NotificationPreferences } from "@/components/account/notification-preferences";
+import { SecurityCard } from "@/components/account/security-card";
+import {
+  amrFromAccessToken,
+  buildSecurityState,
+  type SecurityState,
+} from "@/lib/auth/session-security";
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -49,6 +55,7 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
   let email = "";
   let hasGoogle = false;
   let hasPassword = false;
+  let security: SecurityState | null = null;
   let minecraftIdentity: { username: string; uuid: string; linkedAt: string; skinUrl: string | null } | null = null;
   const discord = await getDiscordIdentity();
   if (isSupabaseConfigured()) {
@@ -71,6 +78,19 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
           (data.user.identities?.some((i) => i.provider === "email") ?? false) ||
           data.user.app_metadata?.has_password === true ||
           Boolean(data.user.user_metadata?.has_password);
+
+        // Everything the Security card shows, from the record already fetched.
+        // getSession() is only for the access token's `amr` claim, which is the
+        // per-session record of HOW this session was established.
+        const { data: sessionData } = await supabase.auth.getSession();
+        security = buildSecurityState({
+          amr: amrFromAccessToken(sessionData?.session?.access_token),
+          provider: (data.user.app_metadata?.provider as string | undefined) ?? null,
+          providers: (data.user.app_metadata?.providers as string[] | undefined) ?? null,
+          hasPassword,
+          emailConfirmedAt: data.user.email_confirmed_at,
+          lastSignInAt: data.user.last_sign_in_at,
+        });
         const accountStore = getSupabaseAdmin() ?? supabase;
         const { data: minecraftAccount } = await accountStore
           .from("minecraft_accounts")
@@ -141,10 +161,7 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
         </Card>
 
         <Card title="Security">
-          <div className="flex items-center gap-3 text-sm text-muted">
-            <Monitor size={16} /> Active session encrypted and protected with secure identity verification.
-          </div>
-          <span className="chip">Standard Account Security Active</span>
+          <SecurityCard state={security} />
         </Card>
 
         <DangerZone username={session.username} enabled={isSupabaseConfigured()} />
