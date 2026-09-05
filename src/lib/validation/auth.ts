@@ -45,8 +45,28 @@ export const displayName = z
     "Remove control or invisible characters from your display name.",
   );
 
+/**
+ * What may be typed into the sign-in field: an email address or a username.
+ *
+ * Deliberately loose. This is the ONE field where a strict shape works against
+ * you: rejecting "that is not a valid email" before the password is even
+ * checked tells an attacker which of the two they typed, and tells a member
+ * off for using the login name they were told to use. Anything non-empty is
+ * accepted here and resolved server-side, where a miss is indistinguishable
+ * from a wrong password.
+ *
+ * The `@` is what splits the two branches, and a username cannot contain one —
+ * registerSchema restricts usernames to letters, numbers and underscores — so
+ * there is no ambiguity to resolve.
+ */
+const loginIdentifier = z
+  .string({ required_error: "Enter your username or email." })
+  .trim()
+  .min(1, "Enter your username or email.")
+  .max(254, "That is too long.");
+
 export const loginSchema = z.object({
-  identifier: email,
+  identifier: loginIdentifier,
   password,
   next: z.string().max(2048).optional(),
 });
