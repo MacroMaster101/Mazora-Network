@@ -76,7 +76,12 @@ export function NotificationPreferences({ role }: { role?: Role | string }) {
       icon: Mail,
       desc: "Save your preferred email-notification setting on this browser. Email delivery is not connected yet.",
       tooltip: "This is a device-only preference and does not currently subscribe you to email delivery.",
-      adminNote: "Staff & Admin Note: Welcome email is automatically sent on account registration.",
+      // Says what actually happens. This previously claimed a welcome email on
+      // registration, which was wrong twice over: nothing sent one, and most
+      // members arrive through Google or Discord, where there is no
+      // registration email at all.
+      adminNote:
+        "Staff & Admin Note: A welcome email is sent once, on a member's first sign-in — including Google and Discord.",
     },
     {
       id: "events" as const,

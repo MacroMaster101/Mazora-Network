@@ -6,6 +6,10 @@ import {
   SESSION_TEMPLATE_ID,
   WELCOME_TEMPLATE_ID,
 } from "@/lib/data/notification-templates";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { buildWelcomeEmail } from "@/lib/email/welcome-email";
+import { sendEmail } from "@/lib/email/send";
+import { resolvePublicOrigin } from "@/lib/site";
 
 /**
  * Automatic delivery of the two fixed default templates.
@@ -58,8 +62,48 @@ export async function dispatchWelcomeNotification(userId: string): Promise<void>
       sender: template.sender,
       href: "/dashboard",
     });
+
+    // Only after the row lands, so the insert is the lock for the email too:
+    // whatever else re-runs this, an account is welcomed exactly once.
+    await sendWelcomeEmail(userId);
   } catch (error) {
     console.error("Welcome notification dispatch failed", error);
+  }
+}
+
+/**
+ * The welcome email, sent once alongside the welcome notification.
+ *
+ * Hangs off first sign-in rather than email confirmation because most members
+ * arrive through Google or Discord, which confirm automatically — gating on
+ * confirmation would silently skip almost everyone.
+ *
+ * Reads the address here rather than taking it as an argument: this runs once
+ * per account for the lifetime of that account, so the lookup is rare, and
+ * every existing caller of the dispatch keeps its signature.
+ */
+async function sendWelcomeEmail(userId: string): Promise<void> {
+  try {
+    const admin = getSupabaseAdmin();
+    if (!admin) return;
+
+    const { data, error } = await admin.auth.admin.getUserById(userId);
+    const email = data?.user?.email;
+    if (error || !email) return;
+
+    const meta = data.user.user_metadata ?? {};
+    const name =
+      (typeof meta.display_name === "string" && meta.display_name) ||
+      (typeof meta.full_name === "string" && meta.full_name) ||
+      (typeof meta.name === "string" && meta.name) ||
+      null;
+
+    const message = buildWelcomeEmail({ name, origin: resolvePublicOrigin() });
+    await sendEmail({ to: email, ...message });
+  } catch (error) {
+    // Swallowed on purpose. The member is signing in; a mail failure must not
+    // cost them the notification that already landed, nor the login itself.
+    console.error("Welcome email failed", error);
   }
 }
 
