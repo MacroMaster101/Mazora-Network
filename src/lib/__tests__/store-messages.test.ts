@@ -6,6 +6,7 @@ import {
   PAYMENT_NOTICE,
   buildConfirmedDescription,
   buildDeclinedDescription,
+  containsLink,
   missingTokens,
   sanitiseStoreMessages,
 } from "../store-messages-shared.js";
@@ -123,6 +124,49 @@ test("junk input returns the defaults rather than throwing", () => {
   assert.deepEqual(sanitiseStoreMessages(null), DEFAULT_STORE_MESSAGES);
   assert.deepEqual(sanitiseStoreMessages("nope"), DEFAULT_STORE_MESSAGES);
   assert.deepEqual(sanitiseStoreMessages([]), DEFAULT_STORE_MESSAGES);
+});
+
+test("the shipped defaults contain no link of their own", () => {
+  // Guards the rule against itself: if a default ever tripped the link check,
+  // sanitise would silently swap it for the same value and the panel would
+  // refuse a save the operator never changed.
+  const d = DEFAULT_STORE_MESSAGES;
+  for (const block of [
+    d.confirmed.title, d.confirmed.opening, d.confirmed.withTicket,
+    d.confirmed.withoutTicket, d.confirmed.disclaimer,
+    d.declined.title, d.declined.opening, d.declined.closing, d.declined.disclaimer,
+  ]) {
+    assert.equal(containsLink(block), false, `default block should not read as a link: ${block}`);
+  }
+});
+
+test("{ticket_link} is a token, not a link", () => {
+  // The sender expands it to a channel the bot itself made, so it must survive
+  // the check that blocks typed destinations.
+  assert.equal(containsLink("continue there: {ticket_link}"), false);
+});
+
+test("typed links are refused however they are written", () => {
+  assert.equal(containsLink("go to https://evil.example"), true);
+  assert.equal(containsLink("go to http://evil.example"), true);
+  assert.equal(containsLink("join discord.gg/notreally"), true);
+  // Markdown link syntax hides the destination behind friendly text, which is
+  // the most convincing form of the attack.
+  assert.equal(containsLink("[click here](https://evil.example)"), true);
+  assert.equal(containsLink("HTTPS://EVIL.EXAMPLE"), true);
+});
+
+test("a stored link is stripped on read, not just refused on save", () => {
+  // Defends against a direct database write bypassing the save action.
+  const config = sanitiseStoreMessages({
+    ...DEFAULT_STORE_MESSAGES,
+    declined: {
+      ...DEFAULT_STORE_MESSAGES.declined,
+      closing: "Appeal at https://mazora-support.example",
+    },
+  });
+
+  assert.equal(config.declined.closing, DEFAULT_STORE_MESSAGES.declined.closing);
 });
 
 test("a declined message still names the order and who declined it", () => {

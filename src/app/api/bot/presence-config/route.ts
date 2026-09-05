@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { bearerMatches, readBearer } from "@/lib/bot-config-auth";
 import { getBotPresenceConfig } from "@/lib/data/bot-presence-config";
+import { clientKey, rateLimit, retryAfterHeaders } from "@/lib/rate-limit";
 
 /** Config must never be served from a cache; the worker polls for changes. */
 export const dynamic = "force-dynamic";
@@ -18,6 +19,20 @@ export const dynamic = "force-dynamic";
  * would otherwise publish the endpoint to anyone who guessed the path.
  */
 export async function GET(request: Request): Promise<NextResponse> {
+  /*
+    Bounded before the secret is even read, so an unauthenticated flood costs
+    nothing beyond the counter. The ceiling is deliberately far above what the
+    worker needs — it polls once per refresh interval, 60s by default — because
+    this exists to cap nuisance traffic, not to ration the legitimate caller.
+  */
+  const limit = rateLimit(clientKey(request, "bot-presence-config"), { limit: 60, windowMs: 60_000 });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: retryAfterHeaders(limit.retryAfter) },
+    );
+  }
+
   const secret = process.env.BOT_CONFIG_SECRET?.trim();
   if (!secret) {
     return NextResponse.json({ error: "Not configured." }, { status: 503 });
