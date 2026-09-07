@@ -18,6 +18,19 @@ export interface StoreWelcomeBannerConfig {
   enabled: boolean;
 }
 
+/*
+  How many products Store Home can feature.
+
+  Here rather than beside the setting's reader in lib/data/store-settings, which
+  reaches the database and so pulls the postgres driver — and Node's fs, net and
+  tls with it — into anything that imports it. The admin editor is a client
+  component, so importing the bounds from there broke the browser bundle. These
+  are plain numbers both sides need; lib/types is where the store's other
+  shared-with-the-client constants already live.
+*/
+export const MIN_STORE_FEATURED_SLUGS = 1;
+export const MAX_STORE_FEATURED_SLUGS = 8;
+
 export const DEFAULT_STORE_WELCOME_BANNER: StoreWelcomeBannerConfig = {
   badge: "EST. 2020 · SURVIVAL RPG EXPERIENCE",
   title: "Welcome to Mazora - Survival",

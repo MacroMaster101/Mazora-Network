@@ -11,6 +11,8 @@ import {
   getStoreFeaturedSlugs,
   getStoreRoadmap,
   getStoreWelcomeBanner,
+  MAX_STORE_FEATURED_SLUGS,
+  MIN_STORE_FEATURED_SLUGS,
   STORE_FEATURED_PICKS_KEY,
   STORE_ROADMAP_KEY,
   STORE_WELCOME_BANNER_KEY,
@@ -45,10 +47,10 @@ export async function saveStoreFeaturedPicksAction(formData: FormData): Promise<
         .filter((value): value is string => typeof value === "string")
         .filter((slug) => available.has(slug)),
     ),
-  ).slice(0, 3);
+  ).slice(0, MAX_STORE_FEATURED_SLUGS);
 
-  if (slugs.length !== 3) {
-    return { ok: false, message: "Choose exactly three enabled products." };
+  if (slugs.length < MIN_STORE_FEATURED_SLUGS) {
+    return { ok: false, message: "Choose at least one enabled product to feature." };
   }
 
   const before = await getStoreFeaturedSlugs();

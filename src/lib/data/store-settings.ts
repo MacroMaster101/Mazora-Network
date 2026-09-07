@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
+import { MAX_STORE_FEATURED_SLUGS, MIN_STORE_FEATURED_SLUGS } from "@/lib/types";
 
 export const STORE_FEATURED_PICKS_KEY = "store.featured_picks";
 export const DEFAULT_STORE_FEATURED_SLUGS = [
@@ -7,6 +8,19 @@ export const DEFAULT_STORE_FEATURED_SLUGS = [
   "key-legendary-1",
   "rank-conqueror-permanent",
 ];
+
+/*
+  The bounds were exactly three, in five places, and the read was the strict one:
+  a saved list of any other length was thrown away and the defaults shown
+  instead, so staff who picked two saw three products they had not chosen and no
+  explanation. The row is an auto-fitting grid, so the count was never a layout
+  constraint — only a bound worth keeping so the section stays a shortlist.
+
+  Defined in lib/types because the admin editor is a client component and this
+  module reaches the database. Re-exported so server callers can keep taking
+  everything about this setting from one place.
+*/
+export { MAX_STORE_FEATURED_SLUGS, MIN_STORE_FEATURED_SLUGS } from "@/lib/types";
 
 export async function getStoreFeaturedSlugs(): Promise<string[]> {
   let db: ReturnType<typeof getDb>;
@@ -25,8 +39,11 @@ export async function getStoreFeaturedSlugs(): Promise<string[]> {
       .limit(1);
     const value = row?.value;
     if (!Array.isArray(value)) return DEFAULT_STORE_FEATURED_SLUGS;
-    const slugs = value.filter((slug): slug is string => typeof slug === "string").slice(0, 3);
-    return slugs.length === 3 ? slugs : DEFAULT_STORE_FEATURED_SLUGS;
+    const slugs = value
+      .filter((slug): slug is string => typeof slug === "string")
+      .slice(0, MAX_STORE_FEATURED_SLUGS);
+    // Only an empty list falls back — any saved selection is the staff's answer.
+    return slugs.length >= MIN_STORE_FEATURED_SLUGS ? slugs : DEFAULT_STORE_FEATURED_SLUGS;
   } catch {
     /* DB may not have this table/key yet — fall back silently */
     return DEFAULT_STORE_FEATURED_SLUGS;
