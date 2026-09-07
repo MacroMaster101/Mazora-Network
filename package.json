@@ -15,6 +15,8 @@
     "db:generate": "drizzle-kit generate",
     "db:apply": "tsx --env-file=.env scripts/apply-sql.ts",
     "db:seed:store": "tsx --env-file=.env scripts/seed-store.ts",
+    "backup": "tsx --env-file=.env scripts/backup.ts",
+    "backup:storage": "tsx --env-file=.env scripts/backup-storage.ts",
     "db:seed:rules": "tsx --env-file=.env scripts/seed-rules.ts",
     "role:set": "tsx --env-file=.env scripts/set-role.ts",
     "db:rehost:news-images": "tsx --env-file=.env scripts/rehost-news-images.ts",
