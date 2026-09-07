@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { site } from "@/lib/site";
 import { getEvents, getGameModes, getNews, getProducts } from "@/lib/data/content";
+import { getStoreCategoryConfigs } from "@/lib/data/store-categories";
+import { buildStoreHref } from "@/lib/store-navigation";
 import { getPlayers } from "@/lib/data/players";
 import { isRouteLaunchGated } from "@/lib/launch";
 
@@ -78,10 +80,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getPlayers(),
   ]);
 
+  /*
+    Store category listings — /store?category=ranks and friends.
+
+    These are the pages that link to the individual products, so they are the
+    hop between /store and /store/<slug>. Only categories belonging to a mode
+    whose store is actually live are listed: a "coming soon" mode renders a
+    placeholder panel with no products, and submitting one would be advertising
+    an empty page.
+
+    Subcategories are left out on purpose. They canonicalise to their parent
+    category (see resolveStoreView), so listing them here would mean the sitemap
+    submitting URLs that point their canonical somewhere else.
+  */
+  const liveModes = new Set(modes.filter((mode) => mode.storeStatus === "live").map((mode) => mode.slug));
+  const defaultMode = modes.find((mode) => mode.storeStatus === "live")?.slug ?? modes[0]?.slug ?? "";
+  const stockedCategories = new Set(
+    products.map((product) => `${product.gameModeSlug ?? "survival-smp"}::${product.category}`),
+  );
+  const storeCategories = (await getStoreCategoryConfigs(modes))
+    .filter((config) => (
+      config.enabled
+      && liveModes.has(config.gameModeSlug)
+      && stockedCategories.has(`${config.gameModeSlug}::${config.key}`)
+    ))
+    .map((config) => buildStoreHref({ mode: config.gameModeSlug, defaultMode, category: config.key }));
+
   const dynamic: MetadataRoute.Sitemap = [
     ...modes.map((m) => ({ url: `${base}/game-modes/${m.slug}`, priority: 0.6 })),
     ...news.map((n) => ({ url: `${base}/news/${n.slug}`, lastModified: new Date(n.date), priority: 0.6 })),
     ...events.map((e) => ({ url: `${base}/events/${e.slug}`, priority: 0.5 })),
+    ...storeCategories.map((path) => ({ url: `${base}${path}`, priority: 0.6 })),
     ...products.map((p) => ({ url: `${base}/store/${p.slug}`, priority: 0.5 })),
     ...players.map((p) => ({ url: `${base}/players/${p.username}`, priority: 0.4 })),
   ];

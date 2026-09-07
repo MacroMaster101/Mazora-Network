@@ -15,12 +15,29 @@ export function ProductCard({ product, onOpenDetails }: { product: Product; onOp
   const currentPrice = product.salePrice ?? product.price;
   const discount = onSale ? Math.round((1 - currentPrice / product.price) * 100) : 0;
   
-  const isOverlaid =
-    product.category === "Crate Keys" ||
-    product.category === "Battlepass" ||
-    product.subcategory === "XP Boosts" ||
-    product.subcategory === "Claim Blocks" ||
-    product.subcategory === "Player Points";
+  /*
+    Where the product's name goes: over the artwork, or under it.
+
+    The artwork decides. Cosmetics renders are supplied with the name already
+    set into the image — "OPULENT KIT", "RABBIT PET" — so a caption on top of
+    them prints the name twice. Everything else is a plain object on a
+    background and needs the name added.
+
+    This used to be the opposite way round: a list of the categories that DO get
+    the overlay, naming "Crate Keys", "Battlepass" and three Add-ons
+    subcategories. Two problems with that. Ranks was never on it, so a rank in
+    the featured row sat next to a battlepass and a key with its title in a
+    different place — the reason this changed. And the list is written in
+    category labels, which staff rename and create freely in the admin, so a new
+    category silently got the wrong treatment and renaming "Crate Keys" would
+    have quietly moved its titles.
+
+    Inverted, the default is the one that suits art with no text in it, which is
+    what a newly uploaded image almost always is. The exception stays a short
+    list of the ranges whose art is drawn with its own lettering.
+  */
+  const artworkCarriesItsOwnTitle = product.category === "Cosmetics";
+  const isOverlaid = !artworkCarriesItsOwnTitle;
 
   function addProduct() {
     add(product);
@@ -50,7 +67,16 @@ export function ProductCard({ product, onOpenDetails }: { product: Product; onOp
         </span>
         {isOverlaid && (
           <div className="store-product-media-title">
-            <span className="text-accent-bright">
+            {/*
+              No colour utility here on purpose. This caption sits on the product
+              artwork, which is dark under both site themes, so its colour cannot
+              come from a theme token — `text-accent-bright` resolves to a dark
+              purple in light theme and disappeared into the render. The
+              marketplace also re-asserts that token at high specificity, so a
+              stylesheet override turns into an arms race. The colour belongs to
+              .store-product-media-title span, which owns it outright.
+            */}
+            <span>
               {product.subcategory ?? product.category}
             </span>
             <h3>
