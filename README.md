@@ -84,6 +84,8 @@ Open [http://localhost:3000](http://localhost:3000). Environment variables and a
 | `npm run db:seed:rules` | Load the baseline community rulebook |
 | `npm run db:rehost:news-images` | Re-host expiring Discord CDN artwork into Supabase storage |
 | `npm run role:set -- <email> <role>` | Grant the first owner/IT account |
+| `npm run backup` | Dump every table to `backups/<timestamp>/db` as newline-delimited JSON |
+| `npm run backup:storage` | Download every storage object into the same backup directory |
 
 A few one-off scripts have no npm alias and are run directly. They read `.env` through `tsx`, not `dotenv`:
 
@@ -139,7 +141,7 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `DISCORD_BUYERS_CHANNEL_ID` | Purchase announcements | Public channel posted to by the Announce purchase button. Leave empty to skip announcements. The banner artwork ships with the repo and is served from `NEXT_PUBLIC_SITE_URL`, so nothing else needs configuring. |
 | `DISCORD_ANNOUNCEMENTS_CHANNEL_ID` | News sync | Channel the announcement importer reads from. |
 | `DISCORD_PATCH_CHANNEL_ID` | No | Optional live patch-notes channel; falls back to the announcements channel. |
-| `CRON_SECRET` | News sync | Shared secret for the scheduled announcement sync (minimum 16 characters). |
+| `CRON_SECRET` | Scheduled jobs | Shared secret for **every** cron route, not only the news sync (minimum 16 characters). Each route rejects an unauthenticated call with 401, and returns 503 rather than running if this is unset or shorter than 16 characters — the jobs fail closed. See [Scheduled jobs](#-scheduled-jobs). |
 | `NEXT_PUBLIC_BEDROCK_PORT` | No | Bedrock port shown on the Play and Status pages. Defaults to `8876`. |
 | `MAZORA_LAUNCH_MODE` | No | Keep `on` while unfinished routes should show the launch-status page. Set to `off` to restore every implementation. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Legacy auth | Legacy browser-safe anonymous key; used only when no publishable key is set. |
@@ -156,6 +158,43 @@ The live integrations fail safely:
 
 - Minecraft status is fetched server-side and cached for 15 seconds. A backup provider and short stale/failure retries keep transient upstream errors from replacing the last known live result with invented data.
 - Discord counts come from the authenticated guild route (`/guilds/{id}?with_counts=true`) using the bot token, cached for 15 seconds. This replaced an anonymous invite lookup, which Cloudflare blocks from shared cloud egress. A failed lookup returns a join prompt instead of a fabricated count.
+
+## ⏰ Scheduled jobs
+
+Four cron routes run against production, scheduled in `vercel.json`. All four
+are guarded by `CRON_SECRET`: an unauthenticated request gets 401, and a route
+whose secret is unset or under 16 characters answers 503 instead of running, so
+a misconfiguration can never silently skip the guard.
+
+| Job | Runs | Deletes |
+|---|---|---|
+| `/api/cron/discord-news` | Daily 00:00 | Nothing. Imports new announcements from Discord. |
+| `/api/cron/cleanup-unconfirmed` | Daily 03:00 | Sign-ups that never confirmed their email, after **48 hours**. Capped at 100 per run so a backlog cannot exceed the 30s function limit. |
+| `/api/cron/cleanup-notifications` | Daily 03:30 | Notifications the member has **read**, after **30 days**. |
+| `/api/cron/cleanup-audit-logs` | Sundays 04:00 | Audit entries after **365 days**, except the permanent actions below. |
+
+### What is never deleted
+
+Two retention rules deliberately keep data forever, because deleting on age
+alone would destroy the thing the feature exists for:
+
+- **Unread notifications.** Someone who has not opened the bell in three months
+  must still find what was waiting for them, so age alone never deletes one —
+  only something already seen is expendable.
+- **Privileged audit actions** — `role.change`, `user.delete`, `user.invite`,
+  `user.invite.revoke`, `order.delete`. "Who granted this person staff access"
+  is the question that arrives years later from a dispute or a data request,
+  and is exactly the row a plain age cutoff would delete first.
+
+Content and business records — news, products, rules, orders, gallery — have no
+reaper at all. They are bounded by staff activity rather than user traffic, so
+there is nothing to prune.
+
+Each rule is a pure function with unit tests pinning its boundaries —
+`audit-retention.ts` and `notification-retention.ts`, plus `cleanup-rules.ts`
+for unconfirmed sign-ups — and the reapers in `src/lib/data/cleanup-*.ts` state
+the same rule in SQL. The two must not drift: change the constant, not the
+query.
 
 ## 🛒 Store orders and Discord tickets
 
@@ -231,6 +270,7 @@ Forums contains staff applications, ban appeals, suggestions, and the discussion
 ### 👤 Account areas
 
 - Sign-in accepts a **username or an email address** in the same field. Supabase Auth only understands emails, so a username is resolved to its account address server-side before the password is verified; every failure returns one message so an unknown username cannot be distinguished from a wrong password.
+- Passwords are checked against the [Have I Been Pwned](https://haveibeenpwned.com/Passwords) breach corpus at registration, reset, and change. Only the first five characters of the SHA-1 are sent, so the password never leaves the server, and the check fails open — if the service is slow or down the sign-up proceeds. This is what Supabase sells as "leaked password protection" on the Pro plan; the composition rules alone would accept `Password1!`, which appears in the corpus over half a million times.
 - New members receive a welcome email on their first sign-in, whichever provider they used. Google and Discord accounts are auto-confirmed and never see a confirmation email, so hanging this off first sign-in is what reaches everyone.
 - Login, registration, and account recovery open in one accessible dialog over the current public page. Every internal auth link is intercepted globally, while direct auth URLs return to the homepage and automatically open the same dialog for refreshes, shared links, protected-route redirects, and OAuth errors.
 - `/dashboard` — the member area: overview with stats, profile avatar editor, connected accounts (Discord), tickets, appeals, reports, events, votes, purchases, notifications, and settings. Features a glass-panel sidebar with Minecraft skin avatar and rank badge.
