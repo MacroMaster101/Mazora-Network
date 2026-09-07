@@ -62,8 +62,9 @@ export function CookieConsent() {
             Cookies on Mazora
           </h2>
           <p className="mt-1 text-sm leading-snug text-muted">
-            We use optional cookies to count article reads — no personal data, no
-            tracking across sites.{" "}
+            Optional cookies count article reads, and enable anonymous page-view
+            and performance measurement. No personal data, and no tracking across
+            sites.{" "}
             {/*
               Underlined at rest, not only on hover: this link sits inside a
               paragraph, so colour alone is its only distinguishing signal for

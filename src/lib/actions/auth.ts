@@ -27,6 +27,7 @@ import {
   resetRequestSchema,
   type OtpType,
 } from "@/lib/validation/auth";
+import { isPasswordBreached, PWNED_PASSWORD_MESSAGE } from "@/lib/auth/pwned-password";
 
 export interface AuthResult {
   ok: boolean;
@@ -227,6 +228,18 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
     identity: parsed.data.email,
   });
   if (throttled) return { ok: false, message: throttled };
+
+  /*
+    Breach check after the throttle, never before: it makes an outbound request,
+    and running it on unthrottled input would let anyone use this endpoint to
+    hammer a third-party API on our behalf.
+
+    Supabase does this natively as "leaked password protection", but only from
+    the Pro plan up. It fails open — see lib/auth/pwned-password.
+  */
+  if (await isPasswordBreached(parsed.data.password)) {
+    return { ok: false, errors: { password: PWNED_PASSWORD_MESSAGE } };
+  }
 
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
@@ -593,6 +606,11 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
   const throttled = await throttleAuthAction("reset-finish", { limit: 10, windowMs: 15 * 60_000 });
   if (throttled) return { ok: false, message: throttled };
 
+  // Same breach check as registration; fails open. See lib/auth/pwned-password.
+  if (await isPasswordBreached(parsed.data.password)) {
+    return { ok: false, errors: { password: PWNED_PASSWORD_MESSAGE } };
+  }
+
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
@@ -667,6 +685,11 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
   // This one re-checks the current password, so it is a credential oracle too.
   const throttled = await throttleAuthAction("password-update", { limit: 10, windowMs: 15 * 60_000 });
   if (throttled) return { ok: false, message: throttled };
+
+  // Same breach check as registration; fails open. See lib/auth/pwned-password.
+  if (await isPasswordBreached(parsed.data.password)) {
+    return { ok: false, errors: { password: PWNED_PASSWORD_MESSAGE } };
+  }
 
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
