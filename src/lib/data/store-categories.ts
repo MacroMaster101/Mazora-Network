@@ -83,6 +83,19 @@ export function parseStoreCategorySetting(value: unknown): StoreCategorySettingS
   };
 }
 
+/*
+  Deliberately NOT wrapped in React cache(), unlike the public content readers.
+
+  The admin settings actions call this directly to read the current state before
+  writing the next one, and the admin catalogue pages read it to render what was
+  just saved. Memoising it per request is the same mistake `getAdminGameModes`
+  exists to avoid: a cached read in a write path serves the pre-write value back
+  to the person who just changed it.
+
+  The cost is that /store reads this row twice per request — once in
+  generateMetadata to resolve ?category=, once in the page body. That is one
+  indexed single-row lookup, and it is the correct side to err on.
+*/
 export async function getStoreCategorySettingState(): Promise<StoreCategorySettingState> {
   const db = getDb();
   if (!db) return { categories: [], deletedIds: [] };

@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, type MouseEvent } from "react";
 import { ChevronDown, Clock3, Crown, Flame, Gamepad2, Gem, Heart, House, Package, PackageSearch, Rocket, Shield, Sparkles, Sword, Wand2 } from "lucide-react";
 import type { GameMode, Product, StoreCategoryConfig, StoreRoadmapConfig, StoreWelcomeBannerConfig } from "@/lib/types";
 import { DEFAULT_STORE_ROADMAP, DEFAULT_STORE_WELCOME_BANNER } from "@/lib/types";
@@ -10,11 +11,15 @@ import { RankOfferCard } from "./rank-offer-card";
 import { Icon } from "./icon";
 import { cn } from "@/lib/utils";
 import {
+  buildStoreHref,
   readStoreReturnState,
+  shouldReapplyStoreScroll,
+  STORE_ALL_VIEW,
   STORE_DETAIL_FROM_STORE_KEY,
   STORE_RETURN_KEY,
   STORE_RETURN_PENDING_KEY,
 } from "@/lib/store-navigation";
+import type { StoreView as StoreViewState } from "@/lib/store-view";
 
 type StoreView = Product["category"] | "All";
 
@@ -79,6 +84,7 @@ export function StoreExplorer({
   categoryConfigs,
   welcomeBanner = DEFAULT_STORE_WELCOME_BANNER,
   roadmap = DEFAULT_STORE_ROADMAP,
+  view,
 }: {
   products: Product[];
   modes: GameMode[];
@@ -86,46 +92,146 @@ export function StoreExplorer({
   categoryConfigs: StoreCategoryConfig[];
   welcomeBanner?: StoreWelcomeBannerConfig;
   roadmap?: StoreRoadmapConfig;
+  view: StoreViewState;
 }) {
   const availableModes = modes;
-  const defaultMode = availableModes.find((mode) => mode.storeStatus === "live")?.slug ?? availableModes[0]?.slug ?? "";
-  const [activeMode, setActiveMode] = useState(defaultMode);
-  const [active, setActive] = useState<StoreView>("All");
-  const [subfilter, setSubfilter] = useState<string | null>(null);
+
+  /*
+    The selection is read from the URL, not held in state.
+
+    It was useState, which made the category nav a row of <button>s with nothing
+    behind them: no shareable link to a category, no Back, and — the reason this
+    changed — no href for a crawler to follow, so 33 of 36 product pages had no
+    internal link anywhere on the site. The server now resolves ?mode/?category/
+    ?sub in resolveStoreView() and renders that listing directly, so the first
+    response already contains the products and their links.
+
+    Every value below is validated server-side; an unknown parameter has already
+    fallen back to the default view by the time it arrives here, which is why
+    there is no longer a reconciliation effect guarding against a stale category.
+  */
+  const { mode: activeMode, defaultMode, category: active, sub: subfilter } = view;
   const activeCategories = useMemo(
     () => categoryConfigs.filter((config) => config.gameModeSlug === activeMode && config.enabled).sort((a, b) => a.sortOrder - b.sortOrder),
     [categoryConfigs, activeMode],
   );
 
+  const navRef = useRef<HTMLElement | null>(null);
+
+  const closeAllMenus = useCallback(() => {
+    navRef.current?.querySelectorAll<HTMLDetailsElement>("details.store-shop-menu[open]")
+      .forEach((menu) => menu.removeAttribute("open"));
+  }, []);
+
+  /*
+    A <details> menu holds its own open state in the DOM, and nothing about
+    changing category tells it to close.
+
+    Three ways it was left hanging open over the page it had just navigated
+    away from: picking a different top-level category while a menu was open
+    (the click never reaches the menu, so the link's own onClick cannot help),
+    clicking anywhere else on the page, and pressing Escape. The first is the
+    one that looked broken — Battlepass would load underneath an open Cosmetics
+    menu — and it is handled by closing on every view change rather than by
+    wiring a handler onto each sibling link, so a nav item added later cannot
+    forget to do it.
+  */
+  useEffect(closeAllMenus, [closeAllMenus, activeMode, active, subfilter]);
+
   useEffect(() => {
-    if (active !== "All" && !activeCategories.some((config) => config.key === active)) {
-      setActive("All");
-      setSubfilter(null);
-    }
-  }, [active, activeCategories]);
+    const onPointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return;
+      // A click inside the nav is either opening a menu or following a link;
+      // both are handled elsewhere, and closing here would beat the link to it.
+      if (navRef.current?.contains(event.target)) return;
+      closeAllMenus();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const open = navRef.current?.querySelector<HTMLDetailsElement>("details.store-shop-menu[open]");
+      if (!open) return;
+      closeAllMenus();
+      // Escape on a dropdown should leave focus where the reader can carry on
+      // with the keyboard, not stranded on a summary that no longer expands.
+      open.querySelector("summary")?.focus();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [closeAllMenus]);
+
+  /*
+    Scroll restoration only. Which category to show used to be restored from
+    sessionStorage too; the URL carries it now, and re-applying a stale copy over
+    the top would fight the address bar on Back.
+
+    It retries because the offset is often unreachable on the first frame — the
+    product art has not loaded, so the document is still shorter than the offset
+    it is being asked to scroll to — and it stops the moment the offset is
+    reached or the reader touches the page. See shouldReapplyStoreScroll.
+  */
   useEffect(() => {
     if (window.sessionStorage.getItem(STORE_RETURN_PENDING_KEY) !== "1") return;
     window.sessionStorage.removeItem(STORE_RETURN_PENDING_KEY);
     const saved = readStoreReturnState();
     if (!saved) return;
 
-    setActiveMode(availableModes.some((mode) => mode.slug === saved.activeMode) ? saved.activeMode : defaultMode);
-    setActive(saved.active as StoreView);
-    setSubfilter(saved.subfilter);
+    const startedAt = Date.now();
+    let cancelled = false;
+    let frame = 0;
 
-    const restoreScroll = () => window.scrollTo({ top: saved.scrollY, behavior: "instant" });
-    window.requestAnimationFrame(() => window.requestAnimationFrame(restoreScroll));
-    window.setTimeout(restoreScroll, 300);
-    window.setTimeout(restoreScroll, 900);
-    window.setTimeout(restoreScroll, 1600);
-  }, [availableModes, defaultMode]);
+    /*
+      Anything that means the reader is driving. These are the input events
+      themselves rather than the scroll event, because the restore's own
+      scrollTo raises scroll too and cannot be told apart from a real one.
+      Pointer covers dragging the scrollbar, which fires no wheel event.
+    */
+    const takeOver = () => { cancelled = true; };
+
+    const stop = () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("wheel", takeOver);
+      window.removeEventListener("touchstart", takeOver);
+      window.removeEventListener("pointerdown", takeOver);
+      window.removeEventListener("keydown", takeOver);
+    };
+
+    const tick = () => {
+      const again = shouldReapplyStoreScroll({
+        cancelled,
+        elapsedMs: Date.now() - startedAt,
+        currentY: window.scrollY,
+        targetY: saved.scrollY,
+      });
+      if (!again) {
+        stop();
+        return;
+      }
+      // "instant" is required, not stylistic: html carries scroll-behavior:
+      // smooth, so the default would animate the page there every frame.
+      window.scrollTo({ top: saved.scrollY, behavior: "instant" });
+      frame = window.requestAnimationFrame(tick);
+    };
+
+    const passive = { passive: true } as const;
+    window.addEventListener("wheel", takeOver, passive);
+    window.addEventListener("touchstart", takeOver, passive);
+    window.addEventListener("pointerdown", takeOver, passive);
+    window.addEventListener("keydown", takeOver);
+
+    frame = window.requestAnimationFrame(tick);
+    return stop;
+  }, []);
 
   const list = useMemo(
     () =>
       products.filter((product) => {
         if ((product.gameModeSlug ?? "survival-smp") !== activeMode) return false;
         const inCategory =
-          active === "All" ||
+          active === STORE_ALL_VIEW ||
           product.category === active;
         const inSubcategory = !subfilter || (product.subcategory ?? product.billing) === subfilter;
         return inCategory && inSubcategory;
@@ -171,16 +277,13 @@ export function StoreExplorer({
     }));
   }
 
-  function chooseView(view: StoreView, nextSubfilter: string | null = null) {
-    setActive(view);
-    setSubfilter(nextSubfilter);
+  /** Canonical href for a view of this store, in the current game mode. */
+  function viewHref(view: StoreView, nextSubfilter: string | null = null) {
+    return buildStoreHref({ mode: activeMode, defaultMode, category: view, sub: nextSubfilter });
   }
 
   function rememberStorePosition() {
     window.sessionStorage.setItem(STORE_RETURN_KEY, JSON.stringify({
-      activeMode,
-      active,
-      subfilter,
       scrollY: window.scrollY,
       savedAt: Date.now(),
     }));
@@ -189,12 +292,12 @@ export function StoreExplorer({
     window.sessionStorage.setItem(STORE_DETAIL_FROM_STORE_KEY, "1");
   }
 
-  function chooseFromMenu(
-    event: MouseEvent<HTMLButtonElement>,
-    view: StoreView,
-    nextSubfilter: string | null = null,
-  ) {
-    chooseView(view, nextSubfilter);
+  /*
+    Following a link inside a menu when it does not change the view — "All
+    Cosmetics" while already on Cosmetics — produces no navigation for the
+    effect above to react to, so that one case closes the menu directly.
+  */
+  function closeMenu(event: MouseEvent<HTMLElement>) {
     event.currentTarget.closest("details")?.removeAttribute("open");
   }
   return (
@@ -208,12 +311,12 @@ export function StoreExplorer({
           {availableModes.map((mode) => {
             const isLive = mode.storeStatus === "live";
             return (
-              <button
+              <Link
                 key={mode.slug}
-                type="button"
-                onClick={() => setActiveMode(mode.slug)}
+                href={buildStoreHref({ mode: mode.slug, defaultMode })}
+                scroll={false}
                 className={cn("store-mode-tab", activeMode === mode.slug && "is-active")}
-                aria-pressed={activeMode === mode.slug}
+                aria-current={activeMode === mode.slug ? "true" : undefined}
               >
                 <span className="store-mode-tab-icon"><Icon name={mode.icon || "Gamepad2"} size={15} /></span>
                 <span>
@@ -221,7 +324,7 @@ export function StoreExplorer({
                   <small>{mode.tagline || (isLive ? "Store live" : "Coming soon")}</small>
                 </span>
                 <i className={isLive ? "is-live" : ""} aria-hidden="true" />
-              </button>
+              </Link>
             );
           })}
         </div>
@@ -250,31 +353,46 @@ export function StoreExplorer({
         </section>
       ) : (
         <>
-      <nav className="store-shop-nav" aria-label={`${getModeDisplayName(selectedMode) || "Game mode"} store categories`}>
+      <nav ref={navRef} className="store-shop-nav" aria-label={`${getModeDisplayName(selectedMode) || "Game mode"} store categories`}>
         <div className="store-shop-nav-main">
-          <button type="button" onClick={() => chooseView("All")} className={cn("store-shop-nav-item", active === "All" && "is-active")} aria-pressed={active === "All"}>
+          <Link href={viewHref(STORE_ALL_VIEW)} scroll={false} className={cn("store-shop-nav-item", active === STORE_ALL_VIEW && "is-active")} aria-current={active === STORE_ALL_VIEW ? "page" : undefined}>
             <House size={15} /> Store Home
-          </button>
+          </Link>
 
           {activeCategories.map((config) => config.useSubcategories ? (
             <details key={config.key} className={cn("store-shop-menu", active === config.key && "is-active")}>
               <summary className="store-shop-nav-item">{config.label} <ChevronDown size={14} /></summary>
               <div className="store-shop-submenu">
-                <button type="button" onClick={(event) => chooseFromMenu(event, config.key)}>All {config.label}</button>
+                <Link
+                  href={viewHref(config.key)}
+                  scroll={false}
+                  onClick={closeMenu}
+                  aria-current={active === config.key && !subfilter ? "page" : undefined}
+                >
+                  All {config.label}
+                </Link>
                 {config.subcategories.filter((item) => item.enabled).sort((a, b) => a.sortOrder - b.sortOrder).map((item) => (
-                  <button key={item.key} type="button" onClick={(event) => chooseFromMenu(event, config.key, item.key)}>{item.label}</button>
+                  <Link
+                    key={item.key}
+                    href={viewHref(config.key, item.key)}
+                    scroll={false}
+                    onClick={closeMenu}
+                    aria-current={active === config.key && subfilter === item.key ? "page" : undefined}
+                  >
+                    {item.label}
+                  </Link>
                 ))}
               </div>
             </details>
           ) : (
-            <button key={config.key} type="button" onClick={() => chooseView(config.key)} className={cn("store-shop-nav-item", active === config.key && "is-active")} aria-pressed={active === config.key}>
+            <Link key={config.key} href={viewHref(config.key)} scroll={false} className={cn("store-shop-nav-item", active === config.key && "is-active")} aria-current={active === config.key ? "page" : undefined}>
               {config.label}
-            </button>
+            </Link>
           ))}
         </div>
       </nav>
 
-      {active === "All" ? (
+      {active === STORE_ALL_VIEW ? (
         <div className="store-home-view store-home-v3">
           {welcomeBanner.enabled && (
             <section className="store-home-welcome-v3" aria-labelledby="store-welcome-title">
@@ -457,16 +575,9 @@ export function StoreExplorer({
           <PackageSearch size={34} className="text-accent-bright" />
           <h3 className="mt-4 text-lg font-bold">No products found</h3>
           <p className="mt-1 text-sm text-muted">Choose another category to continue browsing.</p>
-          <button
-            type="button"
-            onClick={() => {
-              setActive("All");
-              setSubfilter(null);
-            }}
-            className="btn btn-ghost btn-sm mt-5"
-          >
+          <Link href={viewHref(STORE_ALL_VIEW)} scroll={false} className="btn btn-ghost btn-sm mt-5">
             Reset filters
-          </button>
+          </Link>
         </div>
       )}
         </>
