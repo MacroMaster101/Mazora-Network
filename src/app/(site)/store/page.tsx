@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { publicPageMetadata } from "@/lib/seo";
 import Image from "next/image";
 import {
@@ -16,22 +17,54 @@ import { CartTrigger } from "@/components/shared/cart-trigger";
 import { StoreExplorer } from "@/components/shared/store-explorer";
 import { CartPageLauncher } from "@/components/shared/cart-page-launcher";
 import { cn } from "@/lib/utils";
+import { resolveStoreView } from "@/lib/store-view";
 // Import order mirrors the order these rules loaded in before they were split
 // out of globals.css / responsive-store-vote.css. Do not reshuffle.
 import "@/styles/store-pages.css";
 import "@/styles/store-vote-responsive.css";
 import "@/styles/store-header.css";
 
-export const metadata = publicPageMetadata({
-  title: "Store",
-  description: "Survival ranks, crate keys, battlepass upgrades and progression add-ons for the Mazora Network.",
-  path: "/store",
-});
+type StoreSearchParams = { cart?: string; mode?: string; category?: string; sub?: string };
+
+/**
+ * One canonical per listing, derived from the same resolver the page body uses.
+ *
+ * Every parameter is validated against the categories that exist, so the junk
+ * and duplicate spellings a crawler can invent (?category=RANKS, ?category=xyz,
+ * ?cart=open) all collapse onto the canonical they actually render.
+ *
+ * `sub` is deliberately dropped: a subcategory is a slice of its parent
+ * listing, and letting each one self-canonicalise would turn a four-category
+ * store into a dozen near-identical indexable pages. Google still crawls them
+ * and still finds the product links inside; it just files them under the parent.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<StoreSearchParams>;
+}): Promise<Metadata> {
+  const [params, modes, products] = await Promise.all([searchParams, getGameModes(), getProducts()]);
+  const view = resolveStoreView(params, modes, await getStoreCategoryConfigs(modes), products);
+
+  return publicPageMetadata({
+    title: view.categoryLabel ? `${view.categoryLabel} · Store` : "Store",
+    description: view.categoryDescription
+      ?? "Survival ranks, crate keys, battlepass upgrades and progression add-ons for the Mazora Network.",
+    path: view.canonicalPath,
+    // Two listings that render no products: a mode whose store has not opened
+    // ("coming soon"), and a category staff have created but not stocked yet.
+    // Both are reachable from the nav, so Googlebot will find them, and both are
+    // UI states rather than pages — self-canonicalising a stocked store's empty
+    // twin is how a site accumulates thin duplicates. `follow` because the nav
+    // on them still leads back to the live catalogue.
+    robots: view.storeLive && !view.emptyListing ? undefined : { index: false, follow: true },
+  });
+}
 
 export default async function StorePage({
   searchParams,
 }: {
-  searchParams: Promise<{ cart?: string }>;
+  searchParams: Promise<StoreSearchParams>;
 }) {
   const [products, modes, params, featuredSlugs, welcomeBanner, roadmap, generalSettings] = await Promise.all([
     getProducts(),
@@ -43,6 +76,7 @@ export default async function StorePage({
     getSiteGeneralSettings(),
   ]);
   const categoryConfigs = await getStoreCategoryConfigs(modes);
+  const view = resolveStoreView(params, modes, categoryConfigs, products);
   const offerCount = new Set(products.map((product) => product.family ?? product.slug)).size;
   const collectionCount = new Set(
     products.map((product) => (product.category === "Battlepass" ? "Cosmetics" : product.category)),
@@ -156,6 +190,7 @@ export default async function StorePage({
               categoryConfigs={categoryConfigs}
               welcomeBanner={welcomeBanner}
               roadmap={roadmap}
+              view={view}
             />
           </Reveal>
         </section>

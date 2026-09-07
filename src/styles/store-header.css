@@ -439,6 +439,24 @@
   color: rgb(var(--ink));
 }
 
+/*
+  The dropdown takes the same surface as the panels above, minus the
+  translucency.
+
+  Those panels sit on the marketplace world artwork, where letting a little of
+  it through is the point. The category menu sits on the product grid, and at
+  0.9/0.78 alpha a lit crate-key render came through it as a smudge across the
+  lower items. Same gradient, same geometry, alpha removed — identical surface,
+  legible over anything. Kept next to the rule it amends so the two are read
+  together; the light theme sets its own solid colour further down and is
+  specific enough to still win.
+*/
+.store-marketplace .store-shop-submenu {
+  background:
+    radial-gradient(34rem 22rem at 92% 0%, rgb(var(--accent-rgb) / 0.13), transparent 72%),
+    linear-gradient(150deg, rgb(var(--card)), rgb(var(--surface))) !important;
+}
+
 .store-marketplace :is(
   .store-home-server-card,
   .store-home-category-card,
@@ -512,11 +530,11 @@
 /* Keep Store navigation readable on the forced-dark marketplace canvas. */
 .store-marketplace .store-shop-nav-item,
 :root[data-theme="light"] .site-world-main .store-marketplace .store-shop-nav-item,
-.store-marketplace .store-shop-submenu button {
+.store-marketplace .store-shop-submenu :is(a, button) {
   color: rgb(var(--muted)) !important;
 }
 
-.store-marketplace button.store-shop-nav-item:hover,
+.store-marketplace :is(a, button).store-shop-nav-item:hover,
 .store-marketplace .store-shop-menu > summary:hover,
 .store-marketplace .store-shop-menu[open] > summary,
 .store-marketplace .store-shop-menu.is-active > summary,
@@ -531,7 +549,7 @@
   color: rgb(var(--accent-bright)) !important;
 }
 
-.store-marketplace .store-shop-submenu button:hover:not(:disabled) {
+.store-marketplace .store-shop-submenu :is(a, button):hover:not(:disabled) {
   background: rgb(var(--accent-rgb) / 0.12) !important;
   color: rgb(var(--ink)) !important;
 }
@@ -845,7 +863,20 @@
    size it has on a laptop, and still gives 3/2/1 as the shell narrows. */
 .store-home-featured-v3-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+  /*
+    Three explicit columns, not auto-fill.
+
+    `auto-fill` lays down as many 21rem tracks as the shell can hold and keeps
+    the ones nothing lands in. Past about 1400px that is four or five tracks for
+    three picks, so the row stopped short and left a column of empty space on
+    the right. (The newsroom grids use auto-fill on purpose — there it holds a
+    card near its drawn size — but this row is a shortlist that should span its
+    panel.)
+
+    Three also gives the count a shape: six picks read as two rows of three
+    rather than an odd 4 + 2.
+  */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
   margin-top: clamp(1.5rem, 3vw, 2.25rem);
 }
@@ -1198,7 +1229,7 @@
 }
 
 :root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell .store-shop-nav-item,
-:root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell .store-shop-submenu button {
+:root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell .store-shop-submenu :is(a, button) {
   color: rgb(var(--muted)) !important;
 }
 

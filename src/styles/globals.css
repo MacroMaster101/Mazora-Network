@@ -8420,7 +8420,7 @@ body:has(.vote-mission-hero) .scroll-header[data-away="true"][data-hidden="false
   -webkit-backdrop-filter: none;
 }
 
-button.store-shop-nav-item:hover,
+:is(a, button).store-shop-nav-item:hover,
 .store-shop-menu > summary:hover,
 .store-shop-menu[open] > summary,
 .store-shop-menu.is-active > summary,
@@ -8440,7 +8440,7 @@ button.store-shop-nav-item:hover,
   color: rgb(55 45 68 / 0.72);
 }
 
-:root[data-theme="light"] .site-world-main button.store-shop-nav-item:hover,
+:root[data-theme="light"] .site-world-main :is(a, button).store-shop-nav-item:hover,
 :root[data-theme="light"] .site-world-main .store-shop-menu > summary:hover,
 :root[data-theme="light"] .site-world-main .store-shop-menu[open] > summary,
 :root[data-theme="light"] .site-world-main .store-shop-menu.is-active > summary,
@@ -8460,16 +8460,16 @@ button.store-shop-nav-item:hover,
   box-shadow: 0 24px 58px -28px rgb(18 10 31 / 0.48), inset 0 1px #fff;
 }
 
-:root[data-theme="light"] .site-world-main .store-shop-submenu button {
+:root[data-theme="light"] .site-world-main .store-shop-submenu :is(a, button) {
   color: rgb(55 45 68 / 0.76);
 }
 
-:root[data-theme="light"] .site-world-main .store-shop-submenu button:hover:not(:disabled) {
+:root[data-theme="light"] .site-world-main .store-shop-submenu :is(a, button):hover:not(:disabled) {
   background: rgb(124 58 237 / 0.1);
   color: rgb(75 32 126);
 }
 
-:root[data-theme="light"] .site-world-main .store-shop-submenu button small {
+:root[data-theme="light"] .site-world-main .store-shop-submenu :is(a, button) small {
   background: rgb(77 54 104 / 0.07);
 }
 

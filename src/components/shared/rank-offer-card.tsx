@@ -21,6 +21,13 @@ export function RankOfferCard({
   const monthly = products.find((product) => product.billing === "Monthly");
   const permanent = products.find((product) => product.billing === "Permanent");
   const accent = permanent?.accent ?? monthly?.accent ?? "violet";
+  /*
+    The variant the card is fronting: its medallion is the artwork, and its page
+    is where the artwork should lead. Falls back through the list so a filtered
+    view — /store?category=ranks&sub=monthly, where no permanent variant is in
+    `products` — still fronts something real.
+  */
+  const featured = permanent ?? monthly ?? products[0];
 
   function addRank(product: Product) {
     add(product);
@@ -29,10 +36,21 @@ export function RankOfferCard({
 
   return (
     <article className="store-rank-card" data-accent={accent}>
-      <div className="store-rank-card-media relative overflow-hidden group">
+      {/*
+        A link, not a div. The medallion and the rank name are the biggest thing
+        on the card and the obvious thing to click, and on rank cards they did
+        nothing — every other product card opens its page from the artwork
+        (see ProductCard). Reaching the page meant finding the small arrow in the
+        row beneath.
+      */}
+      <Link
+        href={`/store/${featured.slug}`}
+        onClick={onOpenDetails}
+        className="store-rank-card-media relative overflow-hidden group"
+      >
         <div className="store-rank-medallion-container absolute inset-0">
           <StoreArtwork
-            src={storeArtFor(permanent ?? monthly ?? products[0])}
+            src={storeArtFor(featured)}
             alt={`${family} medallion`}
             sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 33vw"
             imageClassName="transition duration-500 ease-out group-hover:scale-[1.06]"
@@ -43,7 +61,7 @@ export function RankOfferCard({
           <p>Survival rank</p>
           <h4>{family}</h4>
         </div>
-      </div>
+      </Link>
 
       <div className="store-rank-options">
         {[monthly, permanent].filter(Boolean).map((product) => (

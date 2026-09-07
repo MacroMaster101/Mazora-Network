@@ -7,7 +7,7 @@ type TabKey = "welcome" | "featured" | "roadmap";
 
 const TABS: { key: TabKey; label: string; hint: string; icon: typeof ImageIcon }[] = [
   { key: "welcome", label: "Welcome Banner", hint: "Store Home hero", icon: ImageIcon },
-  { key: "featured", label: "Featured Picks", hint: "Top 3 products", icon: Star },
+  { key: "featured", label: "Featured Picks", hint: "Store Home shortlist", icon: Star },
   { key: "roadmap", label: "Roadmap", hint: "Upcoming features", icon: ListTree },
 ];
 

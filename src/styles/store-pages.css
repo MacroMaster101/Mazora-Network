@@ -1694,12 +1694,27 @@ body:has(.store-detail-page) {
   pointer-events: none;
 }
 
+/*
+  Fixed light values, not theme tokens.
+
+  This caption sits on the product artwork, which is dark under both site
+  themes. The kicker was left to the `text-accent-bright` utility on the
+  element, and that token flips: in light theme it resolves to a dark purple,
+  so the category above the title was near-invisible against the render. The
+  same applied to the title on hover. Matches the kicker on rank card media,
+  which has always carried its own colour for this reason.
+
+  More specific than the utility class it overrides (0,1,1 against 0,1,0), so
+  it wins without !important.
+*/
 .store-product-media-title span {
   display: block;
+  color: rgb(216 180 254 / 0.86);
   font-size: 0.56rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.18em;
+  text-shadow: 0 1px 6px rgb(3 1 8 / 0.75);
 }
 
 .store-product-media-title h3 {
@@ -1713,7 +1728,7 @@ body:has(.store-detail-page) {
 }
 
 .store-product-card:hover .store-product-media-title h3 {
-  color: rgb(var(--accent-bright));
+  color: rgb(196 157 255);
 }
 
 /* Replace the muddy full-page gradient with the marketplace's centered
@@ -1776,11 +1791,20 @@ body:has(.store-detail-page) {
 
 /* Light theme follows the marketplace convention: the dark shop world stays,
    but the content panel becomes a light card with dark, readable text. */
+/*
+  Opaque in light theme.
+
+  The base layer was 0.78 fading to 0.68, so between a fifth and a third of the
+  world artwork behind the page came through the panel. On a dark backdrop that
+  reads as a lavender wash rather than a white card, and it changes shade as the
+  artwork changes behind it. The accent tint above it stays — that is a
+  deliberate wash over a solid surface, not a way of seeing through one.
+*/
 :root[data-theme="light"] .store-detail-panel {
   border-color: rgb(93 67 124 / 0.26);
   background:
     radial-gradient(28rem 18rem at 100% 0%, rgb(var(--accent-rgb) / 0.11), transparent 72%),
-    linear-gradient(150deg, rgb(255 255 255 / 0.78), rgb(240 233 249 / 0.68));
+    linear-gradient(150deg, rgb(255 255 255), rgb(246 242 252));
   box-shadow: 0 30px 72px -50px rgb(58 35 91 / 0.42), inset 0 1px white;
   color: rgb(30 23 43);
 }
@@ -1797,7 +1821,9 @@ body:has(.store-detail-page) {
 
 :root[data-theme="light"] .store-detail-assurance {
   border-color: rgb(93 67 124 / 0.2);
-  background: rgb(255 255 255 / 0.58);
+  /* Sits on the panel above, which is now solid, so the tile has to be too —
+     at 0.58 it picked up whatever the panel was standing on. */
+  background: rgb(255 255 255);
 }
 
 :root[data-theme="light"] .store-detail-assurance strong {
@@ -1829,8 +1855,20 @@ body:has(.store-detail-page) {
   backdrop-filter: blur(20px) saturate(1.12);
 }
 
+/*
+  Grid, not flex, so the columns are genuinely equal.
+
+  Under flex the items carry `flex: 1 1 0`, and with `box-sizing: border-box` a
+  zero flex-basis zeroes the *content* box — padding and border are then added
+  back on top. The plain category links have their own padding; the dropdowns do
+  not, because theirs sits on the <summary> inside. Same flex values, two
+  different outer widths: 211px against 180px. `1fr` tracks size the border box,
+  so the row is even whatever each item is built from.
+*/
 .store-shop-nav-main {
-  display: flex;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   min-width: 0;
   flex: 1;
   align-items: stretch;
@@ -1885,10 +1923,14 @@ body:has(.store-detail-page) {
   gap: 0.22rem;
   border: 1px solid rgb(216 180 254 / 0.14);
   border-radius: 0.85rem;
-  background: rgb(12 8 22 / 0.97);
+  /* Fully opaque, and no backdrop-filter behind it.
+     At 0.97 alpha the menu sat three percent see-through over the product grid.
+     That is nothing against a flat surface and very visible against a lit
+     crate-key render — the artwork read as a smudge across the lower items. A
+     menu that covers artwork has to actually cover it. */
+  background: rgb(12 8 22);
   padding: 0.42rem;
   box-shadow: 0 24px 60px -25px rgb(0 0 0 / 0.95), inset 0 1px rgb(255 255 255 / 0.055);
-  backdrop-filter: blur(20px);
 }
 
 .store-shop-menu:last-of-type .store-shop-submenu {
@@ -1896,7 +1938,14 @@ body:has(.store-detail-page) {
   left: auto;
 }
 
-.store-shop-submenu button {
+/*
+  The category nav and its submenu became <a> elements when the store's
+  selection moved from React state into the query string, so every rule that
+  used to name `button` here matches both now. `:is(a, button)` has the
+  specificity of the bare `button` type selector it replaced, so nothing that
+  previously won or lost a tie against a utility class changes.
+*/
+.store-shop-submenu :is(a, button) {
   display: flex;
   width: 100%;
   min-height: 2.35rem;
@@ -1911,17 +1960,34 @@ body:has(.store-detail-page) {
   text-align: left;
 }
 
-.store-shop-submenu button:hover:not(:disabled) {
+.store-shop-submenu :is(a, button):hover:not(:disabled) {
   background: rgb(139 92 246 / 0.15);
   color: #fff;
 }
 
-.store-shop-submenu button:disabled {
+/* Which slice you are actually looking at. The trigger names the category, but
+   nothing named the subcategory, so "Ranks" looked identical whether you had
+   picked Monthly, Permanent, or neither. */
+.store-shop-submenu :is(a, button)[aria-current] {
+  background: rgb(139 92 246 / 0.22);
+  color: #fff;
+}
+
+.store-shop-submenu :is(a, button)[aria-current]::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: rgb(var(--accent-bright));
+}
+
+.store-shop-submenu :is(a, button):disabled {
   cursor: not-allowed;
   opacity: 0.38;
 }
 
-.store-shop-submenu button small {
+.store-shop-submenu :is(a, button) small {
   border-radius: 999px;
   background: rgb(255 255 255 / 0.07);
   font-size: 0.48rem;
@@ -1936,9 +2002,16 @@ body:has(.store-detail-page) {
     flex-wrap: wrap;
   }
 
+  /*
+    Three across, two rows. Wrapping flex put whatever fitted on the first row
+    and stretched the remainder across the second, and carried the same uneven
+    widths as the desktop row did. Six items divide evenly by three, so the
+    breakpoints step 6 → 3 → 2 and every row stays whole.
+  */
   .store-shop-nav-main {
     width: 100%;
-    flex-wrap: wrap;
+    grid-auto-flow: row;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .store-shop-nav-item {
@@ -1991,9 +2064,17 @@ body:has(.store-detail-page) {
   }
 }
 /* The category header is the only catalog control surface and matches Store glass. */
-.store-shop-nav-main > button,
+/* `:is(a, button)` because the top-level category items are links now — the
+   selection lives in the query string, not React state. As bare `button` this
+   rule stopped matching them, so the three plain categories collapsed to
+   content width while the three dropdowns kept their equal share. */
+.store-shop-nav-main > :is(a, button),
 .store-shop-nav-main > .store-shop-menu {
   flex: 1 1 0;
+  /* Without this, a flex item's automatic minimum is its content width, so the
+     plain links refused to shrink to their share and the dropdowns absorbed the
+     difference — six equal columns rendered as 211px / 180px. */
+  min-width: 0;
 }
 
 .store-shop-menu > summary {
@@ -2155,9 +2236,17 @@ body:has(.store-detail-page) {
   }
 }
 /* The category header is the only catalog control surface and matches Store glass. */
-.store-shop-nav-main > button,
+/* `:is(a, button)` because the top-level category items are links now — the
+   selection lives in the query string, not React state. As bare `button` this
+   rule stopped matching them, so the three plain categories collapsed to
+   content width while the three dropdowns kept their equal share. */
+.store-shop-nav-main > :is(a, button),
 .store-shop-nav-main > .store-shop-menu {
   flex: 1 1 0;
+  /* Without this, a flex item's automatic minimum is its content width, so the
+     plain links refused to shrink to their share and the dropdowns absorbed the
+     difference — six equal columns rendered as 211px / 180px. */
+  min-width: 0;
 }
 
 .store-shop-menu > summary {
