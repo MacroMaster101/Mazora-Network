@@ -1,6 +1,6 @@
 import "server-only";
 import type { NextRequest } from "next/server";
-import { CONSENT_ACCEPTED, CONSENT_COOKIE } from "@/lib/consent-client";
+import { CONSENT_ACCEPTED, CONSENT_COOKIE, resolveConsent } from "@/lib/consent-client";
 
 /** Single capped cookie holding every article slug this client has been counted for. */
 export const READS_COOKIE = "mazora_news_reads";
@@ -31,9 +31,14 @@ export function analyticsCookieOptions() {
 /**
  * Analytics counting is opt-in: absent an explicit "accepted", nothing is
  * counted and no counting cookie is written.
+ *
+ * Goes through resolveConsent rather than comparing the raw value, so the
+ * server applies the same policy-version rule the banner does. Comparing the
+ * string directly would keep counting visitors whose consent the banner has
+ * already decided is stale and is currently re-asking them about.
  */
 export function hasAnalyticsConsent(request: NextRequest): boolean {
-  return request.cookies.get(CONSENT_COOKIE)?.value === CONSENT_ACCEPTED;
+  return resolveConsent(request.cookies.get(CONSENT_COOKIE)?.value) === CONSENT_ACCEPTED;
 }
 
 export function parseReadSlugs(raw: string | undefined, pattern: RegExp): string[] {

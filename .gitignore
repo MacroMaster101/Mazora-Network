@@ -69,3 +69,7 @@ desktop.ini
 /.cursor
 /.aider
 /.continue
+
+# Local database/storage backups. Contains auth.users with password hashes
+# and email addresses — must never be committed.
+backups/

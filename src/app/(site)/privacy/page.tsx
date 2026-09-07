@@ -10,6 +10,12 @@ export const metadata = publicPageMetadata({
   path: "/privacy",
 });
 
+/*
+  Changing this date for a wording fix is fine on its own. Changing what the
+  policy actually says the site collects is not: bump CONSENT_POLICY_VERSION in
+  lib/consent-client alongside it, or every visitor who has already answered
+  stays opted in to terms they never saw, for the rest of their 180 days.
+*/
 const LAST_UPDATED = "2026-08-15";
 
 export default function PrivacyPage() {
