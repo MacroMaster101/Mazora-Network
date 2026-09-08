@@ -7574,6 +7574,48 @@ body:has(.store-detail-page) .scroll-header[data-away="true"][data-hidden="false
   background: transparent;
 }
 
+/* The rest of what .hero-nav paints for the overlay, undone once docked.
+
+   .hero-nav dresses the header for sitting on top of hero artwork: white text,
+   pale lavender icons. Once scrolled, that header is no longer over artwork —
+   it is a near-white pill — and those colours become near-white on near-white.
+   The nav item labels and the dock controls were already given the swap; these
+   were missed, and below 1380px the labels are hidden, so the icons ARE the
+   navigation. Every layout passes `world`, so this is site-wide, not the
+   homepage alone.
+
+   Measured on the docked pill before this rule: nav icons 1.76:1, the account
+   chevron 1.01:1, the mobile menu button 2.48:1. Non-text needs 3:1.
+
+   Scoped to the docked state deliberately. At the top of the page the header
+   really is over artwork, where the white treatment is the correct one. */
+:root:not([data-theme="dark"]) .scroll-header.hero-nav[data-away="true"][data-hidden="false"] .desktop-nav-icon,
+:root:not([data-theme="dark"]) .scroll-header.hero-nav[data-away="true"][data-hidden="false"] .desktop-nav-item.is-active .desktop-nav-icon {
+  color: rgb(var(--accent-bright));
+  filter: drop-shadow(0 0 8px rgb(var(--accent-rgb) / 0.18));
+}
+
+:root:not([data-theme="dark"]) .scroll-header.hero-nav[data-away="true"][data-hidden="false"] .desktop-nav-item:hover .desktop-nav-icon {
+  color: #7e22ce;
+  filter: drop-shadow(0 0 12px rgb(var(--accent-rgb) / 0.3));
+}
+
+/* The account chevron and the mobile menu button, which take their colour from
+   the overlay's white .text-muted / .text-ink.
+
+   Named explicitly rather than overriding .text-muted / .text-ink across the
+   whole header: the nav dropdown uses those same utilities and already has its
+   own light-theme colours, for a panel that is a light card in both scroll
+   states. A blanket override reached inside it and recoloured its kicker only
+   while scrolled — a difference with no reason behind it. */
+:root:not([data-theme="dark"]) .scroll-header.hero-nav[data-away="true"][data-hidden="false"] .account-chevron {
+  color: rgb(var(--muted));
+}
+
+:root:not([data-theme="dark"]) .scroll-header.hero-nav[data-away="true"][data-hidden="false"] .mobile-menu-trigger {
+  color: rgb(var(--ink));
+}
+
 /* .desktop-login-link carries its own explicit (white) text color for the
    transparent, at-top state, which otherwise wins over the dock's inherited
    color once scrolled — leaving white text on the now-solid white pill.

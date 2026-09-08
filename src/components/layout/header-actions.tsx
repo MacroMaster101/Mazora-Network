@@ -414,7 +414,7 @@ export function HeaderActions({ session }: { session: Session | null }) {
           className="flex items-center gap-1.5 p-1.5 rounded-2xl hover:bg-ink/5 dark:hover:bg-white/5 transition-colors"
         >
           <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={36} />
-          <ChevronDown size={14} className="text-muted transition-transform" aria-hidden="true" />
+          <ChevronDown size={14} className="account-chevron text-muted transition-transform" aria-hidden="true" />
         </button>
 
         {open && (
