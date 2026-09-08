@@ -109,7 +109,7 @@ export function TopVotersTable({ entries }: { entries: TopVoter[] }) {
       <div className="vote-table-toolbar">
         <div className="vote-table-search">
           <Search size={16} />
-          <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); }} placeholder="Search voters…" aria-label="Search voters" className="field pl-9" />
+          <input name="voter-search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); }} placeholder="Search voters…" aria-label="Search voters" className="field pl-9" />
         </div>
         <div className="vote-table-filters">
           <FilterMenu label="Order" value={sortKey} icon={CalendarDays} options={sortOptions.map((option) => ({ value: option.key, label: option.label }))} onChange={(value) => {
