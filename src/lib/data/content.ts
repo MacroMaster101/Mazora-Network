@@ -197,6 +197,13 @@ export async function getTopVoters(): Promise<TopVoter[]> {
         weeklyVotes: sql<number>`cast(count(case when ${schema.voteHistory.votedAt} >= now() - interval '7 days' then 1 end) as integer)`,
         monthlyVotes: sql<number>`cast(count(case when ${schema.voteHistory.votedAt} >= date_trunc('month', now()) then 1 end) as integer)`,
         lastMonthVotes: sql<number>`cast(count(case when ${schema.voteHistory.votedAt} >= date_trunc('month', now() - interval '1 month') and ${schema.voteHistory.votedAt} < date_trunc('month', now()) then 1 end) as integer)`,
+        /*
+          The one window with no time bound, and the reason vote_history cannot
+          simply be aged out: this is a lifetime total counted from the rows
+          themselves. Every other column above only reads recent rows, so a
+          retention job would pass review and still zero these months later.
+          See the note on `voteHistory` in lib/db/schema.ts.
+        */
         allTimeVotes: sql<number>`cast(count(*) as integer)`,
       })
       .from(schema.voteHistory)

@@ -7,6 +7,7 @@ import type { LookupAddress } from "node:dns";
 import { isIPv4, isIPv6 } from "node:net";
 import sharp from "sharp";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { safeStorageKey } from "@/lib/storage-key";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
 
 /**
@@ -172,11 +173,26 @@ export async function storeImageBytes(bytes: Uint8Array, keyBase: string): Promi
   const mime = detectedMime(bytes);
   if (!mime) return null;
 
+  /*
+    Every upload path converges here — direct file, re-hosted URL and Discord
+    import all end at this one line — and callers compose the key from request
+    data. `uploadArticleImageAction` builds `custom/${id}-${Date.now()}` from
+    `clean(formData.get("id"), 64)`: trimmed and length-capped, never checked
+    for shape, though the column it names is a uuid. The upload below runs with
+    upsert on, so an unexpected key overwrites whatever is already at it.
+
+    Normalising here rather than validating at each call site: this is the only
+    place a key becomes an object, so it is the only place that cannot be
+    forgotten when the eighth caller is added.
+  */
+  const safeBase = safeStorageKey(keyBase);
+  if (!safeBase) return null;
+
   const admin = getSupabaseAdmin();
   if (!admin || !(await ensureBucket())) return null;
 
   const clean = await sanitizeImageBytes(bytes, mime);
-  const key = `${keyBase}.${MIME_EXTENSIONS[mime]}`;
+  const key = `${safeBase}.${MIME_EXTENSIONS[mime]}`;
   const { error } = await admin.storage.from(NEWS_IMAGE_BUCKET).upload(key, clean, {
     contentType: mime,
     cacheControl: "31536000",
