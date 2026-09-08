@@ -2,6 +2,7 @@ import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { AVATAR_BUCKET } from "@/lib/storage/avatar-bucket";
+import { selectSkinFiles } from "@/lib/storage/avatar-bucket-files";
 
 /**
  * Deletes stored skin files for a user, optionally keeping specific paths.
@@ -24,11 +25,8 @@ export async function removeStoredSkinFiles(userId: string, keepPaths: string[] 
   const admin = getSupabaseAdmin();
   if (!admin) return;
   const { data } = await admin.storage.from(AVATAR_BUCKET).list(userId, { limit: 100 });
-  const keepNames = new Set(keepPaths.map((path) => path.split("/").pop()));
-  const skinFiles = (data ?? []).filter(
-    (item) => /^skin-(raw|head)-/.test(item.name) && !keepNames.has(item.name),
-  );
-  if (skinFiles.length) {
-    await admin.storage.from(AVATAR_BUCKET).remove(skinFiles.map((item) => `${userId}/${item.name}`));
+  const names = selectSkinFiles((data ?? []).map((item) => item.name), keepPaths);
+  if (names.length) {
+    await admin.storage.from(AVATAR_BUCKET).remove(names.map((name) => `${userId}/${name}`));
   }
 }

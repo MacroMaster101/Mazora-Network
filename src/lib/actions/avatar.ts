@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { throttleAuthAction } from "@/lib/rate-limit";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET, ensureAvatarBucket } from "@/lib/storage/avatar-bucket";
+import { selectAvatarFiles } from "@/lib/storage/avatar-bucket-files";
 import { ignAvailability } from "@/lib/minecraft/link";
 import type { AccountActionResult } from "@/lib/actions/account";
 
@@ -98,14 +99,31 @@ async function saveAvatarUrl(url: string | null): Promise<AccountActionResult> {
   return { ok: true };
 }
 
+/**
+ * Sweep a user's old profile photos.
+ *
+ * Scoped to `avatar-*` deliberately. This folder also holds the user's uploaded
+ * Minecraft skin files, and three of the four callers below pass no `except` —
+ * so removing everything, as this used to, meant that adopting a Discord photo,
+ * adopting an mc-heads skin, or removing your photo silently deleted the skin
+ * you had uploaded. minecraft_accounts kept its skin_head_url, now pointing at
+ * an object that no longer exists; Supabase answers those with a 400 and a JSON
+ * body, and the browser CORB-blocks the resulting <img>.
+ *
+ * removeStoredSkinFiles is the mirror of this and has always been scoped the
+ * same way. Both now share one rule — see selectAvatarFiles.
+ */
 async function removeStoredAvatars(userId: string, except?: string) {
   const admin = getSupabaseAdmin();
   if (!admin) return;
   const { data } = await admin.storage.from(AVATAR_BUCKET).list(userId, { limit: 100 });
-  const paths = (data ?? [])
-    .filter((item) => item.name !== except)
-    .map((item) => `${userId}/${item.name}`);
-  if (paths.length) await admin.storage.from(AVATAR_BUCKET).remove(paths);
+  const names = selectAvatarFiles(
+    (data ?? []).map((item) => item.name),
+    except ? [except] : [],
+  );
+  if (names.length) {
+    await admin.storage.from(AVATAR_BUCKET).remove(names.map((name) => `${userId}/${name}`));
+  }
 }
 
 export async function uploadProfileAvatarAction(

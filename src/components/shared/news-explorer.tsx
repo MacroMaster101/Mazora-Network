@@ -72,6 +72,7 @@ export function NewsExplorer({ articles }: { articles: NewsArticle[] }) {
           <span className="sr-only">Search news</span>
           <input
             type="search"
+            name="news-search"
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
