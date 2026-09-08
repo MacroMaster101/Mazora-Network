@@ -18,6 +18,12 @@ import {
 } from "lucide-react";
 import type { GalleryImage } from "@/lib/types";
 import { toggleGalleryLikeAction } from "@/lib/actions/gallery";
+import {
+  likeRestored,
+  likeToggled,
+  withLikeRestored,
+  withLikeToggled,
+} from "@/lib/gallery-likes";
 import { coverGradient } from "./accent";
 import { fmtDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -298,36 +304,28 @@ export function GalleryGrid({ images }: { images: GalleryImage[] }) {
   const handleLike = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
 
-    // Optimistic update
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const nowLiked = !item.hasLiked;
-          return {
-            ...item,
-            hasLiked: nowLiked,
-            likesCount: Math.max(0, item.likesCount + (nowLiked ? 1 : -1)),
-          };
-        }
-        return item;
-      })
-    );
+    /*
+      Captured before the flip, because it is what the undo restores. The
+      grid and the open lightbox hold the same artwork in two places, so both
+      have to move together — a rollback that only reached the grid left the
+      lightbox showing a filled heart underneath the error explaining the like
+      had not been recorded, which is what a signed-out visitor saw.
+    */
+    const previous = items.find((item) => item.id === id);
+    if (!previous) return;
 
-    if (open && open.id === id) {
-      const nowLiked = !open.hasLiked;
-      setOpen({
-        ...open,
-        hasLiked: nowLiked,
-        likesCount: Math.max(0, open.likesCount + (nowLiked ? 1 : -1)),
-      });
-    }
+    setItems((prev) => withLikeToggled(prev, id));
+    setOpen((prev) => (prev && prev.id === id ? likeToggled(prev) : prev));
 
     startTransition(async () => {
       const res = await toggleGalleryLikeAction(id);
       if (!res.ok) {
         toast(res.message, "error");
-        // Revert optimistic update if failed
-        setItems(images);
+        // Only this artwork is put back. Resetting the whole list to the
+        // server snapshot, as this used to, also undid every other like made
+        // since the page loaded.
+        setItems((prev) => withLikeRestored(prev, id, previous));
+        setOpen((prev) => (prev && prev.id === id ? likeRestored(prev, previous) : prev));
       }
     });
   };
