@@ -372,6 +372,31 @@ export const voteSites = pgTable("vote_sites", {
   enabled: boolean("enabled").default(true).notNull(),
 }, (t) => ({ urlIdx: uniqueIndex("vote_sites_url_idx").on(t.url) }));
 
+/**
+ * One row per vote, per player, per site.
+ *
+ * Nothing writes to this table yet — there is no vote callback route and no
+ * insert anywhere in the codebase, only `voteSites` configuration and the
+ * leaderboard read below. Once a recording path exists this becomes the
+ * fastest-growing table in the schema by a wide margin: vote sites are on a
+ * 24-hour cooldown, so a hundred active players across four sites is roughly
+ * 146,000 rows a year. `audit_logs`, the only other unbounded table, manages a
+ * few hundred.
+ *
+ * BEFORE ADDING RETENTION, READ THIS.
+ *
+ * `getTopVoters` in lib/data/content.ts derives all-time totals as
+ * `count(*)` over these rows — not from a stored total. Its other windows (24
+ * hours, 7 days, this month, last month) only need recent rows, so a naive
+ * "delete older than N days" reaper looks correct in testing and quietly
+ * resets every player's lifetime vote count the first time it fires, months
+ * later, with no error and nothing to restore from.
+ *
+ * Pruning is therefore safe only once a running per-user counter exists that
+ * is incremented on write. Build that into the vote-recording path when it is
+ * added — retrofitting it afterwards means backfilling from rows that the
+ * reaper has already deleted.
+ */
 export const voteHistory = pgTable("vote_history", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull(),
