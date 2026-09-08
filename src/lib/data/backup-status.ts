@@ -1,6 +1,13 @@
 import "server-only";
 import { cache } from "react";
-import { assessBackup, normalizeRepo, type BackupAssessment, type BackupRun } from "@/lib/backup-status";
+import {
+  assessBackup,
+  normalizeRepo,
+  parseRunLog,
+  type BackupAssessment,
+  type BackupRun,
+  type RunFigures,
+} from "@/lib/backup-status";
 
 export * from "@/lib/backup-status";
 
@@ -24,6 +31,67 @@ export * from "@/lib/backup-status";
 const GITHUB_API = "https://api.github.com";
 const WORKFLOW_FILE = "backup.yml";
 const REQUEST_TIMEOUT_MS = 5_000;
+/*
+  A job log is a few tens of kilobytes today. The cap is not about that — it is
+  about never letting a page render pull an unbounded body because something
+  upstream started looping and wrote a gigabyte of stack traces.
+*/
+const MAX_LOG_BYTES = 5_000_000;
+
+function githubHeaders(token: string) {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+}
+
+/**
+ * Fetch the run's job log and read the backup figures out of it.
+ *
+ * The log is the only place those numbers are reachable. GitHub's REST API
+ * returns a run's conclusion and its jobs, but nothing a workflow writes to
+ * $GITHUB_STEP_SUMMARY — that text lives only in the web UI. An earlier version
+ * of this file parsed the jobs JSON for it and therefore always found nothing,
+ * which is why the card showed a state but never a count.
+ *
+ * Two requests: the jobs list to learn the job id, then the log itself, which
+ * answers with a redirect to signed blob storage. The Authorization header is
+ * dropped on that cross-origin hop by fetch, which is both correct and required
+ * — the storage host rejects it.
+ */
+async function fetchRunFigures(token: string, repo: string, runId: number): Promise<RunFigures> {
+  const jobs = await fetch(`${GITHUB_API}/repos/${repo}/actions/runs/${runId}/jobs`, {
+    headers: githubHeaders(token),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    cache: "no-store",
+  });
+  if (!jobs.ok) return NO_FIGURES;
+
+  const body = (await jobs.json()) as { jobs?: { id: number }[] };
+  const jobId = body.jobs?.[0]?.id;
+  if (!jobId) return NO_FIGURES;
+
+  const log = await fetch(`${GITHUB_API}/repos/${repo}/actions/jobs/${jobId}/logs`, {
+    headers: githubHeaders(token),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    cache: "no-store",
+  });
+  if (!log.ok) return NO_FIGURES;
+
+  const size = Number(log.headers.get("content-length"));
+  if (Number.isFinite(size) && size > MAX_LOG_BYTES) return NO_FIGURES;
+
+  return parseRunLog(await log.text());
+}
+
+const NO_FIGURES: RunFigures = {
+  rows: null,
+  tables: null,
+  storedMb: null,
+  storageObjects: null,
+  storedInR2: false,
+};
 
 export interface BackupStatus extends BackupAssessment {
   run: BackupRun | null;
@@ -39,33 +107,10 @@ function config() {
   return token && repo ? { token, repo } : null;
 }
 
-/**
- * Pull the row and table counts out of the run's job summary.
- *
- * The workflow writes "- Rows: 576" into `$GITHUB_STEP_SUMMARY`, which is the
- * one place the numbers survive after the runner is destroyed. They are the
- * only evidence the backup contained anything: a run that connects, reads
- * nothing and uploads an empty dump still exits 0 and still shows a green tick.
- *
- * Best-effort — a missing summary is not an error, just an unknown count.
- */
-function parseCounts(text: string): { rows: number | null; tables: number | null } {
-  const rows = text.match(/Rows:\s*(\d+)/i);
-  const tables = text.match(/Tables:\s*(\d+)/i);
-  return {
-    rows: rows ? Number(rows[1]) : null,
-    tables: tables ? Number(tables[1]) : null,
-  };
-}
-
 async function fetchLatestRun(token: string, repo: string): Promise<BackupRun | null> {
   const url = `${GITHUB_API}/repos/${repo}/actions/workflows/${WORKFLOW_FILE}/runs?per_page=1`;
   const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
+    headers: githubHeaders(token),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     cache: "no-store",
   });
@@ -82,27 +127,14 @@ async function fetchLatestRun(token: string, repo: string): Promise<BackupRun | 
   const latest = body.workflow_runs?.[0];
   if (!latest) return null;
 
-  // The counts live in the job summary, which is a second request. Skipped for
-  // a run that is still going or that failed — there is nothing to report yet,
-  // and the card does not need a number to say "failed".
-  let counts: { rows: number | null; tables: number | null } = { rows: null, tables: null };
+  // Skipped for a run that is still going or that failed: there is nothing to
+  // count yet, and the card does not need a number in order to say "failed".
+  let figures = NO_FIGURES;
   if (latest.conclusion === "success") {
     try {
-      const jobs = await fetch(
-        `${GITHUB_API}/repos/${repo}/actions/runs/${latest.id}/jobs`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-          },
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-          cache: "no-store",
-        },
-      );
-      if (jobs.ok) counts = parseCounts(await jobs.text());
+      figures = await fetchRunFigures(token, repo, latest.id);
     } catch {
-      /* counts are a nicety; never fail the card over them */
+      /* the figures are a nicety; never fail the card over them */
     }
   }
 
@@ -110,7 +142,7 @@ async function fetchLatestRun(token: string, repo: string): Promise<BackupRun | 
     conclusion: latest.conclusion,
     finishedAt: latest.updated_at,
     url: latest.html_url,
-    ...counts,
+    ...figures,
   };
 }
 

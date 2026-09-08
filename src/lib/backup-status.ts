@@ -65,6 +65,102 @@ export function normalizeRepo(value: string | null | undefined): string | null {
   return /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(trimmed) ? trimmed : null;
 }
 
+export interface RunFigures {
+  rows: number | null;
+  tables: number | null;
+  /** Megabytes confirmed present in R2, falling back to what was downloaded. */
+  storedMb: number | null;
+  storageObjects: number | null;
+  /**
+   * Whether the size above was read back from the bucket rather than measured
+   * on the runner. The card says so, because "we downloaded 84 MB" and "84 MB
+   * is sitting off-site" are different claims and only the second is a backup.
+   */
+  storedInR2: boolean;
+}
+
+const NOTHING: RunFigures = {
+  rows: null,
+  tables: null,
+  storedMb: null,
+  storageObjects: null,
+  storedInR2: false,
+};
+
+/**
+ * Read the backup's figures out of the GitHub Actions job log.
+ *
+ * The log is not a convenient source, it is the only one. GitHub's REST API
+ * exposes a run's conclusion and its jobs, but nothing a workflow writes to
+ * $GITHUB_STEP_SUMMARY — that text exists solely in the web UI. So the numbers
+ * have to come from stdout, and the lines below are printed on purpose by
+ * scripts/backup.ts, scripts/backup-storage.ts and the verify step in the
+ * mazora-backups repository. Changing that wording there blanks this card.
+ *
+ * They matter because "success" proves nothing about content: a run that
+ * connects, reads nothing and uploads an empty dump exits 0 and shows a green
+ * tick. 576 rows is the evidence; the tick is not.
+ *
+ * Size prefers the "in R2" line over the downloaded total. The download only
+ * proves the pull from Supabase worked; if the two disagree, the R2 figure is
+ * the one describing a backup that actually exists somewhere else.
+ *
+ * Everything is null rather than 0 when absent. Zero rows and "we could not
+ * tell" are different facts, and announcing a catastrophe that did not happen
+ * is the worse of the two errors.
+ */
+export function parseRunLog(text: string): RunFigures {
+  if (!text) return NOTHING;
+
+  const num = (value: string | undefined): number | null => {
+    if (value === undefined) return null;
+    const parsed = Number(value.replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  // "✓ 576 rows from 29 tables". Anchored on "from N tables" so the per-table
+  // lines above it ("public.audit_logs  310 rows") cannot match — otherwise the
+  // first table's row count would be reported as the whole backup's.
+  const totals = text.match(/([\d,]+)\s+rows\s+from\s+([\d,]+)\s+tables/i);
+
+  // "in R2: 30 db objects, 54 storage objects, 84 MB" — the verify step, which
+  // lists the bucket after uploading. Absent from runs made before that step
+  // existed, hence the fallback below.
+  const confirmed = text.match(
+    /in R2:\s*([\d,]+)\s+db objects,\s*([\d,]+)\s+storage objects,\s*([\d,.]+)\s*MB/i,
+  );
+
+  // "✓ 54 downloaded (83.8 MB), 0 already present, 0 failed".
+  const downloaded = text.match(/([\d,]+)\s+downloaded\s+\(([\d,.]+)\s*MB\)/i);
+
+  return {
+    rows: num(totals?.[1]),
+    tables: num(totals?.[2]),
+    storedMb: num(confirmed?.[3]) ?? num(downloaded?.[2]),
+    storageObjects: num(confirmed?.[2]) ?? num(downloaded?.[1]),
+    storedInR2: confirmed !== null,
+  };
+}
+
+/**
+ * Render the stored size for the card, or null when there is nothing to say.
+ *
+ * The dump is 84 MB today and only grows; "12288 MB" is accurate and unreadable
+ * at a glance, which is the one thing this card exists for.
+ *
+ * Zero is treated as unknown. The workflow reports whole megabytes, so a small
+ * backup rounds to 0 MB while still containing everything — printing "0 MB"
+ * would suggest an empty backup that is not empty. The row count is the honest
+ * evidence of emptiness, and it is shown alongside.
+ */
+export function formatBackupSize(mb: number | null): string | null {
+  if (!mb || mb < 0) return null;
+  if (mb < 1024) return `${mb} MB`;
+  const gb = mb / 1024;
+  // One decimal, but never a trailing ".0" — 1 GB, not 1.0 GB.
+  return `${Number(gb.toFixed(1))} GB`;
+}
+
 export interface BackupRun {
   /** GitHub's run conclusion: "success", "failure", … or null while running. */
   conclusion: string | null;
@@ -73,6 +169,9 @@ export interface BackupRun {
   /** Parsed out of the run's job summary when present. */
   rows: number | null;
   tables: number | null;
+  storedMb: number | null;
+  storageObjects: number | null;
+  storedInR2: boolean;
   url: string;
 }
 
