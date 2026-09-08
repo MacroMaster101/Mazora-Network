@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   assessBackup,
   BACKUP_STALE_AFTER_MS,
+  formatBackupSize,
   normalizeRepo,
+  parseRunLog,
   type BackupRun,
 } from "@/lib/backup-status";
 
@@ -15,6 +17,9 @@ const run = (overrides: Partial<BackupRun> = {}): BackupRun => ({
   finishedAt: new Date(NOW - 2 * DAY).toISOString(),
   rows: 576,
   tables: 29,
+  storedMb: 84,
+  storageObjects: 54,
+  storedInR2: true,
   url: "https://github.com/x/y/actions/runs/1",
   ...overrides,
 });
@@ -104,4 +109,89 @@ test("anything that is not an owner/repo pair is rejected, not guessed at", () =
   for (const input of ["", "   ", "mazora-backups", "a/b/c/d", "https://example.com/x/y"]) {
     assert.equal(normalizeRepo(input), null, `for ${JSON.stringify(input)}`);
   }
+});
+
+/*
+  A real excerpt from a job log, timestamp prefixes and all.
+
+  The log is the only place these numbers are reachable: GitHub's REST API
+  exposes a run's conclusion and its jobs, but never the step summary a workflow
+  writes to $GITHUB_STEP_SUMMARY. Parsing the log is not a shortcut, it is the
+  only route.
+*/
+const LOG = [
+  "2026-09-08T10:15:35.1892085Z Dumping 27 public tables...",
+  "2026-09-08T10:15:36.0454530Z   public.audit_logs                           310 rows",
+  "2026-09-08T10:15:42.2292686Z   public.rule_categories                       10 rows",
+  "2026-09-08T10:15:44.0000000Z ✓ 576 rows from 29 tables",
+  "2026-09-08T10:16:01.0000000Z ✓ 54 downloaded (83.8 MB), 0 already present, 0 failed",
+  "2026-09-08T10:16:20.0000000Z in R2: 30 db objects, 54 storage objects, 84 MB",
+].join("\n");
+
+test("the job log yields rows, tables and the size confirmed in R2", () => {
+  const parsed = parseRunLog(LOG);
+  assert.equal(parsed.rows, 576);
+  assert.equal(parsed.tables, 29);
+  assert.equal(parsed.storedMb, 84);
+  assert.equal(parsed.storageObjects, 54);
+  assert.equal(parsed.storedInR2, true);
+});
+
+test("a per-table line is not mistaken for the total", () => {
+  // Every table prints its own "310 rows". Matching the first one would report
+  // the alphabetically-first table as the size of the whole backup.
+  assert.equal(parseRunLog(LOG).rows, 576);
+  const onlyTables = "  public.audit_logs   310 rows" + "\n" + "  public.orders   1 rows";
+  assert.equal(parseRunLog(onlyTables).rows, null);
+});
+
+test("the size reported is the one confirmed in R2, not the local download", () => {
+  // The downloaded figure only proves the pull from Supabase worked. If the two
+  // ever disagree, the R2 one is the only one describing an actual backup.
+  const mismatched = LOG.replace("(83.8 MB)", "(999 MB)");
+  assert.equal(parseRunLog(mismatched).storedMb, 84);
+});
+
+test("a run from before the verify step still reports what the dump proved", () => {
+  // The first run predates that step. Showing rows, tables and the downloaded
+  // size beats showing nothing at all.
+  const older = LOG.split("\n").filter((line) => !line.includes("in R2:")).join("\n");
+  const parsed = parseRunLog(older);
+  assert.equal(parsed.rows, 576);
+  assert.equal(parsed.tables, 29);
+  assert.equal(parsed.storedMb, 83.8);
+  assert.equal(parsed.storageObjects, 54);
+  // …but it must not be described as confirmed in R2, because it was not. That
+  // number is what left Supabase, not what arrived in the bucket.
+  assert.equal(parsed.storedInR2, false);
+});
+
+test("thousands separators in the row count are read correctly", () => {
+  assert.equal(parseRunLog("✓ 1,234,567 rows from 31 tables").rows, 1234567);
+});
+
+test("an unparseable or empty log yields nulls, never zeroes", () => {
+  // Zero rows and "we could not tell" are different facts. Showing "0 rows"
+  // for an unreadable log would report a catastrophe that did not happen.
+  for (const text of ["", "no numbers here", "##[group]Run set -euo pipefail"]) {
+    const parsed = parseRunLog(text);
+    assert.equal(parsed.rows, null, `for ${JSON.stringify(text)}`);
+    assert.equal(parsed.tables, null);
+    assert.equal(parsed.storedMb, null);
+    assert.equal(parsed.storageObjects, null);
+  }
+});
+
+test("the backup size reads as a size, not as a raw megabyte count", () => {
+  // The dump is 84 MB today and only grows. "12288 MB" is technically correct
+  // and unreadable at a glance, which is the only thing this card is for.
+  assert.equal(formatBackupSize(84), "84 MB");
+  assert.equal(formatBackupSize(1024), "1 GB");
+  assert.equal(formatBackupSize(12288), "12 GB");
+  assert.equal(formatBackupSize(1536), "1.5 GB");
+});
+
+test("an unknown size is omitted rather than shown as zero", () => {
+  assert.equal(formatBackupSize(null), null);
+  assert.equal(formatBackupSize(0), null);
 });
