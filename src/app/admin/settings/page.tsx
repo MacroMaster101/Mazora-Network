@@ -31,6 +31,15 @@ export default async function AdminSettingsPage() {
   const canSeeBackups = Boolean(session && hasAtLeast(session.role, "owner"));
   const backupStatus = canSeeBackups ? await getBackupStatus() : null;
 
+  /*
+    The link into the ops repository is narrower still. Access there is granted
+    per person on GitHub rather than by role here, and only IT holds it — so for
+    an owner the link resolves to a 404, which reads as "the backup is missing"
+    when it means "you are not on the repository". The numbers carry the same
+    information and are shown to both roles.
+  */
+  const canOpenRun = Boolean(session && hasAtLeast(session.role, "it"));
+
   return (
     <div className="space-y-6">
       <DashHeader
@@ -40,7 +49,7 @@ export default async function AdminSettingsPage() {
 
       <SiteSettingsEditor initialSettings={settings} />
 
-      {backupStatus && <BackupStatusCard status={backupStatus} />}
+      {backupStatus && <BackupStatusCard status={backupStatus} canOpenRun={canOpenRun} />}
     </div>
   );
 }
