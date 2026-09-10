@@ -56,7 +56,7 @@ export function StatTile({ label, value, detail }: { label: string; value: strin
   return (
     <div className="dashboard-stat-tile panel p-5">
       <div className="text-xs uppercase tracking-widest text-muted">{label}</div>
-      <div className="telemetry mt-1 text-2xl font-bold">{value}</div>
+      <div className="telemetry mt-1 text-2xl font-bold [overflow-wrap:anywhere]">{value}</div>
       {detail && <div className="text-xs text-muted">{detail}</div>}
     </div>
   );

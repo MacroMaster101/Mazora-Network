@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { LoadingScreen } from "./loading-screen";
 
 /** The visual reveal is complete before this removes the inert overlay. */
-const UNMOUNT_AFTER_MS = 1400;
+export const UNMOUNT_AFTER_MS = 1400;
 
 export function InitialSiteLoader() {
   const [mounted, setMounted] = useState(true);

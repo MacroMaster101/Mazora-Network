@@ -2,10 +2,6 @@
 .newsroom-page {
   position: relative;
   min-height: 100svh;
-  background:
-    radial-gradient(58rem 36rem at 10% 34%, rgb(var(--accent-rgb) / 0.1), transparent 68%),
-    radial-gradient(48rem 32rem at 94% 70%, rgb(79 70 229 / 0.08), transparent 70%),
-    linear-gradient(180deg, rgb(var(--base)), rgb(var(--surface)) 46%, rgb(var(--base)));
 }
 
 .newsroom-page .newsroom-hero {
@@ -22,7 +18,7 @@
   position: absolute;
   z-index: -3;
   inset: 0;
-  background-image: url("/images/mazora-community-hero.webp");
+  background-image: var(--world-home-hero);
   background-size: cover;
   background-position: 50% 48%;
   filter: saturate(0.82) contrast(1.06);

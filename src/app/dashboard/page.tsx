@@ -172,13 +172,13 @@ export default async function DashboardOverview() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-display text-lg font-bold text-white drop-shadow-sm">Order History</h2>
-            <p className="text-xs text-purple-200/90 font-medium">Your recent purchases and order requests</p>
+            <h2 className="font-display text-lg font-bold text-ink">Order History</h2>
+            <p className="text-xs text-muted font-medium">Your recent purchases and order requests</p>
           </div>
           {orders.length > 0 && (
             <Link
               href="/dashboard/purchases"
-              className="text-xs font-bold text-accent-bright hover:underline inline-flex items-center gap-1 bg-[#160d28]/80 px-3 py-1.5 rounded-xl border border-accent/30 text-white shadow-sm"
+              className="text-xs font-bold text-accent-bright hover:underline inline-flex items-center gap-1 bg-card px-3 py-1.5 rounded-xl border border-accent/30 shadow-sm"
             >
               View all ({orders.length}) <ExternalLink size={12} />
             </Link>

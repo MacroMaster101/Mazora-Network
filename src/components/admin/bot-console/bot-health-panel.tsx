@@ -6,9 +6,9 @@ type RoutesResult = { ok: true; routes: ChannelRoute[] } | { ok: false; reason: 
 
 function Chip({ label, ok, detail }: { label: string; ok: boolean; detail: string }) {
   return (
-    <div className="rounded-lg border border-white/10 p-3">
+    <div className="rounded-lg border border-line dark:border-white/10 p-3">
       <p className="text-xs text-muted">{label}</p>
-      <p className={`text-sm font-medium ${ok ? "text-emerald-400" : "text-amber-400"}`}>{detail}</p>
+      <p className={`text-sm font-medium ${ok ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>{detail}</p>
     </div>
   );
 }

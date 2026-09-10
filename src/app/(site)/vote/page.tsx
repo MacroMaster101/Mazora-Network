@@ -1,3 +1,4 @@
+import { WorldBackdrop } from "@/components/theme/world-backdrop";
 import Image from "next/image";
 import {
   ArrowDown,
@@ -42,14 +43,7 @@ export default async function VotePage() {
     <>
       <section className="vote-mission-hero vote-redesign-hero">
         <div className="vote-redesign-art" aria-hidden="true">
-          <Image
-            src="/images/vote-sanctuary-hero-v6.webp"
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="vote-redesign-image"
-          />
+          <WorldBackdrop scene="vote" className="vote-redesign-image" />
           <div className="vote-redesign-vignette" />
           <div className="vote-redesign-grid" />
         </div>
@@ -93,7 +87,7 @@ export default async function VotePage() {
             <div>Help more players discover the network and collect a configured reward for every completed partner vote.</div>
 
             {!generalSettings.votingEnabled && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-200">
+              <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-900 dark:text-amber-200">
                 <AlertTriangle size={14} className="text-amber-400" />
                 Server voting is currently paused for scheduled updates.
               </div>

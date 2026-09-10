@@ -29,10 +29,12 @@
   --accent-bright: 101 32 205;
   /* deeper violet — readable on light */
   --accent-rgb: 124 58 237;
-  --gold: 164 106 10;
+  /* Deep enough for gold text on gold-tinted chips (was 3:1 there). */
+  --gold: 138 84 6;
   --danger: 220 38 38;
   --warning: 161 79 0;
-  --success: 22 163 74;
+  /* green-700: green-600 was 3.3:1 as text on light surfaces. */
+  --success: 21 128 61;
 }
 
 /* Dark theme */
@@ -1171,7 +1173,7 @@ html {
     color: white;
     background-image:
       linear-gradient(180deg, rgb(7 4 15 / 0.34), rgb(7 4 15 / 0.72) 65%, rgb(7 4 15 / 0.94)),
-      url("/images/mazora-community-hero.webp");
+      var(--world-home-hero);
     background-position: center, 48% center;
     background-size: cover;
   }
@@ -1491,7 +1493,7 @@ html {
       border-bottom-color: rgb(216 180 254 / 0.16);
       background:
         linear-gradient(90deg, rgb(9 5 18 / 0.94), rgb(20 11 36 / 0.92)),
-        url("/images/mazora-community-hero.webp") center 43% / cover;
+        var(--world-home-hero) center 43% / cover;
       border-radius: 0 0 22px 22px;
       box-shadow: 0 14px 34px -24px rgb(4 1 10 / 0.9);
     }
@@ -1648,7 +1650,7 @@ html {
       border-bottom-color: rgb(216 180 254 / 0.16);
       background:
         linear-gradient(90deg, rgb(9 5 18 / 0.94), rgb(20 11 36 / 0.92)),
-        url("/images/mazora-community-hero.webp") center 43% / cover;
+        var(--world-home-hero) center 43% / cover;
     }
 
     .auth-modal-mobile-logo {
@@ -1740,24 +1742,6 @@ html {
     isolation: isolate;
   }
 
-  .site-world-frame::before {
-    content: "";
-    position: absolute;
-    top: -4.75rem;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: -2;
-    pointer-events: none;
-    background-image:
-      linear-gradient(180deg, rgb(8 6 14 / 0.36), rgb(9 6 16 / 0.46) 44%, rgb(8 5 14 / 0.58)),
-      url("/images/mazora-world-continuation-bg.webp");
-    background-position: center, center center;
-    background-repeat: no-repeat;
-    background-size: auto, cover;
-    background-attachment: scroll, fixed;
-  }
-
   .site-world-main {
     position: relative;
     min-height: calc(100svh - 4.75rem);
@@ -1782,12 +1766,6 @@ html {
   .site-world-content {
     position: relative;
     z-index: 0;
-  }
-
-  :root[data-theme="dark"] .site-world-frame::before {
-    background-image:
-      linear-gradient(180deg, rgb(8 6 14 / 0.5), rgb(9 6 16 / 0.58) 44%, rgb(8 5 14 / 0.66)),
-      url("/images/mazora-world-continuation-bg.webp");
   }
 
   :root[data-theme="dark"] .site-world-main::before {
@@ -1863,38 +1841,6 @@ html {
   .page-hero .text-muted,
   :root[data-theme="light"] .site-world-main .text-muted {
     color: rgb(238 232 248 / 0.74);
-  }
-
-  /* Light mode still sits on the dark world art. Use bright HUD colours there,
-     then restore the light-theme palette once content is inside a pale card. */
-  :root[data-theme="light"] .site-world-main .text-accent-bright {
-    color: rgb(216 180 254);
-    text-shadow: 0 1px 12px rgb(4 2 10 / 0.48);
-  }
-
-  :root[data-theme="light"] .site-world-main .text-success {
-    color: rgb(74 222 128);
-    text-shadow: 0 1px 10px rgb(4 2 10 / 0.46);
-  }
-
-  :root[data-theme="light"] .site-world-main .text-warning {
-    color: rgb(251 191 36);
-    text-shadow: 0 1px 10px rgb(4 2 10 / 0.46);
-  }
-
-  :root[data-theme="light"] .site-world-main .text-danger {
-    color: rgb(248 113 113);
-    text-shadow: 0 1px 10px rgb(4 2 10 / 0.46);
-  }
-
-  :root[data-theme="light"] .site-world-main .text-gold {
-    color: rgb(253 224 71);
-    text-shadow: 0 1px 10px rgb(4 2 10 / 0.46);
-  }
-
-  :root[data-theme="light"] .site-world-main .hover\:text-ink:hover,
-  :root[data-theme="light"] .site-world-main .group:hover .group-hover\:text-ink {
-    color: white;
   }
 
   .site-world-main .rule-book .field {
@@ -2093,10 +2039,6 @@ html {
   }
 
   @media (max-width: 767px) {
-    .site-world-frame::before {
-      background-position: center, 44% center;
-      background-attachment: scroll;
-    }
 
     .page-hero {
       min-height: calc(19rem + 4.75rem);
@@ -2104,12 +2046,6 @@ html {
 
     .page-hero-inner {
       padding-block: 3.75rem 4.5rem;
-    }
-  }
-
-  @media (min-width: 768px) and (max-width: 1023px) {
-    .site-world-frame::before {
-      background-position: center, 42% center;
     }
   }
 
@@ -2851,6 +2787,8 @@ html {
     margin-inline: auto;
     overflow: hidden;
     filter: drop-shadow(0 5px 13px rgb(7 3 16 / 0.32));
+    /* Same gentle bob as the header mark; reduced motion is handled globally. */
+    animation: header-logo-float 3.6s ease-in-out infinite;
   }
 
   .footer-brand-logo img {
@@ -2975,20 +2913,8 @@ html {
     isolation: isolate;
     margin-top: -1px;
     overflow: hidden;
-    background: linear-gradient(180deg, transparent, rgb(7 4 12 / 0.16) 28%, rgb(6 4 11 / 0.42) 72%, rgb(6 4 11 / 0.68));
     border-color: transparent;
-    box-shadow: none;
     color: white;
-  }
-
-  .site-footer::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: linear-gradient(180deg, transparent 0, rgb(6 4 11 / 0.08) 32%, rgb(6 4 11 / 0.24));
-
   }
 
   .site-footer>* {
@@ -3017,10 +2943,6 @@ html {
     background: linear-gradient(155deg, rgb(var(--card)), rgb(17 12 27));
     border-color: rgb(var(--line-strong) / 0.78);
     box-shadow: 0 22px 50px -34px rgb(0 0 0 / 0.9), inset 0 1px rgb(255 255 255 / 0.035);
-  }
-
-  :root[data-theme="dark"] .site-footer {
-    background: linear-gradient(180deg, transparent, rgb(7 4 12 / 0.14) 28%, rgb(6 4 11 / 0.36) 72%, rgb(6 4 11 / 0.58));
   }
 
 
@@ -3281,6 +3203,116 @@ html {
   .theme-orb:hover .theme-orb-glow {
     transform: scale(1.8);
     opacity: 0.9;
+  }
+
+  /* First-visit theme hint (components/theme/theme-hint-tooltip.tsx). */
+  .theme-hint-anchor {
+    --hint-anchor-half: 1.375rem;
+    position: relative;
+    display: inline-flex;
+  }
+
+  .theme-hint-anchor[data-variant="menu"] {
+    --hint-anchor-half: 1.25rem;
+  }
+
+  .theme-hint-anchor.is-hinting > :is(.theme-orb, .mobile-menu-trigger) {
+    animation: theme-hint-ring 1.8s ease-out infinite;
+  }
+
+  @keyframes theme-hint-ring {
+    0% { box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0.55); }
+    100% { box-shadow: 0 0 0 12px rgb(var(--accent-rgb) / 0); }
+  }
+
+  .theme-hint-bubble {
+    position: absolute;
+    top: calc(100% + 0.7rem);
+    right: -0.25rem;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: max-content;
+    max-width: min(16rem, calc(100vw - 2rem));
+    padding: 0.5rem 0.45rem 0.5rem 0.6rem;
+    border: 1px solid rgb(var(--line-strong));
+    border-radius: 0.85rem;
+    background: rgb(var(--card));
+    color: rgb(var(--ink));
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.35;
+    box-shadow: 0 16px 36px -18px rgb(20 8 40 / 0.55);
+    animation: theme-hint-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* The arrow is centred on the anchor, which sits at the bubble's right end. */
+  .theme-hint-bubble::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    right: calc(var(--hint-anchor-half) + 0.25rem - 5.5px);
+    width: 11px;
+    height: 11px;
+    border-top: 1px solid rgb(var(--line-strong));
+    border-left: 1px solid rgb(var(--line-strong));
+    background: rgb(var(--card));
+    transform: rotate(45deg);
+  }
+
+  @keyframes theme-hint-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .theme-hint-icon,
+  .theme-hint-close {
+    display: grid;
+    flex: none;
+    width: 1.6rem;
+    height: 1.6rem;
+    place-items: center;
+  }
+
+  .theme-hint-icon {
+    border-radius: 999px;
+    background: rgb(var(--accent-rgb) / 0.12);
+    color: rgb(var(--accent-bright));
+  }
+
+  .theme-hint-close {
+    border-radius: 0.5rem;
+    color: rgb(var(--muted));
+    transition: color 160ms ease, background 160ms ease;
+  }
+
+  .theme-hint-close:hover {
+    background: rgb(var(--ink) / 0.06);
+    color: rgb(var(--ink));
+  }
+
+  /* Outline rather than box-shadow: the row's shadow utility would win a tie. */
+  .theme-row-highlight {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    animation: theme-row-highlight 1.2s ease-in-out 2;
+  }
+
+  @keyframes theme-row-highlight {
+    50% { outline-color: rgb(var(--accent-rgb) / 0.6); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .theme-hint-anchor.is-hinting > :is(.theme-orb, .mobile-menu-trigger),
+    .theme-hint-bubble,
+    .theme-row-highlight {
+      animation: none;
+    }
+
+    .theme-row-highlight {
+      outline-color: rgb(var(--accent-rgb) / 0.6);
+    }
   }
 
   .desktop-login-link,
@@ -3803,7 +3835,7 @@ html {
     color: white;
     background:
       linear-gradient(180deg, rgb(6 3 13 / 0.67), rgb(6 3 13 / 0.93)),
-      url("/images/mazora-community-hero.webp") center 48% / cover;
+      var(--world-home-hero) center 48% / cover;
   }
 
   .state-error-atmosphere {
@@ -3952,7 +3984,7 @@ html {
   position: absolute;
   inset: 0;
   z-index: -5;
-  background-image: url("/images/mazora-world-continuation-bg.webp");
+  background-image: var(--world-valley);
   background-position: 50% 52%;
   background-size: cover;
   background-repeat: no-repeat;
@@ -4312,8 +4344,7 @@ html {
   line-height: 1.5;
 }
 
-/* The public site, dashboard and admin all sit on the dark world artwork in
-   BOTH themes, so the label is white with a shadow rather than token-coloured. */
+/* Night-world labels; world-themes.css supplies the daylight variant. */
 .route-loading[data-tone="world"] .route-loading-title {
   color: #fff;
   text-shadow: 0 2px 14px rgb(0 0 0 / 0.85);
@@ -5313,7 +5344,7 @@ html {
   min-height: 100svh;
   background-image:
     linear-gradient(180deg, rgb(8 6 14 / 0.18), rgb(9 6 16 / 0.24) 44%, rgb(8 5 14 / 0.34)),
-    url("/images/mazora-world-continuation-bg.webp");
+    var(--world-valley);
   background-position: center, center center;
   background-repeat: no-repeat;
   background-size: auto, cover;
@@ -5673,7 +5704,7 @@ html {
 :root[data-theme="dark"] .account-area {
   background-image:
     linear-gradient(180deg, rgb(8 6 14 / 0.5), rgb(9 6 16 / 0.58) 44%, rgb(8 5 14 / 0.66)),
-    url("/images/mazora-world-continuation-bg.webp");
+    var(--world-valley);
 }
 
 /* Dark dashboard surfaces remain cinematic, while light mode uses the white
@@ -6514,23 +6545,6 @@ html {
   position: relative;
   padding-block: 0.01rem;
   color: rgb(var(--ink));
-  background:
-    radial-gradient(64rem 34rem at 88% 7%, rgb(126 71 205 / 0.16), transparent 70%),
-    radial-gradient(52rem 32rem at 3% 54%, rgb(88 43 139 / 0.1), transparent 72%),
-    linear-gradient(180deg, rgb(8 5 14) 0%, rgb(16 9 27) 16%, rgb(12 7 20) 62%, rgb(8 5 14) 100%);
-}
-
-.site-world-frame:has(.store-marketplace) .site-footer::after {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  z-index: 0;
-  height: clamp(7rem, 12vw, 10rem);
-  pointer-events: none;
-  background: linear-gradient(180deg,
-      rgb(8 5 14) 0%,
-      rgb(8 5 14 / 0.82) 32%,
-      transparent 100%);
 }
 
 :root[data-theme="light"] .site-world-main .store-marketplace {
@@ -7010,41 +7024,13 @@ html {
   }
 }
 
-.site-world-frame:has(.store-hero) {
-  background: #08050e;
-}
-
-.site-world-frame:has(.store-hero)::before {
-  background-image:
-    linear-gradient(180deg, rgb(6 3 12 / 0.18), rgb(10 5 18 / 0.62) 48%, rgb(6 3 12 / 0.38)),
-    url("/images/mazora-world-continuation-bg.webp");
-  background-position: center, center bottom;
-  background-size: auto, cover;
-}
-
 .store-marketplace {
   overflow: hidden;
-  background:
-    radial-gradient(70rem 36rem at 82% 2%, rgb(126 71 205 / 0.2), transparent 68%),
-    radial-gradient(54rem 34rem at -4% 48%, rgb(88 43 139 / 0.13), transparent 70%),
-    linear-gradient(180deg, rgb(8 5 14) 0%, rgb(14 8 25) 12%, rgb(12 7 21) 72%, rgb(8 5 14 / 0.92) 100%);
 }
 
 .site-world-frame:has(.store-marketplace) .site-footer {
   margin-top: 0;
   border-top: 1px solid rgb(216 180 254 / 0.08);
-  background:
-    linear-gradient(180deg, rgb(8 5 14 / 0.84), rgb(7 4 12 / 0.36) 30%, rgb(6 4 11 / 0.7)),
-    url("/images/mazora-world-continuation-bg.webp");
-  background-position: center, center bottom;
-  background-size: auto, cover;
-}
-
-.site-world-frame:has(.store-marketplace) .site-footer::after {
-  height: 7rem;
-  background:
-    radial-gradient(38rem 8rem at 50% 0%, rgb(139 92 246 / 0.14), transparent 72%),
-    linear-gradient(180deg, rgb(8 5 14 / 0.9), transparent 100%);
 }
 
 @media (min-width: 900px) {
@@ -7101,49 +7087,13 @@ html {
 }
 
 /* Store world blend — seamless header, marketplace, and footer */
-.site-world-frame:has(.store-hero)::before {
-  background-image:
-    linear-gradient(180deg, rgb(5 2 11 / 0.18), rgb(8 4 15 / 0.46) 42%, rgb(5 2 11 / 0.56)),
-    url("/images/store/shop-world-bg.webp");
-  background-position: center, center center;
-  background-repeat: no-repeat;
-  background-size: auto, cover;
-  background-attachment: scroll, fixed;
-}
 
 .store-marketplace {
   margin-top: -1px;
-  background-image:
-    radial-gradient(68rem 36rem at 82% 4%, rgb(126 71 205 / 0.18), transparent 68%),
-    radial-gradient(56rem 38rem at -5% 52%, rgb(93 45 148 / 0.16), transparent 72%),
-    linear-gradient(180deg, rgb(8 5 14 / 0.98) 0%, rgb(10 6 18 / 0.83) 10%, rgb(9 5 16 / 0.78) 70%, rgb(8 5 14 / 0.88) 100%),
-    url("/images/store/shop-world-bg.webp");
-  background-position: center, center, center, center center;
-  background-repeat: no-repeat;
-  background-size: auto, auto, auto, cover;
-  background-attachment: scroll, scroll, scroll, fixed;
 }
 
 .site-world-frame:has(.store-marketplace) .site-footer {
   border-top: 0;
-  background-image:
-    linear-gradient(180deg, rgb(8 5 14 / 0.88), rgb(7 4 12 / 0.52) 34%, rgb(5 3 10 / 0.78)),
-    url("/images/store/shop-world-bg.webp");
-  background-position: center, center bottom;
-  background-repeat: no-repeat;
-  background-size: auto, cover;
-  background-attachment: scroll, fixed;
-}
-
-.site-world-frame:has(.store-marketplace) .site-footer::before {
-  background:
-    radial-gradient(44rem 14rem at 50% 0%, rgb(139 92 246 / 0.14), transparent 72%),
-    linear-gradient(180deg, rgb(8 5 14 / 0.04), rgb(5 3 10 / 0.42));
-}
-
-.site-world-frame:has(.store-marketplace) .site-footer::after {
-  height: 8rem;
-  background: linear-gradient(180deg, rgb(8 5 14 / 0.9), rgb(8 5 14 / 0.42) 46%, transparent);
 }
 
 @media (min-width: 900px) {
@@ -7168,41 +7118,15 @@ html {
   }
 }
 
-@media (max-width: 899px) {
-
-  .site-world-frame:has(.store-hero)::before,
-  .store-marketplace,
-  .site-world-frame:has(.store-marketplace) .site-footer {
-    background-attachment: scroll;
-  }
-}
-
-.site-world-frame:has(.store-hero) {
-  background: rgb(8 5 14);
-}
-
-.site-world-frame:has(.store-hero)::before {
-  background: none;
-}
-
 .store-marketplace {
   margin-top: -1px;
   overflow: hidden;
   color: rgb(var(--ink));
   color-scheme: light;
-  background:
-    radial-gradient(60rem 32rem at 92% 5%, rgb(var(--accent-rgb) / 0.13), transparent 72%),
-    radial-gradient(54rem 34rem at -8% 44%, rgb(var(--accent-rgb) / 0.09), transparent 72%),
-    linear-gradient(180deg, rgb(var(--base)), rgb(var(--surface) / 0.94) 38%, rgb(var(--base)) 82%);
-  background-attachment: scroll;
 }
 
 :root[data-theme="dark"] .store-marketplace {
   color-scheme: dark;
-  background:
-    radial-gradient(64rem 36rem at 90% 4%, rgb(var(--accent-rgb) / 0.18), transparent 70%),
-    radial-gradient(54rem 36rem at -6% 48%, rgb(88 43 139 / 0.13), transparent 72%),
-    linear-gradient(180deg, rgb(var(--base)), rgb(13 8 22) 38%, rgb(var(--base)) 84%);
 }
 
 .store-category-section {
@@ -7230,24 +7154,6 @@ html {
   margin-top: 0;
   border-top: 0;
   color: white;
-  background:
-    linear-gradient(180deg, rgb(7 4 12 / 0.98), rgb(7 4 12 / 0.66) 28%, rgb(6 4 11 / 0.72)),
-    url("/images/mazora-world-continuation-bg.webp");
-  background-position: center, center bottom;
-  background-repeat: no-repeat;
-  background-size: auto, cover;
-  background-attachment: scroll, fixed;
-}
-
-.site-world-frame:has(.store-marketplace) .site-footer::before {
-  background:
-    radial-gradient(46rem 15rem at 50% 0%, rgb(139 92 246 / 0.14), transparent 72%),
-    linear-gradient(180deg, rgb(7 4 12 / 0.2), rgb(5 3 10 / 0.48));
-}
-
-.site-world-frame:has(.store-marketplace) .site-footer::after {
-  height: 8rem;
-  background: linear-gradient(180deg, rgb(7 4 12), rgb(7 4 12 / 0.5) 48%, transparent);
 }
 
 @media (min-width: 900px) {
@@ -7288,143 +7194,15 @@ html {
     padding-top: 3rem;
     padding-bottom: 4.5rem;
   }
-
-  .site-world-frame:has(.store-marketplace) .site-footer {
-    background-attachment: scroll;
-  }
-}
-
-.store-marketplace,
-:root[data-theme="light"] .store-marketplace {
-  background-image:
-    linear-gradient(180deg,
-      rgb(8 5 14 / 0.99) 0%,
-      rgb(24 11 43 / 0.94) 7rem,
-      rgb(230 220 244 / 0.6) 19rem,
-      rgb(238 231 247 / 0.66) calc(100% - 20rem),
-      rgb(7 4 12 / 0.96) 100%),
-    url("/images/store/shop-marketplace-bg.webp");
-  background-position: center, center;
-  background-repeat: no-repeat;
-  background-size: auto, cover;
-  background-attachment: scroll, fixed;
-}
-
-:root[data-theme="dark"] .store-marketplace {
-  background-image:
-    linear-gradient(180deg,
-      rgb(8 5 14 / 0.98) 0%,
-      rgb(15 8 27 / 0.74) 11rem,
-      rgb(8 5 14 / 0.7) 36%,
-      rgb(7 4 12 / 0.88) calc(100% - 18rem),
-      rgb(6 3 11 / 0.97) 100%),
-    url("/images/store/shop-marketplace-bg.webp");
-}
-
-.site-world-frame:has(.store-marketplace) .site-footer {
-  background-image:
-    linear-gradient(180deg, rgb(6 3 11 / 0.97), rgb(7 4 12 / 0.68) 32%, rgb(5 3 10 / 0.82)),
-    url("/images/store/shop-marketplace-bg.webp");
-  background-position: center, center bottom;
-  background-repeat: no-repeat;
-  background-size: auto, cover;
-  background-attachment: scroll, fixed;
-}
-
-.site-world-frame:has(.store-marketplace) .site-footer::after {
-  background: linear-gradient(180deg, rgb(6 3 11), rgb(7 4 12 / 0.48) 48%, transparent);
-}
-
-@media (max-width: 767px) {
-
-  .store-marketplace,
-  :root[data-theme="light"] .store-marketplace,
-  :root[data-theme="dark"] .store-marketplace,
-  .site-world-frame:has(.store-marketplace) .site-footer {
-    background-attachment: scroll;
-  }
 }
 
 .store-marketplace .text-muted {
   color: rgb(var(--muted));
 }
 
-/* Light theme keeps the exact same dark marketplace world as dark theme —
-   only the cards stay light. Values are the dark palette hardcoded. */
-:root[data-theme="light"] .site-world-main .store-marketplace {
-  color: rgb(249 247 252);
-  background:
-    linear-gradient(180deg,
-      rgb(8 5 14 / 0.98) 0%,
-      rgb(15 8 27 / 0.74) 11rem,
-      rgb(8 5 14 / 0.7) 36%,
-      rgb(7 4 12 / 0.88) calc(100% - 18rem),
-      rgb(6 3 11 / 0.97) 100%),
-    url("/images/store/shop-marketplace-bg.webp");
-}
-
-:root[data-theme="light"] .site-world-main .store-marketplace::before {
-  border-inline-color: rgb(48 39 63 / 0.22);
-  background-image:
-    linear-gradient(rgb(48 39 63 / 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(48 39 63 / 0.12) 1px, transparent 1px);
-}
-
-:root[data-theme="light"] .site-world-main .store-marketplace::after {
-  background: linear-gradient(180deg, transparent, rgb(7 4 12 / 0.22) 48%, rgb(6 3 11 / 0.78));
-}
-
-:root[data-theme="light"] .site-world-main .store-marketplace :is(
-  .store-mode-tabs,
-  .store-catalog-toolbar,
-  .store-category-section,
-  .store-coming-soon-section,
-  .store-order-guide
-) {
-  color: rgb(30 23 43);
-}
-
-:root[data-theme="light"] .site-world-main .store-marketplace .store-mode-selector-intro span {
-  color: rgb(249 247 252);
-}
-
-:root[data-theme="light"] .site-world-main .store-marketplace .store-mode-selector-intro span svg {
-  color: rgb(196 157 255);
-}
-
-:root[data-theme="light"] .site-world-main .store-marketplace .store-mode-selector-intro p {
-  color: rgb(178 168 194);
-}
-
-.site-world-frame:has(.store-detail-page) {
-  background: rgb(8 5 14);
-}
-
-.site-world-frame:has(.store-detail-page)::before,
-:root[data-theme="dark"] .site-world-frame:has(.store-detail-page)::before {
-  background-image:
-    linear-gradient(180deg,
-      rgb(8 5 14 / 0.86) 0%,
-      rgb(15 8 27 / 0.68) 24rem,
-      rgb(8 5 14 / 0.7) 60%,
-      rgb(6 3 11 / 0.94) 100%),
-    url("/images/store/shop-marketplace-bg.webp");
-}
-
 /* Product detail pages blend into the same marketplace world as the store —
    the shop background stays visible instead of being buried under overlays,
    and the footer continues the same canvas without a seam. */
-.site-world-frame:has(.store-detail-page)::before,
-:root[data-theme="dark"] .site-world-frame:has(.store-detail-page)::before {
-  background-image:
-    linear-gradient(180deg,
-      rgb(8 5 14 / 0.94) 0%,
-      rgb(15 8 27 / 0.72) 14rem,
-      rgb(8 5 14 / 0.7) 42%,
-      rgb(7 4 12 / 0.86) calc(100% - 16rem),
-      rgb(6 3 11 / 0.96) 100%),
-    url("/images/store/shop-marketplace-bg.webp");
-}
 
 /* The footer keeps its default transparent gradients so the frame's shared
    marketplace world continues straight through it — no second image, no seam. */
@@ -7874,7 +7652,7 @@ body:has(.store-detail-page) .scroll-header[data-away="true"][data-hidden="false
 }
 
 :root[data-theme="light"] .cart-step {
-  color: rgb(93 82 112 / 0.6);
+  color: rgb(93 82 112);
 }
 
 :root[data-theme="light"] .cart-step.is-active {
@@ -8356,16 +8134,6 @@ body:has(.vote-mission-hero) .scroll-header:not([data-away="true"])::before {
   margin-top: -1px;
   border-top-color: transparent;
   color: #fff;
-  background:
-    radial-gradient(46rem 20rem at 18% 0%, rgb(91 54 150 / 0.12), transparent 70%),
-    linear-gradient(180deg, #080610 0%, #07050d 48%, #05040a 100%);
-  box-shadow: none;
-}
-
-.site-world-frame:has(.vote-mission-hero) .site-footer::before {
-  background:
-    linear-gradient(90deg, transparent, rgb(196 157 255 / 0.12), transparent) top / 100% 1px no-repeat,
-    radial-gradient(38rem 15rem at 78% 0%, rgb(44 92 112 / 0.08), transparent 72%);
 }
 
 .site-world-frame:has(.vote-mission-hero) .site-footer .text-muted {
@@ -8384,18 +8152,6 @@ body:has(.vote-mission-hero) .scroll-header:not([data-away="true"])::before {
   border: 0 !important;
   outline: 0;
   color: #fff;
-  background: linear-gradient(180deg, #06040e 0%, #06040d 48%, #050309 100%);
-  box-shadow: none !important;
-}
-
-.site-world-frame:has(.vote-mission-hero) .site-footer::before {
-  border: 0;
-  background: radial-gradient(42rem 18rem at 78% 38%, rgb(55 35 92 / 0.08), transparent 75%);
-}
-
-.site-world-frame:has(.vote-mission-hero) .site-footer::after {
-  display: none;
-  content: none;
 }
 
 .site-world-frame:has(.vote-mission-hero) .site-footer > div,
@@ -8404,27 +8160,6 @@ body:has(.vote-mission-hero) .scroll-header:not([data-away="true"])::before {
   box-shadow: none !important;
 }
 /* Extend the Vote world artwork through the footer. */
-.site-world-frame:has(.vote-mission-hero) .site-footer {
-  background:
-    linear-gradient(180deg, rgb(6 4 14 / 0.96) 0%, rgb(6 4 14 / 0.72) 24%, rgb(5 3 11 / 0.78) 68%, rgb(5 3 9 / 0.92) 100%),
-    url("/images/vote-world-bg-v2.webp") center 72% / 100% auto no-repeat,
-    #06040e;
-}
-
-.site-world-frame:has(.vote-mission-hero) .site-footer::before {
-  background:
-    linear-gradient(90deg, rgb(5 3 10 / 0.62), transparent 24%, transparent 76%, rgb(5 3 10 / 0.62)),
-    radial-gradient(38rem 16rem at 72% 30%, rgb(110 231 242 / 0.055), transparent 74%);
-}
-
-@media (max-width: 799px) {
-  .site-world-frame:has(.vote-mission-hero) .site-footer {
-    background:
-      linear-gradient(180deg, rgb(6 4 14 / 0.96) 0%, rgb(6 4 14 / 0.76) 22%, rgb(5 3 11 / 0.82) 72%, rgb(5 3 9 / 0.94) 100%),
-      url("/images/vote-world-bg-v2.webp") center 80% / auto 150% no-repeat,
-      #06040e;
-  }
-}
 
 .vote-ref-page-controls .btn {
   min-height: 2rem;
@@ -8625,27 +8360,11 @@ body:has(.vote-mission-hero) .scroll-header[data-away="true"][data-hidden="false
 .site-world-frame:has(.vote-mission-hero) .site-footer {
   margin-top: -2px;
   border: 0 !important;
-  background:
-    linear-gradient(180deg, rgb(6 4 13 / 0.92), rgb(5 3 10 / 0.98)),
-    url("/images/vote-reward-realm-v6.webp") center bottom / cover no-repeat;
-  box-shadow: none !important;
 }
-.site-world-frame:has(.vote-mission-hero) .site-footer::before { background: radial-gradient(42rem 16rem at 50% 0%, rgb(139 92 246 / 0.08), transparent 75%); }
 
 /* Vote hub refinement — fewer layers and one continuous page rhythm. */
 
 /* Vote world continuity — use one frame background from hero through footer, like Home. */
-.site-world-frame:has(.vote-mission-hero)::before,
-:root[data-theme="dark"] .site-world-frame:has(.vote-mission-hero)::before {
-  top: 0;
-  background-image:
-    linear-gradient(180deg, rgb(6 3 13 / 0.18) 0%, rgb(6 3 13 / 0.28) 38%, rgb(6 3 13 / 0.42) 72%, rgb(5 3 10 / 0.58) 100%),
-    url("/images/vote-reward-realm-v6.webp");
-  background-position: center top, center center;
-  background-repeat: no-repeat;
-  background-size: auto, cover;
-  background-attachment: scroll, fixed;
-}
 
 .site-world-main:has(.vote-mission-hero),
 .site-world-content:has(.vote-mission-hero) { background: transparent; }
@@ -8653,21 +8372,6 @@ body:has(.vote-mission-hero) .scroll-header[data-away="true"][data-hidden="false
 .site-world-frame:has(.vote-mission-hero) .site-footer {
   margin-top: -1px;
   border: 0 !important;
-  background: linear-gradient(180deg, transparent 0%, rgb(6 4 12 / 0.12) 24%, rgb(5 3 10 / 0.42) 72%, rgb(5 3 9 / 0.58) 100%);
-  box-shadow: none !important;
-}
-
-.site-world-frame:has(.vote-mission-hero) .site-footer::before {
-  background: linear-gradient(180deg, transparent, rgb(5 3 10 / 0.08));
-}
-
-@media (max-width: 767px) {
-  .site-world-frame:has(.vote-mission-hero)::before,
-  :root[data-theme="dark"] .site-world-frame:has(.vote-mission-hero)::before {
-    background-position: center top, 58% center;
-    background-attachment: scroll;
-    background-size: auto, auto 100%;
-  }
 }
 
 /* Crossfade the sanctuary into the reward realm without an image cut. */
@@ -8682,22 +8386,6 @@ body:has(.vote-mission-hero) {
 .site-world-frame:has(.vote-mission-hero) {
   min-height: 100svh;
   overflow: hidden;
-  background-color: #05030a;
-  background-image:
-    linear-gradient(180deg, rgb(6 3 13 / 0.14) 0%, rgb(6 3 13 / 0.28) 38%, rgb(6 3 13 / 0.4) 72%, rgb(5 3 10 / 0.52) 100%),
-    url("/images/vote-reward-realm-v6.webp");
-  background-position: center top, center center;
-  background-repeat: no-repeat;
-  background-size: auto, cover;
-  background-attachment: scroll, fixed;
-}
-
-.site-world-frame:has(.vote-mission-hero)::before,
-:root[data-theme="dark"] .site-world-frame:has(.vote-mission-hero)::before {
-  inset: 0;
-  background:
-    radial-gradient(58rem 34rem at 50% 22%, rgb(139 92 246 / 0.06), transparent 72%),
-    linear-gradient(90deg, rgb(5 3 10 / 0.16), transparent 22%, transparent 78%, rgb(5 3 10 / 0.16));
 }
 
 .site-world-frame:has(.vote-mission-hero) :is(.site-world-main, .site-world-content, .vote-realm-world, .vote-realm-world-minimal) {
@@ -8708,18 +8396,6 @@ body:has(.vote-mission-hero) {
 :root[data-theme="light"] .site-world-frame:has(.vote-mission-hero) .site-footer,
 :root[data-theme="dark"] .site-world-frame:has(.vote-mission-hero) .site-footer {
   border: 0 !important;
-  background: linear-gradient(180deg, transparent 0%, rgb(5 3 10 / 0.12) 38%, rgb(5 3 9 / 0.32) 100%);
-  box-shadow: none !important;
-}
-
-.site-world-frame:has(.vote-mission-hero) .site-footer::after { display: none !important; }
-
-@media (max-width: 767px) {
-  .site-world-frame:has(.vote-mission-hero) {
-    background-position: center top, 58% center;
-    background-size: auto, auto 100%;
-    background-attachment: scroll;
-  }
 }
 
 /* Persistent Vote canvas — the realm lives on the document, not a finite section. */
@@ -8742,23 +8418,10 @@ body:has(.vote-mission-hero) {
 
 .site-world-frame:has(.vote-mission-hero) {
   min-height: 100svh;
-  background: transparent !important;
-}
-
-.site-world-frame:has(.vote-mission-hero)::before,
-:root[data-theme="light"] .site-world-frame:has(.vote-mission-hero)::before,
-:root[data-theme="dark"] .site-world-frame:has(.vote-mission-hero)::before {
-  background: linear-gradient(90deg, rgb(5 3 10 / 0.1), transparent 20%, transparent 80%, rgb(5 3 10 / 0.1)) !important;
 }
 
 .site-world-frame:has(.vote-mission-hero) :is(.site-world-main, .site-world-content, .vote-realm-world, .vote-realm-world-minimal) {
   background: transparent !important;
-}
-
-.site-world-frame:has(.vote-mission-hero) .site-footer,
-:root[data-theme="light"] .site-world-frame:has(.vote-mission-hero) .site-footer,
-:root[data-theme="dark"] .site-world-frame:has(.vote-mission-hero) .site-footer {
-  background: linear-gradient(180deg, transparent, rgb(5 3 10 / 0.08) 48%, rgb(5 3 9 / 0.22)) !important;
 }
 
 /* Exact Vote image split: sanctuary in the hero, reward realm from hero end to footer. */
@@ -8779,108 +8442,20 @@ body:has(.vote-mission-hero) {
      the frame starts at y=0 and the artwork runs under the nav exactly as the
      store hero does. */
   overflow: clip;
-  background: #05030a !important;
-}
-
-.site-world-frame:has(.vote-mission-hero)::after {
-  position: absolute;
-  top: calc(100svh - 7rem);
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: -1;
-  content: "";
-  pointer-events: none;
-  background-color: #05030a;
-  background-image:
-    linear-gradient(180deg, rgb(6 3 13 / 0.08) 0%, rgb(6 3 13 / 0.22) 42%, rgb(5 3 10 / 0.42) 100%),
-    url("/images/vote-reward-realm-v6.webp");
-  background-position: center top;
-  background-repeat: no-repeat;
-  background-size: auto, cover;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 7rem, #000 100%);
-  mask-image: linear-gradient(180deg, transparent 0, #000 7rem, #000 100%);
 }
 
 .site-world-frame:has(.vote-mission-hero) :is(.site-world-main, .site-world-content, .vote-realm-world, .vote-realm-world-minimal) {
   background: transparent !important;
 }
 
-.site-world-frame:has(.vote-mission-hero) .site-footer,
-:root[data-theme="light"] .site-world-frame:has(.vote-mission-hero) .site-footer,
-:root[data-theme="dark"] .site-world-frame:has(.vote-mission-hero) .site-footer {
-  background: linear-gradient(180deg, transparent, rgb(5 3 10 / 0.08) 48%, rgb(5 3 9 / 0.24)) !important;
-}
-
-@media (max-width: 767px) {
-  .site-world-frame:has(.vote-mission-hero)::after {
-    top: calc(100svh - 5rem);
-    background-position: 58% top;
-    background-size: auto, auto 100%;
-    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 5rem, #000 100%);
-    mask-image: linear-gradient(180deg, transparent 0, #000 5rem, #000 100%);
-  }
-}
-
 /* One lower Vote image only — remove the duplicate content-layer copy and its seam. */
-
-.site-world-frame:has(.vote-mission-hero)::after {
-  background-position: center top !important;
-  background-repeat: no-repeat !important;
-  background-size: cover !important;
-}
-
-@media (max-width: 767px) {
-  .site-world-frame:has(.vote-mission-hero)::after {
-    background-position: 58% top !important;
-    background-size: auto 100% !important;
-  }
-}
 /* Vote v7: a single sanctuary continuation from the hero edge through the footer. */
-.site-world-frame:has(.vote-mission-hero)::after {
-  background-image:
-    linear-gradient(180deg, rgb(6 3 13 / 0.02) 0%, rgb(6 3 13 / 0.14) 48%, rgb(5 3 10 / 0.34) 100%),
-    url("/images/vote-sanctuary-continuation-v7.webp") !important;
-  background-position: center top, center top !important;
-  background-repeat: no-repeat, no-repeat !important;
-  background-size: 100% 100%, 100% 100% !important;
-}
-
-@media (max-width: 767px) {
-  .site-world-frame:has(.vote-mission-hero)::after {
-    background-position: center top, center top !important;
-    background-size: 100% 100%, 100% 100% !important;
-  }
-}
 
 /* Vote v8: portal-free path artwork, with a sharp wide desktop layer. */
-.site-world-frame:has(.vote-mission-hero)::after {
-  background-image:
-    linear-gradient(180deg, rgb(6 3 13 / 0.01) 0%, rgb(6 3 13 / 0.12) 50%, rgb(5 3 10 / 0.38) 100%),
-    url("/images/vote-sanctuary-path-v8-tall.webp") !important;
-  background-position: center top, center top !important;
-  background-size: 100% 100%, 100% 100% !important;
-}
 
 /* Vote v9: Home-style structure — one continuation image below the hero. */
-.site-world-frame:has(.vote-mission-hero)::after {
-  background-image:
-    linear-gradient(180deg, rgb(6 3 13 / 0.02) 0%, rgb(6 3 13 / 0.13) 52%, rgb(5 3 10 / 0.42) 100%),
-    url("/images/vote-sanctuary-path-v9.webp") !important;
-  background-position: center top, center top !important;
-  background-repeat: no-repeat, no-repeat !important;
-  background-size: auto, cover !important;
-}
 
 /* Vote v10: darker Mazora-themed midnight continuation. */
-.site-world-frame:has(.vote-mission-hero)::after {
-  background-image:
-    linear-gradient(180deg, rgb(5 3 10 / 0.06) 0%, rgb(5 3 10 / 0.18) 48%, rgb(3 2 8 / 0.46) 100%),
-    url("/images/vote-midnight-citadel-v10.webp") !important;
-  background-position: center top, center top !important;
-  background-repeat: no-repeat, no-repeat !important;
-  background-size: auto, cover !important;
-}
 
 /* Store hero viewport contract: fill tall screens and compact gracefully on
    short/narrow phones without clipping the featured drop below the fold. */
@@ -8924,7 +8499,10 @@ body:has(.vote-mission-hero) {
    composition centered and comfortably inside short desktop viewports. */
 @media (min-width: 900px) {
   html:has(.store-hero),
-  body:has(.store-hero),
+  body:has(.store-hero) {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
   .site-world-frame:has(.store-hero) {
     margin: 0 !important;
     padding: 0 !important;
@@ -9983,7 +9561,7 @@ body:has(.vote-mission-hero) {
   filter: blur(26px) saturate(1.15) brightness(0.5);
   background:
     linear-gradient(125deg, rgb(5 2 11 / 0.55), rgb(8 4 17 / 0.7) 58%, rgb(4 2 9 / 0.8)),
-    url("/images/mazora-world-continuation-bg.webp") center / cover;
+    var(--world-valley) center / cover;
 }
 
 /* Accent bloom + vignette, unblurred so the glow stays crisp. */
@@ -10044,7 +9622,7 @@ body:has(.vote-mission-hero) {
   min-height: 100dvh;
   background:
     linear-gradient(180deg, rgb(6 3 13 / 0.78), rgb(6 3 13 / 0.94)),
-    url("/images/mazora-world-continuation-bg.webp") center / cover;
+    var(--world-valley) center / cover;
 }
 
 /*
@@ -10107,20 +9685,8 @@ body:has(.admin-recovery-overlay) {
 }
 
 /* Product details follow the selected light theme without hiding store artwork. */
-:root[data-theme="light"]:has(.store-detail-page) body,
-:root[data-theme="light"] .site-world-frame:has(.store-detail-page) {
+:root[data-theme="light"]:has(.store-detail-page) body {
   background-color: rgb(247 245 251);
-}
-
-:root[data-theme="light"] .site-world-frame:has(.store-detail-page)::before {
-  background-image:
-    linear-gradient(180deg,
-      rgb(8 5 14 / 0.28) 0%,
-      rgb(15 8 27 / 0.16) 14rem,
-      rgb(8 5 14 / 0.12) 48%,
-      rgb(7 4 12 / 0.24) calc(100% - 16rem),
-      rgb(6 3 11 / 0.48) 100%),
-    url("/images/store/shop-marketplace-bg.webp");
 }
 
 :root[data-theme="light"] .store-mode-tab.is-active .store-mode-tab-icon {
@@ -10342,7 +9908,7 @@ body:has(.admin-recovery-overlay) {
    Darken only the fallback initials in light mode so every monogram remains
    readable on the pale avatar tile without weakening its dark-theme version. */
 :root[data-theme="light"] .user-avatar-monogram {
-  filter: brightness(0.68) saturate(1.16);
+  filter: brightness(0.56) saturate(1.2);
 }
 
 /* Responsive world framing.
@@ -10351,21 +9917,6 @@ body:has(.admin-recovery-overlay) {
    visible. A fixed pseudo-layer keeps sizing tied to the viewport (without
    relying on mobile background-attachment support) and preserves the scene
    while the page scrolls above it. */
-@media (max-width: 1023px) {
-  .site-world-frame::before {
-    position: fixed;
-    inset: 0;
-    background-position: center, 32% center;
-    background-size: auto, cover;
-    background-attachment: scroll;
-  }
-}
-
-@media (max-width: 640px) {
-  .site-world-frame::before {
-    background-position: center, 24% center;
-  }
-}
 
 /*
  * Scroll reveal (see components/shared/reveal.tsx).

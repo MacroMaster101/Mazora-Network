@@ -10,6 +10,7 @@ import { CookieConsent } from "@/components/shared/cookie-consent";
 import { ScrollResetOnReload } from "@/components/shared/scroll-reset-on-reload";
 import { pingDiscordPresence } from "@/lib/data/discord-presence-health";
 import "@/styles/globals.css";
+import "@/styles/world-themes.css";
 
 /*
   The brand faces. These set the --font-* custom properties that globals.css

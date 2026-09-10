@@ -271,8 +271,8 @@ export function StoreMessagesPanel({ config }: { config: StoreMessagesConfig }) 
         <p
           className={`mx-4 mb-4 rounded-xl border px-3 py-2 text-sm sm:mx-6 ${
             message.ok
-              ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-500"
-              : "border-amber-400/25 bg-amber-500/10 text-amber-500"
+              ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-500"
+              : "border-amber-400/25 bg-amber-500/10 text-amber-700 dark:text-amber-500"
           }`}
           role="status"
           aria-live="polite"

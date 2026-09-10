@@ -773,7 +773,7 @@ export function NewsEditor({
             }`}
           >
             Review
-            <span className="rounded-full bg-gold/20 px-2 py-0.5 text-xs font-mono font-bold text-gold">
+            <span className="rounded-full bg-gold/20 px-2 py-0.5 text-xs font-mono font-bold text-amber-900 dark:text-gold">
               {pendingArticles.length}
             </span>
           </button>
@@ -1030,9 +1030,9 @@ export function NewsEditor({
                         </button>
                         {imageError ? (
                           <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-center space-y-1 flex flex-col items-center justify-center h-full w-full">
-                            <AlertTriangle size={18} className="text-amber-400 shrink-0" />
-                            <h5 className="font-bold text-[0.7rem] text-amber-300">Preview Unavailable</h5>
-                            <p className="text-[0.62rem] text-amber-300/80 leading-tight">
+                            <AlertTriangle size={18} className="text-amber-700 dark:text-amber-400 shrink-0" />
+                            <h5 className="font-bold text-[0.7rem] text-amber-700 dark:text-amber-300">Preview Unavailable</h5>
+                            <p className="text-[0.62rem] text-amber-700 dark:text-amber-300/80 leading-tight">
                               Some links block browser preview but <strong>will still work</strong> when saved.
                             </p>
                           </div>

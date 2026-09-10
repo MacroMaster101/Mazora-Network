@@ -236,8 +236,8 @@ export function AdminGalleryEditor({
               {pendingQueue.length}
             </span>
             <div>
-              <h3 className="font-display font-bold text-amber-300">Pending Player Submissions</h3>
-              <p className="text-xs text-amber-200/80">
+              <h3 className="font-display font-bold text-amber-700 dark:text-amber-300">Pending Player Submissions</h3>
+              <p className="text-xs text-amber-700 dark:text-amber-200/80">
                 Review player artwork submissions before they appear on the public website.
               </p>
             </div>
@@ -254,7 +254,7 @@ export function AdminGalleryEditor({
                     <span className="text-[0.65rem] font-bold uppercase tracking-wider text-accent-bright">
                       {item.category}
                     </span>
-                    <h4 className="font-bold text-sm truncate text-white">{item.title}</h4>
+                    <h4 className="font-bold text-sm truncate text-ink">{item.title}</h4>
                     <p className="text-xs text-muted truncate">by {item.authorName}</p>
                   </div>
                 </div>
@@ -361,7 +361,7 @@ export function AdminGalleryEditor({
                 <span
                   className={cn(
                     "absolute top-2 left-2 rounded-full px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wider",
-                    item.status === "published" && "bg-emerald-500/90 text-white",
+                    item.status === "published" && "bg-emerald-700/90 text-white",
                     item.status === "pending" && "bg-amber-500/90 text-black",
                     item.status === "rejected" && "bg-rose-600/90 text-white"
                   )}
@@ -381,7 +381,7 @@ export function AdminGalleryEditor({
                   <p className="font-bold text-sm text-ink line-clamp-1 leading-snug">{item.title}</p>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-[0.68rem] font-semibold uppercase tracking-wide text-accent-bright">{item.category}</span>
-                    <span className="flex items-center gap-1 text-[0.68rem] text-rose-400 font-semibold">
+                    <span className="flex items-center gap-1 text-[0.68rem] text-rose-700 dark:text-rose-400 font-semibold">
                       <Heart size={11} className="fill-current" /> {item.likesCount}
                     </span>
                   </div>
@@ -403,7 +403,7 @@ export function AdminGalleryEditor({
                       type="button"
                       disabled={pending}
                       onClick={() => handleApprove(item.id, "published")}
-                      className="btn btn-sm flex-1 flex items-center justify-center gap-1 text-xs bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 rounded-lg transition-colors"
+                      className="btn btn-sm flex-1 flex items-center justify-center gap-1 text-xs bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 rounded-lg transition-colors"
                     >
                       <Check size={13} /> OK
                     </button>
@@ -662,7 +662,7 @@ export function AdminGalleryEditor({
                           </button>
                           {imageError ? (
                             <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center space-y-1.5 flex flex-col items-center justify-center h-full w-full">
-                              <AlertTriangle size={20} className="text-amber-500 shrink-0" />
+                              <AlertTriangle size={20} className="text-amber-700 dark:text-amber-500 shrink-0" />
                               <h5 className="font-bold text-xs text-amber-600 dark:text-amber-300">Preview Unavailable</h5>
                               <p className="text-[0.68rem] text-amber-700 dark:text-amber-300/80 leading-normal max-w-[220px]">
                                 Some links block browser preview but <strong>will still work</strong> when you save &mdash; we download it server-side.

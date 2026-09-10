@@ -78,7 +78,7 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
               className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border transition-colors duration-300 ${
                 enabled
                   ? "bg-accent/15 text-accent-bright border-accent/25"
-                  : "bg-red-500/10 text-red-400/60 border-red-500/20"
+                  : "bg-red-500/10 text-red-700 dark:text-red-400/60 border-red-500/20"
               }`}
             >
               {enabled ? <Icon size={20} /> : <Ban size={20} />}
@@ -122,8 +122,8 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
           <span
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border transition-all duration-300 ${
               enabled
-                ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
-                : "bg-red-500/10 border-red-500/25 text-red-400"
+                ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-400"
+                : "bg-red-500/10 border-red-500/25 text-red-700 dark:text-red-400"
             }`}
           >
             <span
@@ -154,8 +154,8 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
         {/* Disabled warning message */}
         {!enabled && (
           <div className="mb-4 p-3 rounded-xl border border-red-500/20 bg-red-500/5 flex items-start gap-2.5">
-            <Ban size={14} className="text-red-400 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-red-300/80 font-medium leading-relaxed">
+            <Ban size={14} className="text-red-700 dark:text-red-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-red-700 dark:text-red-300/80 font-medium leading-relaxed">
               This form is currently hidden from public pages. Users visiting the page will see a &ldquo;Paused&rdquo; message and the form link will be disabled.
             </p>
           </div>
@@ -214,7 +214,7 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
               )}
             </button>
           </div>
-          {errorMsg && <p className="text-[11px] text-red-400 mt-1 font-semibold">{errorMsg}</p>}
+          {errorMsg && <p className="text-[11px] text-red-700 dark:text-red-400 mt-1 font-semibold">{errorMsg}</p>}
         </form>
       </div>
     </article>

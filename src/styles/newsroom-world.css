@@ -8,7 +8,6 @@
   isolation: isolate;
   overflow: hidden;
   color: rgb(249 247 252);
-  background: rgb(7 5 13);
 }
 
 .newsroom-page::before {
@@ -17,12 +16,6 @@
   z-index: -2;
   inset: 39rem 0 0;
   pointer-events: none;
-  background:
-    linear-gradient(180deg, rgb(8 6 14 / 0.18), rgb(8 5 14 / 0.42) 28%, rgb(6 4 11 / 0.72) 100%),
-    url("/images/newsroom-signal-depths-v1.webp");
-  background-position: center top;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
 }
 
 .newsroom-page::after {
@@ -31,9 +24,6 @@
   z-index: -1;
   inset: 39rem 0 0;
   pointer-events: none;
-  background:
-    linear-gradient(90deg, rgb(5 3 10 / 0.28), transparent 22%, transparent 78%, rgb(5 3 10 / 0.28)),
-    radial-gradient(54rem 34rem at 50% 8%, transparent, rgb(6 4 11 / 0.12) 78%);
 }
 
 .newsroom-page .newsroom-hero {
@@ -42,7 +32,7 @@
 }
 
 .newsroom-hero-backdrop {
-  background-image: url("/images/newsroom-signal-realm-v1.webp");
+  background-image: var(--world-news-hero);
   background-position: 50% center;
   filter: saturate(0.96) contrast(1.04);
 }
@@ -221,7 +211,6 @@ body:has(.newsroom-page) .scroll-header[data-away="true"][data-hidden="false"]::
   .newsroom-page::before,
   .newsroom-page::after {
     inset: 45rem 0 0;
-    background-size: auto 100%;
   }
 
   .newsroom-hero-backdrop {

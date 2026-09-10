@@ -17,9 +17,8 @@ function labelFor(pathname: string): string {
  * clutter. The 250ms appearance delay lives in CSS, so quick navigations never
  * flash it and the loading layer never depends on hydration to look right.
  *
- * `tone="world"` suits the dark artwork behind the public site, dashboard and
- * admin (shared by both themes). `tone="surface"` is for the auth form column,
- * which is a real theme surface and turns light.
+ * `tone="world"` uses theme-matched artwork for the public site, dashboard and
+ * admin. `tone="surface"` sits within the auth form column's theme surface.
  *
  * `forPath` overrides the label's source. A `loading.tsx` fallback renders
  * *after* the router has committed the new URL, so `usePathname()` is already
