@@ -71,18 +71,18 @@ export function renderRoadmapIcon(iconKey: string, size = 16) {
 export function getStatusStyle(status: string) {
   const lower = status.toLowerCase();
   if (lower.includes("dev")) {
-    return { badge: "border-purple-500/40 bg-purple-500/15 text-purple-300", dot: "bg-purple-400" };
+    return { badge: "border-purple-500/40 bg-purple-500/15 text-purple-700 dark:text-purple-300", dot: "bg-purple-400" };
   }
   if (lower.includes("soon")) {
-    return { badge: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300", dot: "bg-emerald-400" };
+    return { badge: "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-400" };
   }
   if (lower.includes("plan")) {
-    return { badge: "border-amber-500/40 bg-amber-500/15 text-amber-300", dot: "bg-amber-400" };
+    return { badge: "border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-300", dot: "bg-amber-400" };
   }
   if (lower.includes("test")) {
-    return { badge: "border-rose-500/40 bg-rose-500/15 text-rose-300", dot: "bg-rose-400" };
+    return { badge: "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300", dot: "bg-rose-400" };
   }
-  return { badge: "border-violet-500/40 bg-violet-500/15 text-violet-300", dot: "bg-violet-400" };
+  return { badge: "border-violet-500/40 bg-violet-500/15 text-violet-700 dark:text-violet-300", dot: "bg-violet-400" };
 }
 
 export function StoreRoadmapEditor({
@@ -310,7 +310,7 @@ export function StoreRoadmapEditor({
                     <div>
                       <label className="block text-[0.65rem] uppercase font-bold text-muted mb-1">Card Icon</label>
                       <div className="flex items-center gap-1.5">
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-violet-400/30 bg-violet-500/20 text-violet-300">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-violet-400/30 bg-violet-500/20 text-violet-700 dark:text-violet-300">
                           {renderRoadmapIcon(item.icon, 14)}
                         </div>
                         <select
@@ -356,7 +356,7 @@ export function StoreRoadmapEditor({
 
         <div className="rounded-2xl border border-line bg-surface/90 shadow-2xl p-5 space-y-4">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[0.68rem] font-bold text-violet-400 uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[0.68rem] font-bold text-violet-700 dark:text-violet-400 uppercase tracking-wider">
               <Sparkles size={12} /> {eyebrow || "MARKETPLACE ROADMAP"}
             </span>
             <h3 className="text-xl font-black tracking-tight text-ink mt-2">{title || "More ways to stand out."}</h3>
@@ -369,7 +369,7 @@ export function StoreRoadmapEditor({
               return (
                 <div key={item.id} className="rounded-xl border border-line bg-card/60 p-3.5 flex flex-col justify-between shadow-lg">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center justify-center h-8 w-8 rounded-lg border border-violet-400/30 bg-violet-500/15 text-violet-300">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-lg border border-violet-400/30 bg-violet-500/15 text-violet-700 dark:text-violet-300">
                       {renderRoadmapIcon(item.icon, 16)}
                     </div>
                     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.62rem] font-bold uppercase ${statusStyle.badge}`}>

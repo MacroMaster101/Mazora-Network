@@ -187,7 +187,7 @@ export default function TermsPage() {
               {/* Card 9 */}
               <article id="chargebacks" className="panel p-6 sm:p-8 rounded-2xl border border-line/60 shadow-sm border-l-4 border-l-amber-500 hover:border-accent/40 transition-colors">
                 <div className="flex items-center gap-3 border-b border-line/40 pb-4 mb-4">
-                  <span className="telemetry text-xs font-mono font-bold text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/30">09</span>
+                  <span className="telemetry text-xs font-mono font-bold text-amber-700 dark:text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/30">09</span>
                   <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink">Chargebacks and payment abuse</h2>
                 </div>
                 <div className="space-y-3">

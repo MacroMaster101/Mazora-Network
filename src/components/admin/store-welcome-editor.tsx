@@ -171,7 +171,7 @@ export function StoreWelcomeEditor({
                 <Upload size={14} /> Upload Photo from Computer
               </button>
               {uploadName && (
-                <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium py-1">
+                <span className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 font-medium py-1">
                   <CheckCircle2 size={13} /> {uploadName}
                 </span>
               )}

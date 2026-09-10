@@ -9,7 +9,6 @@
   overflow: hidden;
   min-height: 100svh;
   color: rgb(249 247 252);
-  background: rgb(7 5 13);
 }
 
 body:has(.news-article-page) .scroll-header {
@@ -59,7 +58,7 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   background-image:
     linear-gradient(90deg, rgb(5 3 11 / 0.52), transparent 25%, transparent 75%, rgb(5 3 11 / 0.54)),
     linear-gradient(180deg, rgb(5 3 11 / 0.28), rgb(7 4 13 / 0.14) 50%, rgb(7 5 13 / 0.76) 88%, rgb(7 5 13)),
-    url("/images/newsroom-signal-realm-v1.webp");
+    var(--world-news-hero);
   background-position: center, center, center 46%;
   background-repeat: no-repeat;
   background-size: cover;
@@ -331,7 +330,7 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   z-index: -2;
   background:
     linear-gradient(180deg, rgb(7 5 13 / 0.06), rgb(7 5 13 / 0.22) 38%, rgb(4 3 9 / 0.62) 100%),
-    url("/images/newsroom-header-continuation-v3.webp") center top / cover no-repeat;
+    var(--world-news-body) center top / cover no-repeat;
   -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.2) 7rem, #000 16rem);
   mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.2) 7rem, #000 16rem);
 }
@@ -689,7 +688,7 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
 }
 
 :root[data-theme="light"] .news-detail-aside-card dt {
-  color: rgb(91 81 108 / 0.7);
+  color: rgb(91 81 108);
 }
 
 :root[data-theme="light"] .news-detail-aside-card dl > div,
@@ -705,10 +704,6 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   color: rgb(101 32 205);
 }
 
-.site-world-frame:has(.news-article-page) {
-  background: #050309;
-}
-
 .site-world-frame:has(.news-article-page) .site-footer,
 :root[data-theme="light"] .site-world-frame:has(.news-article-page) .site-footer,
 :root[data-theme="dark"] .site-world-frame:has(.news-article-page) .site-footer {
@@ -718,21 +713,6 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   margin-top: -1px;
   border-top: 0;
   color: rgb(255 255 255 / 0.74);
-  background: transparent;
-  box-shadow: none;
-}
-
-.site-world-frame:has(.news-article-page) .site-footer::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: -12rem 0 0;
-  pointer-events: none;
-  background:
-    linear-gradient(180deg, rgb(4 3 9 / 0.04), rgb(4 3 9 / 0.52) 44%, rgb(4 3 9 / 0.84) 100%),
-    url("/images/newsroom-header-continuation-v3.webp") center bottom / cover no-repeat;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 4rem, #000 12rem);
-  mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 4rem, #000 12rem);
 }
 
 .site-world-frame:has(.news-article-page) .site-footer > div {
@@ -888,11 +868,6 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
     background-position: center top;
     background-size: auto 100%;
   }
-
-  .site-world-frame:has(.news-article-page) .site-footer::before {
-    top: -10rem;
-    background-size: auto, auto 145%;
-  }
 }
 
 @media (max-width: 430px) {
@@ -919,9 +894,7 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
   }
 }
 /* Light article canvas — visible realm artwork, readable translucent content. */
-:root[data-theme="light"]:has(.news-article-page) body,
-:root[data-theme="light"] .site-world-frame:has(.news-article-page),
-:root[data-theme="light"] .news-article-page {
+:root[data-theme="light"]:has(.news-article-page) body {
   background-color: rgb(7 5 13);
 }
 
@@ -936,7 +909,7 @@ body:has(.news-article-page) .scroll-header[data-away="true"][data-hidden="false
 :root[data-theme="light"] .news-detail-world::before {
   background:
     linear-gradient(180deg, rgb(7 5 13 / 0.04), rgb(7 5 13 / 0.22) 38%, rgb(4 3 9 / 0.66) 100%),
-    url("/images/newsroom-header-continuation-v3.webp") center top / cover no-repeat;
+    var(--world-news-body) center top / cover no-repeat;
 }
 
 :root[data-theme="light"] .news-detail-world::after {

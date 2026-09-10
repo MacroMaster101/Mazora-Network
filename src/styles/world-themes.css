@@ -1,0 +1,477 @@
+/* World artwork and daylight surfaces. These roles also serve auth, loading,
+   and account screens; content images (products/screenshots) stay untouched. */
+:root {
+  --world-home-hero: url("/images/mazora-community-hero.webp");
+  --world-valley: url("/images/mazora-world-continuation-bg.webp");
+  --world-store-hero: url("/images/store/shop-world-bg-v2.webp");
+  --world-store-body: url("/images/store/shop-marketplace-bg.webp");
+  --world-vote-body: url("/images/vote-sanctuary-continuation-v11.webp");
+  --world-news-hero: url("/images/newsroom-signal-realm-v1.webp");
+  --world-news-body: url("/images/newsroom-header-continuation-v3.webp");
+  --world-shade: 8 6 14;
+  --world-wash: 0.48;
+}
+
+:root[data-theme="light"] {
+  --world-home-hero: url("/images/worlds/home-hero-light.webp");
+  --world-valley: url("/images/worlds/valley-light.webp");
+  --world-store-hero: url("/images/worlds/store-hero-light.webp");
+  --world-store-body: url("/images/worlds/store-body-light.webp");
+  --world-vote-body: url("/images/worlds/vote-body-light.webp");
+  --world-news-hero: url("/images/worlds/news-hero-light.webp");
+  --world-news-body: url("/images/worlds/news-body-light.webp");
+  --world-shade: 247 245 251;
+  /* Shared by public worlds, account areas, auth, and loading screens. Kept
+     close to the dark wash so the art reads as clearly; text that sits on the
+     scenery gets its own local scrim instead of a heavier global wash. */
+  --world-wash: 0.5;
+}
+
+.world-backdrop {
+  position: absolute;
+  inset: 0;
+  background-image: var(--art-dark);
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+}
+:root[data-theme="light"] .world-backdrop { background-image: var(--art-light); }
+@media (max-width: 640px) {
+  .world-backdrop { background-image: var(--art-dark-mobile); }
+  :root[data-theme="light"] .world-backdrop { background-image: var(--art-light-mobile); }
+}
+
+/* The shared frame owns one scene all the way through the footer. Specificity
+   is deliberate: historical route sheets include theme-qualified frame rules. */
+:root body .site-world-frame {
+  --page-world: var(--world-valley);
+  background: rgb(var(--world-shade)) !important;
+}
+:root body .site-world-frame:has(.store-hero, .store-detail-page) { --page-world: var(--world-store-body); }
+:root body .site-world-frame:has(.vote-redesign-hero) { --page-world: var(--world-vote-body); }
+:root body .site-world-frame:has(.newsroom-page, .news-article-page) { --page-world: var(--world-news-body); }
+:root body .site-world-frame::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background: linear-gradient(rgb(var(--world-shade) / var(--world-wash)), rgb(var(--world-shade) / var(--world-wash))), var(--page-world) center / cover no-repeat !important;
+  background-attachment: scroll;
+  opacity: 1;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+:root body .site-world-frame::after,
+:root body .site-world-frame .site-footer::after,
+:root body .site-world-frame .newsroom-page::before,
+:root body .site-world-frame .newsroom-page::after,
+:root body .site-world-frame .news-article-page::before,
+:root body .site-world-frame .news-article-page::after { display: none !important; }
+/* Vote's old section-local shade/grid ended abruptly above the footer.
+   The shared frame already provides the continuous sanctuary backdrop. */
+:root body .site-world-frame .vote-realm-atmosphere,
+:root body .site-world-frame .vote-realm-world::before,
+:root body .site-world-frame .vote-realm-world::after { display: none !important; }
+:root body .site-world-frame :is(.store-marketplace, .newsroom-page, .news-article-page) {
+  background: transparent !important;
+  box-shadow: none;
+}
+:root body .site-world-frame .site-footer {
+  background: linear-gradient(transparent, rgb(var(--world-shade) / 0.72)) !important;
+  color: rgb(var(--ink));
+}
+:root body .site-world-frame .site-footer::before {
+  inset: 0;
+  background: none !important;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+/* Blend real art into the shared scene, without a solid black separator. */
+:root body .hero-art,
+:root body .vote-redesign-art,
+:root body .store-world-art,
+:root body .store-hero-overlay,
+:root body .newsroom-hero-backdrop,
+:root body .news-detail-hero-backdrop {
+  mask-image: linear-gradient(#000 0%, #000 70%, transparent 100%);
+  -webkit-mask-image: linear-gradient(#000 0%, #000 70%, transparent 100%);
+}
+:root body .store-hero-v2,
+:root body .newsroom-page .newsroom-hero,
+:root body .news-detail-hero,
+:root body .news-detail-world,
+:root body .vote-redesign-hero { background: transparent !important; }
+:root body .news-detail-world::before,
+:root body .news-detail-world::after,
+:root body .news-detail-hero::after { display: none; }
+:root body :is(.store-hero-v2, .vote-redesign-hero, .newsroom-hero)::after {
+  background: none !important;
+}
+:root body .site-world-main .store-hero-v2 .store-hero-overlay,
+:root body .newsroom-page .newsroom-hero-backdrop::before {
+  background: linear-gradient(180deg, rgb(var(--world-shade) / 0.28), transparent 45%, rgb(var(--world-shade) / 0.08));
+}
+
+/* Daylight art has its own light, so remove the old night vignette/filter. */
+:root[data-theme="light"] body :is(.hero-backdrop, .vote-redesign-image, .store-world-art, .newsroom-hero-backdrop) {
+  filter: none;
+}
+:root[data-theme="light"] body :is(.hero-vignette, .vote-redesign-vignette) {
+  display: block;
+  background: linear-gradient(180deg, rgb(247 245 251 / 0.12), transparent 45%, rgb(235 226 246 / 0.06));
+}
+:root[data-theme="light"] body .site-world-main::before,
+:root[data-theme="light"] body .page-hero-atmosphere {
+  background: linear-gradient(180deg, rgb(247 245 251 / 0.12), transparent);
+}
+/* .home-world overlaps the hero's last 8rem (negative margin, higher z-index).
+   A film starting at its top edge drew a visible line through the hero CTAs on
+   mobile; the shared frame already provides the daylight wash. */
+:root[data-theme="light"] body .home-world::before { background: none; }
+:root[data-theme="light"] body .hero-logo-aura {
+  background: rgb(247 245 251 / 0.35);
+  box-shadow: 0 0 60px 20px rgb(247 245 251 / 0.2);
+}
+
+/* Text placed directly on the daylight landscape. Do not globally recolor
+   .text-white: primary CTAs and product/content artwork still require it. */
+:root[data-theme="light"] body :is(.site-world-main, .home-map-section, .home-clean-join, .account-area, .account-layout) {
+  color: rgb(var(--ink));
+}
+:root[data-theme="light"] body .site-world-main :is(.page-hero, .page-detail-hero, .home-section-heading, .home-clean-join, .home-section, .store-hero-v2-copy, .vote-redesign-copy, .newsroom-hero) :is(h1, h2, h3, dd) {
+  color: rgb(var(--ink));
+  text-shadow: none;
+}
+:root[data-theme="light"] body .site-world-main :is(.text-muted, .home-clean-join p:not(.eyebrow), .home-clean-join dt) {
+  color: rgb(var(--muted));
+}
+:root[data-theme="light"] body .site-world-main :is(.eyebrow, .home-value-points svg) {
+  color: rgb(var(--accent-bright));
+  text-shadow: none;
+  filter: none;
+}
+:root[data-theme="light"] body .home-world .eyebrow::before {
+  background: rgb(var(--accent));
+  box-shadow: none;
+}
+:root[data-theme="light"] body .site-world-frame .site-footer .text-muted { color: rgb(var(--muted)); }
+:root[data-theme="light"] body .site-world-frame .site-footer a:hover { color: rgb(var(--accent-bright)); }
+
+/* Solid surfaces protect small text against changing terrain detail. */
+/* The hero CTA tray is only a layout wrapper in daylight: each button already
+   has its own solid surface, and a tray behind them read as a stray white box. */
+:root[data-theme="light"] body .hero-actions {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+:root[data-theme="light"] body :is(.hero-stat, .home-network-facts, .home-map-shell, .home-map-toolbar, .home-map-coming-soon) {
+  color: rgb(var(--ink));
+  background: rgb(248 246 251 / 0.96);
+  border-color: rgb(var(--line-strong) / 0.8);
+  box-shadow: 0 18px 48px -32px rgb(62 39 98 / 0.3), inset 0 1px white;
+  backdrop-filter: none;
+}
+:root[data-theme="light"] body .hero-stat :is(span, p),
+:root[data-theme="light"] body .home-map-title-group h2 { color: rgb(var(--ink)); }
+:root[data-theme="light"] body .hero-stat .telemetry,
+:root[data-theme="light"] body .home-map-title-group p { color: rgb(var(--muted)); }
+:root[data-theme="light"] body .home-value-points { color: rgb(var(--muted)); }
+:root[data-theme="light"] body .gallery-category-icon {
+  color: rgb(var(--accent-bright));
+  background: rgb(var(--surface));
+  border-color: rgb(var(--line-strong));
+  box-shadow: none;
+}
+:root[data-theme="light"] body .gallery-category-icon svg { color: inherit; }
+:root[data-theme="light"] body .home-map-coming-soon :is(h3, p) { color: rgb(var(--ink)); }
+:root[data-theme="light"] body :is(.hero-stat-icon, .home-map-icon, .home-map-signal) {
+  color: rgb(var(--accent-bright));
+  background: rgb(var(--accent-rgb) / 0.09);
+  border-color: rgb(var(--accent-rgb) / 0.18);
+  box-shadow: none;
+}
+:root[data-theme="light"] body :is(.hero-actions > .btn, .hero-cta-quiet, .home-clean-join .btn-ghost) {
+  color: rgb(var(--ink));
+  background: rgb(var(--surface));
+  border-color: rgb(var(--line-strong));
+  text-shadow: none;
+}
+:root[data-theme="light"] body :is(.hero-stat:hover, .hero-actions > .btn:hover, .home-clean-join .btn-ghost:hover) {
+  background: rgb(237 230 249);
+  border-color: rgb(var(--accent));
+}
+/* The primary CTA's night bevel (a white top highlight, a pale gradient start
+   and a wide purple glow) reads on daylight as a stray white line and a film
+   over the button. Daylight gets a solid gradient and a tight shadow instead. */
+:root[data-theme="light"] body .hero-cta-primary {
+  background: linear-gradient(135deg, rgb(139 92 246), rgb(109 40 217));
+  box-shadow: 0 10px 22px -12px rgb(91 33 182 / 0.55);
+}
+:root[data-theme="light"] body .hero-cta-primary:hover {
+  box-shadow: 0 14px 28px -12px rgb(91 33 182 / 0.6);
+}
+
+/* Header chrome over morning skies. Dropdowns retain their existing tokens. */
+:root[data-theme="light"] body .hero-nav .desktop-nav-item,
+:root[data-theme="light"] body .hero-nav .desktop-nav-icon,
+:root[data-theme="light"] body .hero-nav .desktop-login-link {
+  color: rgb(var(--ink));
+  text-shadow: none;
+}
+:root[data-theme="light"] body .hero-nav .desktop-nav-item:is(:hover, .is-active) { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body .hero-nav .desktop-nav-item.is-active .desktop-nav-icon { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body:has(.site-world-frame) .scroll-header:not([data-away="true"])::before { background: transparent; }
+:root[data-theme="light"] body:has(.site-world-frame) .scroll-header[data-away="true"][data-hidden="false"]::before { background: rgb(247 245 251 / 0.96); }
+
+/* Specialist hero copy uses explicit historic colors rather than tokens. */
+:root[data-theme="light"] body :is(.store-hero-v2-copy, .vote-redesign-copy) > p,
+:root[data-theme="light"] body .vote-redesign-copy > div,
+:root[data-theme="light"] body .store-hero-v2-copy h1 { color: rgb(var(--ink)); text-shadow: none; }
+:root[data-theme="light"] body :is(.store-hero-v2-copy, .vote-redesign-copy) h1 span { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body :is(.store-hero-v2-live-pill, .store-hero-v2-stat, .newsroom-live-pill, .newsroom-mast-stat, .newsroom-hero-note, .vote-redesign-status, .vote-redesign-stat, .vote-redesign-journey) {
+  color: rgb(var(--ink));
+  background: rgb(248 246 251 / 0.96);
+  border-color: rgb(var(--line-strong));
+  box-shadow: 0 16px 40px -30px rgb(62 39 98 / 0.25);
+}
+
+/* Quiet workspace and transient-screen backgrounds use the same art roles. */
+:root[data-theme="light"] body .account-area {
+  background-image: linear-gradient(rgb(var(--world-shade) / var(--world-wash)), rgb(var(--world-shade) / var(--world-wash))), var(--world-valley);
+}
+:root[data-theme="light"] body .site-footer { --muted: 55 43 72; }
+:root[data-theme="light"] body .account-area .site-footer {
+  color: rgb(var(--ink));
+  background: linear-gradient(transparent, rgb(247 245 251 / 0.9));
+}
+:root[data-theme="light"] body .account-area .site-footer :is(h3, button) { color: rgb(var(--ink)); }
+:root[data-theme="light"] body .account-area .site-footer .text-muted { color: rgb(var(--muted)); }
+:root[data-theme="light"] body .account-area .site-footer a:hover { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body :is(.initial-loader, .state-error) { color: rgb(var(--ink)); background-color: rgb(var(--base)); }
+:root[data-theme="light"] body .initial-loader-backdrop { opacity: 1; filter: none; }
+/* Centred transient screens: a soft scrim behind the copy only, so the art
+   around it stays at the shared wash. */
+:root[data-theme="light"] body .initial-loader-shade {
+  background:
+    radial-gradient(ellipse 36rem 24rem at 50% 50%, rgb(var(--world-shade) / 0.72), rgb(var(--world-shade) / 0) 70%),
+    rgb(var(--world-shade) / var(--world-wash));
+}
+:root[data-theme="light"] body .initial-loader-overlay { background: rgb(var(--base)); }
+:root[data-theme="light"] body .state-error-atmosphere {
+  background:
+    radial-gradient(ellipse 40rem 26rem at 50% 55%, rgb(var(--world-shade) / 0.72), rgb(var(--world-shade) / 0) 70%),
+    linear-gradient(rgb(var(--world-shade) / var(--world-wash)), rgb(var(--world-shade) / var(--world-wash))),
+    var(--world-valley) center / cover;
+  filter: none;
+  transform: none;
+}
+:root[data-theme="light"] body .state-error::after { background: none; }
+:root[data-theme="light"] body .state-error-content > p:not(.state-error-code) { color: rgb(var(--muted)); }
+:root[data-theme="light"] body .state-error-support { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body .state-error-support:hover { color: rgb(var(--ink)); }
+:root[data-theme="light"] body .state-error-code { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body .route-loading[data-tone="world"] {
+  background:
+    radial-gradient(ellipse 22rem 16rem at 50% 50%, rgb(var(--world-shade) / 0.72), rgb(var(--world-shade) / 0) 70%),
+    linear-gradient(rgb(var(--world-shade) / var(--world-wash)), rgb(var(--world-shade) / var(--world-wash))),
+    var(--world-valley) center / cover;
+}
+:root[data-theme="light"] body :is(.route-loading-title, .initial-loader-title) {
+  color: rgb(var(--ink));
+  text-shadow: none;
+}
+:root[data-theme="light"] body :is(.route-loading-copy, .initial-loader-copy, .initial-loader-topline, .initial-loader-progress-meta, .initial-loader-footer) {
+  color: rgb(var(--muted));
+  text-shadow: none;
+}
+:root[data-theme="light"] body .initial-loader-eyebrow { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body .initial-loader-logo { filter: drop-shadow(0 8px 16px rgb(101 32 205 / 0.16)); }
+:root[data-theme="light"] body .initial-loader-orbit { border-color: rgb(var(--accent) / 0.3); }
+:root[data-theme="light"] body .initial-loader-orbit::before,
+:root[data-theme="light"] body .initial-loader-orbit::after { background: rgb(var(--accent)); box-shadow: none; }
+:root[data-theme="light"] body :is(.initial-loader-progress-line, .initial-loader-footer-rule) { background: rgb(var(--accent) / 0.22); }
+:root[data-theme="light"] body .initial-loader-progress-line i { background: linear-gradient(90deg, transparent, rgb(var(--accent)), rgb(var(--accent-bright))); box-shadow: none; }
+:root[data-theme="light"] body .initial-loader-progress-pulse i { background: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body .initial-loader-online i { background: #15803d; box-shadow: none; }
+:root[data-theme="light"] body :is(.auth-modal-world, .auth-world) {
+  background-image: linear-gradient(rgb(var(--world-shade) / var(--world-wash)), rgb(var(--world-shade) / var(--world-wash))), var(--world-home-hero);
+  color: rgb(var(--ink));
+}
+:root[data-theme="light"] body .auth-modal-world :is(h2, p, span) { color: rgb(var(--ink)); text-shadow: none; }
+:root[data-theme="light"] body .auth-modal-trust { color: rgb(var(--muted)); }
+:root[data-theme="light"] body :is(.auth-modal-trust, .auth-world-features) svg { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body .auth-world-features span {
+  background: rgb(var(--card) / 0.94);
+  border-color: rgb(var(--line-strong));
+  backdrop-filter: none;
+}
+:root[data-theme="light"] body .auth-modal-trust i { background: #15803d; box-shadow: none; }
+:root[data-theme="light"] body .team-hero-lead {
+  color: rgb(var(--muted)) !important;
+  text-shadow: none;
+}
+/* The source lockup includes a white NETWORK subtitle. A tight dark outline
+   keeps that embedded lettering visible on daylight backgrounds. */
+:root[data-theme="light"] body img[src*="mazora-logo"] {
+  filter: drop-shadow(0 1px 0.6px rgb(39 21 65 / 0.9)) drop-shadow(0 0 0.6px rgb(39 21 65 / 0.75));
+}
+/* At small sizes an outline cannot carry that subtitle, so the compact
+   lockups swap to a daylight variant with NETWORK in deep purple. Hero-size
+   marks (often the LCP element) keep the source art and the outline above. */
+:root[data-theme="light"] body :is(.header-brand-logo, .footer-brand-logo, .state-error, .route-loading) img[src*="mazora-logo"] {
+  content: url("/images/mazora-logo-light.webp");
+  filter: none;
+}
+
+/* Remove decorative rails from the catalog and product-page canvas. */
+body .site-world-main :is(.store-marketplace, .store-detail-page)::before {
+  border-inline: 0 !important;
+}
+
+/* Native page canvas and scrollbars must follow the selected theme too. */
+/* Reading areas need a predictable canvas, even when the landscape beneath
+   them contains dark buildings or bright water. Apply to every shared layout. */
+:root[data-theme="light"] body .admin-editor-heading,
+:root[data-theme="light"] body .admin-editor-heading :is(h2, h3, .text-ink) {
+  color: rgb(var(--ink));
+  text-shadow: none;
+}
+:root[data-theme="light"] body .admin-editor-heading.text-muted,
+:root[data-theme="light"] body .admin-editor-heading .text-muted { color: rgb(var(--muted)); }
+:root[data-theme="light"] body :is(.team-org-heading, .team-copy) { color: rgb(var(--ink)); text-shadow: none; }
+:root[data-theme="light"] body :is(.team-org-heading, .team-copy) h2 { color: rgb(var(--ink)); text-shadow: none; }
+:root[data-theme="light"] body :is(.team-org-heading, .team-copy) > p { color: rgb(var(--muted)); text-shadow: none; }
+:root[data-theme="light"] body .team-copy > div > p { color: rgb(var(--muted)); }
+:root[data-theme="light"] body .team-copy > div > p strong { color: rgb(var(--ink)); }
+:root[data-theme="light"] body .team-copy-link { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body .team-count-chip { color: rgb(var(--ink)); background: rgb(var(--card)); border-color: rgb(var(--line-strong)); box-shadow: none; }
+:root[data-theme="light"] body :is(.team-org-heading, .team-copy) > .eyebrow { color: rgb(var(--accent-bright)); }
+/* Mirrors the dark footer's fade: the scene runs into the footer, then a soft
+   daylight scrim takes over beneath the link columns. */
+:root[data-theme="light"] body :is(.site-world-frame, .account-area) .site-footer {
+  background: linear-gradient(rgb(var(--world-shade) / 0), rgb(var(--world-shade) / 0.66) 5rem, rgb(var(--world-shade) / 0.8)) !important;
+  border-top: 0;
+}
+:root[data-theme="light"] body .site-footer :is(.footer-ip-chip, .footer-social) {
+  color: rgb(var(--ink));
+  background: rgb(var(--card) / 0.92);
+  border-color: rgb(var(--line-strong));
+  box-shadow: 0 10px 24px -18px rgb(62 39 98 / 0.45);
+}
+:root[data-theme="light"] body .site-footer .footer-social:hover { border-color: rgb(var(--accent)); }
+:root[data-theme="light"] body :is(.site-world-main, .account-layout) :is(.panel, .glass) {
+  background: rgb(var(--card)) !important;
+  backdrop-filter: none;
+}
+/* The vote lead is a bare <div>; its sibling notice div carries classes. */
+:root[data-theme="light"] body .vote-redesign-copy > div:not([class]),
+:root[data-theme="light"] body :is(.store-hero-v2-copy, .vote-redesign-copy, .newsroom-hero-copy, .news-detail-intro) > p:not(.eyebrow) {
+  background: rgb(247 245 251 / 0.94);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.9rem;
+}
+:root[data-theme="light"] body .store-hero-cart-trigger {
+  background: rgb(var(--card));
+  color: rgb(var(--ink));
+  border-color: rgb(var(--line-strong));
+}
+/* The product media frame stays dark in daylight, so its caption keeps a
+   light label rather than the daylight accent (2.5:1 on the dark frame). */
+:root[data-theme="light"] body .store-detail-media-caption small { color: rgb(216 180 254); }
+/* Brand/danger tints sit on tinted chips; deepen the text a step for 4.5:1. */
+:root[data-theme="light"] body .connected-account-action.is-discord { color: rgb(71 82 196); }
+:root[data-theme="light"] body .connected-account-action.is-danger { color: rgb(185 28 28); }
+/* Status colours written as plain Tailwind steps were picked for dark glass.
+   On daylight cards and their tinted chips they fall to 2.5-4.4:1, so the
+   light theme maps them to the deeper step of the same hue. `dark:` variants
+   are separate classes and keep their original colours. */
+:root[data-theme="light"] body :is(.text-emerald-400, .text-emerald-500, .text-emerald-600, .text-emerald-700) { color: rgb(6 95 70); }
+:root[data-theme="light"] body :is(.text-sky-400, .text-sky-500, .text-sky-600) { color: rgb(7 89 133); }
+:root[data-theme="light"] body :is(.text-red-400, .text-red-500) { color: rgb(185 28 28); }
+:root[data-theme="light"] body :is(.text-amber-400, .text-amber-500, .text-amber-600) { color: rgb(146 64 14); }
+:root[data-theme="light"] body .text-gray-500 { color: rgb(75 85 99); }
+/* Admin store pages: the back link and the creator-code intro were white
+   text written for the night backdrop (2.4:1 and 1.3:1 on daylight). */
+:root[data-theme="light"] body .admin-store-page .store-admin-back-link {
+  color: rgb(var(--ink));
+  background: rgb(var(--card));
+  border-color: rgb(var(--line-strong));
+}
+:root[data-theme="light"] body .admin-store-page .store-admin-back-link:hover {
+  background: rgb(237 230 249);
+  border-color: rgb(var(--accent));
+}
+:root[data-theme="light"] body .creator-code-page-intro {
+  color: rgb(var(--ink) / 0.82);
+  text-shadow: 0 0 12px rgb(var(--world-shade)), 0 0 24px rgb(var(--world-shade) / 0.8);
+}
+:root[data-theme="light"] body :is(.page-hero, .page-detail-hero, .state-error-actions) .btn-ghost {
+  color: rgb(var(--ink));
+  background: rgb(var(--card));
+  border-color: rgb(var(--line-strong));
+}
+/* Home body copy sits directly on the landscape; a soft halo keeps it legible
+   under the lighter wash without boxing it in. */
+:root[data-theme="light"] body .home-clean-join :is(p:not(.eyebrow), .home-value-points) {
+  text-shadow: 0 0 12px rgb(var(--world-shade)), 0 0 24px rgb(var(--world-shade) / 0.8);
+}
+:root[data-theme="light"] body .gallery-filter-bar {
+  padding: 1rem;
+  background: rgb(var(--card));
+  border: 1px solid rgb(var(--line-strong));
+  border-radius: 1rem;
+}
+:root[data-theme="light"] body .vote-hub-heading h2,
+:root[data-theme="light"] body .news-detail-related-head h2,
+:root[data-theme="light"] body .vote-hub-guide :is(h2, strong),
+:root[data-theme="light"] body .news-detail-hero h1,
+:root[data-theme="light"] body .store-mode-selector-intro span {
+  color: rgb(var(--ink));
+  text-shadow: none;
+}
+:root[data-theme="light"] body .vote-hub-heading > p:not(.eyebrow),
+:root[data-theme="light"] body .vote-hub-guide :is(small, p:not(.eyebrow)),
+:root[data-theme="light"] body .newsroom-hero-copy > p,
+:root[data-theme="light"] body .news-detail-intro > p,
+:root[data-theme="light"] body .news-detail-kicker-row,
+:root[data-theme="light"] body .store-mode-selector-intro p {
+  color: rgb(var(--muted));
+  text-shadow: none;
+}
+:root[data-theme="light"] body .newsroom-hero-copy h1 span { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body .vote-hub-guide-list > div > span { color: rgb(var(--muted)); }
+:root[data-theme="light"] body .vote-hub-guide-list i { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body .vote-hub-reward-note { color: #92400e; background: #fffbeb; border-color: #fcd34d; }
+:root[data-theme="light"] body .vote-hub-reward-note span { color: rgb(var(--muted)); }
+:root[data-theme="light"] body :is(.vote-hub-guide-head, .vote-hub-guide-list > div) { border-color: rgb(var(--line-strong)); }
+:root[data-theme="light"] body .news-detail-kicker { color: rgb(var(--accent-bright)); background: rgb(240 237 248); }
+:root[data-theme="light"] body .newsroom-page .newsroom-hero-backdrop::before { background: rgb(247 245 251 / 0.18); }
+:root[data-theme="light"] body .news-detail-hero-backdrop {
+  background-image: linear-gradient(rgb(247 245 251 / 0.18), rgb(247 245 251 / 0.18)), var(--world-news-hero);
+  filter: none;
+}
+:root[data-theme="light"] body .site-world-frame:has(main) .site-footer,
+:root[data-theme="light"] body .site-world-frame:has(main) .site-footer .text-muted { color: rgb(var(--muted)) !important; }
+:root[data-theme="light"] body .site-footer a { color: inherit; }
+:root[data-theme="light"] body .site-footer a:hover { color: rgb(var(--accent-bright)) !important; }
+:root[data-theme="light"] body .site-world-frame:has(main) .site-footer :is(h3, button) { color: rgb(var(--ink)); text-shadow: none; }
+:root[data-theme="light"],
+:root[data-theme="light"] body {
+  background-color: rgb(var(--base)) !important;
+  scrollbar-color: #9572c7 #f0edf8 !important;
+}
+:root[data-theme="light"] ::-webkit-scrollbar,
+:root[data-theme="light"] ::-webkit-scrollbar-track,
+:root[data-theme="light"] ::-webkit-scrollbar-track-piece,
+:root[data-theme="light"] ::-webkit-scrollbar-corner { background: #f0edf8 !important; }
+:root[data-theme="light"] ::-webkit-scrollbar-thumb { background: #9572c7 !important; border-color: #f0edf8 !important; }
+
+@media (max-width: 640px) {
+  :root[data-theme="light"] { --world-news-hero: url("/images/worlds/news-hero-light-mobile.webp"); }
+  :root body .site-world-frame::before { background-position: center, 32% center !important; }
+  .world-backdrop { background-position: 42% center; }
+}

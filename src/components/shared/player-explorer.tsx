@@ -177,7 +177,7 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
                   className={cn(
                     "ml-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-extrabold transition-colors",
                     isActive
-                      ? "bg-white/25 text-white"
+                      ? "bg-black/20 text-white"
                       : "bg-slate-100 text-slate-700 border border-slate-200/80 dark:border-transparent dark:bg-surface/90 dark:text-purple-200",
                   )}
                 >
@@ -269,13 +269,13 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-400/30 pb-3">
                 <div className="flex items-center gap-2.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
-                  <h3 className="font-display text-base font-bold text-white drop-shadow-xs">Online Now</h3>
-                  <span className="rounded-md border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">
+                  <h3 className="font-display text-base font-bold text-ink">Online Now</h3>
+                  <span className="rounded-md border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
                     {onlinePlayers.length}
                   </span>
                 </div>
                 {hiddenOnServer > 0 && (
-                  <span className="text-xs text-purple-200/80">
+                  <span className="text-xs text-muted">
                     +{hiddenOnServer} more active on server
                   </span>
                 )}
@@ -294,10 +294,10 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
             <div className="space-y-4">
               <div className="flex items-center gap-2.5 border-b border-white/15 pb-3">
                 <Sparkles size={16} className="text-accent-bright" />
-                <h3 className="font-display text-base font-bold text-white drop-shadow-xs">
+                <h3 className="font-display text-base font-bold text-ink">
                   {onlinePlayers.length > 0 ? "Offline Community" : "Mazora Members"}
                 </h3>
-                <span className="rounded-md border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs font-bold text-purple-100 backdrop-blur-xs">
+                <span className="rounded-md border border-line-strong bg-card px-2.5 py-0.5 text-xs font-bold text-ink backdrop-blur-xs">
                   {offlinePlayers.length}
                 </span>
               </div>
@@ -334,13 +334,13 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-400/30 pb-3">
             <div className="flex items-center gap-2.5">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
-              <h3 className="font-display text-base font-bold text-white drop-shadow-xs">Online Players</h3>
-              <span className="rounded-md border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">
+              <h3 className="font-display text-base font-bold text-ink">Online Players</h3>
+              <span className="rounded-md border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
                 {onlinePlayers.length}
               </span>
             </div>
             {hiddenOnServer > 0 && (
-              <span className="text-xs text-purple-200/80">
+              <span className="text-xs text-muted">
                 +{hiddenOnServer} more active on server
               </span>
             )}
@@ -411,8 +411,8 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
             <div className="space-y-4">
               <div className="flex items-center gap-2.5 border-b border-emerald-400/30 pb-3">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
-                <h3 className="font-display text-base font-bold text-white drop-shadow-xs">Online Members</h3>
-                <span className="rounded-md border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">
+                <h3 className="font-display text-base font-bold text-ink">Online Members</h3>
+                <span className="rounded-md border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
                   {memberOnlinePlayers.length}
                 </span>
               </div>
@@ -430,10 +430,10 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
             <div className="space-y-4">
               <div className="flex items-center gap-2.5 border-b border-white/15 pb-3">
                 <Sparkles size={16} className="text-accent-bright" />
-                <h3 className="font-display text-base font-bold text-white drop-shadow-xs">
+                <h3 className="font-display text-base font-bold text-ink">
                   {memberOnlinePlayers.length > 0 ? "Offline Members" : "Mazora Members"}
                 </h3>
-                <span className="rounded-md border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs font-bold text-purple-100 backdrop-blur-xs">
+                <span className="rounded-md border border-line-strong bg-card px-2.5 py-0.5 text-xs font-bold text-ink backdrop-blur-xs">
                   {memberOfflinePlayers.length}
                 </span>
               </div>

@@ -254,13 +254,13 @@ export function SuggestionsManager({
         </div>
         <div className="panel p-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Under Review</div>
-          <div className="mt-1 font-display text-2xl font-bold text-amber-400">{underReviewCount}</div>
-          <div className="text-[11px] text-amber-500/80 mt-0.5">Discussing with team</div>
+          <div className="mt-1 font-display text-2xl font-bold text-amber-700 dark:text-amber-400">{underReviewCount}</div>
+          <div className="text-[11px] text-amber-700 dark:text-amber-500/80 mt-0.5">Discussing with team</div>
         </div>
         <div className="panel p-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Planned</div>
-          <div className="mt-1 font-display text-2xl font-bold text-emerald-400">{plannedCount}</div>
-          <div className="text-[11px] text-emerald-500/80 mt-0.5">Approved for release</div>
+          <div className="mt-1 font-display text-2xl font-bold text-emerald-700 dark:text-emerald-400">{plannedCount}</div>
+          <div className="text-[11px] text-emerald-700 dark:text-emerald-500/80 mt-0.5">Approved for release</div>
         </div>
         <div className="panel p-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Completed</div>
@@ -353,10 +353,10 @@ export function SuggestionsManager({
                         className={cn(
                           "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
                           sug.status === "open" && "bg-accent/15 text-accent-bright border border-accent/30",
-                          sug.status === "under_review" && "bg-amber-500/15 text-amber-400 border border-amber-500/30",
-                          sug.status === "planned" && "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
+                          sug.status === "under_review" && "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30",
+                          sug.status === "planned" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30",
                           sug.status === "completed" && "bg-blue-500/15 text-blue-400 border border-blue-500/30",
-                          sug.status === "declined" && "bg-red-500/15 text-red-400 border border-red-500/30",
+                          sug.status === "declined" && "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30",
                         )}
                       >
                         {sug.status.replace("_", " ")}
@@ -412,7 +412,7 @@ export function SuggestionsManager({
                             type="button"
                             onClick={() => handleSaveEdit(sug)}
                             disabled={isPending}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition"
                           >
                             <Check size={13} /> Save
                           </button>
@@ -493,7 +493,7 @@ export function SuggestionsManager({
                         className={cn(
                           "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition mt-4",
                           sug.locked
-                            ? "text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20"
+                            ? "text-amber-700 dark:text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20"
                             : "text-muted border-line hover:text-ink hover:bg-ink/5",
                         )}
                         title={sug.locked ? "Unlock thread" : "Lock thread"}

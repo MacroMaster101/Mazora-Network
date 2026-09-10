@@ -51,36 +51,6 @@
 .newsroom-page::before,
 .newsroom-page::after {
   inset: max(43rem, 100svh) 0 0;
-  -webkit-mask-image: linear-gradient(
-    180deg,
-    transparent 0,
-    rgb(0 0 0 / 0.16) 7rem,
-    #000 16rem
-  );
-  mask-image: linear-gradient(
-    180deg,
-    transparent 0,
-    rgb(0 0 0 / 0.16) 7rem,
-    #000 16rem
-  );
-}
-
-.newsroom-page::before {
-  background:
-    linear-gradient(
-      180deg,
-      rgb(7 5 13 / 0.02),
-      rgb(7 5 13 / 0.1) 28%,
-      rgb(4 3 9 / 0.48) 100%
-    ),
-    url("/images/newsroom-header-continuation-v3.webp") center top / cover
-      no-repeat;
-}
-
-.newsroom-page::after {
-  background:
-    radial-gradient(circle at 50% 25%, rgb(141 105 222 / 0.06), transparent 42%),
-    linear-gradient(180deg, transparent 72%, rgb(4 3 9 / 0.34));
 }
 
 .newsroom-page .newsroom-section {
@@ -93,10 +63,6 @@
 :root[data-theme="light"] .site-world-frame:has(.newsroom-page) .site-footer,
 :root[data-theme="dark"] .site-world-frame:has(.newsroom-page) .site-footer {
   border-top: 0;
-  background:
-    linear-gradient(180deg, rgb(4 3 9 / 0.2), rgb(4 3 9 / 0.66)),
-    url("/images/newsroom-header-continuation-v3.webp") center bottom / cover
-      no-repeat;
 }
 
 @media (max-width: 900px) {
@@ -126,20 +92,8 @@
     inset: max(47rem, 100svh) 0 0;
   }
 
-  .newsroom-page::before {
-    background-position: center top;
-    background-size: cover;
-  }
-
   .newsroom-page .newsroom-hero-backdrop {
     background-position: 54% center;
-  }
-
-  .site-world-frame:has(.newsroom-page) .site-footer,
-  :root[data-theme="light"] .site-world-frame:has(.newsroom-page) .site-footer,
-  :root[data-theme="dark"] .site-world-frame:has(.newsroom-page) .site-footer {
-    background-position: center bottom;
-    background-size: auto, auto 155%;
   }
 }
 
@@ -429,8 +383,7 @@
 }
 
 
-/* The newsroom is one cinematic world in both site theme settings. */
-:root[data-theme="light"]:has(.newsroom-page),
+/* Night palette for the newsroom. Daylight inherits the shared light tokens. */
 :root[data-theme="dark"]:has(.newsroom-page) {
   color-scheme: dark;
   --base: 8 6 14;
@@ -449,7 +402,6 @@
   --success: 34 197 94;
 }
 
-:root[data-theme="light"]:has(.newsroom-page) body,
 :root[data-theme="dark"]:has(.newsroom-page) body {
   color: rgb(249 247 252);
   background-color: rgb(8 6 14);
@@ -615,23 +567,6 @@
 :root[data-theme="light"] .site-world-frame:has(.newsroom-page) .site-footer,
 :root[data-theme="dark"] .site-world-frame:has(.newsroom-page) .site-footer {
   overflow: visible;
-  background: transparent;
-}
-
-.site-world-frame:has(.newsroom-page) .site-footer::before {
-  inset: -12rem 0 0;
-  background:
-    linear-gradient(180deg, rgb(4 3 9 / 0.04), rgb(4 3 9 / 0.52) 44%, rgb(4 3 9 / 0.82) 100%),
-    url("/images/newsroom-header-continuation-v3.webp") center bottom / cover no-repeat;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 4rem, #000 12rem);
-  mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 4rem, #000 12rem);
-}
-
-@media (max-width: 640px) {
-  .site-world-frame:has(.newsroom-page) .site-footer::before {
-    top: -10rem;
-    background-size: auto, auto 145%;
-  }
 }
 /* Light News — keep the photographic world visible beneath daylight glass. */
 :root[data-theme="light"]:has(.newsroom-page) {
@@ -652,15 +587,17 @@
   --success: 5 150 105;
 }
 
-:root[data-theme="light"]:has(.newsroom-page) body,
-:root[data-theme="light"] .site-world-frame:has(.newsroom-page) {
+:root[data-theme="light"]:has(.newsroom-page) body {
   color: rgb(30 23 43);
   background-color: rgb(247 245 251);
 }
 
+:root[data-theme="light"] .site-world-frame:has(.newsroom-page) {
+  color: rgb(30 23 43);
+}
+
 :root[data-theme="light"] .newsroom-page {
   color: rgb(30 23 43);
-  background-color: rgb(7 5 13);
 }
 
 :root[data-theme="light"] .newsroom-page .newsroom-hero-backdrop {
@@ -675,18 +612,6 @@
 
 :root[data-theme="light"] .newsroom-page .newsroom-hero::after {
   background: linear-gradient(180deg, transparent, rgb(7 5 13 / 0.08) 28%, rgb(7 5 13 / 0.28) 76%, rgb(7 5 13 / 0.5));
-}
-
-:root[data-theme="light"] .newsroom-page::before {
-  background:
-    linear-gradient(180deg, rgb(7 5 13 / 0.03), rgb(7 5 13 / 0.06) 35%, rgb(4 3 9 / 0.24)),
-    url("/images/newsroom-header-continuation-v3.webp") center top / cover no-repeat;
-}
-
-:root[data-theme="light"] .newsroom-page::after {
-  background:
-    radial-gradient(circle at 50% 25%, rgb(141 105 222 / 0.08), transparent 42%),
-    linear-gradient(180deg, transparent 76%, rgb(4 3 9 / 0.18));
 }
 
 :root[data-theme="light"] .newsroom-page :is(.newsroom-live-pill, .newsroom-mast-stat, .newsroom-hero-note) {
@@ -739,12 +664,6 @@
 :root[data-theme="light"] .newsroom-page .newsroom-page-button {
   background: rgb(255 255 255 / 0.62);
   backdrop-filter: blur(10px);
-}
-
-:root[data-theme="light"] .site-world-frame:has(.newsroom-page) .site-footer::before {
-  background:
-    linear-gradient(180deg, rgb(4 3 9 / 0.02), rgb(4 3 9 / 0.34) 48%, rgb(4 3 9 / 0.72)),
-    url("/images/newsroom-header-continuation-v3.webp") center bottom / cover no-repeat;
 }
 
 :root[data-theme="light"] .newsroom-page :is(.newsroom-stat-icon, .newsroom-stat-label svg) {

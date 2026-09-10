@@ -1,5 +1,6 @@
+import { WorldBackdrop } from "@/components/theme/world-backdrop";
 import type { Metadata } from "next";
-import Image, { getImageProps } from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Map, MapPin, MonitorSmartphone, Newspaper, Play, Radio, ShieldCheck, UsersRound } from "lucide-react";
 import { CopyIpButton } from "@/components/shared/copy-ip-button";
@@ -19,13 +20,6 @@ import { headers } from "next/headers";
 import { getPreviewNews } from "@/lib/news/preview-fixtures";
 import { jsonLdGraph, organizationSchema, websiteSchema } from "@/lib/seo";
 
-const { props: heroPreloadImageProps } = getImageProps({
-  src: "/images/mazora-community-hero.webp",
-  alt: "",
-  fill: true,
-  sizes: "100vw",
-  quality: 60,
-});
 
 /**
  * The homepage carries the only title on the site that is not templated, so it
@@ -88,23 +82,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
           {site.name} — {site.tagline}
         </h1>
         <div className="hero-art pointer-events-none absolute inset-0">
-          {/*
-            This image is the page's LCP element on both mobile and desktop.
-
-            Its preload is written by hand at the top of HomePage, from
-            getImageProps, so that it lands in <head> ahead of this subtree.
-            Do not also set `priority`, `fetchPriority`, or `loading="eager"`:
-            React turns each of those hints into another preload. The explicit
-            preload already discovers the exact responsive URL at high priority.
-          */}
-          <Image
-            src="/images/mazora-community-hero.webp"
-            alt=""
-            fill
-            quality={60}
-            sizes="100vw"
-            className="hero-backdrop object-cover object-center"
-          />
+          <WorldBackdrop scene="home" className="hero-backdrop" />
           <div className="hero-vignette absolute inset-0" />
           <div className="absolute inset-0 opacity-30 [background:linear-gradient(110deg,transparent_20%,rgb(var(--accent-rgb)/0.22)_50%,transparent_80%)]" />
           <div className="hero-grid absolute inset-0" />
@@ -360,16 +338,7 @@ export default async function HomePage({
 
   return (
     <>
-      {/* HomeContent waits on cached network data. Emit the exact responsive
-          preload before that async boundary so image discovery does not wait
-          for the server-status/Discord/news requests to finish. */}
-      <link
-        rel="preload"
-        as="image"
-        imageSrcSet={heroPreloadImageProps.srcSet}
-        imageSizes={heroPreloadImageProps.sizes}
-        fetchPriority="high"
-      />
+      {/* The pre-paint theme script preloads only the selected world. */}
       {/* Outside Suspense so the graph is in the initial HTML rather than a
           streamed chunk — crawlers that do not wait for the stream still see it.
           Inlined rather than via the JsonLd component: see json-ld.tsx for why. */}

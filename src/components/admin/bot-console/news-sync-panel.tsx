@@ -8,7 +8,7 @@ export function NewsSyncPanel({ news }: { news: NewsResult }) {
   return (
     <section className="panel overflow-hidden p-0">
       <header className="flex gap-3 border-b border-line px-5 py-4 sm:px-6">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-400/25 bg-amber-500/10 text-amber-500">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-400/25 bg-amber-500/10 text-amber-700 dark:text-amber-500">
           <Rss size={17} aria-hidden />
         </span>
         <div>
@@ -28,8 +28,8 @@ export function NewsSyncPanel({ news }: { news: NewsResult }) {
                 <span
                   className={`rounded-lg border px-2 py-1 text-[11px] font-semibold ${
                     news.report.channelConfigured
-                      ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-500"
-                      : "border-amber-400/25 bg-amber-500/10 text-amber-500"
+                      ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-500"
+                      : "border-amber-400/25 bg-amber-500/10 text-amber-700 dark:text-amber-500"
                   }`}
                 >
                   {news.report.channelConfigured ? "Configured" : "Not configured"}
