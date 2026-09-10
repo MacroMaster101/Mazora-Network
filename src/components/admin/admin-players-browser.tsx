@@ -68,7 +68,7 @@ export function AdminPlayersBrowser({
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         <div className="panel p-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Online Now</div>
-          <div className="mt-1 flex items-center gap-2 font-display text-2xl font-bold text-emerald-500">
+          <div className="mt-1 flex items-center gap-2 font-display text-2xl font-bold text-emerald-700 dark:text-emerald-500">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
             {serverStatus.live ? onlineCount : "—"}
           </div>
@@ -94,14 +94,14 @@ export function AdminPlayersBrowser({
         </div>
         <div className="panel p-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Total Economy</div>
-          <div className="mt-1 font-display text-2xl font-bold text-emerald-400">
+          <div className="mt-1 font-display text-2xl font-bold text-emerald-700 dark:text-emerald-400">
             ${withCommas(totalBalance)}
           </div>
-          <div className="text-[11px] text-emerald-500/80 mt-0.5">Player balances</div>
+          <div className="text-[11px] text-emerald-700 dark:text-emerald-500/80 mt-0.5">Player balances</div>
         </div>
         <div className="panel p-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Average Level</div>
-          <div className="mt-1 font-display text-2xl font-bold text-amber-400">Lvl {avgLevel}</div>
+          <div className="mt-1 font-display text-2xl font-bold text-amber-700 dark:text-amber-400">Lvl {avgLevel}</div>
           <div className="text-[11px] text-muted mt-0.5">Network progression</div>
         </div>
       </div>
@@ -217,7 +217,7 @@ export function AdminPlayersBrowser({
                   <td className="p-3.5 text-right telemetry font-medium text-ink">
                     {tracked ? playtime(tracked.playtimeHours) : "—"}
                   </td>
-                  <td className="p-3.5 text-right telemetry font-bold text-emerald-400">
+                  <td className="p-3.5 text-right telemetry font-bold text-emerald-700 dark:text-emerald-400">
                     {tracked ? `$${withCommas(tracked.balance)}` : "—"}
                   </td>
                   <td className="p-3.5 pr-5 text-right">
@@ -256,7 +256,7 @@ export function AdminPlayersBrowser({
                 <MinecraftAvatar username={selectedPlayer.directory.username} size={36} />
                 <div>
                   <h3 className="font-display text-base font-bold text-ink">{selectedPlayer.directory.username}</h3>
-                  <span className={cn("text-xs font-semibold", selectedPlayer.directory.online ? "text-emerald-500" : "text-muted")}>
+                  <span className={cn("text-xs font-semibold", selectedPlayer.directory.online ? "text-emerald-700 dark:text-emerald-500" : "text-muted")}>
                     {selectedPlayer.directory.online ? "Online now" : "Offline"} · {selectedPlayer.directory.membership === "member" ? "Mazora member" : "Server player"}
                   </span>
                 </div>
@@ -282,7 +282,7 @@ export function AdminPlayersBrowser({
                       className="p-1 rounded hover:bg-ink/10 text-muted hover:text-ink shrink-0"
                       title="Copy full UUID"
                     >
-                      {copiedUuid ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                      {copiedUuid ? <Check size={14} className="text-emerald-700 dark:text-emerald-400" /> : <Copy size={14} />}
                     </button>
                   </div>
                 </div>
@@ -301,7 +301,7 @@ export function AdminPlayersBrowser({
                 </div>
                 <div className="rounded-xl border border-line bg-card p-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-muted">Balance</div>
-                  <div className="mt-1 font-display text-lg font-bold text-emerald-400">
+                  <div className="mt-1 font-display text-lg font-bold text-emerald-700 dark:text-emerald-400">
                     {selectedPlayer.tracked ? `$${withCommas(selectedPlayer.tracked.balance)}` : "—"}
                   </div>
                 </div>

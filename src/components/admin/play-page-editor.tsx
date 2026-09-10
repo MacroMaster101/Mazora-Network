@@ -636,7 +636,7 @@ export function PlayPageEditor({
 
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5 h-5">
-                <Smartphone size={14} className="text-cyan-500" /> Bedrock Edition IP Address
+                <Smartphone size={14} className="text-cyan-700 dark:text-cyan-500" /> Bedrock Edition IP Address
               </label>
               <Input
                 value={config.bedrockIp}
@@ -647,7 +647,7 @@ export function PlayPageEditor({
 
             <div className="space-y-1.5 sm:col-span-1">
               <label className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5 h-5">
-                <Hash size={14} className="text-cyan-500" /> Bedrock Port
+                <Hash size={14} className="text-cyan-700 dark:text-cyan-500" /> Bedrock Port
               </label>
               <Input
                 value={config.bedrockPort}
@@ -740,7 +740,7 @@ export function PlayPageEditor({
                   <h3 className="font-display text-xl font-bold text-ink">
                     Server Telemetry & Health Center
                   </h3>
-                  <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3 py-0.5 text-xs font-bold text-emerald-400 flex items-center gap-1.5 shadow-xs">
+                  <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 shadow-xs">
                     <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                     99.9% Operational
                   </span>
@@ -856,7 +856,7 @@ export function PlayPageEditor({
                               <CheckCircle2 size={13} /> {config.telemetryMessage || "No downtime recorded during this hour."}
                             </div>
                           ) : bar.health === "degraded" ? (
-                            <div className="mt-2 rounded-lg bg-amber-500/10 p-2 border border-amber-500/30 text-amber-400 text-[11px] font-medium space-y-1">
+                            <div className="mt-2 rounded-lg bg-amber-500/10 p-2 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-[11px] font-medium space-y-1">
                               <div className="flex items-center justify-between font-bold">
                                 <span className="flex items-center gap-1"><AlertTriangle size={13} /> Partial Outage</span>
                                 <span>{bar.outageDuration || "0 hrs 12 mins"}</span>
@@ -864,7 +864,7 @@ export function PlayPageEditor({
                               <p className="text-[10px] text-muted leading-tight">Elevated latency recorded during network sync.</p>
                             </div>
                           ) : (
-                            <div className="mt-2 rounded-lg bg-rose-500/10 p-2 border border-rose-500/30 text-rose-400 text-[11px] font-medium space-y-1">
+                            <div className="mt-2 rounded-lg bg-rose-500/10 p-2 border border-rose-500/30 text-rose-700 dark:text-rose-400 text-[11px] font-medium space-y-1">
                               <div className="flex items-center justify-between font-bold">
                                 <span className="flex items-center gap-1"><ServerOff size={13} /> Major Outage</span>
                                 <span>{bar.outageDuration || "1 hrs 15 mins"}</span>
@@ -918,7 +918,7 @@ export function PlayPageEditor({
                 </div>
 
                 {config.telemetryMessage !== initialConfig?.telemetryMessage && (
-                  <span className="text-xs text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                  <span className="text-xs text-amber-700 dark:text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
                     Unsaved Changes
                   </span>
                 )}
@@ -999,7 +999,7 @@ export function PlayPageEditor({
                   </p>
                 </div>
                 {config.statusOverride !== initialConfig?.statusOverride && (
-                  <span className="text-xs text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                  <span className="text-xs text-amber-700 dark:text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
                     Unsaved Changes
                   </span>
                 )}
@@ -1017,11 +1017,11 @@ export function PlayPageEditor({
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="flex items-center gap-2 text-sm font-bold text-emerald-400">
+                    <span className="flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-400">
                       <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
                       Normal Live Status
                     </span>
-                    {config.statusOverride === "live" && <CheckCircle2 size={16} className="text-emerald-400" />}
+                    {config.statusOverride === "live" && <CheckCircle2 size={16} className="text-emerald-700 dark:text-emerald-400" />}
                   </div>
                   <p className="text-xs text-muted leading-relaxed">
                     Automatic status fetch from <code className="text-gold font-mono">mc.mazora.us</code> via live status API.
@@ -1039,11 +1039,11 @@ export function PlayPageEditor({
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="flex items-center gap-2 text-sm font-bold text-amber-400">
+                    <span className="flex items-center gap-2 text-sm font-bold text-amber-700 dark:text-amber-400">
                       <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
                       Degraded Telemetry
                     </span>
-                    {config.statusOverride === "degraded" && <CheckCircle2 size={16} className="text-amber-400" />}
+                    {config.statusOverride === "degraded" && <CheckCircle2 size={16} className="text-amber-700 dark:text-amber-400" />}
                   </div>
                   <p className="text-xs text-muted leading-relaxed">
                     Displays yellow warning banner indicating high latency or minor server lag.
@@ -1061,11 +1061,11 @@ export function PlayPageEditor({
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="flex items-center gap-2 text-sm font-bold text-rose-400">
+                    <span className="flex items-center gap-2 text-sm font-bold text-rose-700 dark:text-rose-400">
                       <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
                       Maintenance / Offline
                     </span>
-                    {config.statusOverride === "offline" && <CheckCircle2 size={16} className="text-rose-400" />}
+                    {config.statusOverride === "offline" && <CheckCircle2 size={16} className="text-rose-700 dark:text-rose-400" />}
                   </div>
                   <p className="text-xs text-muted leading-relaxed">
                     Shows scheduled maintenance banner and pauses live player counter on play page.
@@ -1091,7 +1091,7 @@ export function PlayPageEditor({
             <div className="panel p-6 space-y-4 bg-card/90 backdrop-blur-md">
               <div className="flex items-center justify-between">
                 <h4 className="font-bold text-ink text-sm flex items-center gap-2">
-                  <Signal size={16} className="text-emerald-400" />
+                  <Signal size={16} className="text-emerald-700 dark:text-emerald-400" />
                   Realtime Server Telemetry Overview
                 </h4>
                 <span className="text-[11px] text-muted font-mono">
@@ -1124,12 +1124,12 @@ export function PlayPageEditor({
                 <div className="rounded-xl border border-line-strong/50 bg-surface p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-muted">Connection Ping</span>
-                    <Signal size={16} className="text-emerald-400" />
+                    <Signal size={16} className="text-emerald-700 dark:text-emerald-400" />
                   </div>
-                  <div className="text-2xl font-bold font-mono text-emerald-400">
+                  <div className="text-2xl font-bold font-mono text-emerald-700 dark:text-emerald-400">
                     {liveStats.ping > 0 ? `${liveStats.ping}ms` : "< 20ms"}
                   </div>
-                  <div className="text-[11px] text-emerald-400/90 font-bold flex items-center gap-1">
+                  <div className="text-[11px] text-emerald-700 dark:text-emerald-400/90 font-bold flex items-center gap-1">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     Ultra-Low Latency Network
                   </div>
@@ -1153,9 +1153,9 @@ export function PlayPageEditor({
                 <div className="rounded-xl border border-line-strong/50 bg-surface p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-muted">Server Uptime</span>
-                    <Activity size={16} className="text-cyan-400" />
+                    <Activity size={16} className="text-cyan-700 dark:text-cyan-400" />
                   </div>
-                  <div className="text-2xl font-bold font-mono text-cyan-400">
+                  <div className="text-2xl font-bold font-mono text-cyan-700 dark:text-cyan-400">
                     99.9%
                   </div>
                   <div className="text-[11px] text-muted font-medium">
@@ -1178,7 +1178,7 @@ export function PlayPageEditor({
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
+                <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
                   <CheckCircle2 size={14} /> Telemetry API Active (60s Cache)
                 </div>
               </div>
@@ -1190,11 +1190,11 @@ export function PlayPageEditor({
                 </div>
                 <div className="p-3 rounded-lg border border-line bg-surface/80">
                   <span className="text-muted block text-[10px] uppercase font-sans font-bold">Bedrock Crossplay</span>
-                  <span className="text-cyan-400 font-bold">{config.bedrockIp}:{config.bedrockPort}</span>
+                  <span className="text-cyan-700 dark:text-cyan-400 font-bold">{config.bedrockIp}:{config.bedrockPort}</span>
                 </div>
                 <div className="p-3 rounded-lg border border-line bg-surface/80">
                   <span className="text-muted block text-[10px] uppercase font-sans font-bold">Telemetry Provider</span>
-                  <span className="text-emerald-400 font-bold">mcsrvstat.us</span>
+                  <span className="text-emerald-700 dark:text-emerald-400 font-bold">mcsrvstat.us</span>
                 </div>
               </div>
             </div>

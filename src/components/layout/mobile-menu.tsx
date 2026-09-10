@@ -10,6 +10,7 @@ import { accountMenuFor, type AccountMenuIcon as AccountMenuIconName } from "@/l
 import { primaryNav, site } from "@/lib/site";
 import type { Session } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { THEME_HINT_MENU_EVENT } from "@/components/theme/theme-hint";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,20 @@ export function MobileMenu({
   const showAdminNav = inAdmin && Boolean(adminNav?.length);
 
   useEffect(() => setOpen(false), [pathname]);
+
+  // A newcomer arriving via the first-visit theme hint gets the Theme row
+  // briefly highlighted, since it sits at the bottom of a long drawer.
+  const [highlightTheme, setHighlightTheme] = useState(false);
+  useEffect(() => {
+    const onHint = () => setHighlightTheme(true);
+    window.addEventListener(THEME_HINT_MENU_EVENT, onHint);
+    return () => window.removeEventListener(THEME_HINT_MENU_EVENT, onHint);
+  }, []);
+  useEffect(() => {
+    if (!highlightTheme) return;
+    const timer = window.setTimeout(() => setHighlightTheme(false), 2600);
+    return () => window.clearTimeout(timer);
+  }, [highlightTheme]);
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
@@ -312,7 +327,7 @@ export function MobileMenu({
 
               {/* Bottom Action Bar */}
               <div className="border-t border-slate-200/80 dark:border-purple-900/40 bg-slate-50 dark:bg-[#07030f] p-4 space-y-3">
-                <div className="flex items-center justify-between rounded-xl border border-slate-200/80 dark:border-purple-900/40 bg-white dark:bg-purple-950/40 px-3.5 py-2.5 shadow-sm">
+                <div className={cn("flex items-center justify-between rounded-xl border border-slate-200/80 dark:border-purple-900/40 bg-white dark:bg-purple-950/40 px-3.5 py-2.5 shadow-sm", highlightTheme && "theme-row-highlight")}>
                   <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Theme</span>
                   <ThemeToggle />
                 </div>

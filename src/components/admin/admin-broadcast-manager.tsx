@@ -466,9 +466,9 @@ export function AdminBroadcastManager({
       case "normal":
         return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface text-muted border border-line">Normal</span>;
       case "important":
-        return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">Important</span>;
+        return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">Important</span>;
       case "urgent":
-        return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-500/15 text-red-400 border border-red-500/30 animate-pulse">Urgent</span>;
+        return <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30 animate-pulse">Urgent</span>;
     }
   };
 
@@ -479,9 +479,9 @@ export function AdminBroadcastManager({
       case "staff":
         return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/25"><ShieldAlert size={10} /> Staff Only</span>;
       case "moderators":
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/25">Mods+</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/25">Mods+</span>;
       case "users":
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">Members</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">Members</span>;
     }
   };
 
@@ -1124,7 +1124,7 @@ export function AdminBroadcastManager({
                           <span className={cn(
                             "px-2 py-0.5 rounded-full text-[10px] font-extrabold border",
                             tpl.enabled
-                              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
                               : "bg-surface text-muted border-line"
                           )}>
                             {tpl.enabled ? "Active" : "Disabled"}
@@ -1161,7 +1161,7 @@ export function AdminBroadcastManager({
                           className={cn(
                             "px-3 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-50",
                             tpl.enabled
-                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
                               : "border-line bg-surface text-muted hover:text-ink"
                           )}
                         >

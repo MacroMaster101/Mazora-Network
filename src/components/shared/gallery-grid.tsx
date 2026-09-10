@@ -333,7 +333,7 @@ export function GalleryGrid({ images }: { images: GalleryImage[] }) {
   return (
     <div className="space-y-10">
       {/* Category Filter Bar */}
-      <div className="space-y-3 border-b border-white/15 pb-5">
+      <div className="gallery-filter-bar space-y-3 border-b border-white/15 pb-5">
         <div className="flex flex-wrap gap-2">
           {Object.entries(CATEGORY_MAP).map(([key, label]) => (
             <button
@@ -344,14 +344,14 @@ export function GalleryGrid({ images }: { images: GalleryImage[] }) {
                 "rounded-xl px-4 py-2 text-xs font-extrabold tracking-wide transition-all duration-200 border select-none outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
                 active === key
                   ? "bg-accent text-white border-accent-bright shadow-lg shadow-accent/30"
-                  : "bg-slate-950/70 text-slate-200 border-white/15 hover:bg-slate-900/90 hover:text-white hover:border-white/30 backdrop-blur-md"
+                  : "bg-card text-ink border-line-strong hover:bg-surface hover:border-accent"
               )}
             >
               {label}
             </button>
           ))}
         </div>
-        <span className="text-xs font-mono text-slate-300 font-semibold">
+        <span className="text-xs font-mono text-muted font-semibold">
           Showing {filteredList.length} artwork{filteredList.length === 1 ? "" : "s"}
         </span>
       </div>
@@ -385,24 +385,24 @@ export function GalleryGrid({ images }: { images: GalleryImage[] }) {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-white/15 first:border-t-0 first:pt-0">
                     <div className="flex items-center gap-3.5">
                       {/* Minecraft-styled Icon Container */}
-                      <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border backdrop-blur-xl shadow-lg", sec.badgeBg)}>
+                      <div className={cn("gallery-category-icon flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border backdrop-blur-xl shadow-lg", sec.badgeBg)}>
                         <Icon size={22} className={sec.iconColor} />
                       </div>
                       <div>
                         <div className="flex items-center gap-2.5">
-                          <h2 className="font-display text-xl sm:text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">{sec.title}</h2>
-                          <span className="rounded-full bg-white/15 text-white border border-white/25 px-3 py-0.5 text-xs font-mono font-bold shadow-inner">
+                          <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink tracking-tight">{sec.title}</h2>
+                          <span className="rounded-full bg-card text-ink border border-line-strong px-3 py-0.5 text-xs font-mono font-bold shadow-inner">
                             {secImages.length}
                           </span>
                         </div>
-                        <p className="text-xs sm:text-sm text-slate-200/90 font-medium mt-0.5 leading-snug">{sec.description}</p>
+                        <p className="text-xs sm:text-sm text-muted font-medium mt-0.5 leading-snug">{sec.description}</p>
                       </div>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => setActive(sec.key)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-slate-900/70 hover:bg-accent text-white hover:border-accent-bright font-bold px-4 py-2.5 text-xs backdrop-blur-md shadow-lg transition-all shrink-0 self-start sm:self-auto group hover:scale-105 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-card hover:bg-accent text-ink hover:text-white hover:border-accent-bright font-bold px-4 py-2.5 text-xs backdrop-blur-md shadow-lg transition-all shrink-0 self-start sm:self-auto group hover:scale-105 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
                       <span>View All ({secImages.length})</span>
                       <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />

@@ -50,28 +50,28 @@ const KIND_META: Record<
     title: "Website",
     description: "Mazora site availability",
     icon: Globe2,
-    iconClass: "border-sky-400/30 bg-sky-500/10 text-sky-500",
+    iconClass: "border-sky-400/30 bg-sky-500/10 text-sky-700 dark:text-sky-500",
     glowClass: "from-sky-500/50",
   },
   minecraft: {
     title: "Minecraft",
     description: "Live player population",
     icon: Pickaxe,
-    iconClass: "border-emerald-400/30 bg-emerald-500/10 text-emerald-500",
+    iconClass: "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-500",
     glowClass: "from-emerald-500/50",
   },
   discord: {
     title: "Discord",
     description: "Community activity",
     icon: UsersRound,
-    iconClass: "border-violet-400/30 bg-violet-500/10 text-violet-500",
+    iconClass: "border-violet-400/30 bg-violet-500/10 text-violet-700 dark:text-violet-500",
     glowClass: "from-violet-500/50",
   },
   custom: {
     title: "Custom status",
     description: "Your own rotating message",
     icon: Sparkles,
-    iconClass: "border-amber-400/30 bg-amber-500/10 text-amber-500",
+    iconClass: "border-amber-400/30 bg-amber-500/10 text-amber-700 dark:text-amber-500",
     glowClass: "from-amber-500/50",
   },
 };
@@ -143,7 +143,7 @@ export function PresenceEditorPanel({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-display text-lg font-bold">Presence rotation</h2>
-                <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-500">
+                <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-500">
                   {active.length} active
                 </span>
                 {loopSeconds > 0 && (
@@ -286,7 +286,7 @@ export function PresenceEditorPanel({
                     {!locked && (
                       <button
                         type="button"
-                        className="btn btn-ghost btn-sm text-rose-500"
+                        className="btn btn-ghost btn-sm text-rose-700 dark:text-rose-500"
                         aria-label={`Remove ${label}`}
                         onClick={() => setRows((current) => current.filter((item) => item.id !== row.id))}
                       >
@@ -435,8 +435,8 @@ export function PresenceEditorPanel({
           <p
             className={`mt-3 rounded-xl border px-3 py-2 text-sm ${
               message.ok
-                ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-500"
-                : "border-amber-400/25 bg-amber-500/10 text-amber-500"
+                ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-500"
+                : "border-amber-400/25 bg-amber-500/10 text-amber-700 dark:text-amber-500"
             }`}
             role="status"
             aria-live="polite"

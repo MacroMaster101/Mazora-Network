@@ -54,7 +54,7 @@ export function MinecraftAvatar({
       style={{ width: size, height: size, background: `${bg}22` }}
       aria-hidden
     >
-      <span className="font-display text-xs font-bold" style={{ color: bg }}>
+      <span className="user-avatar-monogram font-display text-xs font-bold" style={{ color: bg }}>
         {username.slice(0, 2).toUpperCase()}
       </span>
       {!allFailed && (

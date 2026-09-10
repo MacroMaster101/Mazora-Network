@@ -308,7 +308,7 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
                 nickname — if a full name finds nothing, each word is tried separately.
               </p>
 
-              {searchError && <p className="text-sm text-amber-400">{searchError}</p>}
+              {searchError && <p className="text-sm text-amber-700 dark:text-amber-400">{searchError}</p>}
 
               {results !== null && results.length === 0 && !searchError && (
                 <p className="text-sm text-muted">
@@ -365,7 +365,7 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
 
 
         {context?.ok && (context.discordRoles.length > 0 || context.currentDiscordRoles.length > 0) && (
-          <section className="grid gap-2 rounded-xl border border-white/10 p-3">
+          <section className="grid gap-2 rounded-xl border border-line dark:border-white/10 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Discord roles</p>
 
             {/* What they have now, before what can be changed — the same order
@@ -472,7 +472,7 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
           </div>
 
           {templateMentionsStaffTeam(template) && (
-            <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-400">
+            <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
               <ShieldAlert size={13} className="mt-px shrink-0" />
               This wording refers to the staff team. It sends to anyone — check the preview reads
               correctly for this recipient.
@@ -480,7 +480,7 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
           )}
 
           {rankTemplate && context?.ok && context.account && context.grantableRanks.length > 0 && (
-            <div className="grid gap-2 rounded-xl border border-white/10 p-3">
+            <div className="grid gap-2 rounded-xl border border-line dark:border-white/10 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                 {template === "promotion" ? "Promote to" : "Demote to"}
               </p>
@@ -621,7 +621,7 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
             </div>
 
             {editing && (
-              <div className="grid gap-2 rounded-xl border border-white/10 p-3">
+              <div className="grid gap-2 rounded-xl border border-line dark:border-white/10 p-3">
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted">Title</span>
                   <input
@@ -669,7 +669,7 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
         {result && (
           <p
             className={`rounded-lg px-3 py-2 text-sm ${
-              result.ok ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+              result.ok ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
             }`}
           >
             {result.message}

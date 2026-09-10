@@ -174,7 +174,7 @@ export function DashboardSidebar({ session }: { session: Session }) {
         ref={navRef}
         className="hidden lg:flex min-h-0 flex-1 overflow-y-auto pr-2 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden flex-col gap-0.5 xl:gap-1 rounded-2xl border border-line-strong bg-card/90 dark:bg-card/80 p-3 xl:p-3.5 backdrop-blur-xl shadow-lg"
       >
-        <p className="px-3 py-1.5 text-[10px] xl:text-[11px] font-extrabold uppercase tracking-widest text-muted/80 flex items-center gap-1.5">
+        <p className="px-3 py-1.5 text-[10px] xl:text-[11px] font-extrabold uppercase tracking-widest text-muted flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-accent-bright" />
           Navigation
         </p>

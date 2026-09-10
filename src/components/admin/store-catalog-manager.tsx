@@ -1122,7 +1122,7 @@ export function StoreCatalogManager({
                       type="button"
                       className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
                         categoryLabelValue === preset.label
-                          ? "bg-violet-500/25 border-violet-500/60 text-violet-300 font-bold"
+                          ? "bg-violet-500/25 border-violet-500/60 text-violet-700 dark:text-violet-300 font-bold"
                           : "bg-surface-hover/60 border-line text-muted hover:text-foreground hover:border-line-hover"
                       }`}
                       onClick={() => {
@@ -1154,7 +1154,7 @@ export function StoreCatalogManager({
                       type="button"
                       className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
                         categoryEyebrowValue === preset
-                          ? "bg-violet-500/25 border-violet-500/60 text-violet-300 font-bold"
+                          ? "bg-violet-500/25 border-violet-500/60 text-violet-700 dark:text-violet-300 font-bold"
                           : "bg-surface-hover/60 border-line text-muted hover:text-foreground hover:border-line-hover"
                       }`}
                       onClick={() => setCategoryEyebrowValue(preset)}

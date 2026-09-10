@@ -29,7 +29,7 @@ export function CoverArt({
         </div>
       )}
       {label && (
-        <span className="telemetry absolute bottom-2 left-3 text-[10px] uppercase tracking-widest text-white/50">
+        <span className="telemetry absolute bottom-2 left-3 text-[10px] uppercase tracking-widest text-ink/60">
           {label}
         </span>
       )}

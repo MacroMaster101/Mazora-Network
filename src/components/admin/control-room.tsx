@@ -82,7 +82,7 @@ export function WatchBar({
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
                   Network Live
                 </span>
-                <Radio size={12} className="text-emerald-500" />
+                <Radio size={12} className="text-emerald-700 dark:text-emerald-500" />
               </span>
               <p className="telemetry mt-2 text-2xl font-black text-ink">
                 {players}
@@ -93,11 +93,11 @@ export function WatchBar({
           ) : live ? (
             <>
               <span className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-rose-500">
+                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-rose-700 dark:text-rose-500">
                   <span className="h-2 w-2 rounded-full bg-rose-500" />
                   Server Offline
                 </span>
-                <Radio size={12} className="text-rose-500" />
+                <Radio size={12} className="text-rose-700 dark:text-rose-500" />
               </span>
               <p className="telemetry mt-2 text-2xl font-black text-muted">—</p>
               <p className="mt-0.5 text-[11px] font-medium text-muted">
@@ -106,10 +106,10 @@ export function WatchBar({
             </>
           ) : (
             <>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-500">
                 Network Standby
               </span>
-              <p className="mt-1 text-xs font-semibold text-amber-500">Status unavailable</p>
+              <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-500">Status unavailable</p>
               <p className="text-[11px] text-muted">The server query did not answer.</p>
             </>
           )}
@@ -185,7 +185,7 @@ export function Board({
               className={cn(
                 "rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border",
                 tag === "Live"
-                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-500"
                   : "border-line bg-ink/5 text-muted",
               )}
             >
