@@ -1,3 +1,4 @@
+import { WorldBackdrop } from "@/components/theme/world-backdrop";
 import type { Metadata } from "next";
 import { publicPageMetadata } from "@/lib/seo";
 import Image from "next/image";
@@ -89,14 +90,7 @@ export default async function StorePage({
         step={params.cart === "request" ? "details" : "cart"}
       />
       <section className="store-hero store-hero-v2">
-        <Image
-          src="/images/store/shop-world-bg-v2.webp"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover object-center"
-        />
+        <WorldBackdrop scene="store" className="store-world-art" />
         <div className="store-hero-overlay" aria-hidden="true" />
         <div className="store-hero-grid" aria-hidden="true" />
 
@@ -154,7 +148,7 @@ export default async function StorePage({
             </p>
 
             {!generalSettings.storeEnabled && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-200">
+              <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-900 dark:text-amber-200">
                 <AlertTriangle size={14} className="text-amber-400" />
                 Rank upgrades and checkout are temporarily paused for scheduled maintenance.
               </div>

@@ -8,6 +8,7 @@ import { HeaderActions } from "./header-actions";
 import { ScrollHeader } from "./scroll-header";
 import { MobileMenu } from "./mobile-menu";
 import { ThemeCycleButton } from "@/components/theme/theme-toggle";
+import { ThemeHint } from "@/components/theme/theme-hint-tooltip";
 import { CartTrigger } from "@/components/shared/cart-trigger";
 
 export async function SiteHeader({ world = false, stable = false }: { world?: boolean; stable?: boolean }) {
@@ -51,7 +52,9 @@ export async function SiteHeader({ world = false, stable = false }: { world?: bo
           <div className="desktop-account-dock hidden shrink-0 items-center justify-end min-[1100px]:flex">
             <div className="flex items-center gap-1.5">
               <CartTrigger compact className="header-cart-trigger" />
-              <ThemeCycleButton />
+              <ThemeHint variant="desktop">
+                <ThemeCycleButton />
+              </ThemeHint>
             </div>
             <span className="dock-divider" aria-hidden="true" />
             <HeaderActions session={session} />
@@ -61,7 +64,9 @@ export async function SiteHeader({ world = false, stable = false }: { world?: bo
           <div className="flex items-center gap-2 shrink-0 min-[1100px]:hidden">
             <HeaderActions session={session} />
             <CartTrigger compact className="header-cart-trigger" />
-            <MobileMenu session={session} adminNav={adminNav} />
+            <ThemeHint variant="menu">
+              <MobileMenu session={session} adminNav={adminNav} />
+            </ThemeHint>
           </div>
         </div>
       </ScrollHeader>

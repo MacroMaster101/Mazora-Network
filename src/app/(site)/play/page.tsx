@@ -71,7 +71,7 @@ export default async function PlayPage() {
         illustration={<FloatingBrandLogo />}
       >
         <div className="flex flex-wrap items-center gap-3">
-          <span className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold ${online ? "border-success/40 text-success" : "border-line-strong text-muted"}`}>
+          <span className={`inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-sm font-semibold dark:bg-transparent ${online ? "border-success/40 text-success" : "border-line-strong text-muted"}`}>
             <span className={online ? "dot animate-pulse" : "dot dot-off"} />
             {online ? `Online · ${status.players}/${status.max}` : status.live ? "Offline" : "Status unavailable"}
           </span>

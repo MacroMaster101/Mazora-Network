@@ -91,8 +91,8 @@ export function AdminSidebar({
                 {session.displayName || session.username}
               </div>
               <div className="text-[10px] xl:text-xs text-muted truncate font-medium">@{session.username}</div>
+              <div className="mt-1.5"><RankChip role={session.role} /></div>
             </div>
-            <RankChip role={session.role} />
           </div>
         </div>
       )}
@@ -104,7 +104,7 @@ export function AdminSidebar({
       >
         {groups.map((group) => (
           <div key={group.heading} className="space-y-1.5 xl:space-y-2">
-            <p className="px-3 text-[10px] xl:text-[11px] font-extrabold uppercase tracking-widest text-muted/80 flex items-center gap-1.5">
+            <p className="px-3 text-[10px] xl:text-[11px] font-extrabold uppercase tracking-widest text-muted flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-accent-bright" />
               {group.heading}
             </p>

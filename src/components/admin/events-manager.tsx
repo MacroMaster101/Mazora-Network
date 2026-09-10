@@ -87,8 +87,8 @@ export function EventsManager({
         </div>
         <div className="panel p-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Live Now</div>
-          <div className="mt-1 font-display text-2xl font-bold text-emerald-400">{liveCount}</div>
-          <div className="text-[11px] text-emerald-500/80 mt-0.5">Active tournaments</div>
+          <div className="mt-1 font-display text-2xl font-bold text-emerald-700 dark:text-emerald-400">{liveCount}</div>
+          <div className="text-[11px] text-emerald-700 dark:text-emerald-500/80 mt-0.5">Active tournaments</div>
         </div>
         <div className="panel p-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Upcoming</div>
@@ -171,10 +171,10 @@ export function EventsManager({
                   <span
                     className={cn(
                       "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                      ev.status === "live" && "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
+                      ev.status === "live" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30",
                       ev.status === "upcoming" && "bg-accent/15 text-accent-bright border border-accent/30",
                       ev.status === "completed" && "bg-ink/10 text-muted border border-line",
-                      ev.status === "cancelled" && "bg-red-500/15 text-red-400 border border-red-500/30",
+                      ev.status === "cancelled" && "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30",
                     )}
                   >
                     {ev.status}

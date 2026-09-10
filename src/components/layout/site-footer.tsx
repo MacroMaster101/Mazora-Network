@@ -22,7 +22,7 @@ export async function SiteFooter() {
           <p className="mt-4 text-sm leading-relaxed text-muted">{site.description}</p>
           <div className="mt-5 space-y-2">
             <p className="text-xs uppercase tracking-widest text-muted">Java IP</p>
-            <CopyIpButton ip={site.javaIp} variant="inline" />
+            <CopyIpButton ip={site.javaIp} variant="inline" className="footer-ip-chip" />
           </div>
           <div className="mt-5 flex justify-center gap-2 lg:justify-start">
             {site.socials.map((s) => (
@@ -40,7 +40,7 @@ export async function SiteFooter() {
                   makes the off-site link distinct and reads better anyway.
                 */
                 aria-label={`${site.name} on ${s.label}`}
-                className="grid h-9 w-9 place-items-center rounded-lg border border-line-strong text-muted transition-colors hover:border-accent/50 hover:text-accent-bright"
+                className="footer-social grid h-9 w-9 place-items-center rounded-lg border border-line-strong text-muted transition-colors hover:border-accent/50 hover:text-accent-bright"
               >
                 <Icon name={s.icon} size={17} />
               </a>

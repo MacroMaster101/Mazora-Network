@@ -10,13 +10,13 @@ const KIND_META: Record<
   BotActivityEntry["kind"],
   { icon: ComponentType<{ size?: number; className?: string }>; tint: string }
 > = {
-  order: { icon: Receipt, tint: "border-sky-400/25 bg-sky-500/10 text-sky-500" },
+  order: { icon: Receipt, tint: "border-sky-400/25 bg-sky-500/10 text-sky-700 dark:text-sky-500" },
   notice: { icon: Send, tint: "border-accent/25 bg-accent/10 text-accent-bright" },
-  role: { icon: Shield, tint: "border-violet-400/25 bg-violet-500/10 text-violet-500" },
-  rank: { icon: ArrowUpDown, tint: "border-emerald-400/25 bg-emerald-500/10 text-emerald-500" },
+  role: { icon: Shield, tint: "border-violet-400/25 bg-violet-500/10 text-violet-700 dark:text-violet-500" },
+  rank: { icon: ArrowUpDown, tint: "border-emerald-400/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-500" },
 };
 
-const FAILED_TINT = "border-rose-400/30 bg-rose-500/10 text-rose-500";
+const FAILED_TINT = "border-rose-400/30 bg-rose-500/10 text-rose-700 dark:text-rose-500";
 
 export function BotActivityPanel({
   activity,
@@ -47,7 +47,7 @@ export function BotActivityPanel({
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-display text-sm font-bold">Recent bot activity</h2>
               {failures > 0 && (
-                <span className="rounded-full border border-rose-400/25 bg-rose-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-rose-500">
+                <span className="rounded-full border border-rose-400/25 bg-rose-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-500">
                   {failures} failed
                 </span>
               )}
@@ -95,7 +95,7 @@ export function BotActivityPanel({
 
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
-                    <span className={`font-semibold ${entry.ok ? "text-ink" : "text-rose-500"}`}>{entry.label}</span>
+                    <span className={`font-semibold ${entry.ok ? "text-ink" : "text-rose-700 dark:text-rose-500"}`}>{entry.label}</span>
                     {entry.detail && <span className="min-w-0 break-words text-muted">{entry.detail}</span>}
                   </p>
                   {entry.actor && <p className="mt-0.5 text-[11px] text-muted">by {entry.actor}</p>}

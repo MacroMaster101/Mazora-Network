@@ -120,14 +120,14 @@ export function ReportsQueue({ initialReports }: { initialReports: ReportQueueIt
           <article key={report.id} className="panel panel-hover p-4 sm:p-5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 border border-red-500/30">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30">
                   {reasonLabel(report.reason)}
                 </span>
                 <span className="text-xs font-semibold text-muted bg-ink/5 px-2.5 py-0.5 rounded-md border border-line capitalize">
                   {report.target.kind}
                 </span>
                 {report.reportCount > 1 && (
-                  <span className="flex items-center gap-1 text-xs font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20">
+                  <span className="flex items-center gap-1 text-xs font-bold text-red-700 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20">
                     <AlertTriangle size={11} /> {report.reportCount} reports on this item
                   </span>
                 )}
@@ -189,7 +189,7 @@ export function ReportsQueue({ initialReports }: { initialReports: ReportQueueIt
                     type="button"
                     onClick={() => handleRemoveContent(report)}
                     disabled={isPending}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20 transition"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-red-500/30 text-red-700 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 transition"
                   >
                     <Trash2 size={14} /> Remove content
                   </button>
@@ -199,7 +199,7 @@ export function ReportsQueue({ initialReports }: { initialReports: ReportQueueIt
                   type="button"
                   onClick={() => handleSetStatus(report, "resolved", false)}
                   disabled={isPending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition"
                 >
                   <Check size={14} /> Resolve
                 </button>
@@ -209,7 +209,7 @@ export function ReportsQueue({ initialReports }: { initialReports: ReportQueueIt
                     onClick={() => handleSetStatus(report, "resolved", true)}
                     disabled={isPending}
                     title="Resolve and clear all reports on this item"
-                    className="px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/10 transition"
+                    className="px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 transition"
                   >
                     Resolve all ({report.reportCount})
                   </button>

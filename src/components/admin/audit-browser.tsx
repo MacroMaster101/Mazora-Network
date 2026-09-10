@@ -98,7 +98,7 @@ export function AuditBrowser({ entries }: { entries: AuditEntry[] }) {
                 <span
                   className={cn(
                     "grid min-w-[1.4rem] place-items-center rounded-full px-1.5 py-0.5 text-[11px] font-black leading-none tabular-nums",
-                    active ? "bg-accent/30 text-accent-bright" : "bg-ink/15 text-ink/80",
+                    active ? "bg-accent/30 text-violet-900 dark:text-accent-bright" : "bg-ink/15 text-ink/80",
                   )}
                 >
                   {entry.count}

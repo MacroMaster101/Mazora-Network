@@ -1093,11 +1093,6 @@ body:has(.store-hero) {
   transform: translateX(-50%);
   border-inline: 1px solid rgb(216 180 254 / 0.045);
   pointer-events: none;
-  background-image:
-    linear-gradient(rgb(216 180 254 / 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(216 180 254 / 0.025) 1px, transparent 1px);
-  background-size: 72px 72px;
-  mask-image: linear-gradient(180deg, transparent, black 10rem, black calc(100% - 12rem), transparent);
 }
 
 .store-marketplace>* {
@@ -1186,12 +1181,6 @@ body:has(.store-hero) {
   z-index: 0;
   width: min(calc(100% - 2rem), 74rem);
   border-inline: 1px solid rgb(var(--line) / 0.32);
-  background-image:
-    linear-gradient(rgb(var(--line) / 0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--line) / 0.16) 1px, transparent 1px);
-  background-size: 72px 72px;
-  opacity: 0.72;
-  mask-image: linear-gradient(180deg, transparent, black 8rem, black calc(100% - 16rem), transparent);
 }
 
 .store-marketplace::after {
@@ -1203,11 +1192,6 @@ body:has(.store-hero) {
   height: clamp(12rem, 22vw, 20rem);
   pointer-events: none;
   content: "";
-  background: linear-gradient(180deg, transparent, rgb(7 4 12 / 0.24) 46%, rgb(7 4 12 / 0.96));
-}
-
-:root[data-theme="dark"] .store-marketplace::after {
-  background: linear-gradient(180deg, transparent, rgb(7 4 12 / 0.22) 48%, rgb(6 3 11 / 0.78));
 }
 
 .store-marketplace>* {
@@ -1286,10 +1270,6 @@ body:has(.store-hero) {
 
 .store-marketplace::before {
   border-inline-color: rgb(var(--line) / 0.22);
-  background-image:
-    linear-gradient(rgb(var(--line) / 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--line) / 0.12) 1px, transparent 1px);
-  opacity: 0.56;
 }
 
 .store-catalog-shell,

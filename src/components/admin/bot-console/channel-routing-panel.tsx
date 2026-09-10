@@ -11,7 +11,7 @@ export function ChannelRoutingPanel({ routes }: { routes: RoutesResult }) {
     <section className="panel overflow-hidden p-0">
       <header className="flex flex-col gap-3 border-b border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sky-400/25 bg-sky-500/10 text-sky-500">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sky-400/25 bg-sky-500/10 text-sky-700 dark:text-sky-500">
             <Radio size={17} aria-hidden />
           </span>
           <div>
@@ -24,8 +24,8 @@ export function ChannelRoutingPanel({ routes }: { routes: RoutesResult }) {
           <span
             className={`shrink-0 self-start rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider sm:self-auto ${
               unreachable > 0
-                ? "border-amber-400/25 bg-amber-500/10 text-amber-500"
-                : "border-emerald-400/25 bg-emerald-500/10 text-emerald-500"
+                ? "border-amber-400/25 bg-amber-500/10 text-amber-700 dark:text-amber-500"
+                : "border-emerald-400/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-500"
             }`}
           >
             {unreachable > 0 ? `${unreachable} unreachable` : `all ${list.length} resolved`}
@@ -63,12 +63,12 @@ export function ChannelRoutingPanel({ routes }: { routes: RoutesResult }) {
                 inherited body font and rendering ragged.
               */}
               {route.resolved ? (
-                <span className="inline-flex min-w-0 items-center gap-1 rounded-lg border border-emerald-400/25 bg-emerald-500/10 py-1 pl-1.5 pr-2 text-emerald-500">
+                <span className="inline-flex min-w-0 items-center gap-1 rounded-lg border border-emerald-400/25 bg-emerald-500/10 py-1 pl-1.5 pr-2 text-emerald-700 dark:text-emerald-500">
                   <Hash size={11} className="shrink-0 opacity-70" aria-hidden />
                   <span className="truncate font-mono text-[11px] leading-none">{route.resolved}</span>
                 </span>
               ) : (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-400/25 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-500">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-400/25 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-500">
                   <TriangleAlert size={11} aria-hidden /> Unreachable
                 </span>
               )}

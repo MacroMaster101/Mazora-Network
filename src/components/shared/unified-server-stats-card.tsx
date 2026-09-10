@@ -658,7 +658,7 @@ export function UnifiedServerStatsCard({
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 max-w-full items-center gap-2">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
@@ -668,7 +668,8 @@ export function UnifiedServerStatsCard({
                 <ChevronLeft size={16} />
               </button>
 
-              <div className="flex items-center gap-1">
+              {/* Wraps on phones: nine page buttons plus the arrows are wider than 375px. */}
+              <div className="flex min-w-0 flex-wrap items-center justify-center gap-1">
                 {Array.from({ length: totalPages }).map((_, i) => {
                   const pageNum = i + 1;
                   const isActive = pageNum === currentPage;

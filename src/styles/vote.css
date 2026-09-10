@@ -464,14 +464,6 @@
   .vote-redesign-journey>i {
     display: none;
   }
-
-  .site-world-frame:has(.vote-redesign-hero)::after {
-    top: calc(max(49rem, 100svh) - 6rem);
-    background-position: center top !important;
-    background-size: auto 100% !important;
-    -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 3rem, rgb(0 0 0 / 0.55) 8rem, #000 14rem, #000 100%);
-    mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0 / 0.16) 3rem, rgb(0 0 0 / 0.55) 8rem, #000 14rem, #000 100%);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -552,7 +544,7 @@
 }
 
 :root[data-theme="light"] .vote-redesign-stat small {
-  color: rgb(67 49 88 / 0.68);
+  color: rgb(67 49 88 / 0.9);
 }
 
 :root[data-theme="light"] .vote-redesign-secondary,
@@ -579,22 +571,6 @@
 
 :root[data-theme="light"] .vote-redesign-journey>i {
   display: none;
-}
-
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) {
-  background: linear-gradient(180deg, #ece6f4 0%, #f5f1f8 48%, #eee8f3 100%) !important;
-}
-
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::before {
-  background:
-    radial-gradient(52rem 30rem at 50% 24%, rgb(139 92 246 / 0.08), transparent 72%),
-    linear-gradient(90deg, rgb(88 61 125 / 0.05), transparent 24%, transparent 76%, rgb(88 61 125 / 0.05)) !important;
-}
-
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::after {
-  background:
-    linear-gradient(180deg, rgb(236 230 244 / 0.98) 0%, rgb(241 236 247 / 0.82) 10rem, rgb(245 241 249 / 0.7) 24rem, rgb(238 232 243 / 0.88) 100%),
-    url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
 }
 
 :root[data-theme="light"] .vote-ref-pagination {
@@ -666,11 +642,6 @@
 
 :root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer {
   color: #2c1d3d;
-  background: linear-gradient(180deg, transparent, rgb(239 233 245 / 0.68) 34%, rgb(232 225 240 / 0.92) 100%) !important;
-}
-
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer::before {
-  background: radial-gradient(42rem 18rem at 72% 10%, rgb(139 92 246 / 0.08), transparent 74%);
 }
 
 :root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer .text-muted {
@@ -688,13 +659,6 @@
 }
 
 /* Light mode keeps the generated continuation artwork visible. */
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::after {
-  background:
-    linear-gradient(180deg, rgb(244 240 248 / 0.18) 0%, rgb(244 240 248 / 0.28) 46%, rgb(236 230 242 / 0.4) 100%),
-    url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
-  -webkit-mask-image: none;
-  mask-image: none;
-}
 
 /* Light hero shows the generated sanctuary directly, without a pale image mask. */
 :root[data-theme="light"] .vote-redesign-art {
@@ -735,37 +699,12 @@
 }
 
 /* Keep the same generated image visible through the light footer. */
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer {
-  background: transparent !important;
-}
-
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer::before {
-  background: linear-gradient(180deg, rgb(247 244 250 / 0.06), rgb(238 232 243 / 0.18));
-}
 
 
 /* Light Vote world: show the continuation artwork directly, without a pale veil. */
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) {
-  background: #080617 !important;
-}
-
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::before {
-  background: none !important;
-}
-
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero)::after {
-  background: url("/images/vote-sanctuary-continuation-v11.webp") center top / cover no-repeat !important;
-  -webkit-mask-image: none;
-  mask-image: none;
-}
 
 :root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer {
   color: white;
-  background: transparent !important;
-}
-
-:root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer::before {
-  background: none !important;
 }
 
 :root[data-theme="light"] .site-world-frame:has(.vote-redesign-hero) .site-footer .text-muted {

@@ -461,7 +461,7 @@ export function SiteSettingsEditor({
                           setFormState((p) => ({ ...p, ogImageUrl: "/images/og-default.webp" }));
                           toast("Reset to default banner.", "info");
                         }}
-                        className="text-[11px] font-bold text-rose-400 hover:underline shrink-0 ml-2"
+                        className="text-[11px] font-bold text-rose-700 dark:text-rose-400 hover:underline shrink-0 ml-2"
                       >
                         Remove
                       </button>
@@ -525,7 +525,7 @@ export function SiteSettingsEditor({
                 </div>
                 <div className="rounded-lg border-l-4 border-[#5865F2] bg-[#ebedef] dark:bg-[#1e1f22] p-3.5 space-y-2 shadow-sm">
                   <div className="text-[11px] font-medium text-[#5c5e66] dark:text-[#949ba4] leading-none">{formState.name || "Mazora Network"}</div>
-                  <div className="text-[13px] font-bold text-[#006ce7] dark:text-[#00a8fc] hover:underline cursor-pointer flex items-center gap-1 leading-snug">
+                  <div className="text-[13px] font-bold text-[#1a0dab] dark:text-[#00a8fc] hover:underline cursor-pointer flex items-center gap-1 leading-snug">
                     <span>{shareTitle}</span>
                     <ExternalLink size={11} className="inline shrink-0 opacity-75" />
                   </div>
