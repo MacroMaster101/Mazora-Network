@@ -224,7 +224,19 @@
 }
 :root[data-theme="light"] body .hero-nav .desktop-nav-item:is(:hover, .is-active) { color: rgb(var(--accent-bright)); }
 :root[data-theme="light"] body .hero-nav .desktop-nav-item.is-active .desktop-nav-icon { color: rgb(var(--accent-bright)); }
-:root[data-theme="light"] body:has(.site-world-frame) .scroll-header:not([data-away="true"])::before { background: transparent; }
+/* Daylight artwork is not uniformly light: sampling the strip behind the bar
+   gives 1.0-1.8:1 against ink text over the trees on the home, store and vote
+   heroes. Dark theme leans on dark art for that job, so daylight paints its own
+   soft scrim, faded out below the bar so the scene still runs to the top. */
+:root[data-theme="light"] body:has(.site-world-frame) .scroll-header:not([data-away="true"])::before {
+  inset: 0 0 -1.5rem;
+  opacity: 1;
+  border: 0;
+  background: linear-gradient(180deg, rgb(247 245 251 / 0.88), rgb(247 245 251 / 0.5) 58%, rgb(247 245 251 / 0));
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 :root[data-theme="light"] body:has(.site-world-frame) .scroll-header[data-away="true"][data-hidden="false"]::before { background: rgb(247 245 251 / 0.96); }
 
 /* Specialist hero copy uses explicit historic colors rather than tokens. */
