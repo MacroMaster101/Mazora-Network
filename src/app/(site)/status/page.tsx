@@ -5,6 +5,7 @@ import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { site } from "@/lib/site";
 import { PageHero, CopyIpButton, Reveal, FloatingBrandLogo } from "@/components/shared";
 import { RefreshButton } from "@/components/shared/refresh-button";
+import { getPageContent } from "@/lib/data/page-content";
 
 export const metadata = publicPageMetadata({
   title: "Server Status",
@@ -14,20 +15,21 @@ export const metadata = publicPageMetadata({
 
 export const dynamic = "force-dynamic";
 
-function Stat({ icon: Icon, label, value }: { icon: typeof Activity; label: string; value: string }) {
+function Stat({ icon: Icon, label, value, fieldId }: { icon: typeof Activity; label: string; value: string; fieldId?: string }) {
   return (
     <div className="panel p-5">
       <Icon size={18} className="text-accent-bright" />
       <div className="telemetry mt-3 text-2xl font-bold">{value}</div>
-      <div className="text-sm text-muted">{label}</div>
+      <div className="text-sm text-muted" data-page-field={fieldId}>{label}</div>
     </div>
   );
 }
 
 export default async function StatusPage() {
-  const [status, generalSettings] = await Promise.all([
+  const [status, generalSettings, copy] = await Promise.all([
     getServerStatus(),
     getSiteGeneralSettings(),
+    getPageContent("status"),
   ]);
 
   const online = status.live && status.online;
@@ -39,9 +41,10 @@ export default async function StatusPage() {
   return (
     <>
       <PageHero
-        eyebrow="Live telemetry"
-        title="Server status"
-        lead="A real-time look at the network. When our status API is connected, everything here updates automatically."
+        eyebrow={copy.heroEyebrow}
+        title={copy.heroTitle}
+        lead={copy.heroLead}
+        fieldIds={{ eyebrow: "heroEyebrow", title: "heroTitle", lead: "heroLead" }}
         illustration={<FloatingBrandLogo />}
       />
 
@@ -50,8 +53,7 @@ export default async function StatusPage() {
           <Reveal className="glass mb-8 flex items-center gap-3 p-5">
             <Activity size={20} className="text-warning" />
             <p className="text-sm text-muted">
-              The live provider could not reach <span className="telemetry text-ink">{activeJavaIp}</span>. Check that the
-              server is running and accepts Server List Ping requests; the website will not show fabricated numbers.
+              <span data-page-field="providerUnavailable">{copy.providerUnavailable}</span> <span className="telemetry text-ink">({activeJavaIp})</span>
             </p>
           </Reveal>
         )}
@@ -60,44 +62,44 @@ export default async function StatusPage() {
           <div className="flex items-center gap-3">
             <span className={online ? "dot animate-pulse" : "dot dot-off"} style={{ width: 12, height: 12 }} />
             <div>
-              <p className="font-display text-xl font-bold">
-                {!status.live ? "Status unavailable" : online ? "Server online" : "Server offline"}
+              <p className="font-display text-xl font-bold" data-page-field={!status.live ? "statusUnavailable" : online ? "serverOnline" : "serverOffline"}>
+                {!status.live ? copy.statusUnavailable : online ? copy.serverOnline : copy.serverOffline}
               </p>
               <p className="telemetry text-sm text-muted">
-                Last updated {new Date(status.lastUpdate).toLocaleTimeString("en", { timeZone: "UTC", timeZoneName: "short" })}
+                <span data-page-field="lastUpdated">{copy.lastUpdated}</span> {new Date(status.lastUpdate).toLocaleTimeString("en", { timeZone: "UTC", timeZoneName: "short" })}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* Beside "Last updated", which is the number it refreshes. */}
             <RefreshButton iconOnly />
-            <CopyIpButton ip={activeJavaIp} label="Copy server IP" />
+            <CopyIpButton ip={activeJavaIp} label={copy.copyIpCta} fieldId="copyIpCta" />
           </div>
         </Reveal>
 
         <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Stat icon={Activity} label="Players online" value={online ? `${status.players}/${status.max}` : status.live ? "Offline" : "—"} />
-          <Stat icon={Server} label="Version" value={activeVersion} />
-          <Stat icon={Signal} label="Ping" value={online ? `${status.ping}ms` : status.live ? "Offline" : "—"} />
-          <Stat icon={Gauge} label="Uptime" value={online ? status.uptime : status.live ? "Offline" : "—"} />
+          <Stat icon={Activity} label={copy.playersLabel} fieldId="playersLabel" value={online ? `${status.players}/${status.max}` : status.live ? copy.offlineLabel : "—"} />
+          <Stat icon={Server} label={copy.versionLabel} fieldId="versionLabel" value={activeVersion} />
+          <Stat icon={Signal} label={copy.pingLabel} fieldId="pingLabel" value={online ? `${status.ping}ms` : status.live ? copy.offlineLabel : "—"} />
+          <Stat icon={Gauge} label={copy.uptimeLabel} fieldId="uptimeLabel" value={online ? status.uptime : status.live ? copy.offlineLabel : "—"} />
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Reveal className="panel p-6">
-            <h3 className="font-display font-bold">Java Edition</h3>
+            <h3 className="font-display font-bold" data-page-field="javaTitle">{copy.javaTitle}</h3>
             <div className="mt-3 flex items-center justify-between">
               <CopyIpButton ip={activeJavaIp} variant="inline" />
               <span className={`inline-flex items-center gap-2 text-sm ${status.java.online ? "text-success" : "text-muted"}`}>
-                <span className={status.java.online ? "dot" : "dot dot-off"} /> {status.java.online ? "Reachable" : status.live ? "Offline" : "Unknown"}
+                <span className={status.java.online ? "dot" : "dot dot-off"} /> <span data-page-field={status.java.online ? "reachableLabel" : status.live ? "offlineLabel" : "unknownLabel"}>{status.java.online ? copy.reachableLabel : status.live ? copy.offlineLabel : copy.unknownLabel}</span>
               </span>
             </div>
           </Reveal>
           <Reveal delay={0.05} className="panel p-6">
-            <h3 className="font-display font-bold">Bedrock Edition</h3>
+            <h3 className="font-display font-bold" data-page-field="bedrockTitle">{copy.bedrockTitle}</h3>
             <div className="mt-3 flex items-center justify-between">
               <CopyIpButton ip={`${activeBedrockIp}:${activeBedrockPort}`} variant="inline" />
               <span className={`inline-flex items-center gap-2 text-sm ${status.bedrock.online ? "text-success" : "text-muted"}`}>
-                <span className={status.bedrock.online ? "dot" : "dot dot-off"} /> {status.bedrock.online ? "Reachable" : status.live ? "Offline" : "Unknown"}
+                <span className={status.bedrock.online ? "dot" : "dot dot-off"} /> <span data-page-field={status.bedrock.online ? "reachableLabel" : status.live ? "offlineLabel" : "unknownLabel"}>{status.bedrock.online ? copy.reachableLabel : status.live ? copy.offlineLabel : copy.unknownLabel}</span>
               </span>
             </div>
           </Reveal>
@@ -105,7 +107,7 @@ export default async function StatusPage() {
 
         {status.motd && (
           <Reveal className="panel mt-4 p-6">
-            <h3 className="font-display font-bold">MOTD</h3>
+            <h3 className="font-display font-bold" data-page-field="motdTitle">{copy.motdTitle}</h3>
             <p className="telemetry mt-2 text-muted">{status.motd}</p>
           </Reveal>
         )}
@@ -113,9 +115,9 @@ export default async function StatusPage() {
         {/* History — illustrative until a status history store is connected */}
         <Reveal className="panel mt-4 p-6">
           <div className="flex items-center justify-between">
-            <h3 className="font-display font-bold">Uptime history</h3>
+            <h3 className="font-display font-bold" data-page-field="historyTitle">{copy.historyTitle}</h3>
             <span className="chip">
-              <Clock size={13} /> last 24h
+              <Clock size={13} /> <span data-page-field="historyPeriod">{copy.historyPeriod}</span>
             </span>
           </div>
           <div className="mt-4 flex items-end gap-1" aria-hidden>
@@ -124,8 +126,8 @@ export default async function StatusPage() {
               return <div key={i} className="flex-1 rounded-t bg-accent/30" style={{ height: `${h}px` }} />;
             })}
           </div>
-          <p className="mt-3 text-xs text-muted">
-            Illustrative visual. Real history appears once a status API and a history store are connected.
+          <p className="mt-3 text-xs text-muted" data-page-field="historyBody">
+            {copy.historyBody}
           </p>
         </Reveal>
       </section>

@@ -73,3 +73,10 @@ desktop.ini
 # Local database/storage backups. Contains auth.users with password hashes
 # and email addresses — must never be committed.
 backups/
+
+# Generated knowledge graph (graphify). Fully regenerable from the source tree
+# via `/graphify .`, and ~11MB of it is a single inlined-library graph.html plus
+# a 5MB graph.json. The cache/ and manifest.json inside are what make
+# `--update` incremental, so they are worth keeping locally but not sharing:
+# they store absolute paths from whichever machine built the graph.
+graphify-out/

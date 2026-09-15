@@ -12,12 +12,14 @@ export function EmptyState({
   message,
   cta,
   className,
+  fieldIds,
 }: {
   icon?: ReactNode;
   title: string;
   message: string;
   cta?: { label: string; href: string };
   className?: string;
+  fieldIds?: { title?: string; message?: string; cta?: string };
 }) {
   return (
     <div className={cn("glass flex flex-col items-center px-6 py-16 text-center", className)}>
@@ -26,11 +28,11 @@ export function EmptyState({
           {icon}
         </span>
       )}
-      <h2 className="font-display text-lg font-semibold">{title}</h2>
-      <p className="mt-1.5 max-w-md text-sm leading-6 text-muted">{message}</p>
+      <h2 className="font-display text-lg font-semibold" data-page-field={fieldIds?.title}>{title}</h2>
+      <p className="mt-1.5 max-w-md text-sm leading-6 text-muted" data-page-field={fieldIds?.message}>{message}</p>
       {cta && (
         <Link href={cta.href} className="btn btn-ghost btn-sm mt-5">
-          {cta.label}
+          <span data-page-field={fieldIds?.cta}>{cta.label}</span>
         </Link>
       )}
     </div>

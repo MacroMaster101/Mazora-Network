@@ -12,6 +12,7 @@ import {
   NEWS_PERMISSION_KEY,
   GALLERY_PERMISSION_KEY,
   PLAY_PERMISSION_KEY,
+  PAGES_PERMISSION_KEY,
   EVENTS_PERMISSION_KEY,
   GAMEMODES_PERMISSION_KEY,
   RULES_PERMISSION_KEY,
@@ -31,6 +32,7 @@ import {
   saveNewsPermissionsAction,
   saveGalleryPermissionsAction,
   savePlayPermissionsAction,
+  savePagesPermissionsAction,
   saveEventsPermissionsAction,
   saveGameModesPermissionsAction,
   saveRulesPermissionsAction,
@@ -72,6 +74,15 @@ export default async function AdminPermissionsPage() {
 
   const modules: PermissionModuleConfig[] = [
     // Content Modules
+    {
+      id: "pages",
+      category: "Content",
+      title: "Page Content Hub",
+      description: "Open the public page copy editors from /admin/pages. Each page inside still requires the module that owns it — granting this alone does not unlock any page's copy.",
+      selected: perms[PAGES_PERMISSION_KEY].roles,
+      userIds: perms[PAGES_PERMISSION_KEY].userIds,
+      saveAction: savePagesPermissionsAction,
+    },
     {
       id: "news",
       category: "Content",

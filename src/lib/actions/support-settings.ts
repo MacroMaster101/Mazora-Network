@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageSupport } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
-import { getSupportCards, getSupportMainSettings, SUPPORT_CARDS_KEY, SUPPORT_MAIN_KEY } from "@/lib/data/support-settings";
+import { getSupportCards, getSupportMainSettings, isSafeSupportHref, SUPPORT_CARDS_KEY, SUPPORT_MAIN_KEY } from "@/lib/data/support-settings";
 
 export type SupportSettingsResult = { ok: boolean; message: string };
 
@@ -16,7 +16,20 @@ const mainSchema = z.object({
   searchPlaceholder: z.string().trim().min(2).max(140), faqTitle: z.string().trim().min(2).max(140), faqSubtitle: z.string().trim().min(2).max(300), faqs: z.array(faqSchema).min(1).max(20),
 });
 const pageSchema = z.object({ eyebrow: z.string().trim().min(2).max(100), title: z.string().trim().min(2).max(140), lead: z.string().trim().min(5).max(800), ticketType: z.string().trim().min(2).max(100), details: z.array(z.string().trim().min(2).max(500)).min(1).max(12), privacyNote: z.string().trim().min(2).max(800) });
-const cardSchema = z.object({ id: z.string().trim().min(1).max(80), icon: z.string().trim().min(1).max(60), title: z.string().trim().min(2).max(140), copy: z.string().trim().min(2).max(500), href: z.string().trim().min(1).max(500), badge: z.string().trim().min(1).max(80), category: z.enum(["Support", "Community", "Apply"]), external: z.boolean(), enabled: z.boolean(), page: pageSchema.optional() });
+const cardSchema = z.object({
+  id: z.string().trim().min(1).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Card IDs must use lowercase URL-safe words."),
+  icon: z.string().trim().min(1).max(60), title: z.string().trim().min(2).max(140), copy: z.string().trim().min(2).max(500),
+  href: z.string().trim().min(1).max(500), badge: z.string().trim().min(1).max(80),
+  category: z.enum(["Support", "Community", "Apply"]), external: z.boolean(), enabled: z.boolean(), page: pageSchema.optional(),
+}).superRefine((card, context) => {
+  if (!isSafeSupportHref(card.href, card.external)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["href"],
+      message: card.external ? "External destinations must be secure HTTPS links." : "Internal destinations must be same-site paths beginning with /.",
+    });
+  }
+});
 
 async function authorize() {
   const session = await getSession();

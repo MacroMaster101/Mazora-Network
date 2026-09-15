@@ -3,6 +3,7 @@ import { Blocks } from "lucide-react";
 import { getGameModes } from "@/lib/data/content";
 import { getServerStatus } from "@/lib/data/status";
 import { EmptyState, FloatingBrandLogo, PageHero, GameModeCard, Reveal } from "@/components/shared";
+import { getPageContent } from "@/lib/data/page-content";
 
 export const metadata = publicPageMetadata({
   title: "Game Modes",
@@ -11,20 +12,21 @@ export const metadata = publicPageMetadata({
 });
 
 export default async function GameModesPage() {
-  const [modes, status] = await Promise.all([getGameModes(), getServerStatus()]);
+  const [modes, status, copy] = await Promise.all([getGameModes(), getServerStatus(), getPageContent("game-modes")]);
   const eyebrow =
     modes.length === 0
-      ? "Game modes"
+      ? <span data-page-field="fallbackEyebrow">{copy.fallbackEyebrow}</span>
       : status.live && status.online
-        ? `${modes.length} worlds · ${status.players} online now`
-        : `${modes.length} worlds`;
+        ? <>{modes.length} <span data-page-field="worldsSuffix">{copy.worldsSuffix}</span> · {status.players} <span data-page-field="onlineSuffix">{copy.onlineSuffix}</span></>
+        : <>{modes.length} <span data-page-field="worldsSuffix">{copy.worldsSuffix}</span></>;
 
   return (
     <>
       <PageHero
         eyebrow={eyebrow}
-        title="Pick a world. Make it yours."
-        lead="One shared account across every mode. Jump between them freely and carry your rank everywhere."
+        title={copy.heroTitle}
+        lead={copy.heroLead}
+        fieldIds={{ title: "heroTitle", lead: "heroLead" }}
         illustration={<FloatingBrandLogo />}
       />
       <section className="section shell">
@@ -40,9 +42,10 @@ export default async function GameModesPage() {
           <Reveal>
             <EmptyState
               icon={<Blocks size={24} />}
-              title="Game modes are being set up"
-              message="Each world will be listed here with its rules, commands and live player count once it is configured."
-              cta={{ label: "How to play", href: "/play" }}
+              title={copy.emptyTitle}
+              message={copy.emptyMessage}
+              cta={{ label: copy.emptyCta, href: "/play" }}
+              fieldIds={{ title: "emptyTitle", message: "emptyMessage", cta: "emptyCta" }}
             />
           </Reveal>
         )}
