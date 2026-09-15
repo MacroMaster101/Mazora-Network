@@ -19,8 +19,8 @@ const voteSiteSchema = z.object({
   name: z.string().trim().min(2, "Site name must be at least 2 characters.").max(100, "Site name must be 100 characters or fewer."),
   url: z.string().trim().max(1000, "The site URL is too long.").url("Enter a valid site URL.").refine((value) => {
     const protocol = new URL(value).protocol;
-    return protocol === "https:" || protocol === "http:";
-  }, "The site URL must use http:// or https://."),
+    return protocol === "https:";
+  }, "The site URL must use secure https://."),
   rewardDescription: z.string().trim().max(300, "The reward description is too long."),
   cooldownHours: z.coerce.number().int().min(1).max(720),
   enabled: z.boolean(),

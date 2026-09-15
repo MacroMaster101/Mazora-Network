@@ -5,6 +5,7 @@ import { getDiscordStats } from "@/lib/data/discord";
 import { withCommas } from "@/lib/utils";
 import { FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";
 import { DiscordIcon } from "@/components/shared/icon";
+import { getPageContent } from "@/lib/data/page-content";
 
 export const metadata = publicPageMetadata({
   title: "Discord",
@@ -22,17 +23,23 @@ const benefits = [
 ];
 
 export default async function DiscordPage() {
-  const discord = await getDiscordStats();
+  const [discord, copy] = await Promise.all([getDiscordStats(), getPageContent("discord")]);
   const eyebrow = discord.live
     ? `${withCommas(discord.members)} members · ${withCommas(discord.online)} online`
-    : "Mazora community";
+    : copy.fallbackEyebrow;
+  const editableBenefits = benefits.map((benefit, index) => ({
+    ...benefit,
+    title: copy[`benefit${index + 1}Title`],
+    copy: copy[`benefit${index + 1}Copy`],
+  }));
 
   return (
     <>
       <PageHero
         eyebrow={eyebrow}
-        title="The community lives on Discord."
-        lead="It's where the network really comes alive. Announcements, giveaways, teammates and support — all in one place."
+        title={copy.heroTitle}
+        lead={copy.heroLead}
+        fieldIds={{ eyebrow: discord.live ? undefined : "fallbackEyebrow", title: "heroTitle", lead: "heroLead" }}
         illustration={<FloatingBrandLogo />}
       />
       <section className="section shell">
@@ -46,10 +53,10 @@ export default async function DiscordPage() {
                   <DiscordIcon size={36} />
                 </span>
               </div>
-              <h2 className="mt-5 max-w-xl text-3xl font-bold">Join {site.name} on Discord</h2>
-              <p className="mt-2 max-w-md text-muted">Free, instant, and the fastest way to plug into everything happening on the network.</p>
+              <h2 className="mt-5 max-w-xl text-3xl font-bold" data-page-field="joinTitle">{copy.joinTitle}</h2>
+              <p className="mt-2 max-w-md text-muted" data-page-field="joinBody">{copy.joinBody}</p>
               <a href={site.discord} target="_blank" rel="noreferrer" className="btn btn-primary mt-6">
-                <DiscordIcon size={16} /> Join the Discord
+                <DiscordIcon size={16} /> <span data-page-field="joinCta">{copy.joinCta}</span>
               </a>
             </div>
             <div className="mx-auto w-full max-w-[350px] overflow-hidden rounded-2xl border border-line bg-[#202225] shadow-2xl">
@@ -67,11 +74,11 @@ export default async function DiscordPage() {
         </Reveal>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {benefits.map((b, i) => (
+          {editableBenefits.map((b, i) => (
             <Reveal key={b.title} delay={i * 0.04} className="panel p-6">
               <b.icon size={22} className="text-accent-bright" />
-              <h3 className="mt-4 font-display text-lg font-bold">{b.title}</h3>
-              <p className="mt-1.5 text-sm text-muted">{b.copy}</p>
+              <h3 className="mt-4 font-display text-lg font-bold" data-page-field={`benefit${i + 1}Title`}>{b.title}</h3>
+              <p className="mt-1.5 text-sm text-muted" data-page-field={`benefit${i + 1}Copy`}>{b.copy}</p>
             </Reveal>
           ))}
         </div>

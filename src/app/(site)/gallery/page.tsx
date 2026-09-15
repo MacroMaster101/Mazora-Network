@@ -2,6 +2,7 @@ import { publicPageMetadata } from "@/lib/seo";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { getGallery } from "@/lib/data/content";
 import { GalleryPageClient } from "@/components/shared/gallery-page-client";
+import { getPageContent } from "@/lib/data/page-content";
 
 export const metadata = publicPageMetadata({
   title: "Gallery",
@@ -12,7 +13,7 @@ export const metadata = publicPageMetadata({
 export default async function GalleryPage() {
   const session = await getSession();
   const userId = await getSessionUserId();
-  const images = await getGallery(userId);
+  const [images, copy] = await Promise.all([getGallery(userId), getPageContent("gallery")]);
   const isLoggedIn = Boolean(session);
   const accountName = session ? (session.displayName || session.username) : "";
 
@@ -21,6 +22,7 @@ export default async function GalleryPage() {
       images={images}
       isLoggedIn={isLoggedIn}
       accountName={accountName}
+      copy={copy}
     />
   );
 }

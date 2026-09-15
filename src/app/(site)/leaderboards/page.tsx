@@ -4,6 +4,7 @@ import { EmptyState, FloatingBrandLogo, PageHero, Reveal } from "@/components/sh
 import { RefreshButton } from "@/components/shared/refresh-button";
 import { LeaderboardExplorer } from "@/components/shared/leaderboard-explorer";
 import { publicPageMetadata } from "@/lib/seo";
+import { getPageContent } from "@/lib/data/page-content";
 
 export const metadata = publicPageMetadata({
   title: "Leaderboards",
@@ -16,7 +17,7 @@ export const metadata = publicPageMetadata({
 export const dynamic = "force-dynamic";
 
 export default async function LeaderboardsPage() {
-  const players = await getPlayers();
+  const [players, copy] = await Promise.all([getPlayers(), getPageContent("leaderboards")]);
   const entries = leaderboardTabs.map((tab) => buildLeaderboard(players, tab.key));
   const data: Record<string, LeaderboardEntry[]> = {};
   const labels: Record<string, string> = {};
@@ -28,9 +29,10 @@ export default async function LeaderboardsPage() {
   return (
     <>
       <PageHero
-        eyebrow="Hall of fame"
-        title="Who's on top?"
-        lead="Live all-time PlayTime and economy rankings, synchronized directly from the Minecraft server."
+        eyebrow={copy.heroEyebrow}
+        title={copy.heroTitle}
+        lead={copy.heroLead}
+        fieldIds={{ eyebrow: "heroEyebrow", title: "heroTitle", lead: "heroLead" }}
         illustration={<FloatingBrandLogo />}
       />
       <section className="section shell">
@@ -49,9 +51,10 @@ export default async function LeaderboardsPage() {
           ) : (
             <EmptyState
               icon={<Trophy size={24} />}
-              title="No rankings yet"
-              message="Leaderboards fill in once the Minecraft server starts reporting player statistics. No standings are shown until those numbers are real."
-              cta={{ label: "How to play", href: "/play" }}
+              title={copy.emptyTitle}
+              message={copy.emptyMessage}
+              cta={{ label: copy.emptyCta, href: "/play" }}
+              fieldIds={{ title: "emptyTitle", message: "emptyMessage", cta: "emptyCta" }}
             />
           )}
         </Reveal>
