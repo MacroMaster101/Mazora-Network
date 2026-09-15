@@ -22,6 +22,8 @@ import { safeNext } from "@/lib/safe-redirect";
 import { resolvePublicOrigin } from "@/lib/site";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 import { visibleAdminNav, ALL_ADMIN_NAV_ACCESS, type AdminNavAccess } from "@/lib/admin-nav";
+import { EDITABLE_PAGE_PATHS } from "@/lib/page-paths";
+import { isSafeSupportHref } from "@/lib/data/support-settings";
 
 describe("role ladder", () => {
   test("hasAtLeast is ordered by the documented ranking", () => {
@@ -113,6 +115,23 @@ describe("safeNext (open-redirect guard)", () => {
     assert.equal(safeNext("/\t/evil.com"), "/");
     assert.equal(safeNext("/\r\n/evil.com"), "/");
     assert.equal(safeNext("/\\/evil.com"), "/");
+  });
+});
+
+describe("support destination guard", () => {
+  test("accepts same-site routes and secure external destinations", () => {
+    assert.equal(isSafeSupportHref("/support/ticket", false), true);
+    assert.equal(isSafeSupportHref("/support/ticket?from=home", false), true);
+    assert.equal(isSafeSupportHref("https://discord.com/channels/1/2", true), true);
+  });
+
+  test("rejects executable, credentialed, insecure, and disguised off-site links", () => {
+    assert.equal(isSafeSupportHref("javascript:alert(1)", true), false);
+    assert.equal(isSafeSupportHref("data:text/html,hello", true), false);
+    assert.equal(isSafeSupportHref("http://discord.com/channels/1/2", true), false);
+    assert.equal(isSafeSupportHref("https://user:pass@example.com/path", true), false);
+    assert.equal(isSafeSupportHref("//evil.example/path", false), false);
+    assert.equal(isSafeSupportHref("/\\evil.example/path", false), false);
   });
 });
 
@@ -256,6 +275,7 @@ describe("permission-aware admin navigation", () => {
     minecraft: false,
     suggestions: false,
     staff: false,
+    pages: false,
     play: false,
     news: false,
     events: false,
@@ -300,6 +320,16 @@ describe("permission-aware admin navigation", () => {
     assert.ok(!hrefs.includes("/admin/mazora-bot"));
   });
 
+  test("the page hub follows its own grant, not another content module", () => {
+    const hrefs = (access: AdminNavAccess) =>
+      visibleAdminNav("helper", access).flatMap((group) => group.items.map((item) => item.href));
+
+    assert.ok(hrefs({ ...denied, pages: true }).includes("/admin/pages"));
+    // Holding a page's own module is not a way into the hub, and vice versa.
+    assert.ok(!hrefs({ ...denied, news: true, play: true }).includes("/admin/pages"));
+    assert.ok(!hrefs(denied).includes("/admin/pages"));
+  });
+
   test("the bot console is shown to an owner who has access", () => {
     const hrefs = visibleAdminNav("owner", ALL_ADMIN_NAV_ACCESS).flatMap((group) =>
       group.items.map((item) => item.href),
@@ -330,6 +360,33 @@ describe("permission-aware admin mutations", () => {
         /hasAtLeast\(session\.role,\s*["']administrator["']\)|requireRole\(["']administrator["']/,
         `${file} must not bypass its configurable module permission with a fixed administrator check`,
       );
+    }
+  });
+
+  test("page-copy edits enforce the permission assigned to the requested page", () => {
+    const action = readFileSync(new URL("../actions/page-content.ts", import.meta.url), "utf8");
+    const route = readFileSync(new URL("../../app/admin/pages/[pageId]/page.tsx", import.meta.url), "utf8");
+
+    // Both resolve the guard from the requested page's own definition rather
+    // than a fixed module; canEditPageContent then and-s it with the hub grant.
+    assert.match(action, /canEditPageContent\(definition\.permissionKey, session, userId\)/);
+    assert.match(route, /requirePageEditorAccess\(definition\.permissionKey,/);
+    assert.doesNotMatch(action, /PLAY_PERMISSION_KEY/);
+  });
+
+  test("browser-facing database roles cannot bypass configurable admin modules", () => {
+    const migration = readFileSync(
+      new URL("../../../supabase/migrations/045_admin_module_least_privilege.sql", import.meta.url),
+      "utf8",
+    );
+
+    assert.match(
+      migration,
+      /revoke insert, update, delete on public\.staff_members from anon, authenticated;/i,
+    );
+    assert.match(migration, /revoke all privileges on public\.%I from anon, authenticated/i);
+    for (const table of ["site_settings", "notification_templates", "notification_broadcasts", "audit_logs"]) {
+      assert.match(migration, new RegExp(`['\"]${table}['\"]`, "i"), `${table} must be server-only`);
     }
   });
 
@@ -483,5 +540,111 @@ describe("email verification lifecycle", () => {
     assert.match(limiterSource, /actionClientKey\(`\$\{scope\}:ip`\)/);
     assert.match(limiterSource, /\$\{scope\}:identity:\$\{hashed\(identity\.trim\(\)\.toLowerCase\(\)\)\}/);
     assert.match(limiterSource, /Promise\.all\(checks\)/);
+  });
+});
+
+describe("editable page definitions stay in step with their guards", () => {
+  /*
+    `page-content.ts` reaches the permission keys, and through them "server-only",
+    so it cannot be imported here. These read its source the same way the module
+    permission tests above do — the point is to fail loudly when a page is added
+    without extending the two allowlists that gate it.
+  */
+  const definitions = readFileSync(new URL("../page-content.ts", import.meta.url), "utf8");
+
+  test("every page renders at a path the adminPreview allowlist covers", () => {
+    const paths = [...definitions.matchAll(/\bpath: "([^"]+)"/g)].map(([, value]) => value);
+    assert.ok(paths.length > 0, "no page paths were parsed — the test's regex has gone stale");
+    for (const path of paths) {
+      assert.ok(
+        EDITABLE_PAGE_PATHS.has(path),
+        `${path} is an editable page, but the middleware will not let the editor frame it`,
+      );
+    }
+    assert.equal(EDITABLE_PAGE_PATHS.size, paths.length, "the allowlist covers a route that is not an editable page");
+  });
+
+  test("every page is gated by a module the permissions screen can actually assign", () => {
+    const permissions = readFileSync(new URL("../auth/permissions.ts", import.meta.url), "utf8");
+    const declared = new Set(
+      [...permissions.matchAll(/export const (\w+_PERMISSION_KEY) = /g)].map(([, name]) => name),
+    );
+    // The array literal itself, so a key defined but never registered is caught.
+    const listStart = permissions.indexOf("export const ALL_PERMISSION_KEYS = [");
+    assert.notEqual(listStart, -1, "ALL_PERMISSION_KEYS has been renamed — this test can no longer see it");
+    const registered = new Set(
+      permissions
+        .slice(listStart, permissions.indexOf("] as const;", listStart))
+        .split(/[\s,[\]]+/)
+        .filter((token) => token.endsWith("_PERMISSION_KEY")),
+    );
+
+    const used = [...definitions.matchAll(/permissionKey: (\w+_PERMISSION_KEY)/g)].map(([, name]) => name);
+    assert.ok(used.length > 0, "no permission keys were parsed — the test's regex has gone stale");
+    for (const constant of used) {
+      assert.ok(declared.has(constant), `a page is gated by ${constant}, which permissions.ts does not define`);
+      assert.ok(
+        registered.has(constant),
+        `${constant} is missing from ALL_PERMISSION_KEYS — no owner could grant it, so it could never be assigned`,
+      );
+    }
+  });
+
+  test("editing a page's copy needs the hub grant AND that page's own module", () => {
+    const hub = readFileSync(new URL("../auth/page-access.ts", import.meta.url), "utf8");
+    // Both, and-ed. Either alone is a hole: the hub grant becomes cosmetic if a
+    // deep link only needs the page module, and it becomes an escalation if it
+    // unlocks copy on its own.
+    assert.match(hub, /canManage\(PAGES_PERMISSION_KEY\) && canManage\(permissionKey\)/);
+    assert.match(hub, /\.filter\(\(page\) => canManage\(page\.permissionKey\)\)/);
+  });
+
+  test("the deep-linked editor and the write path enforce the same pair, not just the page module", () => {
+    const route = readFileSync(new URL("../../app/admin/pages/[pageId]/page.tsx", import.meta.url), "utf8");
+    const action = readFileSync(new URL("../actions/page-content.ts", import.meta.url), "utf8");
+
+    for (const [name, source] of [["the editor route", route], ["the save action", action]] as const) {
+      assert.match(source, /canEditPageContent|requirePageEditorAccess/, `${name} must go through the paired check`);
+      assert.doesNotMatch(
+        source,
+        /requireModuleAccess\(definition\.permissionKey|canManageModule\(definition\.permissionKey/,
+        `${name} checks only the page module — the hub grant could then be bypassed by deep-linking`,
+      );
+    }
+  });
+
+  test("the adminPreview frame relaxation needs a same-origin iframe on an editable path", () => {
+    const middleware = readFileSync(new URL("../../middleware.ts", import.meta.url), "utf8");
+
+    // A signed-in cookie alone must never be enough: it proves someone is
+    // logged in, not that this is the editor's own preview frame. The browser
+    // sets Sec-Fetch and page script cannot forge it, so a cross-origin framing
+    // attempt arrives as "cross-site" and keeps frame-ancestors 'none'.
+    assert.match(middleware, /sec-fetch-dest"\) === "iframe"/);
+    assert.match(middleware, /sec-fetch-site"\) === "same-origin"/);
+    assert.match(middleware, /EDITABLE_PAGE_PATHS\.has\(request\.nextUrl\.pathname\)/);
+    assert.match(middleware, /isSameOriginFrame &&/);
+  });
+
+  test("the save path refuses rather than republishing other panels at their defaults", () => {
+    const action = readFileSync(new URL("../actions/page-content.ts", import.meta.url), "utf8");
+    // getPageContent swallows read errors into defaults — fine for rendering,
+    // destructive for a merge-and-write.
+    assert.match(action, /readPageContentForUpdate\(pageId\)/);
+    assert.doesNotMatch(action, /getPageContent\(/);
+
+    const data = readFileSync(new URL("../data/page-content.ts", import.meta.url), "utf8");
+    const forUpdate = data.slice(data.indexOf("export async function readPageContentForUpdate"));
+    assert.doesNotMatch(
+      forUpdate.slice(0, forUpdate.indexOf("export async function updatePageContent")),
+      /catch/,
+      "the write-path read must propagate failures, not fall back to defaults",
+    );
+  });
+
+  test("the page hub gates on the pages a viewer may edit, not on one fixed module", () => {
+    const hub = readFileSync(new URL("../../app/admin/pages/page.tsx", import.meta.url), "utf8");
+    assert.match(hub, /requirePageHubAccess\("\/admin\/pages"\)/);
+    assert.doesNotMatch(hub, /requireModuleAccess\(PLAY_PERMISSION_KEY/);
   });
 });

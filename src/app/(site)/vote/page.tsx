@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { getVoteSites, getTopVoters } from "@/lib/data/content";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
+import { getPageContent } from "@/lib/data/page-content";
 import { site } from "@/lib/site";
 import { publicPageMetadata } from "@/lib/seo";
 import { Reveal } from "@/components/shared";
@@ -33,10 +34,11 @@ export const metadata = publicPageMetadata({
 export const dynamic = "force-dynamic";
 
 export default async function VotePage() {
-  const [sites, voters, generalSettings] = await Promise.all([
+  const [sites, voters, generalSettings, copy] = await Promise.all([
     getVoteSites(),
     getTopVoters(),
     getSiteGeneralSettings(),
+    getPageContent("vote"),
   ]);
 
   return (
@@ -52,14 +54,14 @@ export default async function VotePage() {
           <div className="vote-redesign-status" aria-label="Vote reward status">
             <span>
               <i aria-hidden="true" className={generalSettings.votingEnabled ? "" : "bg-amber-400"} />
-              {generalSettings.votingEnabled ? "Voting open" : "Voting paused"}
+              <span data-page-field={generalSettings.votingEnabled ? "openLabel" : "pausedLabel"}>{generalSettings.votingEnabled ? copy.openLabel : copy.pausedLabel}</span>
             </span>
-            <span>Daily reward cycle</span>
+            <span data-page-field="cycleLabel">{copy.cycleLabel}</span>
           </div>
 
           <div className="vote-redesign-mast" aria-label="Mazora voting overview">
             <div className="vote-redesign-stat">
-              <span><Vote size={17} aria-hidden="true" /><small>live vote partners</small></span>
+              <span><Vote size={17} aria-hidden="true" /><small data-page-field="partnerStat">{copy.partnerStat}</small></span>
               <strong>{sites.length}</strong>
             </div>
 
@@ -76,39 +78,39 @@ export default async function VotePage() {
             </div>
 
             <div className="vote-redesign-stat vote-redesign-stat-right">
-              <span><Trophy size={17} aria-hidden="true" /><small>supporters ranked</small></span>
+              <span><Trophy size={17} aria-hidden="true" /><small data-page-field="supporterStat">{copy.supporterStat}</small></span>
               <strong>{voters.length}</strong>
             </div>
           </div>
 
           <div className="vote-redesign-copy">
-            <p><Sparkles size={14} aria-hidden="true" /> Support Mazora. Earn in game.</p>
-            <h1>Your vote shapes <span>what comes next.</span></h1>
-            <div>Help more players discover the network and collect a configured reward for every completed partner vote.</div>
+            <p><Sparkles size={14} aria-hidden="true" /> <span data-page-field="heroEyebrow">{copy.heroEyebrow}</span></p>
+            <h1><span data-page-field="heroTitle">{copy.heroTitle}</span> <span data-page-field="heroAccent">{copy.heroAccent}</span></h1>
+            <div data-page-field="heroLead">{copy.heroLead}</div>
 
             {!generalSettings.votingEnabled && (
               <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-900 dark:text-amber-200">
                 <AlertTriangle size={14} className="text-amber-400" />
-                Server voting is currently paused for scheduled updates.
+                <span data-page-field="pausedMessage">{copy.pausedMessage}</span>
               </div>
             )}
           </div>
 
           <div className="vote-redesign-actions">
             <a href="#vote-sites" className="vote-redesign-primary">
-              Vote now <ArrowDown size={17} />
+              <span data-page-field="primaryCta">{copy.primaryCta}</span> <ArrowDown size={17} />
             </a>
             <a href="#top-voters" className="vote-redesign-secondary">
-              <Trophy size={16} /> View rankings
+              <Trophy size={16} /> <span data-page-field="secondaryCta">{copy.secondaryCta}</span>
             </a>
           </div>
 
           <div className="vote-redesign-journey" aria-label="How voting works">
-            <span><b>01</b><Vote size={15} /> Choose a partner</span>
+            <span><b>01</b><Vote size={15} /> <span data-page-field="journeyOne">{copy.journeyOne}</span></span>
             <i aria-hidden="true" />
-            <span><b>02</b><Check size={15} /> Enter your username</span>
+            <span><b>02</b><Check size={15} /> <span data-page-field="journeyTwo">{copy.journeyTwo}</span></span>
             <i aria-hidden="true" />
-            <span><b>03</b><Gift size={15} /> Return for rewards</span>
+            <span><b>03</b><Gift size={15} /> <span data-page-field="journeyThree">{copy.journeyThree}</span></span>
           </div>
         </div>
       </section>
@@ -118,9 +120,9 @@ export default async function VotePage() {
 
         <section className="shell vote-realm-content vote-hub-content">
           <Reveal className="vote-hub-heading">
-            <p className="eyebrow"><Sparkles size={13} /> Mazora vote center</p>
-            <h2>Choose a site. Help Mazora grow.</h2>
-            <p>Use your Minecraft username on any available partner. Each completed vote supports the network and can unlock your configured in-game reward.</p>
+            <p className="eyebrow"><Sparkles size={13} /> <span data-page-field="centerEyebrow">{copy.centerEyebrow}</span></p>
+            <h2 data-page-field="centerTitle">{copy.centerTitle}</h2>
+            <p data-page-field="centerLead">{copy.centerLead}</p>
           </Reveal>
 
           <div className="vote-hub-side-layout">
@@ -130,9 +132,9 @@ export default async function VotePage() {
                   <div className="vote-realm-leader-title">
                     <span><Trophy size={20} /></span>
                     <div>
-                      <p className="eyebrow">Community leaderboard</p>
-                      <h2>Top supporters</h2>
-                      <p>Find a player or sort the board by the voting period that matters to you.</p>
+                      <p className="eyebrow" data-page-field="leaderEyebrow">{copy.leaderEyebrow}</p>
+                      <h2 data-page-field="leaderTitle">{copy.leaderTitle}</h2>
+                      <p data-page-field="leaderLead">{copy.leaderLead}</p>
                     </div>
                   </div>
                   {/* Wrapped so the head keeps its two-child layout: the count
@@ -153,7 +155,7 @@ export default async function VotePage() {
               <section id="vote-sites" aria-label="Vote sites">
                 <Reveal className="vote-hub-sites">
                   <div className="vote-hub-sites-head">
-                    <div><p className="eyebrow">Available now</p><h2>Vote sites</h2></div>
+                    <div><p className="eyebrow" data-page-field="sitesEyebrow">{copy.sitesEyebrow}</p><h2 data-page-field="sitesTitle">{copy.sitesTitle}</h2></div>
                     <span><i aria-hidden="true" /> {sites.length} live</span>
                   </div>
                   <div className="vote-hub-site-list">
@@ -167,23 +169,23 @@ export default async function VotePage() {
                         className={`vote-hub-site-link group${generalSettings.votingEnabled ? "" : " is-disabled"}`}
                       >
                         <span className="vote-hub-site-number">{String(index + 1).padStart(2, "0")}</span>
-                        <span><strong>{voteSite.name}</strong><small>{voteSite.reward || "Open partner and enter your username"}</small></span>
+                        <span><strong>{voteSite.name}</strong><small data-page-field={!voteSite.reward ? "siteFallback" : undefined}>{voteSite.reward || copy.siteFallback}</small></span>
                         <span className="vote-hub-site-action">Vote <ArrowUpRight size={15} /></span>
                       </a>
                     ))}
                   </div>
-                  <div className="vote-hub-cooldown"><Clock3 size={14} /><span>Each partner controls its own voting cooldown.</span></div>
+                  <div className="vote-hub-cooldown"><Clock3 size={14} /><span data-page-field="cooldown">{copy.cooldown}</span></div>
                 </Reveal>
               </section>
 
               <Reveal className="vote-hub-guide">
-                <div className="vote-hub-guide-head"><p className="eyebrow">Quick guide</p><h2>Three steps. Done.</h2></div>
+                <div className="vote-hub-guide-head"><p className="eyebrow" data-page-field="guideEyebrow">{copy.guideEyebrow}</p><h2 data-page-field="guideTitle">{copy.guideTitle}</h2></div>
                 <div className="vote-hub-guide-list">
-                  <div><span>01</span><i><Vote size={17} /></i><div><strong>Open a partner</strong><small>Choose any available site from the list.</small></div></div>
-                  <div><span>02</span><i><Check size={17} /></i><div><strong>Confirm your username</strong><small>Enter the Minecraft name you use on Mazora.</small></div></div>
-                  <div><span>03</span><i><Gift size={17} /></i><div><strong>Return to the server</strong><small>Collect your configured reward in game.</small></div></div>
+                  <div><span>01</span><i><Vote size={17} /></i><div><strong data-page-field="step1Title">{copy.step1Title}</strong><small data-page-field="step1Copy">{copy.step1Copy}</small></div></div>
+                  <div><span>02</span><i><Check size={17} /></i><div><strong data-page-field="step2Title">{copy.step2Title}</strong><small data-page-field="step2Copy">{copy.step2Copy}</small></div></div>
+                  <div><span>03</span><i><Gift size={17} /></i><div><strong data-page-field="step3Title">{copy.step3Title}</strong><small data-page-field="step3Copy">{copy.step3Copy}</small></div></div>
                 </div>
-                <div className="vote-hub-reward-note"><Gift size={18} /><div><strong>Rewards stay flexible</strong><span>Vote rewards can change as Mazora’s seasons and events evolve.</span></div></div>
+                <div className="vote-hub-reward-note"><Gift size={18} /><div><strong data-page-field="rewardTitle">{copy.rewardTitle}</strong><span data-page-field="rewardCopy">{copy.rewardCopy}</span></div></div>
               </Reveal>
             </aside>
           </div>

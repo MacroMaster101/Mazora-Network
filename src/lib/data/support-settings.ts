@@ -2,6 +2,7 @@ import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { site } from "@/lib/site";
+import { safeNext } from "@/lib/safe-redirect";
 
 export type SupportFaq = { question: string; answer: string };
 
@@ -42,6 +43,25 @@ export type SupportCardSettings = {
 
 export const SUPPORT_MAIN_KEY = "support.main";
 export const SUPPORT_CARDS_KEY = "support.cards";
+
+/** Dynamic support links are rendered as anchors, so reject executable and off-site internal URLs. */
+export function isSafeSupportHref(value: string, external: boolean): boolean {
+  const href = value.trim();
+  if (external) {
+    try {
+      const url = new URL(href);
+      return url.protocol === "https:" && Boolean(url.hostname) && !url.username && !url.password;
+    } catch {
+      return false;
+    }
+  }
+  return href.startsWith("/") && safeNext(href) === href;
+}
+
+function sanitizeSupportCard(card: SupportCardSettings): SupportCardSettings {
+  if (isSafeSupportHref(card.href, card.external)) return card;
+  return { ...card, href: "/support", external: false };
+}
 
 export const DEFAULT_SUPPORT_MAIN: SupportMainSettings = {
   eyebrow: "We're here for you",
@@ -102,7 +122,8 @@ export async function getSupportMainSettings() {
 */
 export const getSupportCards = cache(async () => {
   const value = await readSetting<SupportCardSettings[]>(SUPPORT_CARDS_KEY, DEFAULT_SUPPORT_CARDS);
-  return Array.isArray(value) && value.length > 0 ? value : DEFAULT_SUPPORT_CARDS;
+  const cards = Array.isArray(value) && value.length > 0 ? value : DEFAULT_SUPPORT_CARDS;
+  return cards.map(sanitizeSupportCard);
 });
 
 export async function getSupportCard(id: string) {

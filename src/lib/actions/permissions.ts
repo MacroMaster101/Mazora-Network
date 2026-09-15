@@ -11,6 +11,7 @@ import {
   NEWS_PERMISSION_KEY,
   GALLERY_PERMISSION_KEY,
   PLAY_PERMISSION_KEY,
+  PAGES_PERMISSION_KEY,
   EVENTS_PERMISSION_KEY,
   GAMEMODES_PERMISSION_KEY,
   RULES_PERMISSION_KEY,
@@ -142,4 +143,7 @@ export async function saveNotificationsPermissionsAction(fd: FormData) {
 }
 export async function saveBotPermissionsAction(fd: FormData) {
   return saveModulePermissionAction(MAZORA_BOT_PERMISSION_KEY, "Mazora Bot", fd);
+}
+export async function savePagesPermissionsAction(fd: FormData) {
+  return saveModulePermissionAction(PAGES_PERMISSION_KEY, "Page Content Hub", fd);
 }

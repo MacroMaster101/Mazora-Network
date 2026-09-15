@@ -144,12 +144,12 @@ export interface StoredImage {
  * only. The format is preserved — including animation for GIF and animated
  * WebP — so a re-hosted banner still animates.
  *
- * Falls back to the original bytes when sharp cannot process them: `detectedMime`
- * has already proved they are a real raster image, and the callers here are the
- * admin content tools and the IP-guarded importer, so refusing an unusual but
- * valid image would break a legitimate upload rather than stop an attack.
+ * If the decoder cannot process the file, reject it. A matching magic header
+ * alone does not prove that the remaining bytes are a valid image, and storing
+ * the original would preserve appended payloads and metadata this step exists
+ * to remove.
  */
-async function sanitizeImageBytes(bytes: Uint8Array, mime: ImageMime): Promise<Uint8Array> {
+async function sanitizeImageBytes(bytes: Uint8Array, mime: ImageMime): Promise<Uint8Array | null> {
   try {
     switch (mime) {
       case "image/jpeg":
@@ -163,7 +163,7 @@ async function sanitizeImageBytes(bytes: Uint8Array, mime: ImageMime): Promise<U
         return new Uint8Array(await sharp(bytes, { animated: true }).gif().toBuffer());
     }
   } catch {
-    return bytes;
+    return null;
   }
 }
 
@@ -192,6 +192,7 @@ export async function storeImageBytes(bytes: Uint8Array, keyBase: string): Promi
   if (!admin || !(await ensureBucket())) return null;
 
   const clean = await sanitizeImageBytes(bytes, mime);
+  if (!clean) return null;
   const key = `${safeBase}.${MIME_EXTENSIONS[mime]}`;
   const { error } = await admin.storage.from(NEWS_IMAGE_BUCKET).upload(key, clean, {
     contentType: mime,

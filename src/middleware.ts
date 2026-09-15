@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { getLaunchGate, isLaunchModeEnabled } from "@/lib/launch";
 import { buildContentSecurityPolicy, generateNonce } from "@/lib/csp";
+import { EDITABLE_PAGE_PATHS } from "@/lib/page-paths";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -24,21 +25,55 @@ function isDeadSessionError(error: unknown): boolean {
  * header to stamp its own bootstrap scripts, and `x-nonce` is what the root
  * layout reads for the inline theme script.
  */
-function withCsp(request: NextRequest, nonce: string, csp: string) {
+function setResponseSecurityHeaders(response: NextResponse, csp: string, allowSameOriginFrame: boolean) {
+  response.headers.set("Content-Security-Policy", csp);
+  if (allowSameOriginFrame) response.headers.set("X-Frame-Options", "SAMEORIGIN");
+}
+
+function withCsp(request: NextRequest, nonce: string, csp: string, allowSameOriginFrame = false) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("content-security-policy", csp);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
-  response.headers.set("Content-Security-Policy", csp);
+  setResponseSecurityHeaders(response, csp, allowSameOriginFrame);
   return { response, requestHeaders };
 }
 
 export async function middleware(request: NextRequest) {
   const nonce = generateNonce();
-  const csp = buildContentSecurityPolicy(nonce, isDev);
-
   const hasSupabaseAuthCookie = request.cookies.getAll().some(({ name }) => name.startsWith("sb-") && name.includes("auth-token"));
   const hasSessionCookie = request.cookies.has("mz_session") || hasSupabaseAuthCookie;
+  /*
+    The page editor frames the live page it edits, so those responses — and only
+    those — may be framed same-origin.
+
+    Middleware cannot tell staff from any other signed-in visitor: the role
+    lives in the database, and `mz_session` is demo-mode only. So the check that
+    carries the weight is the request's own fetch metadata. The editor's preview
+    arrives as a same-origin iframe subrequest; a clickjacking attempt from
+    another origin arrives as `Sec-Fetch-Site: cross-site`, never matches, and
+    is served `frame-ancestors 'none'` as before. The browser sets these headers
+    and page script cannot forge them, which is what makes them worth trusting
+    here — unlike the cookie, which only proves someone is signed in.
+
+    A browser too old to send Sec-Fetch (Safari before 16.4) simply keeps the
+    strict policy and loses the inline preview; "View live page" still works.
+    That is the right way round to fail.
+  */
+  const isSameOriginFrame =
+    request.headers.get("sec-fetch-dest") === "iframe" &&
+    request.headers.get("sec-fetch-site") === "same-origin";
+  const isAdminPagePreview =
+    request.nextUrl.searchParams.get("adminPreview") === "1" &&
+    hasSessionCookie &&
+    isSameOriginFrame &&
+    EDITABLE_PAGE_PATHS.has(request.nextUrl.pathname);
+  const isPageEditor = request.nextUrl.pathname.startsWith("/admin/pages/");
+  const csp = buildContentSecurityPolicy(nonce, isDev, {
+    allowSameOriginFrameAncestors: isAdminPagePreview,
+    allowSameOriginFrameSources: isPageEditor,
+  });
+
   const launchGate = isLaunchModeEnabled() ? getLaunchGate(request.nextUrl.pathname) : undefined;
   if (launchGate && (!request.nextUrl.pathname.startsWith("/dashboard") || hasSessionCookie)) {
     const destination = request.nextUrl.clone();
@@ -48,7 +83,7 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set("x-nonce", nonce);
     requestHeaders.set("content-security-policy", csp);
     const rewrite = NextResponse.rewrite(destination, { request: { headers: requestHeaders } });
-    rewrite.headers.set("Content-Security-Policy", csp);
+    setResponseSecurityHeaders(rewrite, csp, isAdminPagePreview);
     return rewrite;
   }
 
@@ -56,10 +91,10 @@ export async function middleware(request: NextRequest) {
   const hasAuthCookie = request.cookies.getAll().some(({ name }) => name.startsWith("sb-") && name.includes("auth-token"));
 
   if (!config || !hasAuthCookie || request.nextUrl.pathname.startsWith("/auth/")) {
-    return withCsp(request, nonce, csp).response;
+    return withCsp(request, nonce, csp, isAdminPagePreview).response;
   }
 
-  const { response: initial, requestHeaders } = withCsp(request, nonce, csp);
+  const { response: initial, requestHeaders } = withCsp(request, nonce, csp, isAdminPagePreview);
   let response = initial;
   const supabase = createServerClient(config.url, config.key, {
     /*
@@ -83,7 +118,7 @@ export async function middleware(request: NextRequest) {
         // immediately retries the expired token that middleware just replaced.
         requestHeaders.set("cookie", request.headers.get("cookie") ?? "");
         response = NextResponse.next({ request: { headers: requestHeaders } });
-        response.headers.set("Content-Security-Policy", csp);
+        setResponseSecurityHeaders(response, csp, isAdminPagePreview);
         cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
       },
     },
@@ -98,7 +133,7 @@ export async function middleware(request: NextRequest) {
     for (const { name } of deadCookies) request.cookies.delete(name);
     requestHeaders.set("cookie", request.headers.get("cookie") ?? "");
     response = NextResponse.next({ request: { headers: requestHeaders } });
-    response.headers.set("Content-Security-Policy", csp);
+    setResponseSecurityHeaders(response, csp, isAdminPagePreview);
     for (const { name } of deadCookies) {
       response.cookies.set(name, "", {
         httpOnly: true,

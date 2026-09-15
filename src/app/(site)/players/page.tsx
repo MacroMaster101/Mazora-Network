@@ -4,6 +4,7 @@ import { getDirectory } from "@/lib/data/directory";
 import { getServerStatus } from "@/lib/data/status";
 import { EmptyState, FloatingBrandLogo, PageHero, PlayerExplorer, Reveal } from "@/components/shared";
 import { RefreshButton } from "@/components/shared/refresh-button";
+import { getPageContent } from "@/lib/data/page-content";
 
 export const dynamic = "force-dynamic";
 
@@ -14,15 +15,16 @@ export const metadata = publicPageMetadata({
 });
 
 export default async function PlayersPage() {
-  const [directory, status] = await Promise.all([getDirectory(), getServerStatus()]);
+  const [directory, status, copy] = await Promise.all([getDirectory(), getServerStatus(), getPageContent("players")]);
   const onlineCount = status.online ? status.players : directory.filter((p) => p.online).length;
 
   return (
     <>
       <PageHero
-        eyebrow={status.online ? `${onlineCount} online now` : "Player directory"}
-        title="Find any player."
-        lead="Search the directory, check who's online, and dive into public profiles, stats, and achievements."
+        eyebrow={status.online ? <>{onlineCount} <span data-page-field="onlineSuffix">{copy.onlineSuffix}</span></> : copy.fallbackEyebrow}
+        title={copy.heroTitle}
+        lead={copy.heroLead}
+        fieldIds={{ eyebrow: status.online ? undefined : "fallbackEyebrow", title: "heroTitle", lead: "heroLead" }}
         illustration={<FloatingBrandLogo />}
       />
       <section className="section shell space-y-8">
@@ -37,9 +39,10 @@ export default async function PlayersPage() {
           ) : (
             <EmptyState
               icon={<Users size={24} />}
-              title="The full directory isn't live yet"
-              message="Profiles, playtime and balances arrive once the Minecraft data pipeline is connected."
-              cta={{ label: "How to play", href: "/play" }}
+              title={copy.emptyTitle}
+              message={copy.emptyMessage}
+              cta={{ label: copy.emptyCta, href: "/play" }}
+              fieldIds={{ title: "emptyTitle", message: "emptyMessage", cta: "emptyCta" }}
             />
           )}
         </Reveal>

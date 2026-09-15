@@ -40,7 +40,11 @@ if (configuredMapUrl) {
   }
 }
 
-export function buildContentSecurityPolicy(nonce: string, isDev: boolean): string {
+export function buildContentSecurityPolicy(
+  nonce: string,
+  isDev: boolean,
+  options: { allowSameOriginFrameAncestors?: boolean; allowSameOriginFrameSources?: boolean } = {},
+): string {
   // 'strict-dynamic' lets the nonced Next bootstrap load its own chunks without
   // each one needing a nonce. CSP3 browsers ignore host allowlists in
   // script-src once it is present, which is the intent — only scripts this page
@@ -62,12 +66,12 @@ export function buildContentSecurityPolicy(nonce: string, isDev: boolean): strin
     // https: covers the env-configured Supabase host without hard-coding it.
     // ws: is dev-only, for the hot-reload socket.
     `connect-src 'self' https:${isDev ? " ws:" : ""}`,
-    "frame-ancestors 'none'",
+    options.allowSameOriginFrameAncestors ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     "form-action 'self'",
     "base-uri 'self'",
     "object-src 'none'",
     // The Discord widget plus the optional server map embedded on the homepage.
-    `frame-src https://discord.com${serverMapOrigin ? ` ${serverMapOrigin}` : ""}`,
+    `frame-src${options.allowSameOriginFrameSources ? " 'self'" : ""} https://discord.com${serverMapOrigin ? ` ${serverMapOrigin}` : ""}`,
     "upgrade-insecure-requests",
   ].join("; ");
 }

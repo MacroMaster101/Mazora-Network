@@ -19,6 +19,7 @@ import {
   UsersRound,
   Vote,
   Receipt,
+  PanelsTopLeft,
 } from "lucide-react";
 import type { Role } from "@/lib/types";
 import { hasAtLeast } from "@/lib/auth/roles";
@@ -49,6 +50,8 @@ export interface AdminNavAccess {
   minecraft: boolean;
   suggestions: boolean;
   staff: boolean;
+  /** The page-content hub; each editor inside it still checks its own module. */
+  pages: boolean;
   play: boolean;
   news: boolean;
   events: boolean;
@@ -69,6 +72,7 @@ export const ALL_ADMIN_NAV_ACCESS: AdminNavAccess = {
   minecraft: true,
   suggestions: true,
   staff: true,
+  pages: true,
   play: true,
   news: true,
   events: true,
@@ -101,6 +105,7 @@ export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
     {
       heading: "Content",
       items: [
+        { label: "Pages", href: "/admin/pages", icon: PanelsTopLeft, minRole: "administrator", visible: access.pages },
         { label: "Play", href: "/admin/play", icon: Gamepad2, minRole: "administrator", visible: access.play },
         { label: "News", href: "/admin/news", icon: FileText, minRole: "administrator", visible: access.news },
         { label: "Events", href: "/admin/events", icon: CalendarDays, minRole: "administrator", visible: access.events },

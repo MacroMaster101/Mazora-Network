@@ -3,6 +3,7 @@ import { ScrollText } from "lucide-react";
 import { getRules } from "@/lib/data/content";
 import { EmptyState, PageHero, Reveal, LegalHeroIllustration } from "@/components/shared";
 import { RuleBook } from "@/components/shared/rule-book";
+import { getPageContent } from "@/lib/data/page-content";
 
 export const metadata = publicPageMetadata({
   title: "Rules",
@@ -11,19 +12,20 @@ export const metadata = publicPageMetadata({
 });
 
 export default async function RulesPage() {
-  const categories = await getRules();
+  const [categories, copy] = await Promise.all([getRules(), getPageContent("rules")]);
   const latest = categories.reduce((acc, c) => (c.updated > acc ? c.updated : acc), categories[0]?.updated ?? "");
   const updatedLabel =
     latest && !Number.isNaN(new Date(latest).getTime())
       ? `Last updated ${new Date(latest).toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}`
-      : "Community rules";
+      : copy.fallbackEyebrow;
 
   return (
     <>
       <PageHero
         eyebrow={updatedLabel}
-        title="Play fair. Have fun."
-        lead="Our rules exist to keep the network welcoming and competitive. Read them once — they take five minutes and save a lot of headaches."
+        title={copy.heroTitle}
+        lead={copy.heroLead}
+        fieldIds={{ eyebrow: latest ? undefined : "fallbackEyebrow", title: "heroTitle", lead: "heroLead" }}
         illustration={<LegalHeroIllustration />}
       />
       <section className="section shell">
@@ -33,9 +35,10 @@ export default async function RulesPage() {
           ) : (
             <EmptyState
               icon={<ScrollText size={24} />}
-              title="Rules are being written"
-              message="The community rulebook will be published here. Until then, ask staff in Discord if you are unsure about anything."
-              cta={{ label: "Ask in Discord", href: "/discord" }}
+              title={copy.emptyTitle}
+              message={copy.emptyMessage}
+              cta={{ label: copy.emptyCta, href: "/discord" }}
+              fieldIds={{ title: "emptyTitle", message: "emptyMessage", cta: "emptyCta" }}
             />
           )}
         </Reveal>
