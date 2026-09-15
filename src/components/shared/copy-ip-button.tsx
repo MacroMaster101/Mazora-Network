@@ -14,11 +14,13 @@ export function CopyIpButton({
   label,
   variant = "button",
   className,
+  fieldId,
 }: {
   ip: string;
   label?: string;
   variant?: "button" | "inline";
   className?: string;
+  fieldId?: string;
 }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -53,7 +55,7 @@ export function CopyIpButton({
   return (
     <button onClick={copy} className={cn("btn btn-ghost", className)} aria-label={`Copy ${label ?? ip}`}>
       {copied ? <Check size={16} className="text-accent-bright" /> : <Copy size={16} />}
-      {copied ? "Copied!" : label ?? "Copy IP"}
+      <span data-page-field={fieldId}>{copied ? "Copied!" : label ?? "Copy IP"}</span>
     </button>
   );
 }

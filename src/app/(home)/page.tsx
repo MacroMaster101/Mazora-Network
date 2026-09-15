@@ -14,6 +14,7 @@ import { getNews } from "@/lib/data/content";
 import { getDiscordStats } from "@/lib/data/discord";
 import { getServerStatus } from "@/lib/data/status";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
+import { getPageContent } from "@/lib/data/page-content";
 import { site } from "@/lib/site";
 import { withCommas } from "@/lib/utils";
 import { headers } from "next/headers";
@@ -37,11 +38,12 @@ export const metadata: Metadata = {
 };
 
 async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean; previewEmpty: boolean }) {
-  const [status, discord, publishedNews, generalSettings] = await Promise.all([
+  const [status, discord, publishedNews, generalSettings, copy] = await Promise.all([
     getServerStatus(),
     getDiscordStats(),
     getNews(),
     getSiteGeneralSettings(),
+    getPageContent("home"),
   ]);
   const news = previewEmpty ? [] : previewNews ? getPreviewNews() : publishedNews;
   const configuredMapUrl = process.env.NEXT_PUBLIC_SERVER_MAP_URL?.trim();
@@ -78,8 +80,8 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
           <h1> at all — previously masked by the loading splash, which rendered
           one before the real content on every route.
         */}
-        <h1 className="sr-only">
-          {site.name} — {site.tagline}
+        <h1 className="sr-only" data-page-field="heroTitle">
+          {copy.heroTitle}
         </h1>
         <div className="hero-art pointer-events-none absolute inset-0">
           <WorldBackdrop scene="home" className="hero-backdrop" />
@@ -99,7 +101,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                 <div className="min-w-0 text-left lg:text-right">
                   <p className="font-display text-base font-extrabold sm:text-lg xl:text-xl">
                     <span className="text-white">{status.live && status.online ? withCommas(status.players) : "—"}</span>{" "}
-                    <span className="uppercase tracking-[0.08em] text-white/80">Players Online</span>
+                    <span className="uppercase tracking-[0.08em] text-white/80" data-page-field="playersOnlineLabel">{copy.playersOnlineLabel}</span>
                   </p>
                   <span className="telemetry mt-1 block text-xs text-white/55">{site.javaIp}</span>
                 </div>
@@ -136,8 +138,8 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                 <div className="min-w-0 text-left">
                   <p className="font-display text-base font-extrabold sm:text-lg xl:text-xl">
                     <span className="text-white">{discord.live ? withCommas(discord.online) : "Join"}</span>{" "}
-                    <span className="uppercase tracking-[0.08em] text-white/80">
-                      {discord.live ? "Discord Online" : "Our Discord"}
+                    <span className="uppercase tracking-[0.08em] text-white/80" data-page-field={discord.live ? "discordOnlineLabel" : "discordFallbackLabel"}>
+                      {discord.live ? copy.discordOnlineLabel : copy.discordFallbackLabel}
                     </span>
                   </p>
                   <span className="telemetry mt-1 block text-xs text-white/45 transition-colors group-hover:text-violet-200">
@@ -151,9 +153,9 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
           <div className="mt-6 flex animate-fade-up justify-center sm:mt-9" style={{ animationDelay: "180ms" }}>
             <div className="hero-actions grid w-full max-w-[560px] grid-cols-2 gap-2 p-2 sm:w-auto sm:flex sm:flex-row">
               <Link href="/play" className="hero-cta hero-cta-primary col-span-2 sm:col-auto">
-                <Play size={16} className="fill-current" /> Enter the world <ArrowRight size={16} />
+                <Play size={16} className="fill-current" /> <span data-page-field="primaryCta">{copy.primaryCta}</span> <ArrowRight size={16} />
               </Link>
-              <CopyIpButton ip={generalSettings.javaIp || site.javaIp} label="Copy IP" className="hero-action-secondary" />
+              <CopyIpButton ip={generalSettings.javaIp || site.javaIp} label={copy.copyIpCta} fieldId="copyIpCta" className="hero-action-secondary" />
               {/*
                 aria-label because the nav and footer both link to the internal
                 /discord page under the same "Discord" name; two links reading
@@ -167,7 +169,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                 aria-label="Join the Mazora Discord server"
                 className="hero-cta hero-cta-quiet"
               >
-                <DiscordIcon size={16} /> Discord
+                <DiscordIcon size={16} /> <span data-page-field="discordCta">{copy.discordCta}</span>
               </a>
             </div>
           </div>
@@ -179,7 +181,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
       <div className="home-world">
         <section className="home-section home-section-base home-news-band section shell pt-14 sm:pt-16">
           <Reveal className="home-section-heading">
-            <SectionHeader eyebrow="From the network" title="Latest news & updates." />
+            <SectionHeader eyebrow={copy.newsEyebrow} title={copy.newsTitle} fieldIds={{ eyebrow: "newsEyebrow", title: "newsTitle" }} />
           </Reveal>
           <Reveal className="mt-8">
             {news.length > 0 ? (
@@ -188,9 +190,10 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
               <EmptyState
                 className="news-empty-state"
                 icon={<Newspaper size={24} />}
-                title="No articles published yet"
-                message="Updates, patch notes and announcements from the team will show up here."
-                cta={{ label: "Join the Discord", href: "/discord" }}
+                title={copy.newsEmptyTitle}
+                message={copy.newsEmptyMessage}
+                cta={{ label: copy.newsEmptyCta, href: "/discord" }}
+                fieldIds={{ title: "newsEmptyTitle", message: "newsEmptyMessage", cta: "newsEmptyCta" }}
               />
             )}
           </Reveal>
@@ -198,7 +201,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
 
         <section className="home-map-section shell pb-10 pt-8 sm:pb-14 sm:pt-12" aria-labelledby="world-map-title">
           <Reveal className="home-section-heading">
-            <SectionHeader eyebrow="Explore Mazora" title="See the world from above." />
+            <SectionHeader eyebrow={copy.mapEyebrow} title={copy.mapTitle} fieldIds={{ eyebrow: "mapEyebrow", title: "mapTitle" }} />
           </Reveal>
 
           <Reveal className="mt-8">
@@ -207,13 +210,13 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                 <div className="home-map-title-group">
                   <span className="home-map-icon" aria-hidden="true"><Map size={18} /></span>
                   <div>
-                    <h2 id="world-map-title">Mazora live world map</h2>
-                    <p>
+                    <h2 id="world-map-title" data-page-field="mapToolbarTitle">{copy.mapToolbarTitle}</h2>
+                    <p data-page-field={mapEmbeddable ? "mapLiveMessage" : mapUrl ? "mapOfflineMessage" : "mapPendingMessage"}>
                       {mapEmbeddable
-                        ? "Live terrain and player activity from across the network."
+                        ? copy.mapLiveMessage
                         : mapUrl
-                        ? "The map reconnects automatically once the server is back online."
-                        : "The map portal is being prepared for launch."}
+                        ? copy.mapOfflineMessage
+                        : copy.mapPendingMessage}
                     </p>
                   </div>
                 </div>
@@ -245,11 +248,11 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                   <div className="home-map-coming-soon">
                     <span className="home-map-signal" aria-hidden="true"><Radio size={22} /></span>
                     <p className="eyebrow">{mapUrl ? "Map offline" : "Map connection pending"}</p>
-                    <h3>{mapUrl ? "The world map is resting." : "Our world is almost online."}</h3>
-                    <p>
+                    <h3 data-page-field={mapUrl ? "mapOfflineTitle" : "mapPendingTitle"}>{mapUrl ? copy.mapOfflineTitle : copy.mapPendingTitle}</h3>
+                    <p data-page-field={mapUrl ? "mapOfflineBody" : "mapPendingBody"}>
                       {mapUrl
-                        ? "Live terrain and player locations return as soon as the server is back up."
-                        : "Explore builds, landmarks and live player locations here once the server map plugin launches."}
+                        ? copy.mapOfflineBody
+                        : copy.mapPendingBody}
                     </p>
                   </div>
                 </div>
@@ -262,20 +265,17 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
           <Reveal>
             <div className="grid gap-10 py-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:items-center lg:gap-16 lg:py-16">
               <div className="max-w-2xl">
-                <p className="eyebrow">Inside the network</p>
-                <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Built to feel like your server.</h2>
-                <p className="mt-3 max-w-xl text-muted">
-                  Mazora is a player-first Minecraft community built around persistent worlds, fair progression,
-                  and the people you meet along the way. Join from Java or Bedrock and keep one identity across every mode.
-                </p>
+                <p className="eyebrow" data-page-field="networkEyebrow">{copy.networkEyebrow}</p>
+                <h2 className="mt-3 text-3xl font-bold sm:text-4xl" data-page-field="networkTitle">{copy.networkTitle}</h2>
+                <p className="mt-3 max-w-xl text-muted" data-page-field="networkDescription">{copy.networkDescription}</p>
                 <div className="home-value-points mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm text-white/65">
-                  <span><ShieldCheck size={15} /> Fair progression</span>
-                  <span><MonitorSmartphone size={15} /> Java + Bedrock</span>
-                  <span><UsersRound size={15} /> Active community</span>
+                  <span><ShieldCheck size={15} /> <span data-page-field="valueOne">{copy.valueOne}</span></span>
+                  <span><MonitorSmartphone size={15} /> <span data-page-field="valueTwo">{copy.valueTwo}</span></span>
+                  <span><UsersRound size={15} /> <span data-page-field="valueThree">{copy.valueThree}</span></span>
                 </div>
                 <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
-                  <CopyIpButton ip={generalSettings.javaIp || site.javaIp} label="Copy server IP" />
-                  <Link href="/game-modes" className="btn btn-ghost">Explore worlds</Link>
+                  <CopyIpButton ip={generalSettings.javaIp || site.javaIp} label={copy.networkCopyCta} fieldId="networkCopyCta" />
+                  <Link href="/game-modes" className="btn btn-ghost"><span data-page-field="networkWorldsCta">{copy.networkWorldsCta}</span></Link>
                   <a
                     href={generalSettings.discord || site.discord}
                     target="_blank"
@@ -283,7 +283,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                     aria-label="Join the Mazora Discord server"
                     className="btn btn-ghost col-span-2 sm:col-auto"
                   >
-                    <DiscordIcon size={16} /> Discord
+                    <DiscordIcon size={16} /> <span data-page-field="networkDiscordCta">{copy.networkDiscordCta}</span>
                   </a>
                 </div>
               </div>

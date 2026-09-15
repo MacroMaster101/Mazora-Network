@@ -7,6 +7,7 @@ import { NewsVisitorStat } from "@/components/shared/news-visitor-stat";
 import { getPreviewNews } from "@/lib/news/preview-fixtures";
 import { getNewsVisitorCount } from "@/lib/data/news-visitors";
 import { publicPageMetadata } from "@/lib/seo";
+import { getPageContent } from "@/lib/data/page-content";
 // news-pages.css holds rules split out of globals.css and must load first, which
 // is the order they cascaded in there. Do not reshuffle.
 import "@/styles/news-pages.css";
@@ -30,9 +31,10 @@ export default async function NewsPage({
   const previewValue = (await searchParams).previewNews;
   const previewNews = process.env.NODE_ENV === "development" && previewValue === "15";
   const previewEmpty = process.env.NODE_ENV === "development" && previewValue === "0";
-  const [articles, visitorCount] = await Promise.all([
+  const [articles, visitorCount, copy] = await Promise.all([
     previewEmpty ? Promise.resolve([]) : previewNews ? Promise.resolve(getPreviewNews()) : getNews(),
     getNewsVisitorCount(),
+    getPageContent("news"),
   ]);
 
   return (
@@ -40,7 +42,7 @@ export default async function NewsPage({
       <section className="newsroom-hero">
         <div className="newsroom-hero-backdrop" aria-hidden="true" />
         <div className="shell newsroom-hero-shell">
-          <div className="newsroom-live-pill"><Radio size={13} /> Latest from Mazora</div>
+          <div className="newsroom-live-pill"><Radio size={13} /> <span data-page-field="heroEyebrow">{copy.heroEyebrow}</span></div>
 
           <div className="newsroom-mast">
             <div className="newsroom-mast-stat newsroom-mast-stat-left">
@@ -66,13 +68,11 @@ export default async function NewsPage({
           </div>
 
           <div className="newsroom-hero-copy">
-            <h1>Stories from <span>across the network.</span></h1>
-            <p>
-              Discover new releases, server changes, upcoming events and the moments shaping the Mazora community.
-            </p>
+            <h1><span data-page-field="heroTitle">{copy.heroTitle}</span> <span data-page-field="heroAccent">{copy.heroAccent}</span></h1>
+            <p data-page-field="heroLead">{copy.heroLead}</p>
             <div className="newsroom-hero-note">
               <Sparkles size={16} />
-              <span><strong>Made for our community</strong> and updated by the Mazora team.</span>
+              <span><strong data-page-field="noteStrong">{copy.noteStrong}</strong> <span data-page-field="noteRest">{copy.noteRest}</span></span>
             </div>
           </div>
         </div>
@@ -86,9 +86,10 @@ export default async function NewsPage({
             <EmptyState
               className="news-empty-state"
               icon={<Newspaper size={24} />}
-              title="No articles published yet"
-              message="Server updates, patch notes and announcements will appear here as soon as the team publishes them."
-              cta={{ label: "Join the Discord", href: "/discord" }}
+              title={copy.emptyTitle}
+              message={copy.emptyMessage}
+              cta={{ label: copy.emptyCta, href: "/discord" }}
+              fieldIds={{ title: "emptyTitle", message: "emptyMessage", cta: "emptyCta" }}
             />
           )}
         </Reveal>

@@ -3,6 +3,7 @@ import { CalendarDays } from "lucide-react";
 import { getEvents } from "@/lib/data/content";
 import { EmptyState, FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";
 import { EventsExplorer } from "@/components/shared/events-explorer";
+import { getPageContent } from "@/lib/data/page-content";
 
 export const metadata = publicPageMetadata({
   title: "Events",
@@ -15,13 +16,14 @@ export const metadata = publicPageMetadata({
 export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
-  const events = await getEvents();
+  const [events, copy] = await Promise.all([getEvents(), getPageContent("events")]);
   return (
     <>
       <PageHero
-        eyebrow="Competitions & community"
-        title="There's always something happening."
-        lead="Tournaments, build competitions, and spontaneous community nights. Show up and win something."
+        eyebrow={copy.heroEyebrow}
+        title={copy.heroTitle}
+        lead={copy.heroLead}
+        fieldIds={{ eyebrow: "heroEyebrow", title: "heroTitle", lead: "heroLead" }}
         illustration={<FloatingBrandLogo />}
       />
       <section className="section shell">
@@ -31,9 +33,10 @@ export default async function EventsPage() {
           ) : (
             <EmptyState
               icon={<CalendarDays size={24} />}
-              title="No events scheduled"
-              message="Tournaments, build competitions and community nights will be listed here once the team schedules them."
-              cta={{ label: "Join the Discord", href: "/discord" }}
+              title={copy.emptyTitle}
+              message={copy.emptyMessage}
+              cta={{ label: copy.emptyCta, href: "/discord" }}
+              fieldIds={{ title: "emptyTitle", message: "emptyMessage", cta: "emptyCta" }}
             />
           )}
         </Reveal>
