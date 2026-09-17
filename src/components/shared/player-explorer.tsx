@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search,
   X,
@@ -32,6 +32,9 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [selected, setSelected] = useState<string | null>(null);
+  // Stable so PlayerPanel's open/focus effect does not re-run (and bounce focus
+  // off the dialog) when the player detail fetch re-renders this list.
+  const closePanel = useCallback(() => setSelected(null), []);
   const [resolved, setResolved] = useState<DirectoryPlayer | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -466,7 +469,7 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
       )}
 
       {/* 4. DETAIL PANEL OVERLAY */}
-      {panelDetail && <PlayerPanel key={selected} detail={panelDetail} onClose={() => setSelected(null)} />}
+      {panelDetail && <PlayerPanel key={selected} detail={panelDetail} onClose={closePanel} />}
     </div>
   );
 }
