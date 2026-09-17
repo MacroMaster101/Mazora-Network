@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, startTransition } from "react";
+import { useActionState, useEffect, useRef, useState, startTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { BadgeCheck, CheckCircle2, Loader2, MessageCircle, RefreshCw, Send } from "lucide-react";
@@ -115,7 +115,14 @@ export function OrderRequestForm({
     }
   };
 
+  // Handle each server result exactly once. The effect re-runs whenever its
+  // callbacks change identity (the drawer passes an inline onOrderSubmitted,
+  // and clear() re-renders the cart), which used to re-toast the same result
+  // in a render loop.
+  const handledState = useRef<StoreRequestResult>(initialState);
   useEffect(() => {
+    if (handledState.current === state) return;
+    handledState.current = state;
     if (state.ok) {
       clear();
       onOrderSubmitted?.();
