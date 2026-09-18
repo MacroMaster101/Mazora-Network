@@ -9,7 +9,7 @@
  */
 export const EDITABLE_PAGE_IDS = [
   "home", "news", "events", "game-modes", "rules", "gallery", "staff",
-  "vote", "discord", "forums", "players", "leaderboards", "status",
+  "vote", "discord", "players", "leaderboards", "status",
 ] as const;
 
 export type EditablePageId = (typeof EDITABLE_PAGE_IDS)[number];

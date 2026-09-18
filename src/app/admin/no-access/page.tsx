@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
+import { BackLink } from "@/components/shared";
 import { requireSession, roleLabel, ROLES } from "@/lib/auth";
 import type { Role } from "@/lib/types";
 import { ALL_ADMIN_NAV_ACCESS, buildAdminNav } from "@/lib/admin-nav";
@@ -88,9 +88,7 @@ export default async function AdminNoAccessPage({
           </p>
         )}
 
-        <Link href="/admin" className="btn btn-primary mt-7">
-          <ArrowLeft size={15} /> Back to the control room
-        </Link>
+        <BackLink href="/admin" label="Back to the control room" className="mt-7" />
       </div>
     </div>
   );

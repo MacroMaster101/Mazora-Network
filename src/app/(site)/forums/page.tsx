@@ -1,94 +1,100 @@
+import type { Metadata } from "next";
+import { MessagesSquare } from "lucide-react";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManageForums } from "@/lib/auth/permissions";
+import { getForumBoard, getViewerActor } from "@/lib/data/forums";
+import { getOnlineMembers, onlyStaff, withoutStaff } from "@/lib/data/presence";
+import { BoardCategories } from "@/components/forums/board-categories";
+import { CommunityActions } from "@/components/forums/community-actions";
+import { canCreateTopic } from "@/lib/forums-rules";
+import { OnlinePanels } from "@/components/forums/online-panels";
+import { EmptyState, FloatingBrandLogo, PageHero } from "@/components/shared";
 import { publicPageMetadata } from "@/lib/seo";
-import Link from "next/link";
-import { ArrowRight, Blocks, CalendarDays, Lightbulb, MessageCircle, MessageSquareText, ShieldCheck, Sparkles, ThumbsUp } from "lucide-react";
-import { PageHero, FloatingBrandLogo, UserAvatar } from "@/components/shared";
-import { listBoardSuggestions } from "@/lib/data/suggestions-board";
-import { fmtDate, relative } from "@/lib/utils";
-import { getPageContent } from "@/lib/data/page-content";
 
-export const metadata = publicPageMetadata({
+// The house helper, not a literal: it adds the OpenGraph and Twitter card data
+// every other public page carries. The page this replaced used it too.
+export const metadata: Metadata = publicPageMetadata({
   title: "Community Forums",
-  description: "Discuss Mazora updates, game modes, builds and community ideas.",
+  description: "Discuss Mazora Network — announcements, game modes, events and general chat.",
   path: "/forums",
 });
 
-const categories = [
-  { icon: Sparkles, title: "Announcements", copy: "Network news, releases and maintenance updates from the Mazora team." },
-  { icon: Blocks, title: "Game mode discussion", copy: "Talk Survival, Skyblock, Lifesteal, OneBlock, KitPvP and Creative." },
-  { icon: CalendarDays, title: "Events & creations", copy: "Share builds, recruit teammates and plan for upcoming community events." },
-  { icon: MessageSquareText, title: "General discussion", copy: "Meet the community and talk about everything happening around Mazora." },
-];
+/*
+  The online-staff panel reflects who was active in the last few minutes, so a
+  cached board would show a stale roster. Both reads are cheap and the page is
+  already dynamic for its counts.
+*/
+export const dynamic = "force-dynamic";
 
 export default async function ForumsPage() {
-  const [suggestions, copy] = await Promise.all([listBoardSuggestions({ sort: "newest" }), getPageContent("forums")]);
-  const recent = suggestions.slice(0, 4);
-  const editableCategories = categories.map((category, index) => ({
-    ...category,
-    title: copy[`category${index + 1}Title`],
-    copy: copy[`category${index + 1}Copy`],
-  }));
+  const [categories, online, actor, canCreateForums] = await Promise.all([
+    getForumBoard(),
+    getOnlineMembers(),
+    getViewerActor(),
+    viewerCanCreateForums(),
+  ]);
+
+  // Decided on the server; the client only uses it to choose what to render.
+  // The actions re-check every rule themselves.
+  const canPost = canCreateTopic({ locked: false }, actor);
+  const openForums = categories.flatMap((category) =>
+    category.forums
+      .filter((forum) => !forum.locked)
+      .map((forum) => ({ id: forum.id, name: forum.name, category: category.name })),
+  );
+
   return (
     <>
+      {/*
+        The Support Center's "Discussion forum" card is how most people arrive
+        here, so this page wears the same hero and back link as every other
+        support destination rather than dropping visitors somewhere that looks
+        unrelated to where they clicked from.
+      */}
       <PageHero
-        eyebrow={copy.heroEyebrow}
-        title={copy.heroTitle}
-        lead={copy.heroLead}
-        fieldIds={{ eyebrow: "heroEyebrow", title: "heroTitle", lead: "heroLead" }}
+        backLink={{ href: "/support", label: "Back to Support" }}
+        eyebrow="Community discussion"
+        title="The conversation continues here."
+        lead="Ask questions, share builds, follow announcements and help shape what comes next across the network. Browse freely — posting needs an account."
         illustration={<FloatingBrandLogo />}
-      >
-        <div className="flex flex-wrap gap-3">
-          <Link href="/support/suggestions" className="btn btn-primary"><Lightbulb size={16} /> <span data-page-field="suggestionCta">{copy.suggestionCta}</span></Link>
-          <Link href="/support/staff-application" className="btn btn-ghost"><ShieldCheck size={16} /> <span data-page-field="teamCta">{copy.teamCta}</span></Link>
-        </div>
-      </PageHero>
+      />
 
-      <section className="section shell">
-        <div className="grid gap-4 md:grid-cols-2">
-          {editableCategories.map((category, index) => (
-            <article key={category.title} className="panel panel-hover group flex gap-4 p-6">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent/10 text-accent-bright">
-                <category.icon size={22} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-xl font-bold" data-page-field={`category${index + 1}Title`}>{category.title}</h2>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-muted" data-page-field={`category${index + 1}Copy`}>{category.copy}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-
-        <div className="mt-12 flex items-end justify-between gap-4">
-          <div>
-            <p className="eyebrow" data-page-field="recentEyebrow">{copy.recentEyebrow}</p>
-            <h2 className="mt-3 text-3xl font-bold" data-page-field="recentTitle">{copy.recentTitle}</h2>
+      <section className="shell max-w-6xl pb-24 pt-5">
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(15rem,17rem)]">
+          <div className="min-w-0 space-y-5">
+            <CommunityActions
+              canPost={canPost}
+              forums={openForums}
+              // Only sent to viewers holding the permission; the action re-checks it.
+              categories={canCreateForums ? categories.map(({ id, name }) => ({ id, name })) : []}
+              canCreateForums={canCreateForums}
+            />
+            {categories.length === 0 ? (
+              <EmptyState
+                icon={<MessagesSquare size={22} />}
+                title="The forums are being set up"
+                message="No discussion areas have been published yet. Check back shortly."
+              />
+            ) : (
+              <BoardCategories categories={categories} />
+            )}
           </div>
-          <Link href="/login" className="hidden text-sm font-semibold text-accent-bright sm:inline-flex"><span data-page-field="loginCta">{copy.loginCta}</span> <ArrowRight size={15} className="ml-1" /></Link>
-        </div>
-        <div className="panel mt-6 divide-y divide-line overflow-hidden">
-          {recent.length === 0 ? (
-            <div className="flex flex-col items-center px-6 py-12 text-center">
-              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-accent/10 text-accent-bright"><Lightbulb size={22} /></span>
-              <h3 className="mt-4 font-display text-lg font-bold" data-page-field="emptyTitle">{copy.emptyTitle}</h3>
-              <p className="mt-1 max-w-md text-sm text-muted" data-page-field="emptyMessage">{copy.emptyMessage}</p>
-              <Link href="/support/suggestions" className="btn btn-primary btn-sm mt-5"><span data-page-field="emptyCta">{copy.emptyCta}</span> <ArrowRight size={14} /></Link>
-            </div>
-          ) : recent.map((thread) => (
-            <Link key={thread.id} href={`/support/suggestions/${thread.id}`} className="group flex items-center gap-4 p-5 transition-colors hover:bg-ink/[0.035]">
-              <UserAvatar username={thread.author.username} avatarUrl={thread.author.avatarUrl} size={44} rounded="rounded-xl" className="ring-2 ring-line" />
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate font-semibold transition group-hover:text-accent-bright">{thread.title}</h3>
-                <p className="mt-1 text-xs text-muted"><strong className="font-semibold text-ink">{thread.author.displayName || thread.author.username}</strong> · {thread.category} · <time dateTime={thread.createdAt} title={fmtDate(thread.createdAt)}>{relative(thread.createdAt)}</time></p>
-              </div>
-              <span className="hidden shrink-0 items-center gap-3 text-xs text-muted sm:flex">
-                <span className="inline-flex items-center gap-1"><ThumbsUp size={12} /> {thread.votesCount}</span>
-                <span className="inline-flex items-center gap-1"><MessageCircle size={12} /> {thread.repliesCount}</span>
-              </span>
-            </Link>
-          ))}
+
+          {/* Server-rendered first, then refreshed in place every half minute. */}
+          <OnlinePanels initialStaff={onlyStaff(online)} initialMembers={withoutStaff(online)} />
         </div>
       </section>
     </>
   );
+}
+
+/** Whether the viewer holds the Community Forums permission (Admin → Permissions). Fails closed. */
+async function viewerCanCreateForums(): Promise<boolean> {
+  try {
+    const session = await getSession();
+    if (!session) return false;
+    return await canManageForums(session, await getSessionUserId());
+  } catch {
+    return false;
+  }
 }

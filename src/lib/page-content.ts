@@ -221,25 +221,6 @@ export const PAGE_CONTENT_DEFINITIONS: Record<EditablePageId, PageContentDefinit
       benefit6Title: "Community", benefit6Copy: "Share builds, swap tips, and hang out with other Mazora players.",
     },
   },
-  forums: {
-    id: "forums", label: "Forums", path: "/forums", eyebrow: "Community discussions",
-    description: "Edit the forum hero, category introductions, recent activity heading, and empty state.",
-    permissionKey: PLAY_PERMISSION_KEY,
-    panels: [
-      { id: "hero", title: "Hero", description: "Opening copy and action labels.", fields: [field("heroEyebrow", "Eyebrow"), field("heroTitle", "Title"), field("heroLead", "Description", { type: "textarea" }), field("suggestionCta", "Suggestion button"), field("teamCta", "Team button")] },
-      { id: "categories", title: "Category cards", description: "The four discussion areas introduced above recent activity.", fields: Array.from({ length: 4 }, (_, i) => [field(`category${i + 1}Title`, `Category ${i + 1} title`), field(`category${i + 1}Copy`, `Category ${i + 1} description`, { type: "textarea" })]).flat() },
-      { id: "activity", title: "Recent activity", description: "Heading, login link, and empty state copy.", fields: [field("recentEyebrow", "Eyebrow"), field("recentTitle", "Title"), field("loginCta", "Login link"), field("emptyTitle", "Empty state title"), field("emptyMessage", "Empty state description", { type: "textarea" }), field("emptyCta", "Empty state button")] },
-    ],
-    defaults: {
-      heroEyebrow: "Mazora community", heroTitle: "The conversation continues here.", heroLead: "Ask questions, share builds, find teammates and help shape what comes next across the network.", suggestionCta: "Share a suggestion", teamCta: "Join the team",
-      category1Title: "Announcements", category1Copy: "Network news, releases and maintenance updates from the Mazora team.",
-      category2Title: "Game mode discussion", category2Copy: "Talk Survival, Skyblock, Lifesteal, OneBlock, KitPvP and Creative.",
-      category3Title: "Events & creations", category3Copy: "Share builds, recruit teammates and plan for upcoming community events.",
-      category4Title: "General discussion", category4Copy: "Meet the community and talk about everything happening around Mazora.",
-      recentEyebrow: "Recently active", recentTitle: "Community conversations", loginCta: "Log in to post",
-      emptyTitle: "The idea board is ready", emptyMessage: "New community suggestions will appear here with the player who posted them and their latest activity.", emptyCta: "Open suggestions",
-    },
-  },
   players: {
     id: "players", label: "Players", path: "/players", eyebrow: "Player directory",
     description: "Edit the player directory hero and its no-data message.",

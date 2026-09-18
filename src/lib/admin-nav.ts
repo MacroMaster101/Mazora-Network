@@ -11,6 +11,7 @@ import {
   KeyRound,
   LifeBuoy,
   Lightbulb,
+  MessagesSquare,
   ScrollText,
   Settings,
   ShieldCheck,
@@ -50,6 +51,7 @@ export interface AdminNavAccess {
   minecraft: boolean;
   suggestions: boolean;
   staff: boolean;
+  forums: boolean;
   /** The page-content hub; each editor inside it still checks its own module. */
   pages: boolean;
   play: boolean;
@@ -72,6 +74,7 @@ export const ALL_ADMIN_NAV_ACCESS: AdminNavAccess = {
   minecraft: true,
   suggestions: true,
   staff: true,
+  forums: true,
   pages: true,
   play: true,
   news: true,
@@ -100,6 +103,7 @@ export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
         { label: "Users", href: "/admin/users", icon: Users, minRole: "owner", visible: access.users },
         { label: "Minecraft Players", href: "/admin/players", icon: Blocks, minRole: "moderator", visible: access.minecraft },
         { label: "Staff", href: "/admin/staff", icon: ShieldCheck, minRole: "owner", visible: access.staff },
+        { label: "Forums", href: "/admin/forums", icon: MessagesSquare, minRole: "administrator", visible: access.forums },
       ],
     },
     {

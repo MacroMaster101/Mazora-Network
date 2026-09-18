@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { BackLink } from "@/components/shared";
 import { SUGGESTIONS_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getSupportCard } from "@/lib/data/support-settings";
@@ -33,14 +33,12 @@ export default async function AdminSuggestionsPageEdit() {
 
   return (
     <div className="admin-store-page">
+      <BackLink href="/admin/suggestions" label="Back to Suggestions" className="mb-4" />
       <DashHeader
         title="Suggestions page"
         subtitle="The heading members see above the board, and whether the board is open."
         action={
           <div className="store-admin-page-actions">
-            <Link href="/admin/suggestions" className="btn btn-secondary btn-sm">
-              <ArrowLeft size={15} /> Back to Suggestions
-            </Link>
             <a href="/support/suggestions" target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
               View public page <ExternalLink size={15} />
             </a>

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { BackLink } from "@/components/shared";
 import { STORE_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getAdminGameModes, getAdminProducts } from "@/lib/data/content";
@@ -23,10 +24,11 @@ export default async function AdminStoreModePage({ params }: { params: Promise<{
 
   return (
     <div className="admin-store-page">
+      <BackLink href="/admin/store/catalog" label="Back to Store catalog" className="mb-4" />
       <DashHeader
         title={`${mode.name} catalog`}
         subtitle={`${modeProducts.length} products · choose a category to continue`}
-        action={<div className="store-admin-page-actions"><Link href="/admin/store/catalog" className="btn btn-secondary btn-sm"><ArrowLeft size={15} /> Store catalog</Link><Link href="/store" className="btn btn-ghost btn-sm"><ExternalLink size={15} /> Public store</Link></div>}
+        action={<div className="store-admin-page-actions"><Link href="/store" className="btn btn-ghost btn-sm"><ExternalLink size={15} /> Public store</Link></div>}
       />
       <StoreCatalogManager products={products} modes={modes} categoryConfigs={categoryConfigs} view="categories" initialModeSlug={mode.slug} />
     </div>

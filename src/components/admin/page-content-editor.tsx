@@ -2,7 +2,8 @@
 
 import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, Monitor, RotateCcw, Save } from "lucide-react";
+import { ExternalLink, Monitor, RotateCcw, Save } from "lucide-react";
+import { BackLink } from "@/components/shared";
 import { savePageContentAction } from "@/lib/actions/page-content";
 import type { PageContentDefinition, PageContentPanel } from "@/lib/page-content";
 import { Input, useToast } from "@/components/ui";
@@ -135,7 +136,7 @@ export function PageContentEditor({ definition, initialContent }: { definition: 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-card/80 p-3 backdrop-blur-xl">
-        <Link href="/admin/pages" className="btn btn-ghost btn-sm"><ArrowLeft size={15} /> All pages</Link>
+        <BackLink href="/admin/pages" label="Back to Pages" />
         <div className="flex flex-wrap items-center gap-2">
           <span className="hidden text-xs font-semibold text-muted sm:inline">Each panel saves independently</span>
           {definition.managerPath && (

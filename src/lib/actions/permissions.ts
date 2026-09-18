@@ -12,6 +12,7 @@ import {
   GALLERY_PERMISSION_KEY,
   PLAY_PERMISSION_KEY,
   PAGES_PERMISSION_KEY,
+  FORUMS_PERMISSION_KEY,
   EVENTS_PERMISSION_KEY,
   GAMEMODES_PERMISSION_KEY,
   RULES_PERMISSION_KEY,
@@ -146,4 +147,7 @@ export async function saveBotPermissionsAction(fd: FormData) {
 }
 export async function savePagesPermissionsAction(fd: FormData) {
   return saveModulePermissionAction(PAGES_PERMISSION_KEY, "Page Content Hub", fd);
+}
+export async function saveForumsPermissionsAction(fd: FormData) {
+  return saveModulePermissionAction(FORUMS_PERMISSION_KEY, "Community Forums", fd);
 }

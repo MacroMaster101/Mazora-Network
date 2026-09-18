@@ -19,9 +19,13 @@
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 
 let supabaseImageOrigin = "";
+/** The realtime websocket on the same Supabase host — wss:, never a blanket scheme. */
+let supabaseRealtimeOrigin = "";
 if (supabaseUrl) {
   try {
-    supabaseImageOrigin = new URL(supabaseUrl).origin;
+    const parsed = new URL(supabaseUrl);
+    supabaseImageOrigin = parsed.origin;
+    supabaseRealtimeOrigin = `${parsed.protocol === "http:" ? "ws:" : "wss:"}//${parsed.host}`;
   } catch {
     // Invalid values are surfaced by the Supabase config module.
   }
@@ -64,8 +68,9 @@ export function buildContentSecurityPolicy(
     `img-src 'self' data: blob: https://mc-heads.net https://api.dicebear.com https://cdn.discordapp.com https://media.discordapp.net https://*.googleusercontent.com${supabaseImageOrigin ? ` ${supabaseImageOrigin}` : ""}`,
     "font-src 'self'",
     // https: covers the env-configured Supabase host without hard-coding it.
-    // ws: is dev-only, for the hot-reload socket.
-    `connect-src 'self' https:${isDev ? " ws:" : ""}`,
+    // The Supabase realtime socket is allowed by exact host (live online
+    // panels); ws: is dev-only, for the hot-reload socket.
+    `connect-src 'self' https:${supabaseRealtimeOrigin ? ` ${supabaseRealtimeOrigin}` : ""}${isDev ? " ws:" : ""}`,
     options.allowSameOriginFrameAncestors ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     "form-action 'self'",
     "base-uri 'self'",
