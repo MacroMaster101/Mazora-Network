@@ -28,8 +28,13 @@ export const launchGates: LaunchGate[] = [
   },
 ];
 
+/**
+ * MAZORA_LAUNCH_MODE=true (or unset) keeps the launch gate on; false turns it
+ * off. "off" is still understood, so an older setting keeps working.
+ */
 export function isLaunchModeEnabled(): boolean {
-  return process.env.MAZORA_LAUNCH_MODE !== "off";
+  const value = process.env.MAZORA_LAUNCH_MODE?.trim().toLowerCase();
+  return value !== "false" && value !== "off";
 }
 
 /** Paths that are ready even when the dashboard children gate is active. */

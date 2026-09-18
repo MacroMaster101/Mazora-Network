@@ -33,7 +33,7 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", displ
  * crop to, and Discord in particular is where most Mazora links get shared.
  * Pages with their own artwork (news articles) override `openGraph.images`.
  */
-import { getSiteGeneralSettings } from "@/lib/data/site-settings";
+import { getServerAddresses, getSiteGeneralSettings } from "@/lib/data/site-settings";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteGeneralSettings();
@@ -111,6 +111,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Nonce is minted per request in middleware. Reading it here makes the root
   // layout dynamic, which is already true of nearly every route on this site.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const addresses = await getServerAddresses();
 
   return (
     <html
@@ -139,7 +140,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           Skip to content
         </a>
-        <Providers storeRequestsConfigured={Boolean(process.env.DISCORD_STORE_WEBHOOK_URL)}>
+        <Providers storeRequestsConfigured={Boolean(process.env.DISCORD_STORE_WEBHOOK_URL)} javaIp={addresses.javaIp}>
           <ScrollResetOnReload />
           {children}
           <CookieConsent />

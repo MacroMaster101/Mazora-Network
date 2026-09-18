@@ -142,8 +142,7 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `DISCORD_ANNOUNCEMENTS_CHANNEL_ID` | News sync | Channel the announcement importer reads from. |
 | `DISCORD_PATCH_CHANNEL_ID` | No | Optional live patch-notes channel; falls back to the announcements channel. |
 | `CRON_SECRET` | Scheduled jobs | Shared secret for **every** cron route, not only the news sync (minimum 16 characters). Each route rejects an unauthenticated call with 401, and returns 503 rather than running if this is unset or shorter than 16 characters — the jobs fail closed. See [Scheduled jobs](#-scheduled-jobs). |
-| `NEXT_PUBLIC_BEDROCK_PORT` | No | Bedrock port shown on the Play and Status pages. Defaults to `8876`. |
-| `MAZORA_LAUNCH_MODE` | No | Keep `on` while unfinished routes should show the launch-status page. Set to `off` to restore every implementation. |
+| `MAZORA_LAUNCH_MODE` | No | `true` (default) shows the launch-status page for unfinished routes. Set to `false` to restore every implementation. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Legacy auth | Legacy browser-safe anonymous key; used only when no publishable key is set. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Admin features | Server-only Supabase service key used for user, invitation, staff, and avatar administration. Never expose it publicly. |
 | `BOT_CONFIG_SECRET` | Presence worker | Shared secret the standalone Render presence bot presents to read its rotation config from `/api/bot/presence-config`. Must be identical in Vercel and Render. The endpoint refuses every request while this is unset. |

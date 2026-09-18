@@ -12,9 +12,12 @@ import { InitialSiteLoader } from "@/components/shared/initial-site-loader";
 export function Providers({
   children,
   storeRequestsConfigured,
+  javaIp,
 }: {
   children: ReactNode;
   storeRequestsConfigured: boolean;
+  /** From Site Settings, for the sign-in dialog. */
+  javaIp: string;
 }) {
   return (
     /*
@@ -38,7 +41,7 @@ export function Providers({
       <Suspense fallback={null}>
         <NavigationLoader />
       </Suspense>
-      <AuthDialogProvider>
+      <AuthDialogProvider javaIp={javaIp}>
         <ToastProvider>
           <CartProvider>
             {children}

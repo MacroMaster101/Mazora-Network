@@ -32,19 +32,88 @@ function PresetField({ label, value, options, onChange }: { label: string; value
 
 type FaqDraft = { index: number | null; question: string; answer: string };
 
+/**
+ * Which fields each card owns. A card's Save publishes only its own fields on
+ * top of what is already saved, so unsaved edits in another card stay drafts.
+ */
+const SECTIONS = {
+  hero: ["eyebrow", "title", "lead"],
+  badges: ["responseBadge", "availabilityBadge", "trustBadge", "searchPlaceholder", "faqTitle", "faqSubtitle"],
+  faqs: ["faqs"],
+} as const satisfies Record<string, readonly (keyof SupportMainSettings)[]>;
+type SectionKey = keyof typeof SECTIONS;
+const SECTION_LABELS: Record<SectionKey, string> = { hero: "Hero content", badges: "Status badges & discovery", faqs: "FAQs" };
+
+function pickSection(settings: SupportMainSettings, section: SectionKey): Partial<SupportMainSettings> {
+  return Object.fromEntries(SECTIONS[section].map((key) => [key, settings[key]])) as Partial<SupportMainSettings>;
+}
+
+/** Save and Reset for one card, at the bottom of that card. */
+function CardActions({ dirty, saving, busy, onSave, onReset }: { dirty: boolean; saving: boolean; busy: boolean; onSave: () => void; onReset: () => void }) {
+  return (
+    <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
+      {dirty && !saving && <span className="mr-auto text-xs font-semibold text-muted">Unsaved changes</span>}
+      <button type="button" onClick={onReset} disabled={!dirty || busy} className="btn btn-secondary btn-sm disabled:cursor-not-allowed disabled:opacity-60"><RotateCcw size={14} /> Reset</button>
+      <button type="button" onClick={onSave} disabled={!dirty || busy} className="btn btn-primary btn-sm min-w-[104px] disabled:cursor-not-allowed disabled:opacity-60"><Save size={14} /> {saving ? "Saving…" : "Save"}</button>
+    </div>
+  );
+}
+
 export function SupportMainEditor({ settings, saveAction }: { settings: SupportMainSettings; saveAction: (data: FormData) => Promise<SupportSettingsResult> }) {
   const [value, setValue] = useState(settings);
+  // What is published, so each card knows whether it has unsaved changes.
+  const [saved, setSaved] = useState(settings);
+  const [savingSection, setSavingSection] = useState<SectionKey | null>(null);
   const [faqQuery, setFaqQuery] = useState("");
   const [faqDraft, setFaqDraft] = useState<FaqDraft | null>(null);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
-  const [resetOpen, setResetOpen] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [dragMessage, setDragMessage] = useState("");
-  const [busy, start] = useTransition();
+  const [, start] = useTransition();
   const { toast } = useToast();
   const update = (patch: Partial<SupportMainSettings>) => setValue((current) => ({ ...current, ...patch }));
   const filteredFaqs = useMemo(() => value.faqs.map((faq, index) => ({ faq, index })).filter(({ faq }) => `${faq.question} ${faq.answer}`.toLowerCase().includes(faqQuery.trim().toLowerCase())), [faqQuery, value.faqs]);
+
+  const isDirty = (section: SectionKey) =>
+    JSON.stringify(pickSection(value, section)) !== JSON.stringify(pickSection(saved, section));
+
+  function saveSection(section: SectionKey) {
+    const next: SupportMainSettings = { ...saved, ...pickSection(value, section) };
+    setSavingSection(section);
+    start(async () => {
+      const data = new FormData();
+      data.set("supportMainJson", JSON.stringify(next));
+      const result = await saveAction(data);
+      setSavingSection(null);
+      if (result.ok) {
+        setSaved(next);
+        toast(`${SECTION_LABELS[section]} saved.`, "success");
+      } else {
+        toast(result.message, "error");
+      }
+    });
+  }
+
+  function resetSection(section: SectionKey) {
+    setValue((current) => ({ ...current, ...pickSection(saved, section) }));
+    if (section === "faqs") {
+      setFaqQuery("");
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+    }
+    toast(`${SECTION_LABELS[section]} restored to the saved version.`, "info");
+  }
+
+  const actionsFor = (section: SectionKey) => (
+    <CardActions
+      dirty={isDirty(section)}
+      saving={savingSection === section}
+      busy={savingSection !== null}
+      onSave={() => saveSection(section)}
+      onReset={() => resetSection(section)}
+    />
+  );
 
   function saveFaq() {
     if (!faqDraft?.question.trim() || !faqDraft.answer.trim()) return;
@@ -75,7 +144,7 @@ export function SupportMainEditor({ settings, saveAction }: { settings: SupportM
 
   return (
     <>
-      <form action={(data) => start(async () => { data.set("supportMainJson", JSON.stringify(value)); const result = await saveAction(data); toast(result.message, result.ok ? "success" : "error"); })} className="cr-board min-w-0 overflow-hidden">
+      <div className="cr-board min-w-0 overflow-hidden">
         <div className="border-b border-line px-4 py-4 sm:px-5">
           <p className="eyebrow">Public Support center</p>
           <h2 className="mt-2 font-display text-xl font-black">Hero, status &amp; FAQ editor</h2>
@@ -90,6 +159,7 @@ export function SupportMainEditor({ settings, saveAction }: { settings: SupportM
               <label className="min-w-0 text-xs font-bold uppercase tracking-wider text-muted">Page title<Input value={value.title} onChange={(event) => update({ title: event.target.value })} className="mt-1.5 w-full normal-case" required /></label>
               <label className="min-w-0 text-xs font-bold uppercase tracking-wider text-muted md:col-span-2">Hero description<Textarea value={value.lead} onChange={(event) => update({ lead: event.target.value })} rows={4} className="mt-1.5 w-full normal-case" required /></label>
             </div>
+            {actionsFor("hero")}
           </section>
 
           <section className="rounded-2xl border border-line bg-card/40 p-4 sm:p-5">
@@ -102,11 +172,12 @@ export function SupportMainEditor({ settings, saveAction }: { settings: SupportM
               <PresetField label="FAQ title" value={value.faqTitle} options={PRESETS.faqTitle} onChange={(faqTitle) => update({ faqTitle })} />
               <PresetField label="FAQ subtitle" value={value.faqSubtitle} options={PRESETS.faqSubtitle} onChange={(faqSubtitle) => update({ faqSubtitle })} />
             </div>
+            {actionsFor("badges")}
           </section>
 
           <section className="rounded-2xl border border-line bg-card/40 p-4 sm:p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div><p className="eyebrow">FAQ library</p><h3 className="mt-1 font-display text-lg font-black text-ink">Frequently asked questions</h3><p className="mt-1 text-xs text-muted">Drag cards into order, or use the arrow buttons on keyboard and touch devices. Changes publish when you save.</p></div>
+              <div><p className="eyebrow">FAQ library</p><h3 className="mt-1 font-display text-lg font-black text-ink">Frequently asked questions</h3><p className="mt-1 text-xs text-muted">Drag cards into order, or use the arrow buttons on keyboard and touch devices. Changes publish when you press Save below.</p></div>
               <button type="button" className="btn btn-secondary btn-sm shrink-0" onClick={() => setFaqDraft({ index: null, question: "", answer: "" })}><Plus size={14} /> Add FAQ</button>
             </div>
             <div className="relative mt-5"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" /><Input value={faqQuery} onChange={(event) => setFaqQuery(event.target.value)} placeholder="Search questions and answers…" className="w-full pl-10" /></div>
@@ -146,15 +217,11 @@ export function SupportMainEditor({ settings, saveAction }: { settings: SupportM
               ))}
             </div>
             {filteredFaqs.length === 0 && <div className="mt-4 rounded-xl border border-dashed border-line p-8 text-center"><HelpCircle className="mx-auto text-muted" size={24} /><p className="mt-2 text-sm font-bold text-ink">No FAQs found</p><p className="mt-1 text-xs text-muted">Clear the search or add a new question.</p></div>}
+            {actionsFor("faqs")}
           </section>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-line px-4 py-4 sm:flex-row sm:items-center sm:px-5">
-          <button type="button" onClick={() => setResetOpen(true)} className="btn btn-secondary btn-sm w-full sm:w-auto"><RotateCcw size={14} /> Reset changes</button>
-          <p className="text-xs text-muted sm:mr-auto">Changes are recorded in the admin audit log.</p>
-          <button type="submit" disabled={busy} className="btn btn-primary btn-sm w-full sm:w-auto"><Save size={14} /> {busy ? "Saving…" : "Save Support Page"}</button>
-        </div>
-      </form>
+      </div>
 
       <Modal open={faqDraft !== null} onClose={() => setFaqDraft(null)} label={faqDraft?.index === null ? "Add FAQ" : "Edit FAQ"} size="default">
         <form onSubmit={(event) => { event.preventDefault(); saveFaq(); }} className="panel overflow-hidden">
@@ -168,14 +235,6 @@ export function SupportMainEditor({ settings, saveAction }: { settings: SupportM
         <div className="panel overflow-hidden p-5 sm:p-6"><span className="grid h-11 w-11 place-items-center rounded-xl border border-danger/25 bg-danger/10 text-danger"><AlertTriangle size={21} /></span><h2 className="mt-4 font-display text-xl font-black">Delete this FAQ?</h2><p className="mt-2 text-sm leading-relaxed text-muted">This removes <strong className="text-ink">{deleteIndex !== null ? value.faqs[deleteIndex]?.question : "this question"}</strong> from the editor. It will disappear publicly after you save the page.</p><div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" className="btn btn-secondary" onClick={() => setDeleteIndex(null)}>Keep FAQ</button><button type="button" className="btn btn-primary bg-danger" onClick={() => { if (deleteIndex !== null) update({ faqs: value.faqs.filter((_, index) => index !== deleteIndex) }); setDeleteIndex(null); }}><Trash2 size={15} /> Delete FAQ</button></div></div>
       </Modal>
 
-      <Modal open={resetOpen} onClose={() => setResetOpen(false)} label="Reset Support editor" size="compact">
-        <div className="panel overflow-hidden p-5 sm:p-6">
-          <span className="grid h-11 w-11 place-items-center rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-500"><RotateCcw size={21} /></span>
-          <h2 className="mt-4 font-display text-xl font-black">Reset unsaved changes?</h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted">This restores the hero, presets, badges, FAQ content, and FAQ order to the last saved values. No active configuration will be lost.</p>
-          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" className="btn btn-secondary" onClick={() => setResetOpen(false)}>Keep editing</button><button type="button" className="btn btn-primary" onClick={() => { setValue(settings); setFaqQuery(""); setDraggedIndex(null); setDragOverIndex(null); setDragMessage("Editor reset to the last saved values."); setResetOpen(false); }}><RotateCcw size={15} /> Reset editor</button></div>
-        </div>
-      </Modal>
     </>
   );
 }

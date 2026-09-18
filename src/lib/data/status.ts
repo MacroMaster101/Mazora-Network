@@ -5,9 +5,10 @@
  */
 import { site } from "@/lib/site";
 import { fetchWithDeadline } from "@/lib/data/upstream";
+import type { ServerAddresses } from "@/lib/data/site-settings";
 import type { OnlinePlayer, ServerStatus } from "@/lib/types";
 
-function fallback(): ServerStatus {
+function fallback(addresses: ServerAddresses): ServerStatus {
   return {
     online: false,
     players: 0,
@@ -17,8 +18,8 @@ function fallback(): ServerStatus {
     ping: 0,
     uptime: "—",
     lastUpdate: new Date().toISOString(),
-    java: { online: false, address: site.javaIp },
-    bedrock: { online: false, address: site.bedrockIp, port: site.bedrockPort },
+    java: { online: false, address: addresses.javaIp },
+    bedrock: { online: false, address: addresses.bedrockIp, port: addresses.bedrockPort },
     live: false,
     stale: false,
     playerList: [],
@@ -83,7 +84,7 @@ export function parsePlayerSample(players: unknown): OnlinePlayer[] {
   return sample;
 }
 
-async function fetchStatusFrom(url: string): Promise<ServerStatus | null> {
+async function fetchStatusFrom(url: string, addresses: ServerAddresses): Promise<ServerStatus | null> {
   try {
     const res = await fetchWithDeadline(
       url,
@@ -117,8 +118,8 @@ async function fetchStatusFrom(url: string): Promise<ServerStatus | null> {
       ping: data.ping ?? 0,
       uptime: "—",
       lastUpdate: new Date().toISOString(),
-      java: { online: data.online ?? true, address: site.javaIp },
-      bedrock: { online: data.online ?? true, address: site.bedrockIp, port: site.bedrockPort },
+      java: { online: data.online ?? true, address: addresses.javaIp },
+      bedrock: { online: data.online ?? true, address: addresses.bedrockIp, port: addresses.bedrockPort },
       live: true,
       stale: false,
       playerList: parsePlayerSample(data.players),
@@ -144,8 +145,22 @@ function httpsEnvUrl(value: string | undefined): string | undefined {
   }
 }
 
+/** The Site Settings addresses, or the built-in ones if settings cannot be read. */
+async function currentAddresses(): Promise<ServerAddresses> {
+  try {
+    // Loaded here rather than at the top: the settings module is server-only
+    // and reads the database, while this file's parsers are unit-tested alone.
+    const { getServerAddresses } = await import("@/lib/data/site-settings");
+    return await getServerAddresses();
+  } catch {
+    return { javaIp: site.javaIp, bedrockIp: site.bedrockIp, bedrockPort: site.bedrockPort };
+  }
+}
+
 async function fetchServerStatus(): Promise<ServerStatus> {
-  const encodedAddress = encodeURIComponent(site.javaIp);
+  // The address from Site Settings, so the live check follows a changed IP.
+  const addresses = await currentAddresses();
+  const encodedAddress = encodeURIComponent(addresses.javaIp);
   const urls = [
     httpsEnvUrl(process.env.MINECRAFT_STATUS_API_URL),
     `https://api.mcsrvstat.us/3/${encodedAddress}`,
@@ -153,10 +168,10 @@ async function fetchServerStatus(): Promise<ServerStatus> {
   ].filter((url, index, all): url is string => Boolean(url) && all.indexOf(url) === index);
 
   for (const url of urls) {
-    const status = await fetchStatusFrom(url);
+    const status = await fetchStatusFrom(url, addresses);
     if (status) return status;
   }
-  return fallback();
+  return fallback(addresses);
 }
 
 export async function getServerStatus(): Promise<ServerStatus> {

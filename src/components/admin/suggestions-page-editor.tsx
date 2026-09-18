@@ -44,26 +44,51 @@ export function SuggestionsPageEditor({
   initial: { eyebrow: string; title: string; lead: string; enabled: boolean };
 }) {
   const [draft, setDraft] = useState(initial);
+  // What is published: the open/closed switch saves on its own on top of this,
+  // so flipping it never publishes half-edited wording below.
+  const [saved, setSaved] = useState(initial);
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
 
-  function save() {
+  function send(next: typeof initial, successMessage?: string, onFail?: () => void) {
     const formData = new FormData();
-    formData.set("eyebrow", draft.eyebrow);
-    formData.set("title", draft.title);
-    formData.set("lead", draft.lead);
-    if (draft.enabled) formData.set("enabled", "on");
+    formData.set("eyebrow", next.eyebrow);
+    formData.set("title", next.title);
+    formData.set("lead", next.lead);
+    if (next.enabled) formData.set("enabled", "on");
 
     startTransition(async () => {
       try {
         const result = await saveSuggestionsPageAction(formData);
-        toast(result.message, result.ok ? "success" : "error");
-        if (result.ok) router.refresh();
+        if (result.ok) {
+          setSaved(next);
+          toast(successMessage ?? result.message, "success");
+          router.refresh();
+        } else {
+          onFail?.();
+          toast(result.message, "error");
+        }
       } catch {
+        onFail?.();
         toast("Those settings could not be saved.", "error");
       }
     });
+  }
+
+  function save() {
+    send({ ...draft });
+  }
+
+  /** The switch saves the moment it is flipped; a failed save flips it back. */
+  function toggleBoard() {
+    const enabled = !draft.enabled;
+    setDraft((d) => ({ ...d, enabled }));
+    send(
+      { ...saved, enabled },
+      enabled ? "Suggestions board opened." : "Suggestions board closed.",
+      () => setDraft((d) => ({ ...d, enabled: saved.enabled })),
+    );
   }
 
   return (
@@ -86,8 +111,9 @@ export function SuggestionsPageEditor({
           type="button"
           role="switch"
           aria-checked={draft.enabled}
-          onClick={() => setDraft((d) => ({ ...d, enabled: !d.enabled }))}
-          className={`btn btn-sm shrink-0 ${draft.enabled ? "btn-primary" : "btn-secondary"}`}
+          onClick={toggleBoard}
+          disabled={pending}
+          className={`btn btn-sm shrink-0 ${draft.enabled ? "btn-primary" : "btn-secondary"} disabled:cursor-wait`}
         >
           {draft.enabled ? "Board is open" : "Board is closed"}
         </button>

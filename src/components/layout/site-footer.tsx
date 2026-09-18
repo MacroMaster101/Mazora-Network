@@ -4,9 +4,11 @@ import { getSession, isStaff } from "@/lib/auth";
 import { Logo } from "./logo";
 import { Icon } from "@/components/shared/icon";
 import { CopyIpButton } from "@/components/shared/copy-ip-button";
+import { getServerAddresses } from "@/lib/data/site-settings";
 import { CookieSettingsLink } from "@/components/shared/cookie-settings-link";
 
 export async function SiteFooter() {
+  const addresses = await getServerAddresses();
   const year = new Date().getFullYear();
   // SiteHeader already resolves this on every route and getSession is memoised
   // per request, so this costs no extra round trip to the auth server.
@@ -22,7 +24,7 @@ export async function SiteFooter() {
           <p className="mt-4 text-sm leading-relaxed text-muted">{site.description}</p>
           <div className="mt-5 space-y-2">
             <p className="text-xs uppercase tracking-widest text-muted">Java IP</p>
-            <CopyIpButton ip={site.javaIp} variant="inline" className="footer-ip-chip" />
+            <CopyIpButton ip={addresses.javaIp} variant="inline" className="footer-ip-chip" />
           </div>
           <div className="mt-5 flex justify-center gap-2 lg:justify-start">
             {site.socials.map((s) => (

@@ -32,6 +32,7 @@ import {
   Clock,
   Zap,
   ShieldCheck,
+  RotateCcw,
 } from "lucide-react";
 import type { PatchUpdate, PlayPageConfig } from "@/lib/types";
 import { DEFAULT_PLAY_CONFIG } from "@/lib/types";
@@ -100,7 +101,7 @@ const FALLBACK_FAQS: FaqItem[] = [
   {
     id: "faq-3",
     q: "Does the server support Bedrock Edition?",
-    a: "Yes! Bedrock players on mobile, Windows 10/11, and supported consoles can join at mc.mazora.us on port 8876.",
+    a: "Yes! Bedrock players on mobile, Windows 10/11, and supported consoles can join at {bedrockIp} on port {bedrockPort}.",
     category: "Connection",
   },
   {
@@ -157,14 +158,18 @@ export function PlayPageEditor({
   initialFaqs,
   initialConfig,
   currentUser,
+  serverAddresses,
 }: {
   initialPatches?: PatchUpdate[];
   initialFaqs?: FaqItem[];
   initialConfig?: PlayPageConfig;
   currentUser?: { name: string; role?: string; avatarUrl?: string };
+  /** From Site Settings — the one place the connection address is set. */
+  serverAddresses: { javaIp: string; bedrockIp: string; bedrockPort: string };
 }) {
   const { toast } = useToast();
   const [config, setConfig] = useState<PlayPageConfig>(initialConfig || DEFAULT_PLAY_CONFIG);
+  const addresses = serverAddresses;
   const [patches, setPatches] = useState<PatchUpdate[]>(
     initialPatches && initialPatches.length > 0 ? initialPatches : FALLBACK_PATCHES
   );
@@ -277,15 +282,50 @@ export function PlayPageEditor({
   };
 
   // Save Play Page Config Server Action
-  const handleSaveConfig = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const result = await savePlayConfigAction(config);
+  /*
+    Each settings card saves only its own fields, on top of what is already
+    saved — so pressing Save on the status message never publishes a
+    half-edited health mode, and Reset puts back just that card.
+  */
+  const [savedConfig, setSavedConfig] = useState<PlayPageConfig>(initialConfig || DEFAULT_PLAY_CONFIG);
+  const [savingCard, setSavingCard] = useState<string | null>(null);
+
+  const cardDirty = (keys: readonly (keyof PlayPageConfig)[]) =>
+    keys.some((key) => JSON.stringify(config[key]) !== JSON.stringify(savedConfig[key]));
+
+  const saveCard = async (keys: readonly (keyof PlayPageConfig)[], label: string) => {
+    const next: PlayPageConfig = { ...savedConfig };
+    for (const key of keys) (next as unknown as Record<string, unknown>)[key] = config[key];
+    setSavingCard(label);
+    const result = await savePlayConfigAction(next);
+    setSavingCard(null);
     if (result.ok) {
-      toast(result.message, "success");
+      setSavedConfig(next);
+      toast(`${label} saved.`, "success");
     } else {
       toast(result.message, "error");
     }
   };
+
+  const resetCard = (keys: readonly (keyof PlayPageConfig)[], label: string) => {
+    setConfig((current) => {
+      const next = { ...current };
+      for (const key of keys) (next as unknown as Record<string, unknown>)[key] = savedConfig[key];
+      return next;
+    });
+    toast(`${label} restored to the saved version.`, "info");
+  };
+
+  const cardResetButton = (keys: readonly (keyof PlayPageConfig)[], label: string) => (
+    <button
+      type="button"
+      onClick={() => resetCard(keys, label)}
+      disabled={!cardDirty(keys) || savingCard !== null}
+      className="btn btn-ghost text-xs gap-1.5 font-bold disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <RotateCcw size={14} /> Reset
+    </button>
+  );
 
   // Switch & Sync Discord Channel
   const handleSwitchAndSyncDiscord = async (targetChannelId?: string) => {
@@ -298,9 +338,10 @@ export function PlayPageEditor({
 
       if (data.ok && Array.isArray(data.patches) && data.patches.length > 0) {
         setPatches(data.patches);
-        const updatedConfig = { ...config, discordChannelId: channelToUse };
-        setConfig(updatedConfig);
-        await savePlayConfigAction(updatedConfig);
+        setConfig((current) => ({ ...current, discordChannelId: channelToUse }));
+        const savedWithChannel = { ...savedConfig, discordChannelId: channelToUse };
+        const saveResult = await savePlayConfigAction(savedWithChannel);
+        if (saveResult.ok) setSavedConfig(savedWithChannel);
         setSyncStatus(`Successfully loaded ${data.patches.length} patch updates from channel ${channelToUse}!`);
         toast(`Switched to Discord channel ${channelToUse} (${data.patches.length} patches)!`, "success");
       } else {
@@ -460,11 +501,11 @@ export function PlayPageEditor({
             <Server size={18} className="text-gold" />
           </div>
           <div className="telemetry text-xl font-bold text-ink truncate">
-            {config.javaIp}
+            {addresses.javaIp}
           </div>
           <div className="text-xs text-muted font-mono flex items-center justify-between font-bold">
             <span>Java: Default Port</span>
-            <span>Bedrock: {config.bedrockPort}</span>
+            <span>Bedrock: {addresses.bedrockPort}</span>
           </div>
         </div>
 
@@ -608,7 +649,7 @@ export function PlayPageEditor({
 
       {/* SECTION 1: CONNECTION & IP CONFIGURATION */}
       {activeTab === "connection" && (
-        <form onSubmit={handleSaveConfig} className="panel p-6 sm:p-8 space-y-6 bg-card/90 backdrop-blur-md">
+        <form onSubmit={(e) => { e.preventDefault(); void saveCard(["supportedVersion"], "Connection parameters"); }} className="panel p-6 sm:p-8 space-y-6 bg-card/90 backdrop-blur-md">
           <div>
             <h3 className="font-display text-xl font-bold text-ink flex items-center gap-2">
               <Gamepad2 className="text-gold" size={20} />
@@ -620,41 +661,38 @@ export function PlayPageEditor({
           </div>
 
           <div className="grid gap-5 sm:grid-cols-3">
-            <div className="space-y-1.5 sm:col-span-3">
-              <label className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5 h-5">
-                <Monitor size={14} className="text-accent-bright" /> Java Edition IP Address
-              </label>
-              <Input
-                value={config.javaIp}
-                onChange={(e) => setConfig({ ...config, javaIp: e.target.value })}
-                placeholder="mc.mazora.us"
-              />
-              <span className="text-[11px] text-muted font-semibold">
-                Standard Java port 25565 is automatically resolved by Minecraft clients.
-              </span>
-            </div>
-
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5 h-5">
-                <Smartphone size={14} className="text-cyan-700 dark:text-cyan-500" /> Bedrock Edition IP Address
-              </label>
-              <Input
-                value={config.bedrockIp}
-                onChange={(e) => setConfig({ ...config, bedrockIp: e.target.value })}
-                placeholder="bedrock.mazora.us"
-              />
-            </div>
-
-            <div className="space-y-1.5 sm:col-span-1">
-              <label className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5 h-5">
-                <Hash size={14} className="text-cyan-700 dark:text-cyan-500" /> Bedrock Port
-              </label>
-              <Input
-                value={config.bedrockPort}
-                onChange={(e) => setConfig({ ...config, bedrockPort: e.target.value })}
-                placeholder="8876"
-                className="font-mono"
-              />
+            {/* The address lives in Site Settings so every page shows the same one;
+                a second copy here is what let the footer, status and join steps disagree. */}
+            <div className="space-y-2 sm:col-span-3 rounded-xl border border-line bg-surface/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold text-ink uppercase tracking-wider">Connection address</span>
+                <Link href="/admin/settings" className="text-xs font-bold text-accent-bright hover:underline">
+                  Edit in Site Settings →
+                </Link>
+              </div>
+              <dl className="grid gap-3 text-sm sm:grid-cols-3">
+                <div>
+                  <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">
+                    <Monitor size={13} className="text-accent-bright" /> Java IP
+                  </dt>
+                  <dd className="telemetry mt-1 font-bold text-ink">{addresses.javaIp}</dd>
+                </div>
+                <div>
+                  <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">
+                    <Smartphone size={13} className="text-cyan-700 dark:text-cyan-500" /> Bedrock IP
+                  </dt>
+                  <dd className="telemetry mt-1 font-bold text-ink">{addresses.bedrockIp}</dd>
+                </div>
+                <div>
+                  <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">
+                    <Hash size={13} className="text-cyan-700 dark:text-cyan-500" /> Bedrock port
+                  </dt>
+                  <dd className="telemetry mt-1 font-bold text-ink">{addresses.bedrockPort}</dd>
+                </div>
+              </dl>
+              <p className="text-[11px] font-semibold text-muted">
+                The join steps and FAQ answers fill these in automatically. In an FAQ answer, write {"{javaIp}"}, {"{bedrockIp}"} or {"{bedrockPort}"} to insert them.
+              </p>
             </div>
 
             <div className="space-y-1.5 sm:col-span-3">
@@ -669,9 +707,11 @@ export function PlayPageEditor({
             </div>
           </div>
 
-          <div className="pt-4 border-t border-line-strong/40 flex justify-end">
-            <button type="submit" className="btn btn-gold gap-2 font-bold">
-              <Save size={16} /> Save Connection Parameters Live
+          <div className="pt-4 border-t border-line-strong/40 flex flex-wrap items-center justify-end gap-2">
+            {cardDirty(["supportedVersion"]) && <span className="mr-auto text-xs font-semibold text-muted">Unsaved changes</span>}
+            {cardResetButton(["supportedVersion"], "Connection parameters")}
+            <button type="submit" disabled={!cardDirty(["supportedVersion"]) || savingCard !== null} className="btn btn-gold gap-2 font-bold disabled:cursor-not-allowed disabled:opacity-60">
+              <Save size={16} /> {savingCard === "Connection parameters" ? "Saving…" : "Save"}
             </button>
           </div>
         </form>
@@ -917,7 +957,7 @@ export function PlayPageEditor({
                   </p>
                 </div>
 
-                {config.telemetryMessage !== initialConfig?.telemetryMessage && (
+                {cardDirty(["telemetryMessage"]) && (
                   <span className="text-xs text-amber-700 dark:text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
                     Unsaved Changes
                   </span>
@@ -969,12 +1009,14 @@ export function PlayPageEditor({
                     placeholder="Type custom status note here..."
                     className="flex-1"
                   />
+                  {cardResetButton(["telemetryMessage"], "Status message")}
                   <button
                     type="button"
-                    onClick={handleSaveConfig}
-                    className="btn btn-gold text-xs px-4 font-bold shrink-0 gap-1.5"
+                    onClick={() => void saveCard(["telemetryMessage"], "Status message")}
+                    disabled={!cardDirty(["telemetryMessage"]) || savingCard !== null}
+                    className="btn btn-gold text-xs px-4 font-bold shrink-0 gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <Save size={14} /> Save Message
+                    <Save size={14} /> {savingCard === "Status message" ? "Saving…" : "Save"}
                   </button>
                 </div>
                 <div className="text-[11px] text-muted flex flex-wrap items-center gap-2 pt-1 font-medium">
@@ -998,7 +1040,7 @@ export function PlayPageEditor({
                     Select the active telemetry status broadcasted to public play page visitors.
                   </p>
                 </div>
-                {config.statusOverride !== initialConfig?.statusOverride && (
+                {cardDirty(["statusOverride"]) && (
                   <span className="text-xs text-amber-700 dark:text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
                     Unsaved Changes
                   </span>
@@ -1077,13 +1119,17 @@ export function PlayPageEditor({
                 <span className="text-xs text-muted">
                   Health status overrides take effect immediately on saved configuration.
                 </span>
-                <button
-                  type="button"
-                  onClick={handleSaveConfig}
-                  className="btn btn-gold text-xs py-2 px-4 gap-1.5 font-bold shadow-sm"
-                >
-                  <Save size={14} /> Save Health Mode
-                </button>
+                <div className="flex items-center gap-2">
+                  {cardResetButton(["statusOverride"], "Health mode")}
+                  <button
+                    type="button"
+                    onClick={() => void saveCard(["statusOverride"], "Health mode")}
+                    disabled={!cardDirty(["statusOverride"]) || savingCard !== null}
+                    className="btn btn-gold text-xs py-2 px-4 gap-1.5 font-bold shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Save size={14} /> {savingCard === "Health mode" ? "Saving…" : "Save"}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1186,11 +1232,11 @@ export function PlayPageEditor({
               <div className="grid gap-3 sm:grid-cols-3 pt-2 text-xs font-mono">
                 <div className="p-3 rounded-lg border border-line bg-surface/80">
                   <span className="text-muted block text-[10px] uppercase font-sans font-bold">Primary Address</span>
-                  <span className="text-gold font-bold">{config.javaIp}:25565</span>
+                  <span className="text-gold font-bold">{addresses.javaIp}:25565</span>
                 </div>
                 <div className="p-3 rounded-lg border border-line bg-surface/80">
                   <span className="text-muted block text-[10px] uppercase font-sans font-bold">Bedrock Crossplay</span>
-                  <span className="text-cyan-700 dark:text-cyan-400 font-bold">{config.bedrockIp}:{config.bedrockPort}</span>
+                  <span className="text-cyan-700 dark:text-cyan-400 font-bold">{addresses.bedrockIp}:{addresses.bedrockPort}</span>
                 </div>
                 <div className="p-3 rounded-lg border border-line bg-surface/80">
                   <span className="text-muted block text-[10px] uppercase font-sans font-bold">Telemetry Provider</span>

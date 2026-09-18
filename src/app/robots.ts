@@ -34,7 +34,7 @@ export default function robots(): MetadataRoute.Robots {
     "/players" would block the index too.
 
     Derived from `launchGates` instead of being listed by hand so the two cannot
-    drift, and dropped automatically once MAZORA_LAUNCH_MODE is off and the real
+    drift, and dropped automatically once MAZORA_LAUNCH_MODE is false and the real
     routes should be crawled.
   */
   const gatedPaths = isLaunchModeEnabled()
