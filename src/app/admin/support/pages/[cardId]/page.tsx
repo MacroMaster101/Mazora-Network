@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { BackLink } from "@/components/shared";
 import { SUPPORT_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getSupportCards } from "@/lib/data/support-settings";
@@ -29,7 +29,8 @@ export default async function AdminSupportCardDetailsPage({ params }: { params: 
 
   return (
     <div className="admin-store-page">
-      <DashHeader title={card.title} subtitle={`${card.badge} · ${card.page ? "managed detail page" : card.external ? "external destination" : "linked route"}`} action={<div className="store-admin-page-actions"><Link href="/admin/support/pages" className="btn btn-secondary btn-sm"><ArrowLeft size={15} /> All Support cards</Link><a href={card.href} target={card.external ? "_blank" : undefined} rel={card.external ? "noreferrer" : undefined} className="btn btn-ghost btn-sm">Public destination <ExternalLink size={15} /></a></div>} />
+      <BackLink href="/admin/support/pages" label="Back to Support cards" className="mb-4" />
+      <DashHeader title={card.title} subtitle={`${card.badge} · ${card.page ? "managed detail page" : card.external ? "external destination" : "linked route"}`} action={<div className="store-admin-page-actions"><a href={card.href} target={card.external ? "_blank" : undefined} rel={card.external ? "noreferrer" : undefined} className="btn btn-ghost btn-sm">Public destination <ExternalLink size={15} /></a></div>} />
       <SupportCardDetailEditor cards={cards} cardId={card.id} saveAction={saveSupportCardsAction} />
     </div>
   );

@@ -32,6 +32,12 @@ export const profiles = pgTable(
     bio: text("bio"),
     role: text("role").notNull().default("member"),
     accountStatus: text("account_status").notNull().default("active"),
+    /** Any presence heartbeat, throttled. Never written while the member is invisible. */
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    /** A heartbeat from a tab the member recently interacted with; drives Online → Idle. */
+    lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
+    /** online | idle | dnd | invisible — checked in migration 051. */
+    presenceStatus: text("presence_status").notNull().default("online"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -531,13 +537,30 @@ export const suggestionReplies = pgTable(
     editedAt: timestamp("edited_at", { withTimezone: true }),
     /** Soft delete: the row stays so the thread keeps its shape. */
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
-    /** One-level nesting: a top-level parent reply, or null. Depth beyond one
-     *  is prevented in the post action, not here. */
+    /** The reply this one answers, or null for a top-level reply. Any depth
+     *  is allowed; the post action checks the target, not a depth limit here. */
     parentId: uuid("parent_id").references((): AnyPgColumn => suggestionReplies.id, { onDelete: "cascade" }),
   },
   (t) => ({
     threadIdx: index("suggestion_replies_thread_idx").on(t.suggestionId, t.createdAt),
     parentIdx: index("suggestion_replies_parent_idx").on(t.parentId).where(sql`${t.parentId} is not null`),
+  }),
+);
+
+/** One vote per member per suggestion reply (migration 052). The auth.users FK is declared in SQL only. */
+export const suggestionReplyVotes = pgTable(
+  "suggestion_reply_votes",
+  {
+    replyId: uuid("reply_id").notNull().references(() => suggestionReplies.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    /** +1 or -1; checked in SQL. */
+    value: integer("value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.replyId, t.userId] }),
+    userIdx: index("suggestion_reply_votes_user_idx").on(t.userId),
   }),
 );
 
@@ -582,4 +605,137 @@ export const contentReports = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({ queueIdx: index("content_reports_queue_idx").on(t.status, t.createdAt.desc()) }),
+);
+
+export const forumCategories = pgTable("forum_categories", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const forums = pgTable(
+  "forums",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    categoryId: uuid("category_id").notNull().references(() => forumCategories.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** Unique site-wide, so moving a forum between categories keeps its URL. */
+    slug: text("slug").notNull().unique(),
+    description: text("description"),
+    /** Lucide icon name, as game_modes stores it. */
+    icon: text("icon"),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    locked: boolean("locked").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    categoryIdx: index("forums_category_idx").on(t.categoryId, t.sortOrder),
+  }),
+);
+
+export const forumTopics = pgTable(
+  "forum_topics",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    forumId: uuid("forum_id").notNull().references(() => forums.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    title: text("title").notNull(),
+    pinned: boolean("pinned").default(false).notNull(),
+    locked: boolean("locked").default(false).notNull(),
+    /** Soft delete: the row stays so counts and links keep their shape. */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    /*
+      Denormalised on purpose, unlike the board counts: it is written in the
+      same transaction as the post that sets it, every topic list orders by it,
+      and a stale value shows as a mis-ordered row rather than a wrong fact.
+    */
+    lastPostAt: timestamp("last_post_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    listIdx: index("forum_topics_list_idx")
+      .on(t.forumId, t.pinned, t.lastPostAt)
+      .where(sql`${t.deletedAt} is null`),
+    authorIdx: index("forum_topics_author_idx").on(t.userId),
+  }),
+);
+
+export const forumPosts = pgTable(
+  "forum_posts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    topicId: uuid("topic_id").notNull().references(() => forumTopics.id, { onDelete: "cascade" }),
+    /** The post this one answers, or null for a top-level post. Any depth is
+     *  allowed (migration 049); the post action checks the target, not a
+     *  depth limit here. */
+    parentId: uuid("parent_id").references((): AnyPgColumn => forumPosts.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    body: text("body").notNull(),
+    editedAt: timestamp("edited_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    topicIdx: index("forum_posts_topic_idx").on(t.topicId, t.createdAt),
+    parentIdx: index("forum_posts_parent_idx").on(t.parentId, t.createdAt).where(sql`${t.parentId} is not null`),
+  }),
+);
+
+export const forumPostImages = pgTable(
+  "forum_post_images",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    postId: uuid("post_id").notNull().references(() => forumPosts.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    url: text("url").notNull(),
+    /** Kept so a delete can remove the stored object, not just this row. */
+    storageKey: text("storage_key").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({ postIdx: index("forum_post_images_post_idx").on(t.postId, t.sortOrder) }),
+);
+
+/**
+ * Community reports against a forum topic or post. Exactly one target column is
+ * set; the SQL CHECK enforces it, following the pattern migration 042
+ * established for suggestion_images. The per-reporter uniqueness is two partial
+ * indexes, which the Drizzle builder cannot express — they live in migration
+ * 046 only, the same caveat migration 039 records.
+ */
+export const forumReports = pgTable("forum_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  topicId: uuid("topic_id").references(() => forumTopics.id, { onDelete: "cascade" }),
+  postId: uuid("post_id").references(() => forumPosts.id, { onDelete: "cascade" }),
+  reporterId: uuid("reporter_id").notNull(),
+  reason: text("reason").notNull(),
+  /** Optional context from the reporter (migration 050). */
+  note: text("note"),
+  status: text("status").default("open").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  resolvedBy: uuid("resolved_by"),
+});
+
+/** One vote per member per forum post (migration 052). The auth.users FK is declared in SQL only. */
+export const forumPostVotes = pgTable(
+  "forum_post_votes",
+  {
+    postId: uuid("post_id").notNull().references(() => forumPosts.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    /** +1 or -1; checked in SQL. */
+    value: integer("value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.postId, t.userId] }),
+    userIdx: index("forum_post_votes_user_idx").on(t.userId),
+  }),
 );

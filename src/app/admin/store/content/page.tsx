@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { BackLink } from "@/components/shared";
 import { STORE_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getAdminProducts } from "@/lib/data/content";
@@ -27,10 +28,11 @@ export default async function AdminStoreContentPage() {
 
   return (
     <div className="admin-store-page">
+      <BackLink href="/admin/store" label="Back to Store" className="mb-4" />
       <DashHeader
         title="Store page editor"
         subtitle="Welcome banner · featured picks · roadmap"
-        action={<div className="store-admin-page-actions"><Link href="/admin/store" className="btn btn-secondary btn-sm"><ArrowLeft size={15} /> Store dashboard</Link><Link href="/store" className="btn btn-ghost btn-sm"><ExternalLink size={15} /> Public store</Link></div>}
+        action={<div className="store-admin-page-actions"><Link href="/store" className="btn btn-ghost btn-sm"><ExternalLink size={15} /> Public store</Link></div>}
       />
       <div className="store-admin-content-page">
         <StorePageSettingsHub

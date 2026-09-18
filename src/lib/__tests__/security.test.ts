@@ -275,6 +275,7 @@ describe("permission-aware admin navigation", () => {
     minecraft: false,
     suggestions: false,
     staff: false,
+    forums: false,
     pages: false,
     play: false,
     news: false,
@@ -349,6 +350,8 @@ describe("permission-aware admin mutations", () => {
     ["creator-codes.ts", "canManageStore"],
     ["orders-admin.ts", "canManageOrders"],
     ["staff-notices.ts", "MAZORA_BOT_PERMISSION_KEY"],
+    ["forums-admin.ts", "FORUMS_PERMISSION_KEY"],
+    ["forums.ts", "FORUMS_PERMISSION_KEY"],
   ] as const;
 
   test("write actions enforce the same configurable module permissions as their pages", () => {

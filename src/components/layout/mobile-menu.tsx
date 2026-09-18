@@ -13,6 +13,9 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { THEME_HINT_MENU_EVENT } from "@/components/theme/theme-hint";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { RankChip } from "@/components/admin/rank-chip";
+import { StatusPicker } from "@/components/presence/status-picker";
+import { PresenceDot, PresencePill } from "@/components/presence/presence-dot";
+import type { PresenceChoice } from "@/lib/presence-rules";
 import { cn } from "@/lib/utils";
 import { NavIcon } from "./nav-icon";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
@@ -42,11 +45,16 @@ const focusableSelector = [
 export function MobileMenu({
   session,
   adminNav = null,
+  presence = "online",
 }: {
   session: Session | null;
   adminNav?: DrawerNavGroup[] | null;
+  presence?: PresenceChoice;
 }) {
   const [open, setOpen] = useState(false);
+  // Mirrors the picker so the card's dot and pill change the moment a status is chosen.
+  const [status, setStatus] = useState<PresenceChoice>(presence);
+  useEffect(() => setStatus(presence), [presence]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -282,13 +290,21 @@ export function MobileMenu({
                         )}
                       >
                         <div className="flex items-center gap-3.5 min-w-0">
-                          <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={38} />
+                          <span className="relative shrink-0">
+                            <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={38} />
+                            <PresenceDot
+                              status={status}
+                              decorative
+                              className="absolute -bottom-0.5 -right-0.5 h-3 w-3 border-2 border-white dark:border-[#0c0618]"
+                            />
+                          </span>
                           <div className="min-w-0 flex-1">
                             <p className="font-bold text-xs text-ink truncate leading-tight">
                               {session.displayName || session.username}
                             </p>
-                            <div className="mt-1">
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                               <RankChip role={session.role} />
+                              <PresencePill status={status} />
                             </div>
                           </div>
                         </div>
@@ -297,6 +313,11 @@ export function MobileMenu({
                           <ArrowUpRight size={17} />
                         </div>
                       </Link>
+
+                      <div className="rounded-2xl border border-slate-200/80 p-1.5 dark:border-purple-900/40">
+                        <p className="px-3 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Status</p>
+                        <StatusPicker initial={status} onChange={setStatus} />
+                      </div>
 
                       {/* Quick Shortcut Buttons — the same destinations the
                           desktop account menu offers, minus the hero card's

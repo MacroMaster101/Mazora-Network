@@ -1,8 +1,17 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { ROLES } from "@/lib/auth/roles";
+import {
+  buildCommentTree, countComments, selectCommentView,
+  type CommentNode, type CommentSort, type FlatComment,
+} from "@/lib/comments/tree";
+import type { VoteValue } from "@/lib/comments/vote-rules";
 import { getDb, schema } from "@/lib/db/client";
+import { getPresenceFor } from "@/lib/data/presence";
 import { providerAvatarsFor } from "@/lib/data/provider-avatars";
+import type { PresenceShown } from "@/lib/presence-rules";
 import type { SuggestionSort } from "@/lib/suggestions-rules";
+import type { Role } from "@/lib/types";
 
 // Not exported: the brief specifies only BoardSuggestion / SuggestionThread /
 // ThreadReply as the module's public types. These two are internal shape
@@ -36,17 +45,17 @@ export interface SuggestionImage {
   sortOrder: number;
 }
 
-export interface ThreadReply {
-  id: string;
+export interface ThreadReply extends FlatComment {
   authorId: string;
   author: BoardAuthor;
+  /** From auth app_metadata, like every session's role — profiles.role is stale. */
+  authorRole: Role;
   body: string;
-  createdAt: string;
   editedAt: string | null;
-  deletedAt: string | null;
-  parentId: string | null;
-  children: ThreadReply[];
   images: SuggestionImage[];
+  myVote: VoteValue;
+  /** The author's website status, absent when they are offline or invisible. */
+  authorStatus: Exclude<PresenceShown, "offline"> | null;
 }
 
 export interface SuggestionThread extends BoardSuggestion {
@@ -55,8 +64,12 @@ export interface SuggestionThread extends BoardSuggestion {
   // (see ReportButton) without re-deriving permissions in a Client Component.
   authorId: string;
   description: string;
-  replies: ThreadReply[];
   images: SuggestionImage[];
+  /** This view's comment tree: the whole thread, or the focused subtree as one node. */
+  replies: CommentNode<ThreadReply>[];
+  /** Visible replies in the whole thread. */
+  totalReplies: number;
+  focusId: string | null;
 }
 
 function toIso(value: Date | string): string {
@@ -169,7 +182,11 @@ export async function listBoardSuggestions(opts: {
   }
 }
 
-export async function getSuggestionThread(id: string, viewerId?: string | null): Promise<SuggestionThread | null> {
+export async function getSuggestionThread(
+  id: string,
+  viewerId?: string | null,
+  options: { sort?: CommentSort; focus?: string | null; comment?: string | null } = {},
+): Promise<SuggestionThread | null> {
   const db = getDb();
   if (!db) return null;
 
@@ -213,6 +230,7 @@ export async function getSuggestionThread(id: string, viewerId?: string | null):
         authorUsername: schema.profiles.username,
         authorDisplayName: schema.profiles.displayName,
         authorAvatarUrl: schema.profiles.avatarUrl,
+        authorRole: sql<string | null>`(select u.raw_app_meta_data ->> 'role' from auth.users u where u.id = ${schema.suggestionReplies.userId})`,
       })
       .from(schema.suggestionReplies)
       .leftJoin(schema.profiles, eq(schema.suggestionReplies.userId, schema.profiles.userId))
@@ -255,6 +273,26 @@ export async function getSuggestionThread(id: string, viewerId?: string | null):
       }
     }
 
+    const rv = schema.suggestionReplyVotes;
+    const [voteTotals, myVotes] = replyIds.length
+      ? await Promise.all([
+          db
+            .select({
+              replyId: rv.replyId,
+              up: sql<number>`(count(*) filter (where ${rv.value} = 1))::int`,
+              down: sql<number>`(count(*) filter (where ${rv.value} = -1))::int`,
+            })
+            .from(rv)
+            .where(inArray(rv.replyId, replyIds))
+            .groupBy(rv.replyId),
+          viewerId
+            ? db.select({ replyId: rv.replyId, value: rv.value }).from(rv).where(and(eq(rv.userId, viewerId), inArray(rv.replyId, replyIds)))
+            : Promise.resolve([] as { replyId: string; value: number }[]),
+        ])
+      : [[], []];
+    const totalsByReply = new Map(voteTotals.map((row) => [row.replyId, row]));
+    const mineByReply = new Map(myVotes.map((row) => [row.replyId, row.value]));
+
     let hasVoted = false;
     if (viewerId) {
       const voteRows = await db
@@ -267,10 +305,47 @@ export async function getSuggestionThread(id: string, viewerId?: string | null):
 
     // One lookup for the whole thread: the suggestion's author plus every reply
     // author who has not chosen a profile avatar.
-    const providerAvatars = await providerAvatarsFor([
-      row.authorAvatarUrl ? null : row.authorId,
-      ...replyRows.filter((r) => !r.authorAvatarUrl).map((r) => r.authorId),
+    const [providerAvatars, presence] = await Promise.all([
+      providerAvatarsFor([
+        row.authorAvatarUrl ? null : row.authorId,
+        ...replyRows.filter((r) => !r.authorAvatarUrl).map((r) => r.authorId),
+      ]),
+      getPresenceFor(replyRows.map((r) => r.authorId)),
     ]);
+
+    const flatReplies: ThreadReply[] = replyRows.map((r) => {
+      const counted = totalsByReply.get(r.id);
+      const vote = mineByReply.get(r.id);
+      return {
+        id: r.id,
+        parentId: r.parentId,
+        authorId: r.authorId,
+        author: {
+          username: r.authorUsername || "community_member",
+          displayName: r.authorDisplayName || null,
+          avatarUrl: r.authorAvatarUrl || providerAvatars.get(r.authorId) || null,
+        },
+        authorRole: ROLES.includes(r.authorRole as Role) ? (r.authorRole as Role) : "member",
+        // A removed reply's text and images must never reach the client: they
+        // are serialised into the page payload even when the DOM shows a tombstone.
+        body: r.deletedAt ? "" : r.body,
+        createdAt: toIso(r.createdAt),
+        editedAt: toIsoOrNull(r.editedAt),
+        deletedAt: toIsoOrNull(r.deletedAt),
+        images: r.deletedAt ? [] : (imagesByReply.get(r.id) ?? []),
+        authorStatus: presence.get(r.authorId) ?? null,
+        up: counted?.up ?? 0,
+        down: counted?.down ?? 0,
+        myVote: vote === 1 || vote === -1 ? vote : 0,
+      };
+    });
+    const tree = buildCommentTree(flatReplies, options.sort ?? "best");
+    const selected = selectCommentView(tree, {
+      page: 1,
+      perPage: null,
+      focus: options.focus ?? null,
+      comment: options.comment ?? null,
+    });
 
     return {
       id: row.id,
@@ -291,49 +366,9 @@ export async function getSuggestionThread(id: string, viewerId?: string | null):
       repliesCount: Number(row.repliesCount) || 0,
       imageCount: Number(row.imageCount) || 0,
       images: suggestionImages,
-      replies: (() => {
-        // Two-pass grouping: rows are already createdAt-ordered (see the
-        // orderBy above), so both the top-level list and each parent's
-        // children come out oldest-first with no re-sorting needed here.
-        const mapped: ThreadReply[] = replyRows.map((r) => ({
-          id: r.id,
-          authorId: r.authorId,
-          author: {
-            username: r.authorUsername || "community_member",
-            displayName: r.authorDisplayName || null,
-            avatarUrl: r.authorAvatarUrl || providerAvatars.get(r.authorId) || null,
-          },
-          // A removed reply keeps its position, but its text must never reach the
-          // client: replies are rendered by a Client Component, so anything returned
-          // here is serialised into the RSC payload and readable in the page source
-          // even though the DOM shows a tombstone. The row keeps its body in the
-          // database — that is what soft delete is for.
-          body: r.deletedAt ? "" : r.body,
-          createdAt: toIso(r.createdAt),
-          editedAt: toIsoOrNull(r.editedAt),
-          deletedAt: toIsoOrNull(r.deletedAt),
-          parentId: r.parentId,
-          children: [],
-          // A removed reply must not leak its attachments either — same reason
-          // its body is blanked above: this is serialised into the RSC payload
-          // and readable in page source even when the DOM shows a tombstone.
-          images: r.deletedAt ? [] : (imagesByReply.get(r.id) ?? []),
-        }));
-
-        const byId = new Map(mapped.map((r) => [r.id, r]));
-        const topLevel: ThreadReply[] = [];
-        for (const reply of mapped) {
-          const parent = reply.parentId ? byId.get(reply.parentId) : undefined;
-          if (parent) {
-            parent.children.push(reply);
-          } else {
-            // A null parentId, or a parentId not present among this thread's
-            // rows, renders top-level rather than being dropped.
-            topLevel.push(reply);
-          }
-        }
-        return topLevel;
-      })(),
+      replies: selected.nodes,
+      totalReplies: countComments(tree),
+      focusId: selected.focusId,
     };
   } catch (error) {
     console.error("Failed to load suggestion thread", error);

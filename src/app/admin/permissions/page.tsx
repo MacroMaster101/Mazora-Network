@@ -13,6 +13,7 @@ import {
   GALLERY_PERMISSION_KEY,
   PLAY_PERMISSION_KEY,
   PAGES_PERMISSION_KEY,
+  FORUMS_PERMISSION_KEY,
   EVENTS_PERMISSION_KEY,
   GAMEMODES_PERMISSION_KEY,
   RULES_PERMISSION_KEY,
@@ -33,6 +34,7 @@ import {
   saveGalleryPermissionsAction,
   savePlayPermissionsAction,
   savePagesPermissionsAction,
+  saveForumsPermissionsAction,
   saveEventsPermissionsAction,
   saveGameModesPermissionsAction,
   saveRulesPermissionsAction,
@@ -194,6 +196,15 @@ export default async function AdminPermissionsPage() {
       selected: perms[STAFF_PERMISSION_KEY].roles,
       userIds: perms[STAFF_PERMISSION_KEY].userIds,
       saveAction: saveStaffPermissionsAction,
+    },
+    {
+      id: "forums",
+      category: "Community",
+      title: "Community Forums",
+      description: "Create forums (the Create a forum button on /forums and the admin), order categories, lock forums, and remove any post.",
+      selected: perms[FORUMS_PERMISSION_KEY].roles,
+      userIds: perms[FORUMS_PERMISSION_KEY].userIds,
+      saveAction: saveForumsPermissionsAction,
     },
 
     // Commerce Modules

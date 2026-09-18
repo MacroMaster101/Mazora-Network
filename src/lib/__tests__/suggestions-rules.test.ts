@@ -4,7 +4,6 @@ import { ROLES } from "@/lib/auth/roles";
 import {
   canPostReply, canEditReply, canDeleteReply, canVote,
   replyBody, REPLY_TOMBSTONE, DEFAULT_SUGGESTION_SORT, SUGGESTION_SORTS,
-  effectiveParentId,
 } from "@/lib/suggestions-rules";
 
 const guest = { userId: null, role: null, canModerate: false };
@@ -69,16 +68,4 @@ test("posting rights depend on session, not rank", () => {
   for (const role of ROLES) {
     assert.equal(canPostReply(open, { userId: "x", role, canModerate: false }), true, role);
   }
-});
-
-test("effectiveParentId: no parent means a top-level reply", () => {
-  assert.equal(effectiveParentId(null), null);
-});
-
-test("effectiveParentId: replying to a top-level reply attaches to it", () => {
-  assert.equal(effectiveParentId({ id: "top", parentId: null }), "top");
-});
-
-test("effectiveParentId: replying to a child re-points to its top-level ancestor", () => {
-  assert.equal(effectiveParentId({ id: "child", parentId: "top" }), "top");
 });

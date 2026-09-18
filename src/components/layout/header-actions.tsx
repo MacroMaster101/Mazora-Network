@@ -9,6 +9,9 @@ import type { Session } from "@/lib/auth";
 import { accountMenuFor, type AccountMenuIcon as AccountMenuIconName } from "@/lib/account-menu";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { PresenceDot, PresencePill } from "@/components/presence/presence-dot";
+import { StatusPicker } from "@/components/presence/status-picker";
+import type { PresenceChoice } from "@/lib/presence-rules";
 import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +58,10 @@ const ACCOUNT_MENU_ICONS: Record<AccountMenuIconName, LucideIcon> = {
   settings: Settings,
 };
 
-export function HeaderActions({ session }: { session: Session | null }) {
+export function HeaderActions({ session, presence = "online" }: { session: Session | null; presence?: PresenceChoice }) {
+  // Mirrors the picker so both avatar dots change the moment a status is chosen.
+  const [status, setStatus] = useState<PresenceChoice>(presence);
+  useEffect(() => setStatus(presence), [presence]);
   const [open, setOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifs, setNotifs] = useState<NotificationItem[]>([]);
@@ -413,7 +419,14 @@ export function HeaderActions({ session }: { session: Session | null }) {
           title={session.displayName}
           className="flex items-center gap-1.5 p-1.5 rounded-2xl hover:bg-ink/5 dark:hover:bg-white/5 transition-colors"
         >
-          <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={36} />
+          <span className="relative">
+            <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={36} />
+            <PresenceDot
+              status={status}
+              decorative
+              className="absolute -bottom-0.5 -right-0.5 h-3 w-3 border-2 border-white dark:border-[#0c0618]"
+            />
+          </span>
           <ChevronDown size={14} className="account-chevron text-muted transition-transform" aria-hidden="true" />
         </button>
 
@@ -422,16 +435,26 @@ export function HeaderActions({ session }: { session: Session | null }) {
             <div className="account-menu-header flex items-center gap-3.5 p-4 border-b border-slate-200/80 dark:border-purple-900/40">
               <div className="relative shrink-0">
                 <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={44} />
-                <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0c0618] shadow-sm" aria-hidden="true" />
+                <PresenceDot
+                  status={status}
+                  decorative
+                  className="absolute -bottom-1 -right-1 h-3.5 w-3.5 border-2 border-white shadow-sm dark:border-[#0c0618]"
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="account-menu-name text-sm font-extrabold text-slate-900 dark:text-white truncate leading-tight">
                   {session.displayName}
                 </p>
-                <div className="flex items-center gap-1.5 mt-1">
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   <RankChip role={session.role} />
+                  <PresencePill status={status} />
                 </div>
               </div>
+            </div>
+
+            <div className="border-b border-slate-200/80 p-2 dark:border-purple-900/40">
+              <p className="px-3 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Status</p>
+              <StatusPicker initial={status} onChange={setStatus} />
             </div>
 
             <nav className="account-menu-links p-2.5 grid gap-1" aria-label="Account navigation">

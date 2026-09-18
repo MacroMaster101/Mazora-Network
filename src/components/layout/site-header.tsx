@@ -10,6 +10,8 @@ import { MobileMenu } from "./mobile-menu";
 import { ThemeCycleButton } from "@/components/theme/theme-toggle";
 import { ThemeHint } from "@/components/theme/theme-hint-tooltip";
 import { CartTrigger } from "@/components/shared/cart-trigger";
+import { PresenceBeacon } from "@/components/presence/presence-beacon";
+import { getPresenceChoice } from "@/lib/data/presence";
 
 export async function SiteHeader({ world = false, stable = false }: { world?: boolean; stable?: boolean }) {
   const [session, generalSettings] = await Promise.all([
@@ -17,6 +19,7 @@ export async function SiteHeader({ world = false, stable = false }: { world?: bo
     getSiteGeneralSettings(),
   ]);
   const userId = session ? await getSessionUserId() : null;
+  const presence = userId ? await getPresenceChoice(userId) : "online";
 
   // Staff get their admin sections inside the drawer, so small screens have one
   // menu instead of a site menu plus a scrolling strip of admin links.
@@ -36,6 +39,8 @@ export async function SiteHeader({ world = false, stable = false }: { world?: bo
           <span>Network Maintenance Mode is active — Scheduled updates are currently underway.</span>
         </div>
       )}
+      {/* Signed-in members only: the header is on every page, so presence stays current site-wide. */}
+      {session && <PresenceBeacon />}
       <ScrollHeader world={world} stable={stable}>
         <div className="header-shell shell flex h-[4.85rem] items-center justify-between gap-4">
           {/* Left: Single unified Brand Logo (responsive sizing via CSS) */}
@@ -57,15 +62,15 @@ export async function SiteHeader({ world = false, stable = false }: { world?: bo
               </ThemeHint>
             </div>
             <span className="dock-divider" aria-hidden="true" />
-            <HeaderActions session={session} />
+            <HeaderActions session={session} presence={presence} />
           </div>
 
           {/* Right: Mobile Controls (hidden on desktop >= 1100px) */}
           <div className="flex items-center gap-2 shrink-0 min-[1100px]:hidden">
-            <HeaderActions session={session} />
+            <HeaderActions session={session} presence={presence} />
             <CartTrigger compact className="header-cart-trigger" />
             <ThemeHint variant="menu">
-              <MobileMenu session={session} adminNav={adminNav} />
+              <MobileMenu session={session} adminNav={adminNav} presence={presence} />
             </ThemeHint>
           </div>
         </div>

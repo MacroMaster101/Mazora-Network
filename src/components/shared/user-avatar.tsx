@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn, accentFor } from "@/lib/utils";
 
 /**
@@ -30,7 +30,21 @@ export function UserAvatar({
   rounded?: string;
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const bg = accentFor(username);
+
+  /*
+    An image that fails before hydration never reaches onError: the browser
+    fired the event while this was still server HTML with no handler attached,
+    so the broken-image icon stayed on screen instead of the monogram. That is
+    exactly what a dead provider photo does (Discord deletes the old picture
+    when a member changes theirs, and the saved link starts returning 404).
+    Checking the element once on mount catches the error that already happened.
+  */
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img && avatarUrl && img.complete && img.naturalWidth === 0) setFailedUrl(avatarUrl);
+  }, [avatarUrl]);
 
   return (
     <span
@@ -46,6 +60,7 @@ export function UserAvatar({
         // CDN. A deleted upload 404s, so failures fall back to the monogram.
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={imgRef}
           src={avatarUrl}
           alt=""
           width={size}
