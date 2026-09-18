@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { BackLink } from "@/components/shared";
 import { STORE_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getAdminGameModes, getAdminProducts } from "@/lib/data/content";
@@ -29,10 +30,11 @@ export default async function AdminStoreItemsPage({ params }: { params: Promise<
 
   return (
     <div className="admin-store-page">
+      <BackLink href={`/admin/store/catalog/${mode.slug}`} label="Back to categories" className="mb-4" />
       <DashHeader
         title={`${mode.name} · ${config.label}`}
         subtitle={config.useSubcategories ? `${subcategoryCount} subcategories · ${itemCount} products` : `${itemCount} products · filtered item management dashboard`}
-        action={<div className="store-admin-page-actions"><Link href={`/admin/store/catalog/${mode.slug}`} className="btn btn-secondary btn-sm"><ArrowLeft size={15} /> Categories</Link><Link href="/store" className="btn btn-ghost btn-sm"><ExternalLink size={15} /> Public store</Link></div>}
+        action={<div className="store-admin-page-actions"><Link href="/store" className="btn btn-ghost btn-sm"><ExternalLink size={15} /> Public store</Link></div>}
       />
       {config.useSubcategories ? (
         <StoreSubcategoryManager mode={mode} category={config} products={categoryProducts} />

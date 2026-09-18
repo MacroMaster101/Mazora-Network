@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageSuggestions } from "@/lib/auth/permissions";
 import { getSuggestionThread } from "@/lib/data/suggestions-board";
+import { getViewerActor } from "@/lib/data/forums";
+import { parseCommentSort } from "@/lib/comments/tree";
 import { publicPageMetadata } from "@/lib/seo";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { SuggestionsClosedNotice } from "@/components/suggestions/suggestions-closed-notice";
@@ -26,15 +28,23 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   });
 }
 
-export default async function SuggestionThreadPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SuggestionThreadPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ sort?: string; focus?: string; comment?: string }>;
+}) {
   // Runtime switch, independent of the compiled launchGates. An admin can
   // close the board from Site Settings without a deploy; posted ideas are
   // kept, just not served.
   const { suggestionsEnabled } = await getSiteGeneralSettings();
   if (!suggestionsEnabled) return <SuggestionsClosedNotice />;
   const { id } = await params;
-  const [session, viewerId] = await Promise.all([getSession(), getSessionUserId()]);
-  const thread = await getSuggestionThread(id, viewerId);
+  const query = await searchParams;
+  const sort = parseCommentSort(query.sort);
+  const [session, viewerId, viewerActor] = await Promise.all([getSession(), getSessionUserId(), getViewerActor()]);
+  const thread = await getSuggestionThread(id, viewerId, { sort, focus: query.focus ?? null, comment: query.comment ?? null });
   if (!thread) notFound();
 
   const canModerate = viewerId ? await canManageSuggestions(session, viewerId) : false;
@@ -50,6 +60,8 @@ export default async function SuggestionThreadPage({ params }: { params: Promise
         isLoggedIn={Boolean(session)}
         canModerate={canModerate}
         loginHref={`/login?next=${encodeURIComponent(currentPath)}`}
+        sort={sort}
+        accountStatus={viewerActor.accountStatus}
       />
     </section>
   );
