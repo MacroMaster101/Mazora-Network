@@ -7,6 +7,7 @@ import { listAccounts } from "@/lib/data/accounts";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { ReadOnlyBanner } from "@/components/admin/admin-ui";
 import { UsersDirectory, type DirectoryRow } from "@/components/admin/users-directory";
+import { getPresenceFor } from "@/lib/data/presence";
 import { InviteUserButton } from "@/components/admin/user-invites";
 
 export const metadata: Metadata = { title: "Users · Admin" };
@@ -20,6 +21,9 @@ export default async function AdminUsersPage() {
   const assignable: Role[] = (["member", "sponsor", "vip", ...STAFF_ROLES] as Role[]).filter(
     (role) => canGrantRank(session.role, role),
   );
+
+  // Who is around right now, for the dot on each avatar. Invisible members stay absent here too.
+  const presence = await getPresenceFor((accounts ?? []).map((account) => account.userId));
 
   const rows: DirectoryRow[] = (accounts ?? []).map((account) => {
     // Say why a row is locked. The rule is real — you cannot change your own
@@ -39,6 +43,7 @@ export default async function AdminUsersPage() {
       avatarUrl: account.avatarUrl,
       lockedReason,
       pendingInvite: account.pendingInvite,
+      status: presence.get(account.userId) ?? null,
     };
   });
 

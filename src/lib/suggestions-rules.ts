@@ -41,22 +41,3 @@ export function canDeleteReply(thread: ThreadState, reply: ReplySubject, actor: 
 export function replyBody(reply: ReplySubject & { body: string }): string {
   return reply.deletedAt ? REPLY_TOMBSTONE : reply.body;
 }
-
-export interface ParentRef {
-  id: string;
-  parentId: string | null;
-}
-
-/**
- * The parent a new reply should actually attach to, given the reply the member
- * clicked "reply" on. Replying to a top-level reply attaches to it; replying to
- * a child attaches to that child's own parent — the top-level ancestor — so the
- * tree can never exceed one level. `null` means a new top-level reply.
- *
- * This is the single source of the depth-one invariant; the post action calls
- * it rather than branching inline.
- */
-export function effectiveParentId(parent: ParentRef | null): string | null {
-  if (!parent) return null;
-  return parent.parentId ?? parent.id;
-}

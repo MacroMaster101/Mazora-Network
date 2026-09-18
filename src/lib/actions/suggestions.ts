@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageSuggestions } from "@/lib/auth/permissions";
+import { canVoteOnComment, COMMENT_VOTES_PER_MINUTE, isVoteValue, type VoteValue } from "@/lib/comments/vote-rules";
 import { getDb, schema } from "@/lib/db/client";
 import { dispatchSuggestionReplyNotification } from "@/lib/notifications-auto";
 import { actionClientKey, rateLimitShared } from "@/lib/rate-limit";
@@ -14,7 +15,6 @@ import {
   canEditReply,
   canPostReply,
   canVote,
-  effectiveParentId,
   type ReplyActor,
   type ReplySubject,
   type ThreadState,
@@ -127,13 +127,11 @@ export async function postSuggestionReplyAction(formData: FormData): Promise<Res
     if (sizeError) return { ok: false, message: sizeError };
   }
 
-  // Resolve the effective parent before the insert: this is the security
-  // boundary that caps nesting at one level and keeps a reply inside its own
-  // suggestion's thread, enforced here rather than trusted from the client.
+  // The reply being answered is looked up, never trusted: it must be in this
+  // suggestion's thread and still live. The new reply attaches directly to it,
+  // at any depth.
   let effectiveParent: string | null = null;
-  // The person actually being answered is the author of the reply the member
-  // clicked "reply" on (`parent.authorId`), not the top-level ancestor's
-  // author — those differ whenever the clicked reply was itself a child.
+  // The person being answered is notified, not the suggestion author.
   let answeredAuthorId: string | null = null;
   if (parentId) {
     const parentCheck = z.string().uuid().safeParse(parentId);
@@ -141,7 +139,6 @@ export async function postSuggestionReplyAction(formData: FormData): Promise<Res
     const [parent] = await db
       .select({
         id: schema.suggestionReplies.id,
-        parentId: schema.suggestionReplies.parentId,
         suggestionId: schema.suggestionReplies.suggestionId,
         deletedAt: schema.suggestionReplies.deletedAt,
         authorId: schema.suggestionReplies.userId,
@@ -149,11 +146,10 @@ export async function postSuggestionReplyAction(formData: FormData): Promise<Res
       .from(schema.suggestionReplies)
       .where(eq(schema.suggestionReplies.id, parentCheck.data))
       .limit(1);
-    // A reply may only nest within its own thread, and not under a removed reply.
     if (!parent || parent.suggestionId !== suggestionId || parent.deletedAt) {
       return { ok: false, message: "That reply is no longer available." };
     }
-    effectiveParent = effectiveParentId({ id: parent.id, parentId: parent.parentId });
+    effectiveParent = parent.id;
     answeredAuthorId = parent.authorId;
   }
 
@@ -588,4 +584,71 @@ export async function deleteSuggestionImageAction(input: { imageId: string }): P
   if (threadId) refreshSuggestionPages(threadId);
 
   return { ok: true, message: "Image removed." };
+}
+
+/**
+ * Vote on a suggestion reply. `value` 0 removes the member's vote. A locked
+ * thread still accepts votes — locking stops new replies, not reactions.
+ */
+export async function voteOnSuggestionReplyAction(input: {
+  replyId: string;
+  value: number;
+}): Promise<Result & { up?: number; down?: number; mine?: VoteValue }> {
+  const [session, userId] = await Promise.all([getSession(), getSessionUserId()]);
+  if (!session || !userId) return { ok: false, message: "Sign in to vote." };
+  if (!replyIdSchema.safeParse(input?.replyId).success || !isVoteValue(input.value)) {
+    return { ok: false, message: "That vote could not be saved." };
+  }
+  const value = input.value;
+
+  const db = getDb();
+  if (!db) return { ok: false, message: "The database is not connected." };
+
+  // A suspension takes effect on the next action, not the next sign-in.
+  const [profile] = await db
+    .select({ accountStatus: schema.profiles.accountStatus })
+    .from(schema.profiles)
+    .where(eq(schema.profiles.userId, userId))
+    .limit(1);
+
+  const [reply] = await db
+    .select({ id: schema.suggestionReplies.id, authorId: schema.suggestionReplies.userId, deletedAt: schema.suggestionReplies.deletedAt })
+    .from(schema.suggestionReplies)
+    .where(eq(schema.suggestionReplies.id, input.replyId))
+    .limit(1);
+  if (!reply) return { ok: false, message: "That reply no longer exists." };
+
+  const subject = { authorId: reply.authorId, deletedAt: toIsoOrNull(reply.deletedAt) };
+  if (!canVoteOnComment(subject, { userId, accountStatus: profile?.accountStatus ?? null })) {
+    return { ok: false, message: reply.authorId === userId ? "You can't vote on your own reply." : "You can't vote on this reply." };
+  }
+
+  const limit = await rateLimitShared(await actionClientKey("comment-vote", userId), {
+    limit: COMMENT_VOTES_PER_MINUTE,
+    windowMs: 60_000,
+  });
+  if (!limit.ok) return { ok: false, message: "You're voting too fast. Wait a moment." };
+
+  const v = schema.suggestionReplyVotes;
+  try {
+    if (value === 0) {
+      await db.delete(v).where(and(eq(v.replyId, reply.id), eq(v.userId, userId)));
+    } else {
+      await db
+        .insert(schema.suggestionReplyVotes)
+        .values({ replyId: reply.id, userId, value })
+        .onConflictDoUpdate({ target: [v.replyId, v.userId], set: { value, updatedAt: new Date() } });
+    }
+    const [totals] = await db
+      .select({
+        up: sql<number>`(count(*) filter (where ${v.value} = 1))::int`,
+        down: sql<number>`(count(*) filter (where ${v.value} = -1))::int`,
+      })
+      .from(v)
+      .where(eq(v.replyId, reply.id));
+    return { ok: true, message: "Vote saved.", up: totals?.up ?? 0, down: totals?.down ?? 0, mine: value };
+  } catch (error) {
+    console.error("Failed to save suggestion reply vote", error);
+    return { ok: false, message: "That vote could not be saved." };
+  }
 }

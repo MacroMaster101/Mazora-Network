@@ -12,6 +12,7 @@ export const NEWS_PERMISSION_KEY = "news.permissions";
 export const GALLERY_PERMISSION_KEY = "gallery.permissions";
 export const PLAY_PERMISSION_KEY = "play.permissions";
 export const PAGES_PERMISSION_KEY = "pages.permissions";
+export const FORUMS_PERMISSION_KEY = "forums.permissions";
 export const EVENTS_PERMISSION_KEY = "events.permissions";
 export const GAMEMODES_PERMISSION_KEY = "gamemodes.permissions";
 export const RULES_PERMISSION_KEY = "rules.permissions";
@@ -109,6 +110,7 @@ export const getModulePermissions = cache(async (key: string): Promise<ModulePer
 /** Every module key, in the order the admin permissions screen renders them. */
 export const ALL_PERMISSION_KEYS = [
   PAGES_PERMISSION_KEY,
+  FORUMS_PERMISSION_KEY,
   NEWS_PERMISSION_KEY,
   GALLERY_PERMISSION_KEY,
   PLAY_PERMISSION_KEY,
@@ -200,6 +202,7 @@ export async function canManageModule(key: string, session: Session | null, user
 export const getNewsPermissions = () => getModulePermissions(NEWS_PERMISSION_KEY);
 export const canManageNews = (s: Session | null, u?: string | null) => canManageModule(NEWS_PERMISSION_KEY, s, u);
 export const canManagePages = (s: Session | null, u?: string | null) => canManageModule(PAGES_PERMISSION_KEY, s, u);
+export const canManageForums = (s: Session | null, u?: string | null) => canManageModule(FORUMS_PERMISSION_KEY, s, u);
 
 export const getGalleryPermissions = () => getModulePermissions(GALLERY_PERMISSION_KEY);
 export const canManageGallery = (s: Session | null, u?: string | null) => canManageModule(GALLERY_PERMISSION_KEY, s, u);
@@ -260,6 +263,7 @@ export async function getAdminNavAccess(
     suggestions: SUGGESTIONS_PERMISSION_KEY,
     staff: STAFF_PERMISSION_KEY,
     pages: PAGES_PERMISSION_KEY,
+    forums: FORUMS_PERMISSION_KEY,
     play: PLAY_PERMISSION_KEY,
     news: NEWS_PERMISSION_KEY,
     events: EVENTS_PERMISSION_KEY,

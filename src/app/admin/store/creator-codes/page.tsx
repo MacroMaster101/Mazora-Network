@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { BackLink } from "@/components/shared";
 import { STORE_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getCreatorCodes } from "@/lib/data/creator-codes";
@@ -20,15 +19,10 @@ export default async function AdminCreatorCodesPage() {
 
   return (
     <div className="admin-store-page">
+      <BackLink href="/admin/store" label="Back to Store" className="mb-4" />
       <DashHeader
         title="Discount codes"
         subtitle="Choose a code type to manage creator partnerships or staff-run promotions."
-        action={
-          <Link href="/admin/store" className="store-admin-back-link">
-            <ArrowLeft size={15} aria-hidden="true" />
-            Back to Store
-          </Link>
-        }
       />
       <DiscountCodeTypeCards
         creatorSummary={`${creatorActive} active · ${creators.length} total`}

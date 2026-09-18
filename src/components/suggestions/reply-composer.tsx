@@ -15,11 +15,10 @@ import { ImagePicker } from "./image-picker";
  * the real enforcement, this is presentation only.
  *
  * `parentId` is optional: when present this composer targets a reply-to-reply
- * (the server re-points and caps depth at one), when absent it behaves
- * exactly as a top-level reply, unchanged from before nesting existed.
+ * at any depth, when absent it behaves exactly as a top-level reply.
  * `onSuccess` is an optional extra callback (in addition to the toast and
- * `router.refresh()`, both of which always run) — ReplyItem uses it to close
- * its inline composer once the reply has actually posted.
+ * `router.refresh()`, both of which always run) — CommentItem uses it to
+ * close its inline composer once the reply has actually posted.
  */
 export function ReplyComposer({
   suggestionId,

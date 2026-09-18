@@ -6,6 +6,9 @@ import { FloatingBrandLogo, MinecraftAvatar, RanksHelpPopover, Reveal } from "@/
 import { JsonLd } from "@/components/shared/json-ld";
 import { roleLabel, STAFF_ROLES } from "@/lib/auth";
 import { listPublicStaffAccounts, type PublicStaffMember } from "@/lib/data/accounts";
+import { getPresenceFor } from "@/lib/data/presence";
+import { PresenceDot } from "@/components/presence/presence-dot";
+import { PRESENCE_LABELS, type PresenceShown } from "@/lib/presence-rules";
 import type { Role } from "@/lib/types";
 import { getPageContent } from "@/lib/data/page-content";
 
@@ -43,7 +46,14 @@ const roleSummary: Partial<Record<Role, string>> = {
   helper: "Welcomes players, answers questions, and provides everyday support.",
 };
 
-function TeamMemberCard({ member }: { member: PublicStaffMember }) {
+function TeamMemberCard({
+  member,
+  status,
+}: {
+  member: PublicStaffMember;
+  /** Website status; absent when they are offline or chose Invisible. */
+  status: Exclude<PresenceShown, "offline"> | undefined;
+}) {
   const presentation = rolePresentation[member.role] ?? rolePresentation.helper!;
   const RankIcon = presentation.icon;
   const minecraftAvatarUrl = member.minecraftSkinUrl ?? member.minecraftAvatarUrl;
@@ -68,6 +78,12 @@ function TeamMemberCard({ member }: { member: PublicStaffMember }) {
       {member.minecraftUsername && member.minecraftUsername !== member.username && (
         <p className="team-member-alias">Minecraft: {member.minecraftUsername}</p>
       )}
+      {status && (
+        <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted">
+          <PresenceDot status={status} decorative className="h-2 w-2" />
+          {PRESENCE_LABELS[status]} on the site
+        </p>
+      )}
     </article>
   );
 }
@@ -82,6 +98,8 @@ function FlowConnector({ className = "" }: { className?: string }) {
 
 export default async function StaffPage() {
   const [members, copy] = await Promise.all([listPublicStaffAccounts(), getPageContent("staff")]);
+  // Staff are already public on this page; this adds only whether they are around right now.
+  const presence = await getPresenceFor((members ?? []).map((member) => member.userId));
   const groups = LADDER.map((role) => ({
     role,
     members: (members ?? []).filter((member) => member.role === role),
@@ -202,7 +220,9 @@ export default async function StaffPage() {
                 <div key={group.role} className={`team-rank-group team-member-${presentation.tier}`}>
                   {index > 0 && <FlowConnector />}
                   <div className="team-tier team-tier-dynamic">
-                    {group.members.map((member) => <TeamMemberCard key={member.userId} member={member} />)}
+                    {group.members.map((member) => (
+                      <TeamMemberCard key={member.userId} member={member} status={presence.get(member.userId)} />
+                    ))}
                   </div>
                 </div>
               );

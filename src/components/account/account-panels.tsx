@@ -30,6 +30,8 @@ import { FormRow, Input } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NotificationPreferences } from "@/components/account/notification-preferences";
 import { SecurityCard } from "@/components/account/security-card";
+import { StatusPicker } from "@/components/presence/status-picker";
+import { getPresenceChoice } from "@/lib/data/presence";
 import {
   amrFromAccessToken,
   buildSecurityState,
@@ -50,6 +52,8 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 /** Full account settings: profile, password, connected accounts, delete account. */
 export async function AccountSettings({ loginNext = "/dashboard/settings" }: { loginNext?: string } = {}) {
   const session = await requireSession(loginNext);
+  const userId = await getSessionUserId();
+  const presence = userId ? await getPresenceChoice(userId) : "online";
 
   // Fetch user email & linked providers for the Connected Accounts card.
   let email = "";
@@ -124,6 +128,13 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
           />
           <div className="profile-avatar-divider" />
           <ProfileForm username={session.username} displayName={session.displayName} bio={session.bio ?? ""} />
+        </Card>
+
+        <Card title="Status">
+          <p className="-mt-2 text-xs text-muted">
+            Choose how you appear in Who&apos;s Online. You can also change it any time from the account menu.
+          </p>
+          <StatusPicker initial={presence} variant="settings" />
         </Card>
 
         <Card title="Account">

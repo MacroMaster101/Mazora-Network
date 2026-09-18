@@ -1,16 +1,84 @@
 import Link from "next/link";
 import { Lock, MessageCircle } from "lucide-react";
-import type { SuggestionThread } from "@/lib/data/suggestions-board";
-import { canDeleteReply, type ReplyActor, type ThreadState } from "@/lib/suggestions-rules";
+import type { SuggestionThread, ThreadReply } from "@/lib/data/suggestions-board";
+import {
+  canDeleteReply,
+  canEditReply,
+  canPostReply,
+  replyBody,
+  type ReplyActor,
+  type ThreadState,
+} from "@/lib/suggestions-rules";
+import { canVoteOnComment } from "@/lib/comments/vote-rules";
+import { canReport } from "@/lib/report-rules";
+import { commentHref, MAX_VISIBLE_DEPTH, type CommentNode, type CommentSort } from "@/lib/comments/tree";
 import type { Role } from "@/lib/types";
+import type { CommentView } from "@/components/comments/types";
 import { UserAvatar } from "@/components/shared";
 import { fmtDate, relative } from "@/lib/utils";
 import { CategoryChip, StatusPill } from "./suggestion-meta";
 import { VoteButton } from "./vote-button";
-import { ReplyItem } from "./reply-item";
+import { SuggestionComments } from "./suggestion-comments";
 import { ReplyComposer } from "./reply-composer";
 import { ReportButton } from "./report-button";
 import { ImageGallery } from "./image-gallery";
+
+/**
+ * Builds the shared comment components' view tree from `ThreadReply` nodes,
+ * deciding every permission here (server-side) via the same
+ * `suggestions-rules.ts` predicates the shared comment actions enforce, so
+ * the buttons SuggestionComments shows always agree with what the action
+ * would actually allow. This is presentation only: the actions re-check
+ * everything against the database on every call.
+ *
+ * A removed reply's author is neutralised — permissions above are already
+ * computed from the real row, so nothing downstream needs it. Below
+ * MAX_VISIBLE_DEPTH, children are not serialised into the page payload at
+ * all — the page links to a focused view instead — but `descendantCount`
+ * stays real so "Continue this thread (N)" still shows a true count.
+ */
+function toViewTree(
+  nodes: CommentNode<ThreadReply>[],
+  thread: SuggestionThread,
+  threadState: ThreadState,
+  actor: ReplyActor,
+  accountStatus: string | null,
+): CommentNode<CommentView>[] {
+  return nodes.map((node) => {
+    const reply = node.comment;
+    const subject = { authorId: reply.authorId, deletedAt: reply.deletedAt };
+    const canEdit = canEditReply(threadState, subject, actor);
+    const canDelete = canDeleteReply(threadState, subject, actor);
+    const removed = Boolean(reply.deletedAt);
+    const comment: CommentView = {
+      id: reply.id,
+      parentId: reply.parentId,
+      createdAt: reply.createdAt,
+      deletedAt: reply.deletedAt,
+      up: reply.up,
+      down: reply.down,
+      authorId: removed ? "" : reply.authorId,
+      authorName: removed ? "" : reply.author.displayName || reply.author.username,
+      authorUsername: removed ? "removed" : reply.author.username,
+      authorAvatar: removed ? null : reply.author.avatarUrl,
+      authorRole: removed ? "member" : reply.authorRole,
+      isOp: removed ? false : reply.authorId === thread.authorId,
+      authorStatus: removed ? null : reply.authorStatus,
+      editedAt: reply.editedAt,
+      myVote: reply.myVote,
+      body: <p className="whitespace-pre-line">{replyBody(reply)}</p>,
+      editBody: canEdit ? reply.body : null,
+      images: reply.images.length ? <ImageGallery images={reply.images} canRemove={canDelete} /> : null,
+      canVote: canVoteOnComment(subject, { userId: actor.userId, accountStatus }),
+      canReply: !reply.deletedAt && canPostReply(threadState, actor),
+      canEdit,
+      canDelete,
+      canReport: canReport(subject, { userId: actor.userId, role: actor.role }),
+    };
+    if (node.depth >= MAX_VISIBLE_DEPTH) return { ...node, comment, children: [] };
+    return { ...node, comment, children: toViewTree(node.children, thread, threadState, actor, accountStatus) };
+  });
+}
 
 /**
  * Full thread surface: the suggestion, its vote button, the reply list (in
@@ -18,10 +86,10 @@ import { ImageGallery } from "./image-gallery";
  * composer, a locked notice, or a login prompt.
  *
  * `canEdit`/`canDelete` per reply are computed here from the same
- * `suggestions-rules.ts` predicates Task 5's server actions enforce, so the
- * buttons ReplyItem shows always agree with what the action would actually
- * allow. This is presentation only: the actions re-check everything against
- * the database on every call.
+ * `suggestions-rules.ts` predicates the shared comment actions enforce, so
+ * the buttons SuggestionComments shows always agree with what the action
+ * would actually allow. This is presentation only: the actions re-check
+ * everything against the database on every call.
  */
 export function ThreadView({
   thread,
@@ -30,6 +98,8 @@ export function ThreadView({
   isLoggedIn,
   canModerate,
   loginHref,
+  sort,
+  accountStatus,
 }: {
   thread: SuggestionThread;
   viewerId: string | null;
@@ -37,6 +107,8 @@ export function ThreadView({
   isLoggedIn: boolean;
   canModerate: boolean;
   loginHref: string;
+  sort: CommentSort;
+  accountStatus: string | null;
 }) {
   const actor: ReplyActor = { userId: viewerId, role: viewerRole, canModerate };
   const threadState: ThreadState = { locked: thread.locked };
@@ -76,7 +148,7 @@ export function ThreadView({
           />
           <span className="flex items-center gap-3">
             <span className="chip w-fit gap-1.5">
-              <MessageCircle size={13} aria-hidden="true" /> {thread.repliesCount} {thread.repliesCount === 1 ? "reply" : "replies"}
+              <MessageCircle size={13} aria-hidden="true" /> {thread.totalReplies} {thread.totalReplies === 1 ? "reply" : "replies"}
             </span>
             <ReportButton
               target={{ kind: "suggestion", id: thread.id, authorId: thread.authorId, deletedAt: null }}
@@ -105,40 +177,36 @@ export function ThreadView({
         <section className="glass p-6 sm:p-8">
           <h2 className="font-display text-lg font-bold">Discussion</h2>
 
-          {thread.replies.length === 0 ? (
-            <p className="mt-4 text-sm text-muted">No replies yet. Be the first to share your thoughts.</p>
-          ) : (
-            <ul className="mt-2">
-              {thread.replies.map((reply) => (
-                <ReplyItem
-                  key={reply.id}
-                  reply={reply}
-                  threadState={threadState}
-                  actor={actor}
-                  suggestionId={thread.id}
-                  viewer={viewer}
-                  loginHref={loginHref}
-                />
-              ))}
-            </ul>
-          )}
+          <SuggestionComments
+            suggestionId={thread.id}
+            basePath={`/support/suggestions/${thread.id}`}
+            loginHref={isLoggedIn ? null : loginHref}
+            sort={sort}
+            nodes={toViewTree(thread.replies, thread, threadState, actor, accountStatus)}
+            totalComments={thread.totalReplies}
+            focusBackHref={thread.focusId ? commentHref(`/support/suggestions/${thread.id}`, sort, {}) : null}
+            viewer={viewer}
+            reportLoginHref={loginHref}
+          />
 
-          <div className="mt-6 border-t border-line pt-6">
-            {thread.locked ? (
-              <p className="glass flex items-center gap-2 px-5 py-4 text-sm text-muted">
-                <Lock size={15} aria-hidden="true" /> This thread is locked. New replies are no longer accepted.
-              </p>
-            ) : isLoggedIn ? (
-              <ReplyComposer suggestionId={thread.id} />
-            ) : (
-              <div className="glass flex flex-col items-center gap-3 px-5 py-8 text-center text-sm text-muted">
-                <span>Log in to join the discussion.</span>
-                <Link href={loginHref} className="btn btn-primary btn-sm">
-                  Log in to reply
-                </Link>
-              </div>
-            )}
-          </div>
+          {!thread.focusId && (
+            <div className="mt-6 border-t border-line pt-6">
+              {thread.locked ? (
+                <p className="glass flex items-center gap-2 px-5 py-4 text-sm text-muted">
+                  <Lock size={15} aria-hidden="true" /> This thread is locked. New replies are no longer accepted.
+                </p>
+              ) : isLoggedIn ? (
+                <ReplyComposer suggestionId={thread.id} />
+              ) : (
+                <div className="glass flex flex-col items-center gap-3 px-5 py-8 text-center text-sm text-muted">
+                  <span>Log in to join the discussion.</span>
+                  <Link href={loginHref} className="btn btn-primary btn-sm">
+                    Log in to reply
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
         </section>
       </div>
     </div>

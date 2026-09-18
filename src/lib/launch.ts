@@ -9,13 +9,6 @@ export type LaunchGate = {
 
 export const launchGates: LaunchGate[] = [
   {
-    path: "/forums",
-    icon: "MessagesSquare",
-    eyebrow: "Community launch",
-    title: "The forums are opening soon.",
-    message: "We are preparing accounts, moderation and real discussion data before opening community posting.",
-  },
-  {
     path: "/players",
     // The index shows the live online-players panel, which needs no database
     // rows. Individual profiles stay gated until player data is synced.

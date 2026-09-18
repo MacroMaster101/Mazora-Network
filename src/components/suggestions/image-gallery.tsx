@@ -14,9 +14,9 @@ const THUMB_PX = 112;
 /**
  * Thumbnail grid for a suggestion's or a reply's attached images.
  *
- * Renders nothing when `images` is empty — callers (ThreadView, ReplyItem)
- * mount this unconditionally under every body, so an empty post shows no
- * gallery at all rather than an empty grid shell.
+ * Renders nothing when `images` is empty — callers (ThreadView, CommentItem
+ * via SuggestionComments) mount this unconditionally under every body, so an
+ * empty post shows no gallery at all rather than an empty grid shell.
  *
  * `canRemove` gates the per-thumbnail delete control. It is a plain boolean,
  * not re-derived here: the caller passes the same value it already computed

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { BackLink } from "@/components/shared";
 import { STORE_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
 import { getAdminGameModes, getAdminProducts } from "@/lib/data/content";
@@ -24,15 +23,10 @@ export default async function AdminEventCodesPage() {
 
   return (
     <div className="admin-store-page">
+      <BackLink href="/admin/store/creator-codes" label="Back to Discount codes" className="mb-4" />
       <DashHeader
         title="Event codes"
         subtitle={`${codes.length} ${codes.length === 1 ? "event code" : "event codes"} · ${active} active`}
-        action={
-          <Link href="/admin/store/creator-codes" className="store-admin-back-link">
-            <ArrowLeft size={15} aria-hidden="true" />
-            Back to Discount codes
-          </Link>
-        }
       />
       <CreatorCodesManager codeType="event" codes={codes} products={products} modes={modes} stats={Object.fromEntries(stats)} />
     </div>
