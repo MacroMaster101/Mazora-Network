@@ -28,10 +28,37 @@ export function StoreWelcomeEditor({
   const [supportNote, setSupportNote] = useState(banner.supportNote);
   const [imageUrl, setImageUrl] = useState(banner.imageUrl);
   const [enabled, setEnabled] = useState(banner.enabled);
+  // What is published: "Show Banner" saves on its own on top of this, so
+  // flipping it never publishes half-edited copy or an unsaved image.
+  const [savedBanner, setSavedBanner] = useState(banner);
   const [uploadName, setUploadName] = useState<string | null>(null);
   const [busy, start] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  /** The switch saves the moment it is flipped; a failed save flips it back. */
+  function toggleBanner(next: boolean) {
+    setEnabled(next);
+    const payload = { ...savedBanner, enabled: next };
+    const formData = new FormData();
+    formData.set("badge", payload.badge);
+    formData.set("title", payload.title);
+    formData.set("paragraph1", payload.paragraph1);
+    formData.set("paragraph2", payload.paragraph2);
+    formData.set("supportNote", payload.supportNote);
+    formData.set("imageUrl", payload.imageUrl);
+    if (next) formData.set("enabled", "on");
+    start(async () => {
+      const result = await saveAction(formData);
+      if (result.ok) {
+        setSavedBanner(payload);
+        toast(next ? "Welcome banner shown." : "Welcome banner hidden.", "success");
+      } else {
+        setEnabled(savedBanner.enabled);
+        toast(result.message, "error");
+      }
+    });
+  }
 
   function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -57,6 +84,9 @@ export function StoreWelcomeEditor({
       action={(formData) =>
         start(async () => {
           const result = await saveAction(formData);
+          if (result.ok) {
+            setSavedBanner({ ...banner, badge, title, paragraph1, paragraph2, supportNote, imageUrl, enabled });
+          }
           toast(result.message, result.ok ? "success" : "error");
         })
       }
@@ -77,7 +107,8 @@ export function StoreWelcomeEditor({
             type="checkbox"
             name="enabled"
             checked={enabled}
-            onChange={(e) => setEnabled(e.target.checked)}
+            disabled={busy}
+            onChange={(e) => toggleBanner(e.target.checked)}
             className="checkbox checkbox-primary"
           />
           <span className="text-xs font-bold uppercase tracking-wider text-ink">Show Banner</span>

@@ -3,7 +3,7 @@ import { Monitor, Smartphone } from "lucide-react";
 import { getPatchUpdates } from "@/lib/data/patches";
 import { getFaqs } from "@/lib/data/faqs";
 import { getPlayPageConfig } from "@/lib/data/play-page-config";
-import { getSiteGeneralSettings } from "@/lib/data/site-settings";
+import { getSiteGeneralSettings, withServerAddresses } from "@/lib/data/site-settings";
 import { getStatusTelemetry } from "@/lib/data/status-telemetry";
 import { getServerStatus } from "@/lib/data/status";
 import { site } from "@/lib/site";
@@ -44,9 +44,11 @@ export default async function PlayPage() {
   ]);
 
   const online = status.live && status.online;
-  const activeBedrockIp = playConfig.bedrockIp || generalSettings.bedrockIp || site.bedrockIp;
-  const activeBedrockPort = playConfig.bedrockPort || generalSettings.bedrockPort || site.bedrockPort;
-  const activeJavaIp = playConfig.javaIp || generalSettings.javaIp || site.javaIp;
+  // Site Settings → Connection & Socials is the one place the address is set.
+  const activeBedrockIp = generalSettings.bedrockIp || site.bedrockIp;
+  const activeBedrockPort = generalSettings.bedrockPort || site.bedrockPort;
+  const activeJavaIp = generalSettings.javaIp || site.javaIp;
+  const addresses = { javaIp: activeJavaIp, bedrockIp: activeBedrockIp, bedrockPort: activeBedrockPort };
   const bedrockAddress = `${activeBedrockIp}:${activeBedrockPort}`;
 
   const bedrockSteps = (playConfig.bedrockSteps || []).map((step) =>
@@ -127,7 +129,7 @@ export default async function PlayPage() {
         <Reveal>
           <h2 className="text-3xl font-bold">Frequently asked</h2>
           <p className="mt-2 text-muted">Everything you need to know before your first login.</p>
-          <Accordion className="mt-6" items={faqs} />
+          <Accordion className="mt-6" items={faqs.map((faq) => ({ ...faq, a: withServerAddresses(faq.a, addresses) }))} />
         </Reveal>
       </section>
     </>

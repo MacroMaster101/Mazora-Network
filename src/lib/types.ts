@@ -392,8 +392,8 @@ export interface PlayPageConfig {
 
 export const DEFAULT_PLAY_CONFIG: PlayPageConfig = {
   javaIp: "mc.mazora.us",
-  bedrockIp: "mc.mazora.us",
-  bedrockPort: "8876",
+  bedrockIp: "bedrock.mazora.us",
+  bedrockPort: "19135",
   supportedVersion: "Leaf 1.21.11",
   discordChannelId: "1193207365906997379",
   heroTitle: "Joining takes about a minute.",
@@ -410,8 +410,8 @@ export const DEFAULT_PLAY_CONFIG: PlayPageConfig = {
     "Open Minecraft on your mobile device, Windows PC, or console.",
     "Tap Play, then choose the Servers tab.",
     "Scroll down and tap Add Server.",
-    "Server Name: Mazora Network, Server Address: mc.mazora.us",
-    "Enter the port: 8876",
+    "Server Name: Mazora Network, Server Address: bedrock.mazora.us",
+    "Enter the port: 19135",
     "Save, then tap the server to join.",
   ],
 };

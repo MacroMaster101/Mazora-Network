@@ -5,6 +5,7 @@ import { CircleCheck, Server, ShieldCheck, X } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
 import { ThemeCycleButton } from "@/components/theme/theme-toggle";
 import { site } from "@/lib/site";
+import { useServerJavaIp } from "@/components/auth/auth-dialog-provider";
 
 const focusableSelector = [
   "a[href]",
@@ -24,6 +25,7 @@ export function AuthModal({
   label: string;
   onClose: () => void;
 }) {
+  const javaIp = useServerJavaIp() ?? site.javaIp;
   const dialogRef = useRef<HTMLElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const close = useCallback(() => onClose(), [onClose]);
@@ -93,7 +95,7 @@ export function AuthModal({
           </div>
           <div className="auth-modal-trust">
             <ShieldCheck size={16} /> Secure player portal
-            <span><i /> {site.javaIp}</span>
+            <span><i /> {javaIp}</span>
           </div>
         </aside>
 

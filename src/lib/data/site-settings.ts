@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { site } from "@/lib/site";
@@ -115,4 +116,37 @@ export async function updateSiteGeneralSettings(newSettings: Partial<SiteGeneral
       set: { settingValue: next, updatedAt: new Date() },
     });
   return next;
+}
+
+/** Where players connect. Set once in Admin → Settings → Connection & Socials. */
+export interface ServerAddresses {
+  javaIp: string;
+  bedrockIp: string;
+  bedrockPort: string;
+}
+
+/**
+ * The server addresses every page shows, from the Site Settings form.
+ *
+ * This is the one source: the footer, the play page, the status check, the
+ * sign-in dialog and llms.txt all read it, so changing the address in the
+ * admin changes it everywhere. The built-in defaults in `site` only apply when
+ * nothing has been saved. Cached per request, so a page reading it from
+ * several components costs one query.
+ */
+export const getServerAddresses = cache(async (): Promise<ServerAddresses> => {
+  const settings = await getSiteGeneralSettings();
+  return { javaIp: settings.javaIp, bedrockIp: settings.bedrockIp, bedrockPort: settings.bedrockPort };
+});
+
+/**
+ * Fill {javaIp}, {bedrockIp} and {bedrockPort} in text an editor wrote — FAQ
+ * answers, join steps — so the text follows the Site Settings form instead of
+ * holding a copy of the address that goes stale.
+ */
+export function withServerAddresses(text: string, addresses: ServerAddresses): string {
+  return text
+    .replaceAll("{javaIp}", addresses.javaIp)
+    .replaceAll("{bedrockIp}", addresses.bedrockIp)
+    .replaceAll("{bedrockPort}", addresses.bedrockPort);
 }
