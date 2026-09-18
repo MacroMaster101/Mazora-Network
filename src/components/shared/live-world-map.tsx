@@ -53,7 +53,9 @@ export function LiveWorldMap({ mapUrl }: { mapUrl: string }) {
         <button type="button" className="home-map-reset" onClick={resetToSpawn}>
           <LocateFixed size={15} /> Reset to spawn
         </button>
-        <a className="home-map-open" href={mapUrl} target="_blank" rel="noreferrer">
+        {/* nofollow: the map is a live viewer with nothing to index, and when the
+            game server is offline Google records it as a server error against the site. */}
+        <a className="home-map-open" href={mapUrl} target="_blank" rel="nofollow noreferrer">
           Open full map <ExternalLink size={15} />
         </a>
       </div>
