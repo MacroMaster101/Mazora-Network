@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState, useEffect } from "react";
+import { useRef, useState, useTransition } from "react";
 import {
   Save,
   RefreshCw,
@@ -61,26 +61,34 @@ function FeatureToggleCard({
   desc,
   checked,
   onChange,
+  disabled = false,
 }: {
   name: string;
   label: string;
   desc: string;
   checked: boolean;
   onChange: (val: boolean) => void;
+  /** A save is in flight; the switch holds still until it lands. */
+  disabled?: boolean;
 }) {
   return (
     <div
-      role="button"
+      role="switch"
+      aria-checked={checked}
+      aria-disabled={disabled}
       tabIndex={0}
-      onClick={() => onChange(!checked)}
+      onClick={() => {
+        if (!disabled) onChange(!checked);
+      }}
       onKeyDown={(e) => {
         if (e.key === " " || e.key === "Enter") {
           e.preventDefault();
-          onChange(!checked);
+          if (!disabled) onChange(!checked);
         }
       }}
       className={cn(
-        "group relative flex items-center justify-between gap-4 rounded-2xl border-2 p-5 transition-all duration-250 cursor-pointer select-none outline-none",
+        "group relative flex items-center justify-between gap-4 rounded-2xl border-2 p-5 transition-all duration-250 select-none outline-none",
+        disabled ? "cursor-wait" : "cursor-pointer",
         checked
           ? "border-accent bg-accent/15 shadow-[0_0_24px_rgba(168,85,247,0.15)]"
           : "border-line bg-card/60 hover:border-line-strong hover:bg-card/90"
@@ -135,32 +143,183 @@ function FeatureToggleCard({
   );
 }
 
+/**
+ * Which fields each card owns. A card's Save sends only its own fields, merged
+ * over what is already saved, so unsaved edits in another card are neither
+ * published nor lost.
+ */
+const SECTIONS = {
+  identity: ["name", "shortName", "version", "tagline", "description", "region"],
+  sharing: ["ogImageUrl"],
+  connection: ["javaIp", "bedrockIp", "bedrockPort", "discord", "discordSupportTickets"],
+} as const satisfies Record<string, readonly (keyof SiteGeneralSettings)[]>;
+
+type SectionKey = keyof typeof SECTIONS;
+
+const SECTION_LABELS: Record<SectionKey, string> = {
+  identity: "Server identity",
+  sharing: "Social sharing",
+  connection: "Connection & socials",
+};
+
+/** The switches. Each one saves the moment it is flipped — there is nothing to confirm. */
+type ToggleKey =
+  | "maintenanceMode"
+  | "registrationEnabled"
+  | "storeEnabled"
+  | "suggestionsEnabled"
+  | "votingEnabled"
+  | "liveMapEnabled";
+
+function pick(settings: SiteGeneralSettings, section: SectionKey): Partial<SiteGeneralSettings> {
+  return Object.fromEntries(SECTIONS[section].map((key) => [key, settings[key]])) as Partial<SiteGeneralSettings>;
+}
+
+/** The action reads a form: strings as-is, switches as "on" when set. */
+function toFormData(settings: SiteGeneralSettings): FormData {
+  const data = new FormData();
+  for (const [key, value] of Object.entries(settings)) {
+    if (typeof value === "boolean") {
+      if (value) data.set(key, "on");
+    } else if (value !== undefined && value !== null) {
+      data.set(key, String(value));
+    }
+  }
+  return data;
+}
+
+/** Save and Reset for one card, shown at the bottom of that card. */
+function CardActions({
+  dirty,
+  saving,
+  busy,
+  onSave,
+  onReset,
+}: {
+  dirty: boolean;
+  saving: boolean;
+  busy: boolean;
+  onSave: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
+      {dirty && !saving && <span className="mr-auto text-xs font-semibold text-muted">Unsaved changes</span>}
+      <button
+        type="button"
+        onClick={onReset}
+        disabled={!dirty || busy}
+        className="btn btn-ghost btn-sm flex items-center gap-1.5 text-muted hover:text-ink disabled:opacity-60"
+      >
+        <RefreshCw size={14} />
+        Reset
+      </button>
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={!dirty || busy}
+        className="btn btn-primary btn-sm flex min-w-[110px] items-center justify-center gap-2 disabled:opacity-60"
+      >
+        {saving ? (
+          <>
+            <RefreshCw size={14} className="animate-spin" />
+            Saving…
+          </>
+        ) : (
+          <>
+            <Save size={14} />
+            Save
+          </>
+        )}
+      </button>
+    </div>
+  );
+}
+
 export function SiteSettingsEditor({
   initialSettings,
 }: {
   initialSettings: SiteGeneralSettings;
 }) {
   const { toast } = useToast();
-  const [state, formAction, isPending] = useActionState(saveSiteGeneralSettingsAction, null);
-
+  // What is published, so each card knows whether it has unsaved changes.
+  const [saved, setSaved] = useState<SiteGeneralSettings>(initialSettings);
   const [formState, setFormState] = useState<SiteGeneralSettings>(initialSettings);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [savingSection, setSavingSection] = useState<SectionKey | null>(null);
+  const [savingToggle, setSavingToggle] = useState(false);
+  const [, startTransition] = useTransition();
   const [imageTab, setImageTab] = useState<"presets" | "custom" | "upload">("presets");
   const [previewPlatform, setPreviewPlatform] = useState<"discord" | "twitter" | "whatsapp" | "facebook" | "google">("discord");
   const [customInputUrl, setCustomInputUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    if (state?.ok) {
-      toast(state.message, "success");
-    } else if (state?.message && !state.ok) {
-      toast(state.message, "error");
-    }
-  }, [state, toast]);
+  const isDirty = (section: SectionKey) =>
+    SECTIONS[section].some((key) => formState[key] !== saved[key]);
 
-  const handleReset = () => {
-    setFormState(initialSettings);
-    toast("Restored settings to active configuration.", "info");
+  const saveSection = (section: SectionKey) => {
+    const next: SiteGeneralSettings = { ...saved, ...pick(formState, section) };
+    setSavingSection(section);
+    startTransition(async () => {
+      const result = await saveSiteGeneralSettingsAction(null, toFormData(next));
+      setSavingSection(null);
+      if (result.ok) {
+        setSaved(next);
+        setErrors((current) => {
+          const rest = { ...current };
+          for (const key of SECTIONS[section]) delete rest[key];
+          return rest;
+        });
+        toast(`${SECTION_LABELS[section]} saved.`, "success");
+      } else {
+        setErrors(result.errors ?? {});
+        toast(result.message, "error");
+      }
+    });
   };
+
+  const resetSection = (section: SectionKey) => {
+    setFormState((current) => ({ ...current, ...pick(saved, section) }));
+    setErrors((current) => {
+      const rest = { ...current };
+      for (const key of SECTIONS[section]) delete rest[key];
+      return rest;
+    });
+    toast(`${SECTION_LABELS[section]} restored to the saved version.`, "info");
+  };
+
+  /*
+    A switch saves on its own, on top of what is already saved, so flipping one
+    never publishes half-finished edits from another card. Shown flipped at
+    once; if the save fails it flips back. Switches hold still while any save
+    is in flight, so two quick flips cannot race each other.
+  */
+  const saveToggle = (key: ToggleKey, value: boolean, label: string) => {
+    const next: SiteGeneralSettings = { ...saved, [key]: value };
+    setFormState((current) => ({ ...current, [key]: value }));
+    setSavingToggle(true);
+    startTransition(async () => {
+      const result = await saveSiteGeneralSettingsAction(null, toFormData(next));
+      setSavingToggle(false);
+      if (result.ok) {
+        setSaved(next);
+        toast(`${label} ${value ? "turned on" : "turned off"}.`, "success");
+      } else {
+        setFormState((current) => ({ ...current, [key]: saved[key] }));
+        toast(result.message, "error");
+      }
+    });
+  };
+
+  const actionsFor = (section: SectionKey) => (
+    <CardActions
+      dirty={isDirty(section)}
+      saving={savingSection === section}
+      busy={savingSection !== null || savingToggle}
+      onSave={() => saveSection(section)}
+      onReset={() => resetSection(section)}
+    />
+  );
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -192,10 +351,7 @@ export function SiteSettingsEditor({
   const shareDesc = formState.description || "A player-first Minecraft network built around unforgettable worlds, fair competition, and a community worth staying for.";
 
   return (
-    <form action={formAction} className="space-y-6">
-      {/* Hidden inputs */}
-      <input type="hidden" name="ogImageUrl" value={activeOgImage} />
-      <input type="hidden" name="region" value={formState.region || "Asia Pacific"} />
+    <div className="space-y-6">
 
       {/* Identity Section */}
       <section className="panel p-5 sm:p-6 space-y-4">
@@ -205,7 +361,7 @@ export function SiteSettingsEditor({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <FormRow label="Server Name" htmlFor="name" error={state?.errors?.name}>
+          <FormRow label="Server Name" htmlFor="name" error={errors.name}>
             <Input
               id="name"
               name="name"
@@ -216,7 +372,7 @@ export function SiteSettingsEditor({
             />
           </FormRow>
 
-          <FormRow label="Short Name / Mark" htmlFor="shortName" error={state?.errors?.shortName}>
+          <FormRow label="Short Name / Mark" htmlFor="shortName" error={errors.shortName}>
             <Input
               id="shortName"
               name="shortName"
@@ -227,7 +383,7 @@ export function SiteSettingsEditor({
             />
           </FormRow>
 
-          <FormRow label="Supported Minecraft Version" htmlFor="version" error={state?.errors?.version}>
+          <FormRow label="Supported Minecraft Version" htmlFor="version" error={errors.version}>
             <Input
               id="version"
               name="version"
@@ -239,7 +395,7 @@ export function SiteSettingsEditor({
           </FormRow>
 
           <div className="sm:col-span-3 space-y-2">
-            <FormRow label="Tagline" htmlFor="tagline" error={state?.errors?.tagline}>
+            <FormRow label="Tagline" htmlFor="tagline" error={errors.tagline}>
               <Input
                 id="tagline"
                 name="tagline"
@@ -273,7 +429,7 @@ export function SiteSettingsEditor({
           </div>
 
           <div className="sm:col-span-3">
-            <FormRow label="Network Description" htmlFor="description" error={state?.errors?.description}>
+            <FormRow label="Network Description" htmlFor="description" error={errors.description}>
               <textarea
                 id="description"
                 name="description"
@@ -286,6 +442,8 @@ export function SiteSettingsEditor({
             </FormRow>
           </div>
         </div>
+
+        {actionsFor("identity")}
       </section>
 
       {/* Social Sharing & Embed Preview Section */}
@@ -634,6 +792,8 @@ export function SiteSettingsEditor({
             )}
           </div>
         </div>
+
+        {actionsFor("sharing")}
       </section>
 
       {/* Connection Section */}
@@ -644,7 +804,7 @@ export function SiteSettingsEditor({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormRow label="Java Server IP / Hostname" htmlFor="javaIp" error={state?.errors?.javaIp}>
+          <FormRow label="Java Server IP / Hostname" htmlFor="javaIp" error={errors.javaIp}>
             <Input
               id="javaIp"
               name="javaIp"
@@ -655,7 +815,7 @@ export function SiteSettingsEditor({
             />
           </FormRow>
 
-          <FormRow label="Bedrock Server IP / Hostname" htmlFor="bedrockIp" error={state?.errors?.bedrockIp}>
+          <FormRow label="Bedrock Server IP / Hostname" htmlFor="bedrockIp" error={errors.bedrockIp}>
             <Input
               id="bedrockIp"
               name="bedrockIp"
@@ -666,7 +826,7 @@ export function SiteSettingsEditor({
             />
           </FormRow>
 
-          <FormRow label="Bedrock Port" htmlFor="bedrockPort" error={state?.errors?.bedrockPort}>
+          <FormRow label="Bedrock Port" htmlFor="bedrockPort" error={errors.bedrockPort}>
             <Input
               id="bedrockPort"
               name="bedrockPort"
@@ -677,7 +837,7 @@ export function SiteSettingsEditor({
             />
           </FormRow>
 
-          <FormRow label="Discord Public Invite URL" htmlFor="discord" error={state?.errors?.discord}>
+          <FormRow label="Discord Public Invite URL" htmlFor="discord" error={errors.discord}>
             <Input
               id="discord"
               name="discord"
@@ -688,7 +848,7 @@ export function SiteSettingsEditor({
           </FormRow>
 
           <div className="sm:col-span-2">
-            <FormRow label="Discord Support Channel / Ticket Link" htmlFor="discordSupportTickets" error={state?.errors?.discordSupportTickets}>
+            <FormRow label="Discord Support Channel / Ticket Link" htmlFor="discordSupportTickets" error={errors.discordSupportTickets}>
               <Input
                 id="discordSupportTickets"
                 name="discordSupportTickets"
@@ -699,6 +859,8 @@ export function SiteSettingsEditor({
             </FormRow>
           </div>
         </div>
+
+        {actionsFor("connection")}
       </section>
 
       {/* Toggles Section */}
@@ -706,6 +868,9 @@ export function SiteSettingsEditor({
         <div className="flex items-center gap-2 border-b border-line pb-3">
           <ToggleLeft size={18} className="text-accent-bright" />
           <h2 className="font-display text-base font-bold text-ink">System Feature Toggles</h2>
+          <span className="ml-auto text-[11px] font-semibold text-muted">
+            {savingToggle ? "Saving…" : "Each switch saves as soon as you flip it"}
+          </span>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -714,76 +879,51 @@ export function SiteSettingsEditor({
             label="Maintenance Mode"
             desc="Show network-wide maintenance notice banner."
             checked={formState.maintenanceMode}
-            onChange={(val) => setFormState((p) => ({ ...p, maintenanceMode: val }))}
+            onChange={(val) => saveToggle("maintenanceMode", val, "Maintenance Mode")}
+            disabled={savingToggle || savingSection !== null}
           />
           <FeatureToggleCard
             name="registrationEnabled"
             label="User Registration"
             desc="Allow new players to sign up for web accounts."
             checked={formState.registrationEnabled}
-            onChange={(val) => setFormState((p) => ({ ...p, registrationEnabled: val }))}
+            onChange={(val) => saveToggle("registrationEnabled", val, "User Registration")}
+            disabled={savingToggle || savingSection !== null}
           />
           <FeatureToggleCard
             name="storeEnabled"
             label="Storefront &amp; Cart"
             desc="Enable online product purchasing and rank upgrades."
             checked={formState.storeEnabled}
-            onChange={(val) => setFormState((p) => ({ ...p, storeEnabled: val }))}
+            onChange={(val) => saveToggle("storeEnabled", val, "Storefront & Cart")}
+            disabled={savingToggle || savingSection !== null}
           />
           <FeatureToggleCard
             name="suggestionsEnabled"
             label="Suggestions Board"
             desc="Open the public suggestions board. Turn off to show the “coming soon” page instead — existing ideas and replies are kept, just hidden."
             checked={formState.suggestionsEnabled}
-            onChange={(val) => setFormState((p) => ({ ...p, suggestionsEnabled: val }))}
+            onChange={(val) => saveToggle("suggestionsEnabled", val, "Suggestions Board")}
+            disabled={savingToggle || savingSection !== null}
           />
           <FeatureToggleCard
             name="votingEnabled"
             label="Server Voting"
             desc="Allow community voting for daily rewards and bonuses."
             checked={formState.votingEnabled}
-            onChange={(val) => setFormState((p) => ({ ...p, votingEnabled: val }))}
+            onChange={(val) => saveToggle("votingEnabled", val, "Server Voting")}
+            disabled={savingToggle || savingSection !== null}
           />
           <FeatureToggleCard
             name="liveMapEnabled"
             label="Live World Map"
             desc="Embed the Dynmap live map on the homepage. Disable if the map server isn't ready."
             checked={formState.liveMapEnabled}
-            onChange={(val) => setFormState((p) => ({ ...p, liveMapEnabled: val }))}
+            onChange={(val) => saveToggle("liveMapEnabled", val, "Live World Map")}
+            disabled={savingToggle || savingSection !== null}
           />
         </div>
       </section>
-
-      {/* Action Footer */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-        <button
-          type="button"
-          onClick={handleReset}
-          disabled={isPending}
-          className="btn btn-ghost btn-sm flex items-center gap-1.5 text-muted hover:text-ink"
-        >
-          <RefreshCw size={14} />
-          Reset Changes
-        </button>
-
-        <button
-          type="submit"
-          disabled={isPending}
-          className="btn btn-primary btn-sm flex items-center gap-2 min-w-[140px] justify-center shadow-lg shadow-purple-500/25"
-        >
-          {isPending ? (
-            <>
-              <RefreshCw size={14} className="animate-spin" />
-              Saving Settings…
-            </>
-          ) : (
-            <>
-              <Save size={14} />
-              Save Settings
-            </>
-          )}
-        </button>
-      </div>
-    </form>
+    </div>
   );
 }

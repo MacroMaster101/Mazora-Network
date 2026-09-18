@@ -5,6 +5,7 @@ import { roleLabel } from "@/lib/auth/roles";
 import { getPatchUpdates } from "@/lib/data/patches";
 import { getFaqs } from "@/lib/data/faqs";
 import { getPlayPageConfig } from "@/lib/data/play-page-config";
+import { getServerAddresses } from "@/lib/data/site-settings";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { PlayPageEditor } from "@/components/admin/play-page-editor";
 
@@ -14,10 +15,11 @@ export const revalidate = 0;
 
 export default async function AdminPlayPage() {
   const session = await requireModuleAccess(PLAY_PERMISSION_KEY, "/admin/play");
-  const [patches, faqs, config] = await Promise.all([
+  const [patches, faqs, config, serverAddresses] = await Promise.all([
     getPatchUpdates(),
     getFaqs(),
     getPlayPageConfig(),
+    getServerAddresses(),
   ]);
 
   const currentUser = {
@@ -30,13 +32,14 @@ export default async function AdminPlayPage() {
     <>
       <DashHeader
         title="Play Page Control Center"
-        subtitle="Manage server connection IPs, Bedrock port, real-time stats sync, Discord channel patch sync, and FAQ items."
+        subtitle="Manage the join steps, real-time stats sync, Discord channel patch sync, and FAQ items. The server address is set in Site Settings."
       />
       <PlayPageEditor
         initialPatches={patches}
         initialFaqs={faqs}
         initialConfig={config}
         currentUser={currentUser}
+        serverAddresses={serverAddresses}
       />
     </>
   );

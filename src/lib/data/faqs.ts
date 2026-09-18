@@ -25,7 +25,7 @@ export const INITIAL_FAQS: FaqItem[] = [
   {
     id: "faq-3",
     q: "Does the server support Bedrock Edition?",
-    a: "Yes! Bedrock players on mobile, Windows 10/11, and supported consoles can join at mc.mazora.us on port 8876.",
+    a: "Yes! Bedrock players on mobile, Windows 10/11, and supported consoles can join at {bedrockIp} on port {bedrockPort}.",
     category: "Connection",
   },
   {

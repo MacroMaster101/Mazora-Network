@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     absolute: `${site.name} | Minecraft Survival, Skyblock, Lifesteal & More`,
   },
   description:
-    "Join Mazora Network — a Java and Bedrock Minecraft community with Survival, Skyblock, Lifesteal, OneBlock, KitPvP and Creative worlds, one account across every mode.",
+    "Mazora Network is a Minecraft server for Java and Bedrock with Survival SMP, Skyblock and Lifesteal — one account across every mode. Join at mc.mazora.us.",
 };
 
 async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean; previewEmpty: boolean }) {
@@ -103,7 +103,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                     <span className="text-white">{status.live && status.online ? withCommas(status.players) : "—"}</span>{" "}
                     <span className="uppercase tracking-[0.08em] text-white/80" data-page-field="playersOnlineLabel">{copy.playersOnlineLabel}</span>
                   </p>
-                  <span className="telemetry mt-1 block text-xs text-white/55">{site.javaIp}</span>
+                  <span className="telemetry mt-1 block text-xs text-white/55">{generalSettings.javaIp || site.javaIp}</span>
                 </div>
                 <Link href="/play" aria-label="How to play" className="absolute inset-0 z-30 cursor-pointer rounded-[inherit]" />
               </div>

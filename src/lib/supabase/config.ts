@@ -31,6 +31,9 @@ export function getSupabaseConfig(): { url: string; key: string } | null {
  */
 export function isDemoAuthEnabled(): boolean {
   if (process.env.NODE_ENV === "production") return false;
-  if (process.env.AUTH_DEMO_MODE === "true") return true;
+  const value = process.env.AUTH_DEMO_MODE?.trim().toLowerCase();
+  if (value === "true") return true;
+  if (value === "false") return false;
+  // Unset: demo sessions only when there is no Supabase to sign in with.
   return !isSupabaseConfigured();
 }

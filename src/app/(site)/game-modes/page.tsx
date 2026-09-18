@@ -7,7 +7,7 @@ import { getPageContent } from "@/lib/data/page-content";
 
 export const metadata = publicPageMetadata({
   title: "Game Modes",
-  description: "Explore every game mode on the network — Survival, Skyblock, Lifesteal, OneBlock, KitPvP and Creative.",
+  description: "Explore every game mode on Mazora Network — Survival SMP, Skyblock and Lifesteal.",
   path: "/game-modes",
 });
 

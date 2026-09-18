@@ -53,8 +53,9 @@ export const site = {
   description:
     "A player-first Minecraft network built around unforgettable worlds, fair competition, and a community worth staying for.",
   javaIp: "mc.mazora.us",
-  bedrockIp: "mc.mazora.us",
-  bedrockPort: process.env.NEXT_PUBLIC_BEDROCK_PORT ?? "8876",
+  bedrockIp: "bedrock.mazora.us",
+  // Only a fallback: the real address is set in Admin → Settings → Connection & Socials.
+  bedrockPort: "19135",
   version: "1.21.11",
   region: "Asia Pacific",
   launchDate: "2023-10-01",

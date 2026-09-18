@@ -97,8 +97,29 @@ export function StoreRoadmapEditor({
   const [subtitle, setSubtitle] = useState(roadmap.subtitle);
   const [enabled, setEnabled] = useState(roadmap.enabled);
   const [items, setItems] = useState<StoreRoadmapItem[]>(roadmap.items);
+  // What is published: "Show Roadmap Section" saves on its own on top of this,
+  // so flipping it never publishes half-edited cards.
+  const [savedRoadmap, setSavedRoadmap] = useState<StoreRoadmapConfig>(roadmap);
   const [busy, start] = useTransition();
   const { toast } = useToast();
+
+  /** The switch saves the moment it is flipped; a failed save flips it back. */
+  function toggleSection(next: boolean) {
+    setEnabled(next);
+    const payload = { ...savedRoadmap, enabled: next };
+    const formData = new FormData();
+    formData.set("roadmapJson", JSON.stringify(payload));
+    start(async () => {
+      const result = await saveAction(formData);
+      if (result.ok) {
+        setSavedRoadmap(payload);
+        toast(next ? "Roadmap section shown." : "Roadmap section hidden.", "success");
+      } else {
+        setEnabled(savedRoadmap.enabled);
+        toast(result.message, "error");
+      }
+    });
+  }
 
   function handleAddItem() {
     const newItem: StoreRoadmapItem = {
@@ -145,6 +166,7 @@ export function StoreRoadmapEditor({
           const payload = { eyebrow, title, subtitle, enabled, items };
           formData.set("roadmapJson", JSON.stringify(payload));
           const result = await saveAction(formData);
+          if (result.ok) setSavedRoadmap({ ...savedRoadmap, ...payload });
           toast(result.message, result.ok ? "success" : "error");
         })
       }
@@ -164,7 +186,8 @@ export function StoreRoadmapEditor({
           <input
             type="checkbox"
             checked={enabled}
-            onChange={(e) => setEnabled(e.target.checked)}
+            disabled={busy}
+            onChange={(e) => toggleSection(e.target.checked)}
             className="checkbox checkbox-primary"
           />
           <span className="text-xs font-bold uppercase tracking-wider text-ink">Show Roadmap Section</span>
