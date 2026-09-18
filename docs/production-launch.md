@@ -5,7 +5,7 @@
 Launch mode is controlled by one server environment variable:
 
 ```env
-MAZORA_LAUNCH_MODE=on
+MAZORA_LAUNCH_MODE=true
 ```
 
 Launch mode is intentionally **on by default**. Set it to `off` only when you want every implementation to be reachable again.
@@ -28,7 +28,7 @@ The launch list lives in `src/lib/launch.ts`. To release one feature, remove onl
 To work on every page locally, add this to `.env`:
 
 ```env
-MAZORA_LAUNCH_MODE=off
+MAZORA_LAUNCH_MODE=false
 ```
 
 Restart `npm run dev` after changing environment variables.
@@ -36,7 +36,7 @@ Restart `npm run dev` after changing environment variables.
 To preview exactly what production visitors see:
 
 ```env
-MAZORA_LAUNCH_MODE=on
+MAZORA_LAUNCH_MODE=true
 ```
 
 You do not need to undo the launch commit when development resumes.
@@ -46,7 +46,7 @@ You do not need to undo the launch commit when development resumes.
 Set these in the hosting provider, not in Git:
 
 ```env
-MAZORA_LAUNCH_MODE=on
+MAZORA_LAUNCH_MODE=true
 NEXT_PUBLIC_SITE_URL=https://mazora.us
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
@@ -93,7 +93,7 @@ If the shell treats parentheses specially, quote the launch-status path.
 
 For each feature:
 
-1. Set `MAZORA_LAUNCH_MODE=off` locally.
+1. Set `MAZORA_LAUNCH_MODE=false` locally.
 2. Finish the real database, authentication and action behavior.
 3. Test signed-out, signed-in, light and dark states.
 4. Remove that route's entry from `launchGates`.
@@ -104,4 +104,4 @@ If you ask Codex to continue later, say:
 
 > Continue the phased production rollout. Keep launch mode, finish [feature], and remove only that feature from the launch gates.
 
-Only use `git revert <launch-commit>` if you want to remove the entire launch-mode system. For normal development, set `MAZORA_LAUNCH_MODE=off` instead.
+Only use `git revert <launch-commit>` if you want to remove the entire launch-mode system. For normal development, set `MAZORA_LAUNCH_MODE=false` instead.

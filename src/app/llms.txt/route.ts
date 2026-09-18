@@ -1,5 +1,6 @@
 import { site } from "@/lib/site";
 import { isRouteLaunchGated } from "@/lib/launch";
+import { getServerAddresses } from "@/lib/data/site-settings";
 
 /**
  * /llms.txt — an llmstxt.org-style map of the site for AI agents.
@@ -84,6 +85,7 @@ const SECTIONS: { heading: string; entries: Entry[] }[] = [
 
 export async function GET() {
   const base = site.url.replace(/\/$/, "");
+  const addresses = await getServerAddresses();
 
   const renderSection = ({ heading, entries }: { heading: string; entries: Entry[] }) => {
     const open = entries.filter((entry) => !isRouteLaunchGated(entry.path));
@@ -101,8 +103,8 @@ export async function GET() {
     "",
     "## Connecting",
     "",
-    `- Java Edition address: ${site.javaIp}`,
-    `- Bedrock Edition address: ${site.bedrockIp}, port ${site.bedrockPort}`,
+    `- Java Edition address: ${addresses.javaIp}`,
+    `- Bedrock Edition address: ${addresses.bedrockIp}, port ${addresses.bedrockPort}`,
     `- Supported Minecraft version: ${site.version}`,
     `- Server region: ${site.region}`,
     "",

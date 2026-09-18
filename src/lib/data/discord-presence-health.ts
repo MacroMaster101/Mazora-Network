@@ -11,7 +11,6 @@ export interface PresenceSnapshot {
   discordMembers: number | null;
 }
 
-const DEFAULT_HEALTH_URL = "https://mazora-network.onrender.com/health";
 const PING_INTERVAL_MS = 5 * 60_000;
 const PING_TIMEOUT_MS = 4_000;
 /**
@@ -30,9 +29,14 @@ let pendingPing: Promise<void> | null = null;
  * Resolve the server-only Render health endpoint. Production only accepts
  * HTTPS so a bad environment value cannot turn page traffic into requests to
  * an insecure or local destination.
+ *
+ * Comes only from DISCORD_PRESENCE_HEALTH_URL. There is no built-in fallback:
+ * a hard-coded address outlives the service it named (the old one now 404s),
+ * so an unset variable means no ping rather than pinging a dead host.
  */
 export function discordPresenceHealthUrl(): string | null {
-  const configured = process.env.DISCORD_PRESENCE_HEALTH_URL?.trim() || DEFAULT_HEALTH_URL;
+  const configured = process.env.DISCORD_PRESENCE_HEALTH_URL?.trim();
+  if (!configured) return null;
 
   try {
     const url = new URL(configured);
@@ -123,7 +127,7 @@ export async function readPresenceHealth(): Promise<
   { ok: true; health: PresenceHealth } | { ok: false; reason: string }
 > {
   const url = discordPresenceHealthUrl();
-  if (!url) return { ok: false, reason: "DISCORD_PRESENCE_HEALTH_URL is not a valid HTTPS URL." };
+  if (!url) return { ok: false, reason: "DISCORD_PRESENCE_HEALTH_URL is not set, or is not an HTTPS URL." };
 
   const response = await fetchWithDeadline(
     url,
