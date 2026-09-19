@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowRight } from "lucide-react";
 import type { GameMode } from "@/lib/types";
 import { CoverArt } from "./cover-art";

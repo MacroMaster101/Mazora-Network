@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { accountNavFor, accountNavGuest, footerNav, legalNav, site } from "@/lib/site";
 import { getSession, isStaff } from "@/lib/auth";
 import { Logo } from "./logo";

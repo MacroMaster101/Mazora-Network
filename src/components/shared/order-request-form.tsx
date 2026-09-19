@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState, startTransition } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { BadgeCheck, CheckCircle2, Loader2, MessageCircle, RefreshCw, Send } from "lucide-react";
 import { submitStoreRequest, type StoreRequestResult } from "@/lib/actions/store";
 import { oauthAction, switchDiscordAccountAction, type AuthResult } from "@/lib/actions/auth";

@@ -12,7 +12,7 @@
 */
 import "server-only";
 import type { ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowLeft, Receipt } from "lucide-react";
 import { requireSession, getDiscordIdentity, getSessionUserId } from "@/lib/auth";
 import { getOrdersForUser } from "@/lib/data/orders";

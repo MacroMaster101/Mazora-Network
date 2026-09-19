@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Check, Flag, Loader2, X } from "lucide-react";
 import { Textarea } from "@/components/ui";
 import { reportContentAction } from "@/lib/actions/reports";

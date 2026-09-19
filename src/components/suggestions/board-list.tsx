@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowRight, Eye, Image as ImageIcon, Lightbulb, Lock, MessageCircle, SlidersHorizontal, ThumbsUp } from "lucide-react";
 import type { BoardSuggestion } from "@/lib/data/suggestions-board";
 import type { SuggestionSort } from "@/lib/suggestions-rules";

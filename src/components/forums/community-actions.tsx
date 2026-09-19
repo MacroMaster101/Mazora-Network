@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { useRouter } from "next/navigation";
 import { Loader2, LogIn, MessageSquarePlus, MessagesSquare, Send } from "lucide-react";
 import { createTopicAction } from "@/lib/actions/forums";

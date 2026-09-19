@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Lock, MessageCircle } from "lucide-react";
 import type { SuggestionThread, ThreadReply } from "@/lib/data/suggestions-board";
 import {

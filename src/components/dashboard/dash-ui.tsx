@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { RefreshButton } from "@/components/shared/refresh-button";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 
 /**
  * Page header for every admin and dashboard screen.

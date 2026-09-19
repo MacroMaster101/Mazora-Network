@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowRight, Clock } from "lucide-react";
 import type { NewsArticle } from "@/lib/types";
 import { ArticleArt } from "./article-art";

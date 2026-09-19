@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowUpRight, Radio } from "lucide-react";
 import type { Role } from "@/lib/types";
 import { UserAvatar } from "@/components/shared";
