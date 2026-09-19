@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { useRouter } from "next/navigation";
 import { CornerDownRight, MessageSquare, Minus, Pencil, Plus, Trash2 } from "lucide-react";
 import { RankChip } from "@/components/admin/rank-chip";

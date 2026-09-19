@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Search, ExternalLink, Blocks, Trophy, Copy, Check } from "lucide-react";
 import { MinecraftAvatar } from "@/components/shared";
 import { playtime, withCommas, cn } from "@/lib/utils";

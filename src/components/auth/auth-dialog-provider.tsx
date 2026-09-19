@@ -2,7 +2,7 @@
 
 import { createContext, Suspense, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { useSearchParams } from "next/navigation";
 
 const AuthDialogContent = dynamic(

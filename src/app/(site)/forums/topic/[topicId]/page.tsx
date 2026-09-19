@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { notFound } from "next/navigation";
 import { LogIn } from "lucide-react";
 import { getTopic, getTopicComments, getViewerActor, type ForumComment, type TopicHeader } from "@/lib/data/forums";

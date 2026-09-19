@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Search } from "lucide-react";
 import type { LeaderboardEntry } from "@/lib/data/players";
 import { MinecraftAvatar } from "./minecraft-avatar";

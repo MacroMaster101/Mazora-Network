@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowRight, CheckCircle2, Headset, Search } from "lucide-react";
 import { Accordion } from "@/components/ui";
 import { FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";

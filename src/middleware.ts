@@ -4,6 +4,7 @@ import { getSupabaseConfig } from "@/lib/supabase/config";
 import { getLaunchGate, isLaunchModeEnabled } from "@/lib/launch";
 import { buildContentSecurityPolicy, generateNonce } from "@/lib/csp";
 import { EDITABLE_PAGE_PATHS } from "@/lib/page-paths";
+import { isScannerProbe } from "@/lib/scanner-probe";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -40,6 +41,15 @@ function withCsp(request: NextRequest, nonce: string, csp: string, allowSameOrig
 }
 
 export async function middleware(request: NextRequest) {
+  // Scanner probes (/wp-admin/install.php, /.git/config…) end here, at the
+  // edge, instead of costing a not-found page render in a function.
+  if (isScannerProbe(request.nextUrl.pathname)) {
+    return new NextResponse("Not found", {
+      status: 404,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" },
+    });
+  }
+
   const nonce = generateNonce();
   const hasSupabaseAuthCookie = request.cookies.getAll().some(({ name }) => name.startsWith("sb-") && name.includes("auth-token"));
   const hasSessionCookie = request.cookies.has("mz_session") || hasSupabaseAuthCookie;

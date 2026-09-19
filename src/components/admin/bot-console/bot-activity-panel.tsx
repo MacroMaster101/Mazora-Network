@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import type { ComponentType } from "react";
 import { ArrowUpDown, History, Receipt, Send, Shield, TriangleAlert } from "lucide-react";
 import type { BotActivityEntry } from "@/lib/data/bot-console";

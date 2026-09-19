@@ -15,6 +15,13 @@ const eslintConfig = [
         "warn",
         { argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      // Viewport prefetching on a fully dynamic site renders a page per visible
+      // link and was most of the Vercel CPU bill. Use the intent-prefetching
+      // wrapper instead (it is the one file allowed to import next/link).
+      "no-restricted-imports": [
+        "error",
+        { paths: [{ name: "next/link", message: 'Import Link from "@/components/ui/app-link" instead.' }] },
+      ],
     },
   },
 ];

@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Award, CalendarDays, Check, ChevronRight, CircleOff, Clock3, Crown, Edit3, ExternalLink, Eye, EyeOff, Flame, Gauge, Gem, Grid2X2, GripVertical, ImagePlus, KeyRound, Layers3, List, PackagePlus, Plus, RotateCcw, Save, ScanEye, Search, ShieldCheck, Sparkles, Star, Trash2, Upload, X } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { useRouter } from "next/navigation";
 import type { GameMode, Product, StoreCategoryConfig } from "@/lib/types";
 import {

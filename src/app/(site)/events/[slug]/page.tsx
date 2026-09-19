@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { notFound } from "next/navigation";
 import { Check, Gift, Trophy, Users } from "lucide-react";
 import { getEvent } from "@/lib/data/content";

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowUpRight, LayoutTemplate, PanelsTopLeft } from "lucide-react";
 
 export function SupportDashboardCards({ cardCount, pageCount }: { cardCount: number; pageCount: number }) {

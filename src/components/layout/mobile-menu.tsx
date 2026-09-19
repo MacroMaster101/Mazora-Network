@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { usePathname } from "next/navigation";
 import { ArrowUpRight, ChevronDown, Home, LayoutDashboard, LogOut, Menu, Shield, X } from "lucide-react";
 import { isStaff } from "@/lib/auth/roles";

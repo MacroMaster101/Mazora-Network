@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition, type FormEvent } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ChevronDown, ChevronUp, Flag, Lock, LockOpen, Pencil, Trash2 } from "lucide-react";
 import type { BoardCategory } from "@/lib/data/forums";
 import { CreateForumButton, NewCategoryButton } from "@/components/forums/forum-dialogs";
