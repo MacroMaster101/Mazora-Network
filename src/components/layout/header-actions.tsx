@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { usePathname } from "next/navigation";
 import { ArrowRight, Bell, Check, CheckCheck, ChevronDown, LayoutDashboard, LogIn, LogOut, RotateCcw, Settings, Shield, Sparkles, Trash2, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";

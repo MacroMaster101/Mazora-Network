@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Receipt, Gamepad2, Shield, ArrowRight } from "lucide-react";
 import { requireSession, getSessionUserId } from "@/lib/auth";
 import { roleLabel } from "@/lib/auth/roles";

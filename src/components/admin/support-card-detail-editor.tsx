@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ExternalLink, FilePlus2, Save } from "lucide-react";
 import type { SupportCardSettings, SupportPageDetails } from "@/lib/data/support-settings";
 import type { SupportSettingsResult } from "@/lib/actions/support-settings";

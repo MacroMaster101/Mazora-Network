@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowLeft, Home, ShieldCheck } from "lucide-react";
 import { getLaunchGate } from "@/lib/launch";
 import { site } from "@/lib/site";

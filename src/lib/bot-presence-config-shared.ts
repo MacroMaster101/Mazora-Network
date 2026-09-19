@@ -90,7 +90,14 @@ export const DEFAULT_BOT_PRESENCE: BotPresenceConfig = {
     },
   ],
   rotateMs: DEFAULT_HOLD_MS,
-  refreshMs: 60_000,
+  /*
+    How often the Render worker re-reads this config and /api/status. Every
+    minute cost ~2.8k Vercel function runs a day between the two endpoints —
+    most of the project's Fluid CPU. Five minutes keeps Discord's player count
+    reasonably fresh, still gives the /play chart 12 readings an hour, and still
+    pings the worker well inside Render's 15-minute sleep window.
+  */
+  refreshMs: 300_000,
 };
 
 const clamp = (value: unknown, min: number, max: number, fallback: number): number => {

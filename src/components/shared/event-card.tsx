@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Gift, Users } from "lucide-react";
 import type { EventItem } from "@/lib/types";
 import { fmtDate } from "@/lib/utils";

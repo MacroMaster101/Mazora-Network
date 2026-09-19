@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowLeft, ShieldCheck, Sparkles } from "lucide-react";
 import { DiscordIcon } from "@/components/shared/icon";
 import { site } from "@/lib/site";

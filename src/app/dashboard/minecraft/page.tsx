@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Gamepad2, ShieldCheck, ArrowRight, UserCheck } from "lucide-react";
 import { requireSession, getSessionUserId } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";

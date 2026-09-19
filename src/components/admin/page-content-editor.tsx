@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ExternalLink, Monitor, RotateCcw, Save } from "lucide-react";
 import { BackLink } from "@/components/shared";
 import { savePageContentAction } from "@/lib/actions/page-content";

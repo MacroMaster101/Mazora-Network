@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowUpRight, FileCog, Flag, Lightbulb, PanelsTopLeft } from "lucide-react";
 
 export function SuggestionsDashboardCards({

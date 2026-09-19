@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowBigDown, ArrowBigUp } from "lucide-react";
 import { useToast } from "@/components/ui";
 import { nextVote, scoreAfter, type VoteValue } from "@/lib/comments/vote-rules";

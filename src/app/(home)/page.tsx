@@ -1,7 +1,7 @@
 import { WorldBackdrop } from "@/components/theme/world-backdrop";
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowRight, Map, MapPin, MonitorSmartphone, Newspaper, Play, Radio, ShieldCheck, UsersRound } from "lucide-react";
 import { CopyIpButton } from "@/components/shared/copy-ip-button";
 import { EmptyState } from "@/components/shared/empty-state";

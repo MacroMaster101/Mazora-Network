@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import type { ZodTypeAny } from "zod";
 import {
   ArrowRight,

@@ -20,3 +20,9 @@ test("the app never writes profiles through the member's own Supabase client", (
     assert.doesNotMatch(src, /(?:auth\.)?supabase\s*\.from\("profiles"\)\s*\.(?:update|insert|upsert|delete)/, file);
   }
 });
+
+test("058 removes the open read policies on suggestion replies and images", () => {
+  const privateReplies = readFileSync(new URL("../../../supabase/migrations/058_private_suggestion_replies.sql", import.meta.url), "utf8");
+  assert.ok(privateReplies.includes('drop policy if exists "replies public read" on public.suggestion_replies;'));
+  assert.ok(privateReplies.includes('drop policy if exists "suggestion images read" on public.suggestion_images;'));
+});

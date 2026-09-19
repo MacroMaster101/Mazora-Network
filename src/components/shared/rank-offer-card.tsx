@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowUpRight, Plus } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { storeArtFor } from "@/lib/store-art";

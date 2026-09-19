@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Compass, Home, MapPinned, RefreshCw, ShieldAlert } from "lucide-react";
 
 export function ErrorScreen({
