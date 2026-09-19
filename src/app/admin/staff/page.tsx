@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ShieldCheck, UserCog } from "lucide-react";
-import { roleLabel, canGrantRank, STAFF_ROLES } from "@/lib/auth";
+import { roleLabel, assignableRoles, staffRoleKeys } from "@/lib/auth";
+import { roleDef } from "@/lib/auth/role-catalog-core";
 import { STAFF_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
 import type { Role } from "@/lib/types";
@@ -16,18 +17,21 @@ import { StaffVisibilityToggle } from "@/components/admin/staff-visibility-toggl
 
 export const metadata: Metadata = { title: "Staff · Admin" };
 
-/**
- * Highest rung first, so the page reads down the ladder.
- *
- * The team is derived from account ranks rather than a separate roster: the
- * previous page read a `getStaff()` stub that always returned an empty array,
- * so it showed "0 team members" while six people held staff ranks.
- */
-const LADDER: Role[] = [...STAFF_ROLES].reverse();
-
 export default async function AdminStaffPage() {
   const session = await requireModuleAccess(STAFF_PERMISSION_KEY, "/admin/staff");
   const staff = await listStaffAccounts();
+
+  /*
+    Highest rung first, so the page reads down the ladder.
+
+    The team is derived from account ranks rather than a separate roster: the
+    previous page read a `getStaff()` stub that always returned an empty array,
+    so it showed "0 team members" while six people held staff ranks.
+
+    Computed per request (not at module scope) so it reflects the catalogue
+    requireModuleAccess's getSession() call just ensured is fresh.
+  */
+  const LADDER: Role[] = [...staffRoleKeys()].reverse();
 
   // Someone who has not accepted yet is not on the team, so they are listed
   // separately rather than padding the rank groups with people who cannot log in.
@@ -41,8 +45,13 @@ export default async function AdminStaffPage() {
 
   const total = active.length;
 
-  // Uses the canonical grant rule, including IT appointing another IT.
-  const assignable: Role[] = STAFF_ROLES.filter((role) => canGrantRank(session.role, role));
+  // Uses the canonical grant rule (via assignableRoles), including IT
+  // appointing another IT, restricted to staff-kind ranks for this board's
+  // invitations.
+  const staffKeys = new Set(staffRoleKeys());
+  const assignable: Role[] = assignableRoles(session.role)
+    .map((role) => role.key as Role)
+    .filter((role) => staffKeys.has(role));
 
   return (
     <>
@@ -120,7 +129,7 @@ export default async function AdminStaffPage() {
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-2">
                       <RankChip role={member.role} />
-                      {member.role === "it" ? (
+                      {roleDef(member.role)?.showOnTeam === false ? (
                         <span className="telemetry text-xs text-muted">Internal</span>
                       ) : (
                         <StaffVisibilityToggle

@@ -9,14 +9,17 @@ import {
   getSession,
   getSessionUserId,
   hasAtLeast,
+  isRoleKey,
+  isStaff,
   roleLabel,
-  ROLES,
 } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { usernameForUser } from "@/lib/data/accounts";
 import { cleanupAccountOwnedData } from "@/lib/data/account-deletion";
 import { getDb, schema } from "@/lib/db/client";
-import { canManageMinecraft } from "@/lib/auth/permissions";
+import { canAssignRoles, canManageMinecraft } from "@/lib/auth/permissions";
+import { ensureRoleCatalog } from "@/lib/data/roles";
+import { normalizeRoleKey, roleDef } from "@/lib/auth/role-catalog-core";
 import { site } from "@/lib/site";
 
 /**
@@ -34,8 +37,15 @@ export interface AdminActionResult {
   message: string;
 }
 
-/** Roles that may ever be handed out. "guest" is a system state, not a rank. */
-const GRANTABLE: Role[] = ROLES.filter((role) => role !== "guest");
+/**
+ * "guest" is a system state, not an assignable rank — never a valid target
+ * here. Validated per request (not at module scope) so a role created after
+ * this instance started is still accepted: a cold-start snapshot of the
+ * catalogue would silently reject any custom role added later.
+ */
+function isGrantable(value: string): value is Role {
+  return isRoleKey(value) && value !== "guest";
+}
 
 const inviteSchema = z.object({
   email: z
@@ -44,8 +54,8 @@ const inviteSchema = z.object({
     .min(1, "Enter an email address.")
     .max(254, "That email address is too long.")
     .email("Enter a valid email address."),
-  role: z.enum(GRANTABLE as [Role, ...Role[]], {
-    errorMap: () => ({ message: "Choose a rank." }),
+  role: z.string({ required_error: "Choose a rank." }).refine(isGrantable, {
+    message: "Choose a rank.",
   }),
 });
 
@@ -82,6 +92,18 @@ export async function inviteUserAction(
 ): Promise<AdminActionResult> {
   const session = await requireOwner();
   if (!session) return { ok: false, message: "Not authorized." };
+
+  // Same authority as a rank change: the actor must hold the Assign roles
+  // permission, on top of the owner+ gate above, before a role can be granted
+  // through an invitation.
+  const actorId = await getSessionUserId();
+  if (!actorId || !(await canAssignRoles(session, actorId))) {
+    return { ok: false, message: "You do not have permission to assign roles." };
+  }
+
+  // Refreshed per request so a role created after this instance started (or
+  // this instance's cached copy went stale) is still recognized as grantable.
+  await ensureRoleCatalog();
 
   const parsed = inviteSchema.safeParse({
     email: formData.get("email"),
@@ -136,7 +158,7 @@ export async function inviteUserAction(
       app_metadata: {
         ...data.user.app_metadata,
         role,
-        ...(hasAtLeast(role, "helper") ? { staff_public: role !== "it" } : {}),
+        ...(isStaff(role) ? { staff_public: roleDef(role)?.showOnTeam ?? false } : {}),
       },
     },
   );
@@ -188,12 +210,13 @@ export async function setStaffPublicVisibilityAction(
   const { data: target, error } = await admin.auth.admin.getUserById(userId);
   if (error || !target?.user) return { ok: false, message: "That staff account no longer exists." };
 
-  const targetRole = target.user.app_metadata?.role;
-  if (typeof targetRole !== "string" || !ROLES.includes(targetRole as Role) || !hasAtLeast(targetRole as Role, "helper")) {
+  // normalizeRoleKey: legacy key read as web_dev until migration 055 (removable after).
+  const targetRole = normalizeRoleKey(target.user.app_metadata?.role);
+  if (!isRoleKey(targetRole) || !isStaff(targetRole)) {
     return { ok: false, message: "Only staff accounts can appear on the team page." };
   }
   // Same ceiling as a role change: an Owner must not flip the visibility of a
-  // peer Owner (or IT). Without this, requireOwner() alone would let any owner
+  // peer Owner (or Web Dev). Without this, requireOwner() alone would let any owner
   // act on ranks at or above their own.
   if (!canManageRank(session.role, targetRole as Role)) {
     return { ok: false, message: "You cannot change visibility for a staff member at or above your rank." };
@@ -254,7 +277,7 @@ export async function revokeInviteAction(
   }
   // Revoking hard-deletes the pending row, so it obeys the same rank ceiling as
   // deletion: an Owner must not undo an invite an IT created at Owner/IT rank.
-  const targetRole = (target.user.app_metadata?.role as Role) ?? "member";
+  const targetRole = (normalizeRoleKey(target.user.app_metadata?.role) as Role) ?? "member";
   if (!canManageRank(session.role, targetRole)) {
     return { ok: false, message: "You cannot withdraw an invitation at or above your rank." };
   }
@@ -302,7 +325,7 @@ export async function resendInviteAction(
   }
   // Match the rank ceiling on the other invite paths: don't let a lower-tier
   // owner re-provision an invitation created at or above their own rank.
-  const targetRole = (target.user.app_metadata?.role as Role) ?? "member";
+  const targetRole = (normalizeRoleKey(target.user.app_metadata?.role) as Role) ?? "member";
   if (!canManageRank(session.role, targetRole)) {
     return { ok: false, message: "You cannot resend an invitation at or above your rank." };
   }
@@ -349,7 +372,7 @@ export async function deleteUserAction(
   if (error || !target?.user)
     return { ok: false, message: "That account no longer exists." };
 
-  const targetRole = (target.user.app_metadata?.role as Role) ?? "member";
+  const targetRole = (normalizeRoleKey(target.user.app_metadata?.role) as Role) ?? "member";
   // Resolved exactly as the Users board resolves it. Deriving it separately
   // here is what broke confirmation: the dialog showed the profile username
   // while this compared against the email-derived one, so a correctly typed

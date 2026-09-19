@@ -42,7 +42,7 @@ export default async function AdminNewsPage() {
         articles={data.articles}
         hidden={data.hidden}
         syncConfigured={syncConfigured}
-        showDiagnostics={session.role === "it"}
+        showDiagnostics={session.role === "web_dev"}
         guildId={process.env.DISCORD_GUILD_ID?.trim() || undefined}
         channelId={channelId ?? undefined}
         defaultPublisher={{

@@ -161,7 +161,7 @@ export function PermissionsEditor({
                   disabled={isLocked}
                   className="h-4 w-4 rounded accent-[#8b5cf6]"
                 />
-                <span className="font-semibold">{roleLabel(role)}</span>
+                <RankChip role={role} />
                 {isLocked && (
                   <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-line-strong bg-ink/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted">
                     <Lock size={10} /> Always

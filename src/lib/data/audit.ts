@@ -39,7 +39,7 @@ function summarise(action: string, meta: Record<string, unknown> | null): string
   if (!meta) return "";
   const subject = str(meta.username) ?? str(meta.email) ?? str(meta.title) ?? str(meta.slug);
 
-  if (action === "role.change") {
+  if (action === "role.change" || action === "roles.assign") {
     const from = str(meta.from);
     const to = str(meta.to);
     if (from && to) return `${subject ?? "account"}: ${from} → ${to}`;

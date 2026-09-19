@@ -102,17 +102,12 @@ export const DEFAULT_STORE_ROADMAP: StoreRoadmapConfig = {
   ],
 };
 
-export type Role =
-  | "guest"
-  | "member"
-  | "sponsor"
-  | "vip"
-  | "helper"
-  | "moderator"
-  | "senior_moderator"
-  | "administrator"
-  | "owner"
-  | "it";
+/**
+ * A role key. Built-in keys are listed in BuiltInRoleKey; the owner can add
+ * more from /admin/roles, so any string may be a role. Rank and meaning come
+ * from the role catalogue (lib/auth/role-catalog-core.ts), never from the key.
+ */
+export type Role = string;
 
 /** Discord account details captured from a Discord OAuth sign-in. */
 export interface DiscordIdentity {

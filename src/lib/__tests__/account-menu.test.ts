@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ROLES, isStaff } from "@/lib/auth/roles";
+import { roleKeys, isStaff } from "@/lib/auth/roles";
+import type { Role } from "@/lib/types";
 import { accountMenuFor } from "@/lib/account-menu";
 
-const hrefsFor = (role: (typeof ROLES)[number]) => accountMenuFor(role).map((entry) => entry.href);
+const hrefsFor = (role: Role) => accountMenuFor(role).map((entry) => entry.href);
 
 test("every role reaches its own account screens", () => {
-  for (const role of ROLES) {
+  for (const role of roleKeys()) {
     const hrefs = hrefsFor(role);
     assert.ok(hrefs.includes("/dashboard"), `${role} cannot reach /dashboard`);
     assert.ok(hrefs.includes("/dashboard/settings"), `${role} cannot reach settings`);
@@ -14,7 +15,7 @@ test("every role reaches its own account screens", () => {
 });
 
 test("notifications are left to the header bell, not duplicated in the menu", () => {
-  for (const role of ROLES) {
+  for (const role of roleKeys()) {
     assert.ok(
       !hrefsFor(role).includes("/dashboard/notifications"),
       `${role} has a redundant notifications entry`,
@@ -23,14 +24,14 @@ test("notifications are left to the header bell, not duplicated in the menu", ()
 });
 
 test("the Control Room is offered to staff and withheld from everyone else", () => {
-  const withControlRoom = ROLES.filter((role) => hrefsFor(role).includes("/admin"));
-  assert.deepEqual(withControlRoom, ["helper", "moderator", "senior_moderator", "administrator", "owner", "it"]);
+  const withControlRoom = roleKeys().filter((role) => hrefsFor(role).includes("/admin"));
+  assert.deepEqual(withControlRoom, ["helper", "moderator", "senior_moderator", "administrator", "owner", "web_dev"]);
   // The staff boundary is the one thing that varies, so pin it to isStaff.
-  assert.deepEqual(withControlRoom, ROLES.filter(isStaff));
+  assert.deepEqual(withControlRoom, roleKeys().filter(isStaff));
 });
 
 test("no role is offered the same destination twice", () => {
-  for (const role of ROLES) {
+  for (const role of roleKeys()) {
     const hrefs = hrefsFor(role);
     assert.equal(new Set(hrefs).size, hrefs.length, `${role} has a duplicated destination`);
   }
@@ -38,7 +39,7 @@ test("no role is offered the same destination twice", () => {
 
 test("every entry is a same-origin path with a label and a known icon", () => {
   const icons = new Set(["control-room", "dashboard", "settings"]);
-  for (const role of ROLES) {
+  for (const role of roleKeys()) {
     for (const entry of accountMenuFor(role)) {
       assert.ok(entry.label.trim().length > 0, `${role} has an unlabelled entry`);
       assert.ok(entry.href.startsWith("/") && !entry.href.startsWith("//"), `${role} has an off-origin href`);
@@ -54,7 +55,7 @@ test("non-staff roles see exactly the personal screens, with no Control Room", (
 });
 
 test("staff roles see the Control Room first, then the personal screens", () => {
-  for (const role of ["helper", "moderator", "senior_moderator", "administrator", "owner", "it"] as const) {
+  for (const role of ["helper", "moderator", "senior_moderator", "administrator", "owner", "web_dev"] as const) {
     assert.deepEqual(hrefsFor(role), ["/admin", "/dashboard", "/dashboard/settings"]);
   }
 });

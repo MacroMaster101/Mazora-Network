@@ -10,7 +10,7 @@ const FRIENDLY_UNAVAILABLE_NOTE =
 
 export async function ReadOnlyBanner({ note }: { note?: string }) {
   const session = await getSession();
-  const showDiagnostics = session?.role === "it";
+  const showDiagnostics = session?.role === "web_dev";
 
   return (
     <div className="glass mb-5 flex items-center gap-3 p-4">
@@ -40,7 +40,7 @@ export async function AdminPlaceholder({
   friendlyMessage?: string;
 }) {
   const session = await getSession();
-  const showDiagnostics = session?.role === "it";
+  const showDiagnostics = session?.role === "web_dev";
 
   return (
     <DashEmpty

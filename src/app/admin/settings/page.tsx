@@ -38,7 +38,7 @@ export default async function AdminSettingsPage() {
     when it means "you are not on the repository". The numbers carry the same
     information and are shown to both roles.
   */
-  const canOpenRun = Boolean(session && hasAtLeast(session.role, "it"));
+  const canOpenRun = Boolean(session && hasAtLeast(session.role, "web_dev"));
 
   return (
     <div className="space-y-6">

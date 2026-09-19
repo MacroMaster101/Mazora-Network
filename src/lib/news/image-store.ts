@@ -4,11 +4,11 @@ import * as http from "node:http";
 import * as https from "node:https";
 import { lookup as dnsLookup } from "node:dns";
 import type { LookupAddress } from "node:dns";
-import { isIPv4, isIPv6 } from "node:net";
 import sharp from "sharp";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { safeStorageKey } from "@/lib/storage-key";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
+import { isBlockedAddress, isBlockedIpLiteralHost } from "@/lib/net/blocked-address";
 
 /**
  * Permanent hosting for news images.
@@ -204,55 +204,6 @@ export async function storeImageBytes(bytes: Uint8Array, keyBase: string): Promi
   return { url: admin.storage.from(NEWS_IMAGE_BUCKET).getPublicUrl(key).data.publicUrl, key };
 }
 
-/**
- * Address ranges the server must never be talked into fetching: loopback,
- * RFC1918 private space, carrier NAT, and — most importantly — the
- * 169.254.0.0/16 link-local range that cloud providers use for their instance
- * metadata endpoints.
- */
-function isBlockedAddress(ip: string): boolean {
-  if (isIPv4(ip)) {
-    const [a, b] = ip.split(".").map(Number);
-    if (a === 0 || a === 10 || a === 127) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 100 && b >= 64 && b <= 127) return true;
-    // Non-routable/documentation ranges must fail closed too. They are often
-    // routed internally by development networks and cloud sidecars even
-    // though they are not ordinary RFC1918 space.
-    if (a === 192 && b === 0) return true;
-    if (a === 198 && (b === 18 || b === 19)) return true;
-    if (a === 198 && b === 51) return true;
-    if (a === 203 && b === 0) return true;
-    if (a >= 224) return true; // multicast, reserved, and limited broadcast
-    return false;
-  }
-  if (isIPv6(ip)) {
-    const low = ip.toLowerCase();
-    if (low === "::1" || low === "::") return true;
-    if (low.startsWith("fc") || low.startsWith("fd")) return true; // unique-local
-    const firstHextet = Number.parseInt(low.split(":", 1)[0] || "0", 16);
-    if (firstHextet >= 0xfe80 && firstHextet <= 0xfebf) return true; // fe80::/10 link-local
-    if (firstHextet >= 0xff00 && firstHextet <= 0xffff) return true; // multicast
-    if (low.startsWith("2001:db8:")) return true; // documentation prefix
-
-    // IPv4-mapped IPv6 can be emitted in dotted or hexadecimal form. Checking
-    // only ::ffff:127.0.0.1 misses the canonical ::ffff:7f00:1 spelling.
-    const dotted = low.match(/^::(?:ffff:)?(\d+\.\d+\.\d+\.\d+)$/);
-    if (dotted) return isBlockedAddress(dotted[1]);
-    const mappedHex = low.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
-    if (mappedHex) {
-      const high = Number.parseInt(mappedHex[1], 16);
-      const lowWord = Number.parseInt(mappedHex[2], 16);
-      return isBlockedAddress(
-        `${high >>> 8}.${high & 0xff}.${lowWord >>> 8}.${lowWord & 0xff}`,
-      );
-    }
-    return false;
-  }
-  return true; // unparseable — fail closed
-}
 
 /**
  * DNS lookup used for every outbound image request. It resolves the host, drops
@@ -356,6 +307,10 @@ export async function rehostImageFromUrl(url: string, keyBase: string): Promise<
   for (let hop = 0; hop < 4; hop += 1) {
     if (current.protocol !== "https:" && current.protocol !== "http:") return null;
     if (!hostAllowed(current.hostname)) return null;
+    // Node skips the custom `lookup` when the host is already an IP, so
+    // secureLookup never sees http://127.0.0.1/ or http://169.254.169.254/ —
+    // check IP literals here, on the first request and on every redirect hop.
+    if (isBlockedIpLiteralHost(current.hostname)) return null;
 
     response = await requestImage(current);
     if (!response) return null;

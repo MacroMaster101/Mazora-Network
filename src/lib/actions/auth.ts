@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import type { Role } from "@/lib/types";
-import { createSession, getSession, getSessionUserId, isStaff, landingPathFor, pickDiscordIdentity, ROLES } from "@/lib/auth";
+import { createSession, getSession, getSessionUserId, isRoleKey, isStaff, landingPathFor, normalizeRoleKey, pickDiscordIdentity } from "@/lib/auth";
+import { ensureRoleCatalog } from "@/lib/data/roles";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { site } from "@/lib/site";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
@@ -782,8 +783,10 @@ export async function switchDiscordAction(_previous: AuthResult): Promise<AuthRe
 
   // Return to whichever settings page this user actually uses: staff are
   // redirected out of /dashboard, so they must come back to /admin/account.
-  const roleRaw = data.user.app_metadata?.role;
-  const role: Role = typeof roleRaw === "string" && ROLES.includes(roleRaw as Role) ? (roleRaw as Role) : "member";
+  await ensureRoleCatalog();
+  // normalizeRoleKey: legacy key read as web_dev until migration 055 (removable after).
+  const roleRaw = normalizeRoleKey(data.user.app_metadata?.role);
+  const role: Role = typeof roleRaw === "string" && isRoleKey(roleRaw) ? roleRaw : "member";
   const settingsPath = isStaff(role) ? "/admin/account" : "/dashboard/settings";
 
   const { data: linkData, error: linkError } = await supabase.auth.linkIdentity({

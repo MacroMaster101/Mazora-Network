@@ -13,7 +13,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { THEME_HINT_MENU_EVENT } from "@/components/theme/theme-hint";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { RankChip } from "@/components/admin/rank-chip";
-import { StatusPicker } from "@/components/presence/status-picker";
+import { StatusSection } from "@/components/presence/status-section";
 import { PresenceDot, PresencePill } from "@/components/presence/presence-dot";
 import type { PresenceChoice } from "@/lib/presence-rules";
 import { cn } from "@/lib/utils";
@@ -314,10 +314,7 @@ export function MobileMenu({
                         </div>
                       </Link>
 
-                      <div className="rounded-2xl border border-slate-200/80 p-1.5 dark:border-purple-900/40">
-                        <p className="px-3 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Status</p>
-                        <StatusPicker initial={status} onChange={setStatus} />
-                      </div>
+                      <StatusSection status={status} onChange={setStatus} className="rounded-2xl border border-slate-200/80 p-1.5 dark:border-purple-900/40" />
 
                       {/* Quick Shortcut Buttons — the same destinations the
                           desktop account menu offers, minus the hero card's

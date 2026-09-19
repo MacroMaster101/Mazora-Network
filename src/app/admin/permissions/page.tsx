@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getSessionUserId, requireRole } from "@/lib/auth";
-import { hasAtLeast, ROLES } from "@/lib/auth/roles";
+import { staffRoleKeys } from "@/lib/auth/roles";
 import { listAccounts } from "@/lib/data/accounts";
 import {
   alwaysAllowedFor,
@@ -26,6 +26,7 @@ import {
   MINECRAFT_PERMISSION_KEY,
   USERS_PERMISSION_KEY,
   STAFF_PERMISSION_KEY,
+  ROLES_ASSIGN_PERMISSION_KEY,
   NOTIFICATIONS_PERMISSION_KEY,
   MAZORA_BOT_PERMISSION_KEY,
 } from "@/lib/auth/permissions";
@@ -47,6 +48,7 @@ import {
   saveMinecraftPermissionsAction,
   saveUsersPermissionsAction,
   saveStaffPermissionsAction,
+  saveRolesAssignPermissionsAction,
   saveNotificationsPermissionsAction,
   saveBotPermissionsAction,
   saveAuditPermissionsAction,
@@ -65,7 +67,7 @@ export default async function AdminPermissionsPage() {
 
   const [perms, accounts] = await Promise.all([getAllModulePermissions(), listAccounts()]);
 
-  const staffRoles = ROLES.filter((r) => hasAtLeast(r, "helper"));
+  const staffRoles = staffRoleKeys();
   const allAccounts = (accounts ?? []).map(({ userId, username, displayName, email, role }) => ({
     userId,
     username,
@@ -196,6 +198,15 @@ export default async function AdminPermissionsPage() {
       selected: perms[STAFF_PERMISSION_KEY].roles,
       userIds: perms[STAFF_PERMISSION_KEY].userIds,
       saveAction: saveStaffPermissionsAction,
+    },
+    {
+      id: "roles-assign",
+      category: "Community",
+      title: "Assign roles",
+      description: "Change members' roles (only to roles below the editor's own).",
+      selected: perms[ROLES_ASSIGN_PERMISSION_KEY].roles,
+      userIds: perms[ROLES_ASSIGN_PERMISSION_KEY].userIds,
+      saveAction: saveRolesAssignPermissionsAction,
     },
     {
       id: "forums",

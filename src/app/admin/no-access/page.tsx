@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Lock } from "lucide-react";
 import { BackLink } from "@/components/shared";
-import { requireSession, roleLabel, ROLES } from "@/lib/auth";
+import { isRoleKey, requireSession, roleLabel } from "@/lib/auth";
 import type { Role } from "@/lib/types";
 import { ALL_ADMIN_NAV_ACCESS, buildAdminNav } from "@/lib/admin-nav";
 import { RankChip } from "@/components/admin/rank-chip";
@@ -35,7 +35,7 @@ function safeAdminPath(value: string | undefined): string | null {
 }
 
 function knownRole(value: string | undefined): Role | null {
-  return value && ROLES.includes(value as Role) ? (value as Role) : null;
+  return value && isRoleKey(value) ? value : null;
 }
 
 export default async function AdminNoAccessPage({

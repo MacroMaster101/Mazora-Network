@@ -1,14 +1,14 @@
 /**
  * Bootstrap / manual role setter. Sets a user's app_metadata.role directly via
- * the Supabase service-role key. Use this to grant the FIRST it/owner account,
+ * the Supabase service-role key. Use this to grant the FIRST web_dev/owner account,
  * after which roles are managed in-app at /admin/users.
  *
  * Usage: npm run role:set -- <email> <role>
- *   e.g. npm run role:set -- you@example.com it
+ *   e.g. npm run role:set -- you@example.com web_dev
  */
 import { createClient } from "@supabase/supabase-js";
 
-const ROLES = ["member", "sponsor", "vip", "helper", "moderator", "senior_moderator", "administrator", "owner", "it"];
+const ROLES = ["member", "sponsor", "vip", "helper", "moderator", "senior_moderator", "administrator", "owner", "web_dev"];
 
 async function main() {
   const [email, role] = process.argv.slice(2);

@@ -8,17 +8,21 @@ import { isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { resolveAvatarUrl } from "@/lib/avatar-source";
 import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
 import { isPlaceholderUsername, realDisplayName } from "@/lib/auth/placeholder";
+import { ensureRoleCatalog } from "@/lib/data/roles";
 import {
+  assignableRoles,
   canGrantRank,
   canManageRank,
   hasAtLeast,
   isAdmin,
+  isRoleKey,
   isStaff,
   landingPathFor,
+  normalizeRoleKey,
   roleDashboardPath,
+  roleKeys,
   roleLabel,
-  ROLES,
-  STAFF_ROLES,
+  staffRoleKeys,
   TOP_ROLE,
 } from "@/lib/auth/roles";
 
@@ -38,23 +42,26 @@ export interface Session {
 // pulling in "next/headers" and server-only via this file.
 export { pickDiscordIdentity };
 export {
+  assignableRoles,
   canGrantRank,
   canManageRank,
   hasAtLeast,
   isAdmin,
+  isRoleKey,
   isStaff,
   landingPathFor,
+  normalizeRoleKey,
   roleDashboardPath,
+  roleKeys,
   roleLabel,
-  ROLES,
-  STAFF_ROLES,
+  staffRoleKeys,
   TOP_ROLE,
 };
 
 /** Demo-only role mapping so the scaffolds can be explored by username. */
 export function demoRoleFor(username: string): Role {
   const u = username.toLowerCase();
-  if (u === "it") return "it";
+  if (u === "webdev" || u === "web_dev") return "web_dev";
   if (u === "owner") return "owner";
   if (u === "admin") return "administrator";
   if (u === "mod" || u === "moderator") return "moderator";
@@ -69,7 +76,10 @@ function encode(session: Session): string {
 function decode(raw: string): Session | null {
   try {
     const obj = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));
-    if (typeof obj?.username === "string" && typeof obj?.role === "string") return obj as Session;
+    if (typeof obj?.username === "string" && typeof obj?.role === "string") {
+      // Demo cookies minted before the web_dev rename (transitional, see normalizeRoleKey).
+      return { ...obj, role: normalizeRoleKey(obj.role) } as Session;
+    }
     return null;
   } catch {
     return null;
@@ -77,7 +87,11 @@ function decode(raw: string): Session | null {
 }
 
 function safeRole(value: unknown): Role {
-  return typeof value === "string" && ROLES.includes(value as Role) ? (value as Role) : "member";
+  // normalizeRoleKey maps the legacy top-role key to "web_dev" so sessions
+  // issued before migration 055 keep their access. Removable once 055 has run
+  // and every session has refreshed.
+  const role = normalizeRoleKey(value);
+  return isRoleKey(role) ? role : "member";
 }
 
 function cleanUsername(value: string): string {
@@ -107,6 +121,7 @@ const getAuthUser = cache(async () => {
 });
 
 export const getSession = cache(async (): Promise<Session | null> => {
+  await ensureRoleCatalog();
   if (isSupabaseConfigured()) {
     const user = await getAuthUser();
     if (!user) return null;

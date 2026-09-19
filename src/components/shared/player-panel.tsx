@@ -4,8 +4,9 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import type { DirectoryPlayer, Role, SkinSourceKind } from "@/lib/types";
+import type { DirectoryPlayer, SkinSourceKind } from "@/lib/types";
 import { mcHeadsBodyUrl } from "@/lib/minecraft/skin";
+import { RankChip } from "@/components/admin/rank-chip";
 import { accentFor, cn, fmtDate, formatPlaytime, relative, usd } from "@/lib/utils";
 
 const focusableSelector = [
@@ -16,54 +17,6 @@ const focusableSelector = [
   "textarea:not([disabled])",
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
-
-const ROLE_BADGE_STYLES: Partial<Record<Role, { label: string; classes: string }>> = {
-  owner: {
-    label: "Owner",
-    classes:
-      "border-amber-400/80 bg-amber-100/90 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-300",
-  },
-  it: {
-    label: "IT",
-    classes:
-      "border-amber-400/80 bg-amber-100/90 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-300",
-  },
-  administrator: {
-    label: "Admin",
-    classes:
-      "border-rose-400/80 bg-rose-100/90 text-rose-900 dark:border-rose-500/40 dark:bg-rose-500/20 dark:text-rose-300",
-  },
-  senior_moderator: {
-    label: "Sr. Mod",
-    classes:
-      "border-sky-400/80 bg-sky-100/90 text-sky-900 dark:border-sky-500/40 dark:bg-sky-500/20 dark:text-sky-300",
-  },
-  moderator: {
-    label: "Mod",
-    classes:
-      "border-sky-400/80 bg-sky-100/90 text-sky-900 dark:border-sky-500/40 dark:bg-sky-500/20 dark:text-sky-300",
-  },
-  helper: {
-    label: "Helper",
-    classes:
-      "border-teal-400/80 bg-teal-100/90 text-teal-900 dark:border-teal-500/40 dark:bg-teal-500/20 dark:text-teal-300",
-  },
-  vip: {
-    label: "VIP",
-    classes:
-      "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-900 dark:border-fuchsia-500/40 dark:bg-fuchsia-500/20 dark:text-fuchsia-300",
-  },
-  sponsor: {
-    label: "Sponsor",
-    classes:
-      "border-orange-400/80 bg-orange-100/90 text-orange-900 dark:border-orange-500/40 dark:bg-orange-500/20 dark:text-orange-300",
-  },
-  member: {
-    label: "Member",
-    classes:
-      "border-purple-300/80 bg-purple-100/90 text-purple-800 dark:border-accent/40 dark:bg-accent/20 dark:text-accent-bright",
-  },
-};
 
 const SKIN_LABEL: Record<SkinSourceKind, string> = {
   uploaded: "Custom Minecraft skin uploaded to Mazora",
@@ -162,11 +115,7 @@ export function PlayerPanel({
   const balance = player.stats?.balance ?? null;
   const hasStats = playtimeSeconds != null || balance != null;
   const monogramColor = accentFor(player.username);
-
-  const roleBadge =
-    player.membership === "member" && player.role
-      ? ROLE_BADGE_STYLES[player.role] ?? ROLE_BADGE_STYLES.member
-      : null;
+  const showRoleBadge = player.membership === "member" && Boolean(player.role);
 
   return createPortal(
     <div
@@ -259,16 +208,7 @@ export function PlayerPanel({
                 <h2 id="player-panel-name" className="truncate font-display text-2xl font-extrabold text-slate-900 dark:text-white sm:text-3xl">
                   {player.username}
                 </h2>
-                {roleBadge && (
-                  <span
-                    className={cn(
-                      "rounded-md border px-2.5 py-0.5 text-xs font-extrabold uppercase tracking-wider shadow-2xs",
-                      roleBadge.classes,
-                    )}
-                  >
-                    {roleBadge.label}
-                  </span>
-                )}
+                {showRoleBadge && player.role && <RankChip role={player.role} />}
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-purple-200/70">
                 {player.membership === "member" && (

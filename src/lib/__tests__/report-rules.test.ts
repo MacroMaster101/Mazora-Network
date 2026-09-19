@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ROLES } from "@/lib/auth/roles";
+import { roleKeys } from "@/lib/auth/roles";
 import { canReport, REPORT_REASONS, REPORT_REASON_LABELS } from "@/lib/report-rules";
 
 const guest = { userId: null, role: null };
@@ -27,7 +27,7 @@ test("already-removed content cannot be reported", () => {
 });
 
 test("reporting rights depend on session, not rank", () => {
-  for (const role of ROLES) {
+  for (const role of roleKeys()) {
     assert.equal(canReport(live, { userId: "someone-else", role }), true, role);
   }
 });

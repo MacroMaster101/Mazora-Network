@@ -1,12 +1,13 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
-import { ROLES } from "@/lib/auth/roles";
+import { isRoleKey, normalizeRoleKey } from "@/lib/auth/roles";
 import {
   buildCommentTree, countComments, selectCommentView,
   type CommentNode, type CommentSort, type FlatComment,
 } from "@/lib/comments/tree";
 import type { VoteValue } from "@/lib/comments/vote-rules";
 import { getDb, schema } from "@/lib/db/client";
+import { ensureRoleCatalog } from "@/lib/data/roles";
 import { getPresenceFor } from "@/lib/data/presence";
 import { providerAvatarsFor } from "@/lib/data/provider-avatars";
 import type { PresenceShown } from "@/lib/presence-rules";
@@ -190,6 +191,9 @@ export async function getSuggestionThread(
   const db = getDb();
   if (!db) return null;
 
+  // Reached from the public suggestion thread page with no prior getSession() call.
+  await ensureRoleCatalog();
+
   try {
     const rows = await db
       .select({
@@ -325,7 +329,7 @@ export async function getSuggestionThread(
           displayName: r.authorDisplayName || null,
           avatarUrl: r.authorAvatarUrl || providerAvatars.get(r.authorId) || null,
         },
-        authorRole: ROLES.includes(r.authorRole as Role) ? (r.authorRole as Role) : "member",
+        authorRole: storedRole(r.authorRole),
         // A removed reply's text and images must never reach the client: they
         // are serialised into the page payload even when the DOM shows a tombstone.
         body: r.deletedAt ? "" : r.body,
@@ -374,4 +378,11 @@ export async function getSuggestionThread(
     console.error("Failed to load suggestion thread", error);
     return null;
   }
+}
+
+/** A stored app_metadata role as a catalogue key, or Member. normalizeRoleKey
+ *  reads the legacy top-role key as web_dev until migration 055 (removable after). */
+function storedRole(value: unknown): Role {
+  const role = normalizeRoleKey(value);
+  return isRoleKey(role) ? role : "member";
 }
