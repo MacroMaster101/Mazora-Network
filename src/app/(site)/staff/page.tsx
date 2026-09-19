@@ -1,5 +1,5 @@
 import { breadcrumbSchema, faqPageSchema, jsonLdGraph, publicPageMetadata } from "@/lib/seo";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import type { LucideIcon } from "lucide-react";
 import { Shield, Sparkles, UsersRound } from "lucide-react";
 import { FloatingBrandLogo, MinecraftAvatar, RanksHelpPopover, Reveal } from "@/components/shared";

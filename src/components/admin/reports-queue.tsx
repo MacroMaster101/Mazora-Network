@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { AlertTriangle, Check, ExternalLink, Flag, Trash2, X } from "lucide-react";
 import { useToast } from "@/components/ui";
 import { MinecraftAvatar } from "@/components/shared";

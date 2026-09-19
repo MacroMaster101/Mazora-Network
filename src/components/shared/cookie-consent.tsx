@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { CookieIcon } from "lucide-react";
 import {
   CONSENT_ACCEPTED,

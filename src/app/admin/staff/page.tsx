@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ShieldCheck, UserCog } from "lucide-react";
 import { roleLabel, assignableRoles, staffRoleKeys } from "@/lib/auth";
 import { roleDef } from "@/lib/auth/role-catalog-core";

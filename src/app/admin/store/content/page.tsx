@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ExternalLink } from "lucide-react";
 import { BackLink } from "@/components/shared";
 import { STORE_PERMISSION_KEY } from "@/lib/auth/permissions";

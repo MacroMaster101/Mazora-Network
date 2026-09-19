@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Folder, MessageSquare } from "lucide-react";
 import type { BoardCategory } from "@/lib/data/forums";
 import { SeeMoreList } from "./see-more-list";

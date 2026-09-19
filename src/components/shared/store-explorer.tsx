@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { useCallback, useEffect, useMemo, useRef, type MouseEvent } from "react";
 import { ChevronDown, Clock3, Crown, Flame, Gamepad2, Gem, Heart, House, Package, PackageSearch, Rocket, Shield, Sparkles, Sword, Wand2 } from "lucide-react";
 import type { GameMode, Product, StoreCategoryConfig, StoreRoadmapConfig, StoreWelcomeBannerConfig } from "@/lib/types";

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { notFound } from "next/navigation";
 import { ArrowRight, BadgeCheck, CalendarDays, Clock3, Radio } from "lucide-react";
 import { getArticle, getRelatedArticles } from "@/lib/data/content";

@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { cn } from "@/lib/utils";
 
 const RATIO = 1536 / 1024; // source logo aspect

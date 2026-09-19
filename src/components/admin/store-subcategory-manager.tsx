@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowLeft, ArrowRight, ChevronRight, Edit3, Eye, EyeOff, Grid2X2, GripVertical, Layers3, List, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import type { GameMode, Product, StoreCategoryConfig, StoreSubcategoryConfig } from "@/lib/types";
 import { deleteStoreSubcategoryAction, reorderStoreSubcategoriesAction, saveStoreSubcategoryAction, toggleStoreSubcategoryAction } from "@/lib/actions/store-settings";

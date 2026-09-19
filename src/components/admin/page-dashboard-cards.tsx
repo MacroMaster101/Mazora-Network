@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import {
   Activity, ArrowUpRight, Blocks, CalendarDays, Gamepad2, Home, ImageIcon,
   LifeBuoy, MessageCircleMore, MessagesSquare, Newspaper, Search, ScrollText,

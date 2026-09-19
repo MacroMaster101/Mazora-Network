@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowRight, CheckCircle2, ExternalLink, MessageSquarePlus, ShieldCheck, UserPlus } from "lucide-react";
 import { site } from "@/lib/site";
 import { DiscordIcon } from "./icon";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Search, ChevronDown, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarDays, Rows3, Check } from "lucide-react";
 import type { TopVoter } from "@/lib/types";
 import { MinecraftAvatar } from "@/components/shared";
