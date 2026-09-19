@@ -10,11 +10,11 @@ test("a signed-out visitor is refused everything", () => {
   assert.equal(canAccessModule(null, itOnly), false);
 });
 
-test("it reaches everything, including an IT-only module", () => {
+test("web_dev reaches everything, including an IT-only module", () => {
   // TOP_ROLE has nobody above it to appeal to. If it could be locked out of a
   // module, nobody could unlock it.
-  assert.equal(canAccessModule("it", normal), true);
-  assert.equal(canAccessModule("it", itOnly), true);
+  assert.equal(canAccessModule("web_dev", normal), true);
+  assert.equal(canAccessModule("web_dev", itOnly), true);
 });
 
 test("an owner keeps blanket access to ordinary modules", () => {
@@ -82,18 +82,18 @@ test("an individual grant on an IT-only module is honoured", () => {
 });
 
 test("an owner is still refused audit when the module's own list is the real one", () => {
-  // The bug this guards: ALWAYS_ALLOWED = ["owner","it"] was force-injected
+  // The bug this guards: ALWAYS_ALLOWED = ["owner","web_dev"] was force-injected
   // into EVERY module's roles on read and write, so configuredRoles always
   // contained "owner" and the fall-through granted it — defeating IT-only
   // silently, through the very mechanism meant to guarantee access. The
   // earlier tests missed it because they passed an empty configuredRoles,
   // which never occurs in production.
   assert.equal(
-    canAccessModule("owner", { itOnly: true, configuredRoles: ["it"], configuredUserIds: [] }),
+    canAccessModule("owner", { itOnly: true, configuredRoles: ["web_dev"], configuredUserIds: [] }),
     false,
   );
   assert.equal(
-    canAccessModule("it", { itOnly: true, configuredRoles: ["it"], configuredUserIds: [] }),
+    canAccessModule("web_dev", { itOnly: true, configuredRoles: ["web_dev"], configuredUserIds: [] }),
     true,
   );
 });

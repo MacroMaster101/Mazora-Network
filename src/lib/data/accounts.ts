@@ -1,6 +1,7 @@
 import "server-only";
 import { eq, sql } from "drizzle-orm";
-import { ROLES, hasAtLeast } from "@/lib/auth/roles";
+import { isRoleKey, isStaff, normalizeRoleKey } from "@/lib/auth/roles";
+import { ensureRoleCatalog } from "@/lib/data/roles";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 /** The subset of the GoTrue user record these readers touch. */
@@ -69,7 +70,9 @@ export type PublicStaffMember = Pick<
 > & { minecraftAvatarUrl: string | null };
 
 function toRole(value: unknown): Role {
-  return typeof value === "string" && ROLES.includes(value as Role) ? (value as Role) : "member";
+  // normalizeRoleKey: legacy "it" rows read as web_dev until migration 055 (removable after).
+  const role = normalizeRoleKey(value);
+  return isRoleKey(role) ? role : "member";
 }
 
 interface ProfileName {
@@ -244,6 +247,10 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
   const admin = getSupabaseAdmin();
   if (!admin) return null;
 
+  // This is reached from the public /staff page as well as every admin board,
+  // so the catalogue cannot be assumed fresh from a prior getSession() call.
+  await ensureRoleCatalog();
+
   try {
     const { users, error } = await listAllAuthUsers(admin);
     if (error) {
@@ -309,11 +316,11 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
   }
 }
 
-/** Accounts at helper rank or above, i.e. the actual team. */
+/** Accounts holding a staff-kind role, i.e. the actual team (custom staff roles included). */
 export async function listStaffAccounts(): Promise<AccountSummary[] | null> {
   const accounts = await listAccounts();
   if (!accounts) return null;
-  return accounts.filter((account) => hasAtLeast(account.role, "helper"));
+  return accounts.filter((account) => isStaff(account.role));
 }
 
 /** Public-safe team data: no email, sign-in timestamps, or invitation details. */
@@ -323,7 +330,7 @@ export async function listPublicStaffAccounts(): Promise<PublicStaffMember[] | n
   return staff
     // IT is an internal systems role, never a public team rank. Keep this
     // guard in the repository so no public caller can accidentally expose it.
-    .filter((account) => account.role !== "it" && !account.pendingInvite && account.publicStaffVisible)
+    .filter((account) => account.role !== "web_dev" && !account.pendingInvite && account.publicStaffVisible)
     .map(({ userId, username, role, minecraftUsername, minecraftSkinUrl, avatarUrl }) => {
       const safeSkinUrl = isMinecraftAvatarUrl(minecraftSkinUrl) ? minecraftSkinUrl : null;
       return {

@@ -4,7 +4,8 @@ import { sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { providerAvatarsFor } from "@/lib/data/provider-avatars";
 import { announcePresenceChange } from "@/lib/presence/announce";
-import { isStaff, ROLES } from "@/lib/auth/roles";
+import { isRoleKey, isStaff, normalizeRoleKey } from "@/lib/auth/roles";
+import { ensureRoleCatalog } from "@/lib/data/roles";
 import type { Role } from "@/lib/types";
 import {
   ACTIVE_RESOLUTION_MS,
@@ -186,6 +187,9 @@ export async function getOnlineMembers(): Promise<OnlineMember[]> {
   const db = getDb();
   if (!db) return [];
 
+  // Reached from the public online panels with no prior getSession() call.
+  await ensureRoleCatalog();
+
   const now = new Date();
   const since = new Date(now.getTime() - ONLINE_WINDOW_MS);
   try {
@@ -235,7 +239,9 @@ export async function getOnlineMembers(): Promise<OnlineMember[]> {
         now,
       });
       if (status === "offline") continue;
-      const role = typeof row.role === "string" && ROLES.includes(row.role as Role) ? (row.role as Role) : "member";
+      // normalizeRoleKey: legacy key read as web_dev until migration 055 (removable after).
+      const storedRole = normalizeRoleKey(row.role);
+      const role = isRoleKey(storedRole) ? storedRole : "member";
       members.push({
         userId: String(row.userId),
         username: String(row.username),

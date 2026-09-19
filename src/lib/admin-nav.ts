@@ -16,6 +16,7 @@ import {
   Settings,
   ShieldCheck,
   ShoppingBag,
+  Tags,
   Users,
   UsersRound,
   Vote,
@@ -23,7 +24,7 @@ import {
   PanelsTopLeft,
 } from "lucide-react";
 import type { Role } from "@/lib/types";
-import { hasAtLeast } from "@/lib/auth/roles";
+import { hasAtLeast, isStaff } from "@/lib/auth/roles";
 
 /**
  * The staff navigation, defined once so the desktop sidebar and the mobile
@@ -103,6 +104,7 @@ export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
         { label: "Users", href: "/admin/users", icon: Users, minRole: "owner", visible: access.users },
         { label: "Minecraft Players", href: "/admin/players", icon: Blocks, minRole: "moderator", visible: access.minecraft },
         { label: "Staff", href: "/admin/staff", icon: ShieldCheck, minRole: "owner", visible: access.staff },
+        { label: "Roles", href: "/admin/roles", icon: Tags, minRole: "owner" },
         { label: "Forums", href: "/admin/forums", icon: MessagesSquare, minRole: "administrator", visible: access.forums },
       ],
     },
@@ -140,11 +142,19 @@ export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
         { label: "Mazora Bot", href: "/admin/mazora-bot", icon: Bot, minRole: "owner", visible: access.bot },
         { label: "Notifications", href: "/admin/notifications", icon: Bell, minRole: "owner", visible: access.notifications },
         { label: "Permissions", href: "/admin/permissions", icon: KeyRound, minRole: "owner" },
-        { label: "Settings", href: "/admin/settings", icon: Settings, minRole: "it" },
-        { label: "Audit Logs", href: "/admin/audit-logs", icon: UsersRound, minRole: "it" },
+        { label: "Settings", href: "/admin/settings", icon: Settings, minRole: "web_dev" },
+        { label: "Audit Logs", href: "/admin/audit-logs", icon: UsersRound, minRole: "web_dev" },
       ],
     },
   ];
+}
+
+/**
+ * `minRole: "helper"` means "any staff": a custom staff role may sit below
+ * Helper on the ladder and is still staff. Every other minRole is a real rank gate.
+ */
+function meetsMinRole(role: Role, minRole: Role): boolean {
+  return minRole === "helper" ? isStaff(role) : hasAtLeast(role, minRole);
 }
 
 /** Groups the given role may actually see, with empty groups dropped. */
@@ -155,7 +165,7 @@ export function visibleAdminNav(
   return buildAdminNav(access)
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => item.visible ?? hasAtLeast(role, item.minRole)),
+      items: group.items.filter((item) => item.visible ?? meetsMinRole(role, item.minRole)),
     }))
     .filter((group) => group.items.length > 0);
 }

@@ -32,11 +32,11 @@ export default async function ControlRoom() {
   if (!isStaff(session.role)) redirect("/");
 
   const role = session.role;
-  const showDiagnostics = role === "it";
+  const showDiagnostics = role === "web_dev";
   const canModerate = hasAtLeast(role, "moderator");
   const canManageContent = hasAtLeast(role, "administrator");
   const canSeeAccounts = hasAtLeast(role, "owner");
-  const canSeeAudit = hasAtLeast(role, "it");
+  const canSeeAudit = hasAtLeast(role, "web_dev");
 
   const [status, discord, players, directory, events, news, products, accounts, audit] = await Promise.all([
     getServerStatus(),

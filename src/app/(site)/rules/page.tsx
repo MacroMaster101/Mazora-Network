@@ -11,6 +11,14 @@ export const metadata = publicPageMetadata({
   path: "/rules",
 });
 
+/*
+  Never prerender — same reason as /vote and /staff. The layout's cookie read
+  makes this dynamic only after rendering has begun, so `next build` still ran
+  getRules() from the build machine and repeatedly hit the 60s export budget on
+  a busy Supabase pooler. Rules are edited from the admin, so live is right.
+*/
+export const dynamic = "force-dynamic";
+
 export default async function RulesPage() {
   const [categories, copy] = await Promise.all([getRules(), getPageContent("rules")]);
   const latest = categories.reduce((acc, c) => (c.updated > acc ? c.updated : acc), categories[0]?.updated ?? "");

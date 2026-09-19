@@ -56,8 +56,8 @@ export async function saveSiteGeneralSettingsAction(
   formData: FormData,
 ): Promise<SiteSettingsActionResult> {
   const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "it")) {
-    return { ok: false, message: "Only Owner and IT roles can modify site settings." };
+  if (!session || !hasAtLeast(session.role, "web_dev")) {
+    return { ok: false, message: "Only Web Dev can modify site settings." };
   }
 
   const db = getDb();

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canGrantRank, canManageRank, ROLES, TOP_ROLE } from "../auth/roles.js";
+import { canGrantRank, canManageRank, roleKeys, TOP_ROLE } from "../auth/roles.js";
 
 test("nobody may grant a rank at or above their own", () => {
   assert.equal(canGrantRank("administrator", "administrator"), false);
@@ -8,10 +8,10 @@ test("nobody may grant a rank at or above their own", () => {
   assert.equal(canGrantRank("administrator", "senior_moderator"), true);
 });
 
-test("it is exempt and may grant anything", () => {
+test("web_dev is exempt and may grant anything", () => {
   // TOP_ROLE has nobody above it to appeal to, so it short-circuits both guards.
-  assert.equal(canGrantRank("it", "owner"), true);
-  assert.equal(canGrantRank("it", "it"), true);
+  assert.equal(canGrantRank("web_dev", "owner"), true);
+  assert.equal(canGrantRank("web_dev", "web_dev"), true);
 });
 
 test("nobody may manage an account at or above their own rank", () => {
@@ -33,10 +33,11 @@ test("an administrator's grantable set stops below administrator", () => {
 
 test("the whole ladder allows granting strictly below, with it exempt", () => {
   // Comprehensive invariant check: every actor on the ladder must be able to grant
-  // roles strictly below their own rank and no others, except TOP_ROLE ("it") which
+  // roles strictly below their own rank and no others, except TOP_ROLE ("web_dev") which
   // grants anything. This protects against bugs in other tiers that the 4-test suite
   // would miss if they only tested administrator.
 
+  const ROLES = roleKeys();
   for (const actor of ROLES) {
     const actorRank = ROLES.indexOf(actor);
 
@@ -44,7 +45,7 @@ test("the whole ladder allows granting strictly below, with it exempt", () => {
       const candidateRank = ROLES.indexOf(candidate);
 
       if (actor === TOP_ROLE) {
-        // "it" is exempt and may grant anything, including itself
+        // "web_dev" is exempt and may grant anything, including itself
         assert.equal(
           canGrantRank(actor, candidate),
           true,
@@ -70,7 +71,7 @@ test("the whole ladder allows granting strictly below, with it exempt", () => {
       const targetRank = ROLES.indexOf(target);
 
       if (actor === TOP_ROLE) {
-        // "it" is exempt and may manage anything
+        // "web_dev" is exempt and may manage anything
         assert.equal(
           canManageRank(actor, target),
           true,

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { canGrantRank, canManageRank, getSession, getSessionUserId, hasAtLeast, STAFF_ROLES } from "@/lib/auth";
+import { canGrantRank, canManageRank, getSession, getSessionUserId, hasAtLeast, roleKeys } from "@/lib/auth";
 import { canManageModule, MAZORA_BOT_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { listAccounts } from "@/lib/data/accounts";
 import { composeNoticeResult } from "@/lib/notice-result";
@@ -373,15 +373,15 @@ export async function getRecipientContext(discordUserId: string): Promise<Recipi
   // An actor may not touch their own rank, nor anyone at or above them.
   const isSelf = matched?.userId === auth.actorId;
   const manageable = matched !== null && !isSelf && canManageRank(session.role, matched.role);
-  // Candidates must match changeUserRole's ASSIGNABLE list exactly
-  // (src/lib/actions/roles.ts:10-20) — that list is what the server actually
-  // enforces, and it deliberately omits "guest". ROLES starts with "guest",
-  // and canGrantRank(anyone, "guest") is always true, so filtering ROLES
-  // offered a rank that changeUserRole would always reject as "Invalid role."
+  // Candidates must match what changeUserRole actually accepts
+  // (src/lib/actions/roles.ts) — it deliberately omits "guest": guest is a
+  // system state, not a rank, and canGrantRank(anyone, "guest") is always
+  // true, so offering it here would offer a rank changeUserRole always
+  // rejects as "Invalid role."
   const grantableRanks = manageable
-    ? (["member", "sponsor", "vip", ...STAFF_ROLES] as Role[]).filter((role) =>
-        canGrantRank(session.role, role),
-      )
+    ? roleKeys()
+        .filter((role) => role !== "guest")
+        .filter((role) => canGrantRank(session.role, role))
     : [];
 
   const token = getDiscordBotToken();

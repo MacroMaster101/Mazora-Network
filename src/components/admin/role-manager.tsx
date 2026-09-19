@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Undo2 } from "lucide-react";
 import type { Role } from "@/lib/types";
-import { roleLabel, ROLES } from "@/lib/auth/roles";
+import { roleLabel } from "@/lib/auth/roles";
 import { changeUserRole } from "@/lib/actions/roles";
 import { useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,7 @@ export function RoleManager({
 }: {
   userId: string;
   currentRole: Role;
-  assignable: Role[];
+  assignable: { key: string; label: string }[];
 }) {
   // The saved rank is tracked locally as well as in props, because the props
   // only catch up after the refresh completes.
@@ -35,9 +35,9 @@ export function RoleManager({
   const { toast } = useToast();
   const router = useRouter();
 
-  const options = ROLES.filter(
-    (role) => assignable.includes(role) || role === saved,
-  );
+  const options = assignable.some((option) => option.key === saved)
+    ? assignable
+    : [{ key: saved, label: roleLabel(saved) }, ...assignable];
   const dirty = choice !== saved;
 
   function save() {
@@ -66,9 +66,9 @@ export function RoleManager({
           pending && "opacity-60",
         )}
       >
-        {options.map((role) => (
-          <option key={role} value={role}>
-            {roleLabel(role)}
+        {options.map((option) => (
+          <option key={option.key} value={option.key}>
+            {option.label}
           </option>
         ))}
       </select>

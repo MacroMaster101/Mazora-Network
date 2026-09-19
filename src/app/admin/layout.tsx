@@ -31,7 +31,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const navAccess = await getAdminNavAccess(session, userId);
 
   return (
-    <AdminDiagnosticsProvider enabled={session.role === "it"}>
+    <AdminDiagnosticsProvider enabled={session.role === "web_dev"}>
       <div className="account-area admin-area">
         <SiteHeader world />
         <main id="main" className="account-layout account-shell grid gap-8 py-8 lg:grid-cols-[245px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">

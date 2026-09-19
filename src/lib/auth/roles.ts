@@ -1,113 +1,85 @@
 /**
- * Pure role-comparison helpers with no server-only dependencies (no
- * "next/headers", no cookies). Safe to import from Client Components.
- * Server-only session helpers live in "@/lib/auth" (index.ts), which
- * re-exports everything here for server-side callers.
+ * Role helpers. Pure, client-safe (no "next/headers", no cookies).
+ *
+ * Every answer comes from the role catalogue registry (role-catalog-core.ts),
+ * which the server fills from the `roles` table and the browser receives from
+ * the root layout. Signatures are unchanged from the fixed-list days, so the
+ * callers did not have to change shape.
  */
 import type { Role } from "@/lib/types";
+import { normalizeRoleKey, positionOf, roleCatalog, roleDef, thresholdOf } from "@/lib/auth/role-catalog-core";
 
-const ROLE_RANK: Record<Role, number> = {
-  guest: 0,
-  member: 1,
-  sponsor: 2,
-  vip: 3,
-  helper: 4,
-  moderator: 5,
-  senior_moderator: 6,
-  administrator: 7,
-  owner: 8,
-  it: 9,
-};
+export { normalizeRoleKey };
 
-/** Every role, lowest → highest rank. The canonical list — validate against this. */
-export const ROLES: Role[] = [
-  "guest",
-  "member",
-  "sponsor",
-  "vip",
-  "helper",
-  "moderator",
-  "senior_moderator",
-  "administrator",
-  "owner",
-  "it",
-];
+/** Every role key, lowest → highest rank. */
+export function roleKeys(): Role[] {
+  return roleCatalog().map((role) => role.key).reverse();
+}
 
-/** The highest rung. Holders of it have no one above them to appeal to. */
-export const TOP_ROLE: Role = "it";
+/** Staff role keys (admin-panel roles), lowest → highest rank. */
+export function staffRoleKeys(): Role[] {
+  return roleCatalog().filter((role) => role.kind === "staff").map((role) => role.key).reverse();
+}
+
+/** Whether the catalogue knows this key. */
+export function isRoleKey(value: unknown): value is Role {
+  return typeof value === "string" && roleDef(value) !== undefined;
+}
+
+/** The highest rung (Web Dev). Holders of it have no one above them to appeal to. */
+export const TOP_ROLE: Role = "web_dev";
 
 /**
  * Whether `actor` may change or remove an account currently holding `target`.
- *
- * Everyone may act strictly below their own rank. The top rank may also act on
- * its peers, because otherwise the ladder has a dead end: an IT could never
- * appoint or remove another IT, and the only route in or out of the rank would
- * be the `role:set` CLI script. Acting on yourself is always refused, so the
- * last holder cannot lock themselves out.
+ * Everyone may act strictly below their own rank; the top rank may also act on
+ * its peers, so the rank never becomes a dead end. Acting on yourself is
+ * refused by the callers.
  */
 export function canManageRank(actor: Role, target: Role): boolean {
   if (actor === TOP_ROLE) return true;
-  return !hasAtLeast(target, actor);
+  // The actor's own position (unknown keys rank as member), never a gate
+  // threshold: thresholdOf() treats an unknown name as "impossible to reach",
+  // which here would have given an unknown actor unlimited reach.
+  return positionOf(target) < positionOf(actor);
 }
 
 /** Whether `actor` may grant `role` to someone. Mirrors canManageRank. */
 export function canGrantRank(actor: Role, role: Role): boolean {
   if (actor === TOP_ROLE) return true;
-  return !hasAtLeast(role, actor);
+  return positionOf(role) < positionOf(actor);
+}
+
+/** Roles `actor` may hand out, highest first, excluding Guest. */
+export function assignableRoles(actor: Role): { key: string; label: string }[] {
+  return roleCatalog()
+    .filter((role) => role.key !== "guest" && canGrantRank(actor, role.key))
+    .map((role) => ({ key: role.key, label: role.label }));
 }
 
 export function hasAtLeast(role: Role, min: Role): boolean {
-  return ROLE_RANK[role] >= ROLE_RANK[min];
+  return positionOf(role) >= thresholdOf(min);
 }
+
 export function isAdmin(role: Role): boolean {
   return hasAtLeast(role, "administrator");
 }
 
-/** Staff = helper and above (can access the admin panel). */
+/** Staff = a staff-kind role (can open the admin panel). */
 export function isStaff(role: Role): boolean {
-  return hasAtLeast(role, "helper");
+  return roleDef(role)?.kind === "staff";
 }
 
-/** Roles that appear in the staff ladder (helper → it), highest first is caller's choice. */
-export const STAFF_ROLES: Role[] = [
-  "helper",
-  "moderator",
-  "senior_moderator",
-  "administrator",
-  "owner",
-  "it",
-];
-
-const ROLE_LABELS: Record<Role, string> = {
-  guest: "Guest",
-  member: "Member",
-  sponsor: "Sponsor",
-  vip: "VIP",
-  helper: "Helper",
-  moderator: "Moderator",
-  senior_moderator: "Senior Moderator",
-  administrator: "Admin",
-  owner: "Owner",
-  it: "IT",
-};
-
-/** Human-readable label for a role (administrator → "Admin", it → "IT"). */
+/** Human-readable label from the catalogue ("web_dev" → "Web Dev"). */
 export function roleLabel(role: Role): string {
-  return ROLE_LABELS[role] ?? role;
+  return roleDef(role)?.label ?? role;
 }
 
-/**
- * Where a staff member's dashboard lives. All ranks share one adaptive control
- * room at /admin, which reveals boards according to the viewer's rank.
- */
+/** All ranks share one adaptive control room at /admin. */
 export function roleDashboardPath(_role: Role): string {
   return "/admin";
 }
 
-/**
- * Where a role should land after login or when bounced from a page above their
- * rank: staff (helper+) go to their own dashboard, everyone else goes home.
- */
+/** Staff go to their dashboard after login; everyone else goes home. */
 export function landingPathFor(role: Role): string {
   return isStaff(role) ? roleDashboardPath(role) : "/";
 }

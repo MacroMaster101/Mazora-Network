@@ -1,15 +1,17 @@
 import { breadcrumbSchema, faqPageSchema, jsonLdGraph, publicPageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { BadgeCheck, Crown, Gavel, Handshake, Shield, Sparkles, UsersRound } from "lucide-react";
+import { Shield, Sparkles, UsersRound } from "lucide-react";
 import { FloatingBrandLogo, MinecraftAvatar, RanksHelpPopover, Reveal } from "@/components/shared";
 import { JsonLd } from "@/components/shared/json-ld";
-import { roleLabel, STAFF_ROLES } from "@/lib/auth";
+import { roleCatalog, type RoleDef } from "@/lib/auth/role-catalog-core";
+import { rankTier } from "@/components/admin/rank-chip";
+import { badgeStyle } from "@/lib/auth/role-colors";
+import { roleIconFor } from "@/lib/auth/role-icons";
 import { listPublicStaffAccounts, type PublicStaffMember } from "@/lib/data/accounts";
 import { getPresenceFor } from "@/lib/data/presence";
 import { PresenceDot } from "@/components/presence/presence-dot";
 import { PRESENCE_LABELS, type PresenceShown } from "@/lib/presence-rules";
-import type { Role } from "@/lib/types";
 import { getPageContent } from "@/lib/data/page-content";
 
 export const metadata = publicPageMetadata({
@@ -28,39 +30,27 @@ export const metadata = publicPageMetadata({
 */
 export const dynamic = "force-dynamic";
 
-const LADDER: Role[] = STAFF_ROLES.filter((role) => role !== "it").reverse();
-
-const rolePresentation: Partial<Record<Role, { tier: string; icon: LucideIcon }>> = {
-  owner: { tier: "owner", icon: Crown },
-  administrator: { tier: "admin", icon: BadgeCheck },
-  senior_moderator: { tier: "senior", icon: Shield },
-  moderator: { tier: "moderator", icon: Gavel },
-  helper: { tier: "helper", icon: Handshake },
-};
-
-const roleSummary: Partial<Record<Role, string>> = {
-  owner: "Leads the network vision, direction, and long-term growth.",
-  administrator: "Manages operations, staff coordination, and major server decisions.",
-  senior_moderator: "Guides the moderation team and handles complex community cases.",
-  moderator: "Keeps gameplay fair, enforces rules, and protects the community.",
-  helper: "Welcomes players, answers questions, and provides everyday support.",
-};
+function iconFor(role: RoleDef): LucideIcon {
+  return roleIconFor(role.icon);
+}
 
 function TeamMemberCard({
   member,
+  role,
   status,
 }: {
   member: PublicStaffMember;
+  role: RoleDef;
   /** Website status; absent when they are offline or chose Invisible. */
   status: Exclude<PresenceShown, "offline"> | undefined;
 }) {
-  const presentation = rolePresentation[member.role] ?? rolePresentation.helper!;
-  const RankIcon = presentation.icon;
+  const RankIcon = iconFor(role);
+  const tier = rankTier(role.key);
   const minecraftAvatarUrl = member.minecraftSkinUrl ?? member.minecraftAvatarUrl;
   const minecraftUsername = member.minecraftUsername ?? (minecraftAvatarUrl ? member.username : "Steve");
 
   return (
-    <article className={`team-member-card team-member-${presentation.tier}`}>
+    <article className={`team-member-card team-member-${tier}`}>
       <div className="team-member-glow" aria-hidden />
       <div className="team-member-avatar-wrap">
         <MinecraftAvatar
@@ -73,7 +63,7 @@ function TeamMemberCard({
           <RankIcon size={16} />
         </span>
       </div>
-      <p className="team-member-tier">{roleLabel(member.role)}</p>
+      <p className="team-member-tier">{role.label}</p>
       <h3>{member.username}</h3>
       {member.minecraftUsername && member.minecraftUsername !== member.username && (
         <p className="team-member-alias">Minecraft: {member.minecraftUsername}</p>
@@ -98,11 +88,17 @@ function FlowConnector({ className = "" }: { className?: string }) {
 
 export default async function StaffPage() {
   const [members, copy] = await Promise.all([listPublicStaffAccounts(), getPageContent("staff")]);
+  // Computed per request, after listPublicStaffAccounts() has ensured the
+  // catalogue is fresh, so a custom staff role appears in the right order.
+  // roleCatalog() is already sorted highest-first. A member only ever
+  // appears here if BOTH their own visibility toggle is public (enforced by
+  // listPublicStaffAccounts) AND their role opts into Our Team.
+  const TEAM_ROLES: RoleDef[] = roleCatalog().filter((role) => role.kind === "staff" && role.showOnTeam);
   // Staff are already public on this page; this adds only whether they are around right now.
   const presence = await getPresenceFor((members ?? []).map((member) => member.userId));
-  const groups = LADDER.map((role) => ({
+  const groups = TEAM_ROLES.map((role) => ({
     role,
-    members: (members ?? []).filter((member) => member.role === role),
+    members: (members ?? []).filter((member) => member.role === role.key),
   })).filter((group) => group.members.length > 0);
   const teamCount = members?.length ?? 0;
   const teamFaqs = [1, 2, 3].map((index) => ({
@@ -185,16 +181,19 @@ export default async function StaffPage() {
                 <span>Leadership to community support</span>
               </div>
               <div className="team-ranks-list">
-                {LADDER.map((role) => {
-                  const rank = rolePresentation[role] ?? rolePresentation.helper!;
-                  const RankIcon = rank.icon;
+                {TEAM_ROLES.map((role) => {
+                  const RankIcon = iconFor(role);
 
                   return (
-                    <div key={role} className={`team-rank-guide-row team-member-${rank.tier}`}>
+                    <div
+                      key={role.key}
+                      className={`team-rank-guide-row team-member-${rankTier(role.key)}`}
+                      style={badgeStyle(role.color)}
+                    >
                       <span className="team-rank-guide-icon" aria-hidden><RankIcon size={16} /></span>
                       <div>
-                        <h3>{roleLabel(role)}</h3>
-                        <p>{roleSummary[role]}</p>
+                        <h3>{role.label}</h3>
+                        {role.description && <p>{role.description}</p>}
                       </div>
                     </div>
                   );
@@ -213,20 +212,21 @@ export default async function StaffPage() {
                 <h3 data-page-field="emptyTitle">{copy.emptyTitle}</h3>
                 <p data-page-field="emptyBody">{copy.emptyBody}</p>
               </div>
-            ) : groups.map((group, index) => {
-              const presentation = rolePresentation[group.role] ?? rolePresentation.helper!;
-
-              return (
-                <div key={group.role} className={`team-rank-group team-member-${presentation.tier}`}>
-                  {index > 0 && <FlowConnector />}
-                  <div className="team-tier team-tier-dynamic">
-                    {group.members.map((member) => (
-                      <TeamMemberCard key={member.userId} member={member} status={presence.get(member.userId)} />
-                    ))}
-                  </div>
+            ) : groups.map((group, index) => (
+              <div key={group.role.key} className={`team-rank-group team-member-${rankTier(group.role.key)}`}>
+                {index > 0 && <FlowConnector />}
+                <div className="team-tier team-tier-dynamic">
+                  {group.members.map((member) => (
+                    <TeamMemberCard
+                      key={member.userId}
+                      member={member}
+                      role={group.role}
+                      status={presence.get(member.userId)}
+                    />
+                  ))}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </Reveal>
 

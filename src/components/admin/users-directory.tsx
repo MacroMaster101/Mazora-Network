@@ -133,7 +133,7 @@ export function UsersDirectory({
   assignable,
 }: {
   rows: DirectoryRow[];
-  assignable: Role[];
+  assignable: { key: string; label: string }[];
 }) {
   const [scope, setScope] = useState<Scope>("all");
   const [query, setQuery] = useState("");
