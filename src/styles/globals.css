@@ -6105,14 +6105,23 @@ html {
   gap: 0.45rem;
 }
 
+/*
+  Colour comes from the role's own catalogue colour (badgeStyle(), the same
+  vars .rank-chip consumes) rather than the fixed --team-tone used by the
+  member cards below: this row is a per-role legend entry, so it must be able
+  to differ role-to-role, including for custom roles the palette knows
+  nothing about ahead of time. The panel behind it (.team-ranks-panel) is
+  always dark regardless of site theme, so --rank-fg-dark is used
+  unconditionally rather than switching on [data-theme].
+*/
 .team-rank-guide-row {
   display: grid;
   align-items: start;
   gap: 0.65rem;
   grid-template-columns: 2rem minmax(0, 1fr);
-  border: 1px solid rgb(var(--team-tone) / 0.2);
+  border: 1px solid var(--rank-border);
   border-radius: 0.75rem;
-  background: rgb(var(--team-tone) / 0.08);
+  background: var(--rank-bg);
   padding: 0.65rem;
 }
 
@@ -6121,14 +6130,14 @@ html {
   width: 2rem;
   height: 2rem;
   place-items: center;
-  border: 1px solid rgb(var(--team-tone) / 0.38);
+  border: 1px solid var(--rank-border);
   border-radius: 0.6rem;
-  background: rgb(var(--team-tone) / 0.16);
-  color: rgb(var(--team-tone-soft));
+  background: var(--rank-bg);
+  color: var(--rank-fg-dark);
 }
 
 .team-rank-guide-row h3 {
-  color: rgb(var(--team-tone-soft));
+  color: var(--rank-fg-dark);
   font-family: var(--font-display), sans-serif;
   font-size: 0.75rem;
   font-weight: 800;
@@ -10257,4 +10266,17 @@ body:has(.admin-recovery-overlay) {
   .team-faq-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* Role badges (RankChip): colour comes from the role catalogue via inline
+   custom properties (role-colors.ts). Kept outside any @layer so Tailwind's
+   generated utilities — which compile after @layer components — cannot win
+   the specificity tie and override the catalogue colour. */
+.rank-chip {
+  color: var(--rank-fg-light);
+  background-color: var(--rank-bg);
+  border-color: var(--rank-border);
+}
+[data-theme="dark"] .rank-chip {
+  color: var(--rank-fg-dark);
 }

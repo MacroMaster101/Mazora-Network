@@ -86,7 +86,7 @@ export async function updateOrderDecisionAction(
 export async function deleteOrderAction(orderId: string, confirmation: string): Promise<OrderAdminResult> {
   const session = await getSession();
   if (!session || !hasAtLeast(session.role, "owner")) {
-    return { ok: false, message: "Only Owner or IT can permanently delete order records." };
+    return { ok: false, message: "Only the Owner or Web Dev can permanently delete order records." };
   }
 
   const parsedId = idSchema.safeParse(orderId);

@@ -10,7 +10,7 @@
 import "server-only";
 import { asc, desc, eq } from "drizzle-orm";
 import type { Role } from "@/lib/types";
-import { ROLES } from "@/lib/auth/roles";
+import { isRoleKey, isStaff, normalizeRoleKey } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { listAllAuthUsers } from "@/lib/data/accounts";
@@ -59,7 +59,9 @@ export interface AuditRow {
 }
 
 function toRole(value: unknown): Role {
-  return typeof value === "string" && ROLES.includes(value as Role) ? (value as Role) : "member";
+  // normalizeRoleKey: legacy "it" rows read as web_dev until migration 055 (removable after).
+  const role = normalizeRoleKey(value);
+  return isRoleKey(role) ? role : "member";
 }
 
 /**
@@ -104,11 +106,10 @@ export async function getAccountsSnapshot(): Promise<AccountsSnapshot | null> {
     ),
   }));
 
-  const staffRanked: Role[] = ["helper", "moderator", "senior_moderator", "administrator", "owner", "it"];
   return {
     total: users.length,
     newThisWeek: users.filter((u) => u.createdAt && new Date(u.createdAt).getTime() >= weekAgo).length,
-    staffCount: users.filter((u) => staffRanked.includes(u.role)).length,
+    staffCount: users.filter((u) => isStaff(u.role)).length,
     recent: [...users]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5),
@@ -154,7 +155,7 @@ export async function getEditableRules(): Promise<EditableCategory[] | null> {
 function describe(action: string, metadata: unknown): { target: string; detail: string } {
   const meta = (metadata ?? {}) as Record<string, unknown>;
   const username = typeof meta.username === "string" ? meta.username : "";
-  if (action === "role.change") {
+  if (action === "role.change" || action === "roles.assign") {
     const from = typeof meta.from === "string" ? meta.from : "?";
     const to = typeof meta.to === "string" ? meta.to : "?";
     return { target: username || "a user", detail: `${from} → ${to}` };

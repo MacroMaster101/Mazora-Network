@@ -15,7 +15,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { canGrantRank, canManageRank, hasAtLeast, isAdmin, isStaff, ROLES, TOP_ROLE } from "@/lib/auth/roles";
+import { canGrantRank, canManageRank, hasAtLeast, isAdmin, isStaff, roleKeys, TOP_ROLE } from "@/lib/auth/roles";
 import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
 import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
 import { safeNext } from "@/lib/safe-redirect";
@@ -36,7 +36,7 @@ describe("role ladder", () => {
   test("isStaff is helper and above, and excludes paying ranks", () => {
     assert.equal(isStaff("helper"), true);
     assert.equal(isStaff("moderator"), true);
-    assert.equal(isStaff("it"), true);
+    assert.equal(isStaff("web_dev"), true);
     // vip/sponsor outrank member but are customers, not staff — if this ever
     // flips, every /admin board opens to anyone who bought a rank.
     assert.equal(isStaff("vip"), false);
@@ -48,18 +48,18 @@ describe("role ladder", () => {
   test("isAdmin is administrator and above", () => {
     assert.equal(isAdmin("administrator"), true);
     assert.equal(isAdmin("owner"), true);
-    assert.equal(isAdmin("it"), true);
+    assert.equal(isAdmin("web_dev"), true);
     assert.equal(isAdmin("senior_moderator"), false);
     assert.equal(isAdmin("moderator"), false);
   });
 
   test("nobody may manage a peer or a superior, except the top rank", () => {
-    for (const actor of ROLES) {
+    for (const actor of roleKeys()) {
       if (actor === TOP_ROLE) continue;
       // Acting on an equal rank is refused — this is what stops two admins
       // demoting each other, and an admin editing another admin's account.
       assert.equal(canManageRank(actor, actor), false, `${actor} must not manage a peer`);
-      for (const target of ROLES) {
+      for (const target of roleKeys()) {
         if (hasAtLeast(target, actor)) {
           assert.equal(canManageRank(actor, target), false, `${actor} must not manage ${target}`);
         }
@@ -86,6 +86,27 @@ describe("role ladder", () => {
     assert.equal(canGrantRank("administrator", "moderator"), true);
     assert.equal(canGrantRank("moderator", "administrator"), false);
     assert.equal(canGrantRank("member", "helper"), false);
+  });
+});
+
+describe("changeUserRole never assigns guest", () => {
+  test("roles.ts's role validator explicitly excludes guest", () => {
+    // changeUserRole's safeRole() must reject "guest" — it is a system state,
+    // never an assignable rank. A plain isRoleKey(value) check alone would
+    // accept it, silently letting an owner demote someone to guest through
+    // the admin Users board. Read as source rather than imported: this module
+    // is "use server" and pulls in server-only dependencies a plain node test
+    // cannot load.
+    const source = readFileSync(new URL("../actions/roles.ts", import.meta.url), "utf8");
+    const safeRole = source.slice(source.indexOf("function safeRole"), source.indexOf("function safeRole") + 260);
+    // `role` is the value after normalizeRoleKey (the transitional legacy-key alias).
+    assert.match(safeRole, /normalizeRoleKey\(value\)/, "safeRole must fold the legacy top-role key");
+    assert.match(safeRole, /isRoleKey\(role\)/, "safeRole must still validate against the live catalogue");
+    assert.match(
+      safeRole,
+      /role\s*!==\s*["']guest["']/,
+      "safeRole must explicitly exclude \"guest\" from the roles changeUserRole will assign",
+    );
   });
 });
 

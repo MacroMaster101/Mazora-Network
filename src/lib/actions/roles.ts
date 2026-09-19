@@ -3,30 +3,27 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { Role } from "@/lib/types";
-import { canGrantRank, canManageRank, getSession, getSessionUserId, hasAtLeast, roleLabel, ROLES } from "@/lib/auth";
+import { canGrantRank, canManageRank, getSession, getSessionUserId, isRoleKey, isStaff, roleKeys, roleLabel } from "@/lib/auth";
+import { normalizeRoleKey, roleDef } from "@/lib/auth/role-catalog-core";
+import { canAssignRoles } from "@/lib/auth/permissions";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getDb, schema } from "@/lib/db/client";
 
-const ASSIGNABLE: Role[] = [
-  "member",
-  "sponsor",
-  "vip",
-  "helper",
-  "moderator",
-  "senior_moderator",
-  "administrator",
-  "owner",
-  "it",
-];
-
+// "guest" is a system state, not an assignable rank — never a valid target here.
+// Stored roles pass through normalizeRoleKey (legacy "it" → "web_dev") until
+// migration 055 has run everywhere; the alias is removable after that.
 function safeRole(value: unknown): Role | null {
-  return typeof value === "string" && ASSIGNABLE.includes(value as Role) ? (value as Role) : null;
+  const role = normalizeRoleKey(value);
+  return isRoleKey(role) && role !== "guest" ? role : null;
 }
 
 /**
- * Change a user's role. Owner+ only. Enforces rank rules:
- *  - actor cannot assign a role >= their own rank
- *  - actor cannot modify a user who outranks or equals them
+ * Change a user's role. Needs the Assign roles permission (canAssignRoles —
+ * Owner and Web Dev always, plus any role granted it on the Permissions page),
+ * checked first; then the rank limits apply to everyone:
+ *  - actor cannot assign a role at or above their own rank (canGrantRank)
+ *  - actor cannot modify a user at or above their own rank (canManageRank)
+ *  - the top rank (Web Dev) is exempt from both, so it can act on its peers
  *  - actor cannot change their own role
  * Writes app_metadata.role, mirrors profiles.role, and audit-logs the change.
  */
@@ -35,8 +32,9 @@ export async function changeUserRole(input: {
   newRole: Role;
 }): Promise<{ ok: boolean; message: string }> {
   const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "owner")) {
-    return { ok: false, message: "Not authorized." };
+  const actorId = await getSessionUserId();
+  if (!session || !actorId || !(await canAssignRoles(session, actorId))) {
+    return { ok: false, message: "You do not have permission to assign roles." };
   }
 
   const newRole = safeRole(input.newRole);
@@ -46,9 +44,8 @@ export async function changeUserRole(input: {
   // user_metadata username with session.username allowed the top rank to
   // change its own role whenever its editable profile username differed from
   // the auth metadata (or the metadata had no username at all).
-  const actorId = await getSessionUserId();
-  if (!actorId || actorId === input.userId) {
-    return { ok: false, message: actorId ? "You cannot change your own role." : "Your session has expired." };
+  if (actorId === input.userId) {
+    return { ok: false, message: "You cannot change your own role." };
   }
 
   const admin = getSupabaseAdmin();
@@ -82,17 +79,20 @@ export async function changeUserRole(input: {
   if (!canGrantRank(session.role, newRole)) {
     return { ok: false, message: "You cannot assign a role at or above your own rank." };
   }
-  const wasStaff = hasAtLeast(currentRole, "helper");
-  const becomesStaff = hasAtLeast(newRole, "helper");
-  const wasPublicStaff = wasStaff && currentRole !== "it";
-  const becomesPublicStaff = becomesStaff && newRole !== "it";
+  const wasStaff = isStaff(currentRole);
+  const becomesStaff = isStaff(newRole);
+  // Only a role that shows on Our Team defaults its holders to public; a staff
+  // role hidden from the team (Web Dev, or a custom one) defaults them hidden.
+  const newShowsOnTeam = roleDef(newRole)?.showOnTeam ?? false;
+  const wasPublicStaff = wasStaff && (roleDef(currentRole)?.showOnTeam ?? false);
+  const becomesPublicStaff = becomesStaff && newShowsOnTeam;
   const authUpdate = {
     app_metadata: {
       ...target.user.app_metadata,
       role: newRole,
       // A first promotion onto the staff ladder automatically publishes the
       // member. Later staff-to-staff rank changes preserve their chosen state.
-      ...(newRole === "it"
+      ...(becomesStaff && !newShowsOnTeam
         ? { staff_public: false }
         : becomesPublicStaff && !wasPublicStaff
           ? { staff_public: true }
@@ -101,7 +101,7 @@ export async function changeUserRole(input: {
   };
 
   const auditValues = {
-    action: "role.change",
+    action: "roles.assign",
     targetType: "user",
     targetId: input.userId,
     metadata: {
@@ -114,7 +114,8 @@ export async function changeUserRole(input: {
     },
   };
 
-  const isDemotion = ROLES.indexOf(newRole) < ROLES.indexOf(currentRole);
+  const ladder = roleKeys();
+  const isDemotion = ladder.indexOf(newRole) < ladder.indexOf(currentRole);
   if (isDemotion) {
     // Revoke database/RLS privileges first. If Auth then fails, restore the DB
     // record so the two stores never silently report a successful divergence.

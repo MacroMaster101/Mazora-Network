@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ROLES } from "@/lib/auth/roles";
+import { roleKeys } from "@/lib/auth/roles";
 import {
   canPostReply, canEditReply, canDeleteReply, canVote,
   replyBody, REPLY_TOMBSTONE, DEFAULT_SUGGESTION_SORT, SUGGESTION_SORTS,
@@ -65,7 +65,7 @@ test("the board defaults to newest so new ideas are not buried", () => {
 });
 
 test("posting rights depend on session, not rank", () => {
-  for (const role of ROLES) {
+  for (const role of roleKeys()) {
     assert.equal(canPostReply(open, { userId: "x", role, canModerate: false }), true, role);
   }
 });

@@ -4,9 +4,10 @@ import { eq, inArray } from "drizzle-orm";
 import type { Role } from "@/lib/types";
 import type { Session } from "@/lib/auth";
 import type { AdminNavAccess } from "@/lib/admin-nav";
-import { hasAtLeast, ROLES } from "@/lib/auth/roles";
+import { hasAtLeast, isRoleKey, normalizeRoleKey, roleKeys, TOP_ROLE } from "@/lib/auth/roles";
 import { canAccessModule } from "@/lib/auth/module-access-shared";
 import { getDb, schema } from "@/lib/db/client";
+import { ensureRoleCatalog } from "@/lib/data/roles";
 
 export const NEWS_PERMISSION_KEY = "news.permissions";
 export const GALLERY_PERMISSION_KEY = "gallery.permissions";
@@ -25,13 +26,14 @@ export const VOTING_PERMISSION_KEY = "voting.permissions";
 export const MINECRAFT_PERMISSION_KEY = "minecraft.permissions";
 export const USERS_PERMISSION_KEY = "users.permissions";
 export const STAFF_PERMISSION_KEY = "staff.permissions";
+export const ROLES_ASSIGN_PERMISSION_KEY = "roles.assign.permissions";
 export const NOTIFICATIONS_PERMISSION_KEY = "notifications.permissions";
 export const SETTINGS_PERMISSION_KEY = "settings.permissions";
 export const AUDIT_PERMISSION_KEY = "audit.permissions";
 export const MAZORA_BOT_PERMISSION_KEY = "bot.permissions";
 
-/** Owner and IT can never be removed, so the owner cannot lock themselves out. */
-export const ALWAYS_ALLOWED: Role[] = ["owner", "it"];
+/** Owner and Web Dev can never be removed, so the owner cannot lock themselves out. */
+export const ALWAYS_ALLOWED: Role[] = ["owner", TOP_ROLE];
 
 /**
  * Roles force-included in one module's list, whatever is stored or submitted.
@@ -42,11 +44,11 @@ export const ALWAYS_ALLOWED: Role[] = ["owner", "it"];
  * owner short-circuit is skipped. The IT-only rule would be defeated silently,
  * by the very mechanism meant to guarantee access.
  *
- * IT is never removed: it is TOP_ROLE, and a module nobody can reach is a
+ * Web Dev is never removed: it is TOP_ROLE, and a module nobody can reach is a
  * module nobody can fix.
  */
 export function alwaysAllowedFor(key?: string): Role[] {
-  return key && IT_ONLY_MODULES.has(key) ? ["it"] : [...ALWAYS_ALLOWED];
+  return key && IT_ONLY_MODULES.has(key) ? [TOP_ROLE] : [...ALWAYS_ALLOWED];
 }
 
 export interface ModulePermissions {
@@ -62,14 +64,15 @@ function defaultRolesForModule(key?: string): Role[] {
     key === NOTIFICATIONS_PERMISSION_KEY ||
     key === USERS_PERMISSION_KEY ||
     key === STAFF_PERMISSION_KEY ||
-    key === MAZORA_BOT_PERMISSION_KEY
+    key === MAZORA_BOT_PERMISSION_KEY ||
+    key === ROLES_ASSIGN_PERMISSION_KEY
   ) {
-    return ROLES.filter((r) => hasAtLeast(r, "owner"));
+    return roleKeys().filter((r) => hasAtLeast(r, "owner"));
   }
   if (key === SETTINGS_PERMISSION_KEY || key === AUDIT_PERMISSION_KEY) {
-    return ROLES.filter((r) => hasAtLeast(r, "it"));
+    return roleKeys().filter((r) => hasAtLeast(r, TOP_ROLE));
   }
-  return ROLES.filter((r) => hasAtLeast(r, "administrator"));
+  return roleKeys().filter((r) => hasAtLeast(r, "administrator"));
 }
 
 function defaults(key?: string): ModulePermissions {
@@ -84,7 +87,9 @@ function normalise(value: unknown, key?: string): ModulePermissions {
   if (!value || typeof value !== "object") return failClosed(key);
   const raw = value as { roles?: unknown; userIds?: unknown };
   const roles = Array.isArray(raw.roles)
-    ? raw.roles.filter((r): r is Role => typeof r === "string" && ROLES.includes(r as Role))
+    ? // normalizeRoleKey: a list stored before migration 055 may still name the
+      // legacy top-role key; it must keep granting. Removable once 055 has run.
+      raw.roles.map((r) => normalizeRoleKey(r)).filter((r): r is Role => isRoleKey(r))
     : defaultRolesForModule(key);
   const userIds = Array.isArray(raw.userIds)
     ? raw.userIds.filter((u): u is string => typeof u === "string" && u.length > 0).slice(0, 100)
@@ -93,6 +98,7 @@ function normalise(value: unknown, key?: string): ModulePermissions {
 }
 
 export const getModulePermissions = cache(async (key: string): Promise<ModulePermissions> => {
+  await ensureRoleCatalog();
   const db = getDb();
   if (!db) return defaults(key);
   try {
@@ -126,6 +132,7 @@ export const ALL_PERMISSION_KEYS = [
   MINECRAFT_PERMISSION_KEY,
   USERS_PERMISSION_KEY,
   STAFF_PERMISSION_KEY,
+  ROLES_ASSIGN_PERMISSION_KEY,
   NOTIFICATIONS_PERMISSION_KEY,
   MAZORA_BOT_PERMISSION_KEY,
   SETTINGS_PERMISSION_KEY,
@@ -134,6 +141,7 @@ export const ALL_PERMISSION_KEYS = [
 
 export const getAllModulePermissions = cache(
   async (): Promise<Record<string, ModulePermissions>> => {
+    await ensureRoleCatalog();
     const keys = [...ALL_PERMISSION_KEYS];
     const db = getDb();
     if (!db) return Object.fromEntries(keys.map((key) => [key, defaults(key)]));
@@ -246,11 +254,14 @@ export const canManageUsers = (s: Session | null, u?: string | null) => canManag
 export const getStaffPermissions = () => getModulePermissions(STAFF_PERMISSION_KEY);
 export const canManageStaff = (s: Session | null, u?: string | null) => canManageModule(STAFF_PERMISSION_KEY, s, u);
 
+export const getRolesAssignPermissions = () => getModulePermissions(ROLES_ASSIGN_PERMISSION_KEY);
+export const canAssignRoles = (s: Session | null, u?: string | null) => canManageModule(ROLES_ASSIGN_PERMISSION_KEY, s, u);
+
 export const getNotificationsPermissions = () => getModulePermissions(NOTIFICATIONS_PERMISSION_KEY);
 export const canManageNotifications = (s: Session | null, u?: string | null) => canManageModule(NOTIFICATIONS_PERMISSION_KEY, s, u);
 
-export const canManageSettings = (s: Session | null) => Boolean(s && hasAtLeast(s.role, "it"));
-export const canManageAudit = (s: Session | null) => Boolean(s && hasAtLeast(s.role, "it"));
+export const canManageSettings = (s: Session | null) => Boolean(s && hasAtLeast(s.role, TOP_ROLE));
+export const canManageAudit = (s: Session | null) => Boolean(s && hasAtLeast(s.role, TOP_ROLE));
 
 /** One shared permission snapshot for desktop and mobile admin navigation. */
 export async function getAdminNavAccess(

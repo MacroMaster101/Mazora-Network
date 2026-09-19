@@ -244,3 +244,30 @@
     animation: none;
   }
 }
+
+/*
+  Roles page — side-by-side badge preview (role-editor-modal.tsx).
+  The theme tokens and `[data-theme="dark"] .rank-chip` key off the <html>
+  element, so a nested data-theme wrapper alone would show the page theme
+  twice. These pin each preview tile to its own theme: the backgrounds are
+  LIGHT_BADGE_BG / DARK_BADGE_BG from lib/auth/role-colors.ts (the colours the
+  badge text is contrast-checked against), and the selectors out-rank the
+  root-level rank-chip rule.
+*/
+.role-preview[data-theme="light"] {
+  background-color: #ffffff;
+  color: #1a1325;
+}
+.role-preview[data-theme="dark"] {
+  background-color: #1a1325;
+  color: #f5f3ff;
+}
+.role-preview[data-theme="light"] .rank-chip {
+  color: var(--rank-fg-light);
+}
+.role-preview[data-theme="dark"] .rank-chip {
+  color: var(--rank-fg-dark);
+}
+.role-preview .role-preview-caption {
+  opacity: 0.7;
+}

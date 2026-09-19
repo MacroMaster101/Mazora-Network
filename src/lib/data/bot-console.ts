@@ -170,7 +170,7 @@ export interface BotActivityEntry {
   The audit actions this panel reports. Anything else written to audit_logs —
   store failures, content edits — belongs to the full audit log, not here.
 */
-const BOT_AUDIT_ACTIONS = ["staff.notice", "discord.role", "role.change"];
+const BOT_AUDIT_ACTIONS = ["staff.notice", "discord.role", "role.change", "roles.assign"];
 
 export async function readBotActivity(): Promise<
   { ok: true; entries: BotActivityEntry[] } | { ok: false; reason: string }

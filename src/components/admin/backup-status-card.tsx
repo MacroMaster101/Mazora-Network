@@ -96,8 +96,8 @@ const EXPLANATION: Record<BackupStatus["health"], string> = {
   the person who can" — the same urgency, aimed somewhere it can land.
 */
 const DELEGATED: Partial<Record<BackupStatus["health"], string>> = {
-  failed: "The last backup run did not succeed. Ask IT to open the run and see which step failed.",
-  never: "The workflow exists but has never run. Ask IT to trigger it once and confirm the credentials work.",
+  failed: "The last backup run did not succeed. Ask Web Dev to open the run and see which step failed.",
+  never: "The workflow exists but has never run. Ask Web Dev to trigger it once and confirm the credentials work.",
 };
 
 export function BackupStatusCard({
@@ -118,7 +118,7 @@ export function BackupStatusCard({
         <DatabaseBackup size={18} className="text-accent-bright" />
         <h2 className="font-display text-base font-bold text-ink">Off-site Backups</h2>
         <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-muted">
-          Owner &amp; IT only
+          Owner &amp; Web Dev only
         </span>
       </div>
 

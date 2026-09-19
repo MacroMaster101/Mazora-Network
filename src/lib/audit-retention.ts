@@ -33,6 +33,7 @@ export const AUDIT_LOG_TTL_MS = 365 * 24 * 60 * 60 * 1000;
  */
 export const PERMANENT_AUDIT_ACTIONS: ReadonlySet<string> = new Set([
   "role.change",
+  "roles.assign",
   "user.delete",
   "user.invite",
   "user.invite.revoke",
