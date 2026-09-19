@@ -234,6 +234,20 @@ async function isReachable(url: string): Promise<boolean> {
   return false;
 }
 
+/**
+ * Whether the website is up, checked against its lightweight /api/health route.
+ *
+ * Probing "/" every refresh rendered the full homepage in a Vercel function
+ * each time — the single largest share of the site's function CPU. The health
+ * route answers without touching the database. The homepage is only tried if
+ * the health route does not answer (e.g. an older deployment without it), so
+ * rolling this out before the site cannot mark a healthy site offline.
+ */
+async function isWebsiteUp(): Promise<boolean> {
+  if (await isReachable(`${siteOrigin}/api/health`)) return true;
+  return isReachable(siteOrigin);
+}
+
 type ResolvedCounts = { online: number | null; members: number | null };
 
 /**
@@ -296,7 +310,7 @@ async function resolveDiscordCounts(): Promise<ResolvedCounts> {
 
 async function refreshSnapshot(): Promise<void> {
   const [websiteOnline, primaryMinecraft, discord] = await Promise.all([
-    isReachable(siteOrigin),
+    isWebsiteUp(),
     fetchJson<MinecraftStatus>(`${siteOrigin}/api/status`),
     resolveDiscordCounts(),
     refreshRemoteConfig(),
