@@ -84,6 +84,21 @@ export function parsePlayerSample(players: unknown): OnlinePlayer[] {
   return sample;
 }
 
+/**
+ * The MOTD as shown on the site. Characters the Minecraft server could not
+ * encode (typically an emoji outside the Basic Multilingual Plane saved in its
+ * MOTD config) arrive as U+FFFD replacement characters — every status provider
+ * returns them — so drop them rather than show "��" to visitors.
+ */
+export function cleanMotd(value: string): string {
+  return value
+    .replace(/�+/g, "")
+    .split("\n")
+    .map((line) => line.replace(/[ \t]{2,}/g, " ").trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
 async function fetchStatusFrom(url: string, addresses: ServerAddresses): Promise<ServerStatus | null> {
   try {
     const res = await fetchWithDeadline(
@@ -107,7 +122,7 @@ async function fetchStatusFrom(url: string, addresses: ServerAddresses): Promise
       : data.version?.name ?? data.version?.name_clean ?? data.version?.name_raw ?? site.version;
 
     const motdValue = typeof data.motd === "string" ? data.motd : data.motd?.clean ?? data.motd?.raw ?? "";
-    const motd = Array.isArray(motdValue) ? motdValue.join(" ") : motdValue;
+    const motd = cleanMotd(Array.isArray(motdValue) ? motdValue.join(" ") : motdValue);
 
     return {
       online: data.online ?? true,
