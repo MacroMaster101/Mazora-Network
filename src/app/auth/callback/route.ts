@@ -3,7 +3,8 @@ import type { Role } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { dispatchSignInNotifications } from "@/lib/notifications-auto";
-import { landingPathFor, ROLES } from "@/lib/auth/roles";
+import { isRoleKey, landingPathFor, normalizeRoleKey } from "@/lib/auth/roles";
+import { ensureRoleCatalog } from "@/lib/data/roles";
 import { safeNext } from "@/lib/safe-redirect";
 import { resolvePublicOrigin } from "@/lib/site";
 
@@ -51,8 +52,10 @@ export async function GET(request: NextRequest) {
       }
       // No explicit destination → route by role (staff → their dashboard,
       // everyone else → home). An explicit `next` (e.g. account linking) wins.
-      const raw = data.user?.app_metadata?.role;
-      const role: Role = typeof raw === "string" && ROLES.includes(raw as Role) ? (raw as Role) : "member";
+      await ensureRoleCatalog();
+      // normalizeRoleKey: legacy key read as web_dev until migration 055 (removable after).
+      const raw = normalizeRoleKey(data.user?.app_metadata?.role);
+      const role: Role = typeof raw === "string" && isRoleKey(raw) ? raw : "member";
       const dest = next && next !== "/" ? next : landingPathFor(role);
       return NextResponse.redirect(new URL(dest, origin));
     }

@@ -71,7 +71,7 @@ export function describeBotAuditRow(
     return { kind: "role", label, detail: roleName ?? text(meta.roleId), actor, ok: meta.applied !== false };
   }
 
-  if (action === "role.change") {
+  if (action === "role.change" || action === "roles.assign") {
     const username = text(meta.username);
     const from = text(meta.from);
     const to = text(meta.to);

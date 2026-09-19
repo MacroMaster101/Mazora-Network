@@ -526,6 +526,21 @@ export const siteSettings = pgTable(
   (t) => ({ keyIdx: uniqueIndex("site_settings_key_idx").on(t.settingKey) }),
 );
 
+/** The role catalogue (migration 054). Accounts reference `key` via app_metadata.role. */
+export const roles = pgTable("roles", {
+  key: text("key").primaryKey(),
+  label: text("label").notNull(),
+  color: text("color").notNull(),
+  icon: text("icon"),
+  description: text("description").notNull().default(""),
+  kind: text("kind").notNull(),
+  position: integer("position").notNull().unique(),
+  locked: boolean("locked").notNull().default(false),
+  showOnTeam: boolean("show_on_team").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const suggestionReplies = pgTable(
   "suggestion_replies",
   {

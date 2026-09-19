@@ -1,61 +1,10 @@
 "use client";
 
-import type { DirectoryPlayer, Role } from "@/lib/types";
+import type { DirectoryPlayer } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { MinecraftAvatar } from "./minecraft-avatar";
+import { RankChip } from "@/components/admin/rank-chip";
 import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
-
-/* ------------------------------------------------------------------ */
-/*  Role badge styling — distinct colours per rank                     */
-/* ------------------------------------------------------------------ */
-
-const ROLE_BADGE_STYLES: Partial<Record<Role, { label: string; classes: string }>> = {
-  owner: {
-    label: "Owner",
-    classes:
-      "border-amber-400/80 bg-amber-100/90 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-300",
-  },
-  it: {
-    label: "IT",
-    classes:
-      "border-amber-400/80 bg-amber-100/90 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-300",
-  },
-  administrator: {
-    label: "Admin",
-    classes:
-      "border-rose-400/80 bg-rose-100/90 text-rose-900 dark:border-rose-500/40 dark:bg-rose-500/20 dark:text-rose-300",
-  },
-  senior_moderator: {
-    label: "Sr. Mod",
-    classes:
-      "border-sky-400/80 bg-sky-100/90 text-sky-900 dark:border-sky-500/40 dark:bg-sky-500/20 dark:text-sky-300",
-  },
-  moderator: {
-    label: "Mod",
-    classes:
-      "border-sky-400/80 bg-sky-100/90 text-sky-900 dark:border-sky-500/40 dark:bg-sky-500/20 dark:text-sky-300",
-  },
-  helper: {
-    label: "Helper",
-    classes:
-      "border-teal-400/80 bg-teal-100/90 text-teal-900 dark:border-teal-500/40 dark:bg-teal-500/20 dark:text-teal-300",
-  },
-  vip: {
-    label: "VIP",
-    classes:
-      "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-900 dark:border-fuchsia-500/40 dark:bg-fuchsia-500/20 dark:text-fuchsia-300",
-  },
-  sponsor: {
-    label: "Sponsor",
-    classes:
-      "border-orange-400/80 bg-orange-100/90 text-orange-900 dark:border-orange-500/40 dark:bg-orange-500/20 dark:text-orange-300",
-  },
-  member: {
-    label: "Member",
-    classes:
-      "border-purple-300/80 bg-purple-100/90 text-purple-800 dark:border-accent/40 dark:bg-accent/20 dark:text-accent-bright",
-  },
-};
 
 /* ------------------------------------------------------------------ */
 /*  Smart avatar: uploaded skin → Mojang skin → Steve fallback        */
@@ -99,11 +48,8 @@ export function PlayerSlot({
   player: DirectoryPlayer;
   onOpen: (username: string) => void;
 }) {
-  // Resolve badge: use role-specific styling for members, fallback for others
-  const roleBadge =
-    player.membership === "member" && player.role
-      ? ROLE_BADGE_STYLES[player.role] ?? ROLE_BADGE_STYLES.member
-      : null;
+  // Resolve badge: a rank chip for members, a fallback for everyone else
+  const showRoleBadge = player.membership === "member" && Boolean(player.role);
 
   return (
     <button
@@ -136,15 +82,8 @@ export function PlayerSlot({
           {player.username}
         </span>
         <div className="flex items-center gap-1">
-          {roleBadge ? (
-            <span
-              className={cn(
-                "rounded-md border px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider",
-                roleBadge.classes,
-              )}
-            >
-              {roleBadge.label}
-            </span>
+          {showRoleBadge && player.role ? (
+            <RankChip role={player.role} className="px-2 py-0.5 text-[10px]" />
           ) : player.online ? (
             <span className="rounded-md border border-emerald-300 bg-emerald-100/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-400">
               Online

@@ -10,7 +10,7 @@ import { accountMenuFor, type AccountMenuIcon as AccountMenuIconName } from "@/l
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { PresenceDot, PresencePill } from "@/components/presence/presence-dot";
-import { StatusPicker } from "@/components/presence/status-picker";
+import { StatusSection } from "@/components/presence/status-section";
 import type { PresenceChoice } from "@/lib/presence-rules";
 import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
@@ -452,10 +452,7 @@ export function HeaderActions({ session, presence = "online" }: { session: Sessi
               </div>
             </div>
 
-            <div className="border-b border-slate-200/80 p-2 dark:border-purple-900/40">
-              <p className="px-3 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Status</p>
-              <StatusPicker initial={status} onChange={setStatus} />
-            </div>
+            <StatusSection status={status} onChange={setStatus} className="border-b border-slate-200/80 p-2 dark:border-purple-900/40" />
 
             <nav className="account-menu-links p-2.5 grid gap-1" aria-label="Account navigation">
               {menu.map((m) => (

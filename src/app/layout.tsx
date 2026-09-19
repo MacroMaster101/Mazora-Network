@@ -9,6 +9,8 @@ import { themeNoFlashScript } from "@/components/theme/theme-provider";
 import { CookieConsent } from "@/components/shared/cookie-consent";
 import { ScrollResetOnReload } from "@/components/shared/scroll-reset-on-reload";
 import { pingDiscordPresence } from "@/lib/data/discord-presence-health";
+import { getRoleCatalogData } from "@/lib/data/roles";
+import { RoleCatalogBootstrap } from "@/components/auth/role-catalog-bootstrap";
 import "@/styles/globals.css";
 import "@/styles/world-themes.css";
 
@@ -112,6 +114,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // layout dynamic, which is already true of nearly every route on this site.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   const addresses = await getServerAddresses();
+  const roleCatalog = await getRoleCatalogData();
 
   return (
     <html
@@ -141,6 +144,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Skip to content
         </a>
         <Providers storeRequestsConfigured={Boolean(process.env.DISCORD_STORE_WEBHOOK_URL)} javaIp={addresses.javaIp}>
+          <RoleCatalogBootstrap roles={roleCatalog} />
           <ScrollResetOnReload />
           {children}
           <CookieConsent />

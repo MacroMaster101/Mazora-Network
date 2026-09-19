@@ -21,7 +21,7 @@ import type {
   VoteSite,
   TopVoter,
 } from "@/lib/types";
-import { roleLabel } from "@/lib/auth/roles";
+import { normalizeRoleKey, roleLabel } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -385,7 +385,8 @@ function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile): NewsArticle {
     authorRole: teamByline
       ? "Official Newsroom"
       : (liveAuthor?.role
-          ? roleLabel(liveAuthor.role as Parameters<typeof roleLabel>[0])
+          ? // normalizeRoleKey: profiles.role may still hold the legacy key until migration 055 (removable after).
+          roleLabel(normalizeRoleKey(liveAuthor.role))
           : (row.authorRole ?? row.discordAuthorRole ?? "News Publisher")),
     authorAvatar: teamByline
       ? (row.teamAvatarUrl ?? "/images/mazora-icon.png")
@@ -469,7 +470,8 @@ async function loadNews(): Promise<NewsArticle[]> {
             authorRole: teamByline
               ? "Official Newsroom"
               : (liveProfile?.role
-                  ? roleLabel(liveProfile.role as Parameters<typeof roleLabel>[0])
+                  ? // normalizeRoleKey: legacy key until migration 055 (removable after).
+                  roleLabel(normalizeRoleKey(liveProfile.role))
                   : String(row.author_role ?? row.discord_author_role ?? "News Publisher")),
             authorAvatar: teamByline
               ? (row.team_avatar_url ?? "/images/mazora-icon.png")

@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import type { Role } from "@/lib/types";
 import { getSession, hasAtLeast } from "@/lib/auth";
-import { ROLES } from "@/lib/auth/roles";
+import { isRoleKey, TOP_ROLE } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 import {
   alwaysAllowedFor,
+  isItOnlyModule,
   getModulePermissions,
   NEWS_PERMISSION_KEY,
   GALLERY_PERMISSION_KEY,
@@ -25,6 +26,7 @@ import {
   MINECRAFT_PERMISSION_KEY,
   USERS_PERMISSION_KEY,
   STAFF_PERMISSION_KEY,
+  ROLES_ASSIGN_PERMISSION_KEY,
   NOTIFICATIONS_PERMISSION_KEY,
   MAZORA_BOT_PERMISSION_KEY,
   ALL_PERMISSION_KEYS,
@@ -48,6 +50,9 @@ export async function saveModulePermissionAction(
   if (!session || !hasAtLeast(session.role, "owner")) {
     return { ok: false, message: "Only owners can change permissions." };
   }
+  if (isItOnlyModule(settingKey) && session.role !== TOP_ROLE) {
+    return { ok: false, message: "Only Web Dev can change this permission." };
+  }
   if (!PERMISSION_KEYS.includes(settingKey)) {
     return { ok: false, message: "Unknown permission module." };
   }
@@ -56,7 +61,7 @@ export async function saveModulePermissionAction(
 
   const selected = formData.getAll("roles").filter((v): v is string => typeof v === "string");
   const roles = Array.from(
-    new Set<Role>([...selected.filter((r): r is Role => ROLES.includes(r as Role)), ...alwaysAllowedFor(settingKey)])
+    new Set<Role>([...selected.filter((r): r is Role => isRoleKey(r)), ...alwaysAllowedFor(settingKey)])
   );
 
   const rawUserIds = formData.getAll("userIds");
@@ -138,6 +143,9 @@ export async function saveUsersPermissionsAction(fd: FormData) {
 }
 export async function saveStaffPermissionsAction(fd: FormData) {
   return saveModulePermissionAction(STAFF_PERMISSION_KEY, "Staff", fd);
+}
+export async function saveRolesAssignPermissionsAction(fd: FormData) {
+  return saveModulePermissionAction(ROLES_ASSIGN_PERMISSION_KEY, "Assign roles", fd);
 }
 export async function saveNotificationsPermissionsAction(fd: FormData) {
   return saveModulePermissionAction(NOTIFICATIONS_PERMISSION_KEY, "Notifications", fd);
