@@ -20,6 +20,8 @@ import { withCommas } from "@/lib/utils";
 import { headers } from "next/headers";
 import { getPreviewNews } from "@/lib/news/preview-fixtures";
 import { jsonLdGraph, organizationSchema, websiteSchema } from "@/lib/seo";
+import { getPublicContentCreators } from "@/lib/data/content-creators";
+import { CreatorShowcase } from "@/components/shared/creator-showcase";
 
 
 /**
@@ -38,12 +40,13 @@ export const metadata: Metadata = {
 };
 
 async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean; previewEmpty: boolean }) {
-  const [status, discord, publishedNews, generalSettings, copy] = await Promise.all([
+  const [status, discord, publishedNews, generalSettings, copy, featuredCreators] = await Promise.all([
     getServerStatus(),
     getDiscordStats(),
     getNews(),
     getSiteGeneralSettings(),
     getPageContent("home"),
+    getPublicContentCreators({ featuredOnly: true }),
   ]);
   const news = previewEmpty ? [] : previewNews ? getPreviewNews() : publishedNews;
   const configuredMapUrl = process.env.NEXT_PUBLIC_SERVER_MAP_URL?.trim();
@@ -260,6 +263,23 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
             </div>
           </Reveal>
         </section>
+
+        {featuredCreators.length > 0 && (
+          <section className="home-section shell py-10 sm:py-14">
+            <Reveal className="home-section-heading">
+              <div className="creator-home-heading">
+                <div>
+                  <h2>Creators to watch</h2>
+                  <p>Find the people streaming, filming, and sharing life across Mazora.</p>
+                </div>
+                <Link href="/support/content-creator" className="btn btn-ghost btn-sm creator-all-link">All creators <ArrowRight size={15} /></Link>
+              </div>
+            </Reveal>
+            <Reveal className="mt-7">
+              <CreatorShowcase creators={featuredCreators} compact />
+            </Reveal>
+          </section>
+        )}
 
         <section className="home-clean-join shell pb-20 pt-8 sm:pb-28 sm:pt-12">
           <Reveal>

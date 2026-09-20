@@ -14,6 +14,7 @@ export const GALLERY_PERMISSION_KEY = "gallery.permissions";
 export const PLAY_PERMISSION_KEY = "play.permissions";
 export const PAGES_PERMISSION_KEY = "pages.permissions";
 export const FORUMS_PERMISSION_KEY = "forums.permissions";
+export const CONTENT_CREATORS_PERMISSION_KEY = "content-creators.permissions";
 export const EVENTS_PERMISSION_KEY = "events.permissions";
 export const GAMEMODES_PERMISSION_KEY = "gamemodes.permissions";
 export const RULES_PERMISSION_KEY = "rules.permissions";
@@ -117,6 +118,7 @@ export const getModulePermissions = cache(async (key: string): Promise<ModulePer
 export const ALL_PERMISSION_KEYS = [
   PAGES_PERMISSION_KEY,
   FORUMS_PERMISSION_KEY,
+  CONTENT_CREATORS_PERMISSION_KEY,
   NEWS_PERMISSION_KEY,
   GALLERY_PERMISSION_KEY,
   PLAY_PERMISSION_KEY,
@@ -275,6 +277,7 @@ export async function getAdminNavAccess(
     staff: STAFF_PERMISSION_KEY,
     pages: PAGES_PERMISSION_KEY,
     forums: FORUMS_PERMISSION_KEY,
+    contentCreators: CONTENT_CREATORS_PERMISSION_KEY,
     play: PLAY_PERMISSION_KEY,
     news: NEWS_PERMISSION_KEY,
     events: EVENTS_PERMISSION_KEY,
