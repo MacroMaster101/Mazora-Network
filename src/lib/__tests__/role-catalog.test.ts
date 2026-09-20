@@ -189,7 +189,7 @@ test("the role catalogue loader dedupes repeated failure logs", () => {
   assert.match(src, /lastLoggedFailure: string \| null;/);
   assert.match(
     src,
-    /if \(message !== state.lastLoggedFailure\) \{\s*console\.error\("Role catalogue could not be loaded; keeping the last good catalogue \(built-ins if none\)", error\);\s*state\.lastLoggedFailure = message;\s*\}/,
+    /if \(message !== state\.lastLoggedFailure\) \{\s*(?:console\.error|reportDatabaseReadFailure)\("Role catalogue could not be loaded; keeping the last good catalogue \(built-ins if none\)", error\);\s*state\.lastLoggedFailure = message;\s*\}/,
   );
   assert.match(src, /state\.lastLoggedFailure = null;/);
 });

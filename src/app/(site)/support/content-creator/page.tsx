@@ -3,6 +3,8 @@ import { Camera, Radio, Video } from "lucide-react";
 import { FloatingBrandLogo, GoogleFormEmbed, PageHero } from "@/components/shared";
 import { getFormsConfig } from "@/lib/data/forms-config";
 import { getSupportCard } from "@/lib/data/support-settings";
+import { getPublicContentCreators } from "@/lib/data/content-creators";
+import { CreatorShowcase } from "@/components/shared/creator-showcase";
 
 export const metadata = publicPageMetadata({
   title: "Content Creator Program",
@@ -17,7 +19,11 @@ const paths = [
 ];
 
 export default async function ContentCreatorPage() {
-  const [config, supportCard] = await Promise.all([getFormsConfig(), getSupportCard("creator")]);
+  const [config, supportCard, creators] = await Promise.all([
+    getFormsConfig(),
+    getSupportCard("creator"),
+    getPublicContentCreators(),
+  ]);
   const form = config.creator;
   const page = supportCard.page!;
 
@@ -56,6 +62,15 @@ export default async function ContentCreatorPage() {
           disabled={!form.enabled}
           bulletPoints={page.details}
         />
+        {creators.length > 0 && (
+          <div className="creator-directory-section">
+            <div className="creator-directory-heading">
+              <h2>Meet our creators</h2>
+              <p>Select a creator to open every channel where they publish or stream.</p>
+            </div>
+            <CreatorShowcase creators={creators} />
+          </div>
+        )}
       </section>
     </>
   );

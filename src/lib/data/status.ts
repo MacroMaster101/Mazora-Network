@@ -182,11 +182,18 @@ async function fetchServerStatus(): Promise<ServerStatus> {
     `https://api.mcstatus.io/v2/status/java/${encodedAddress}`,
   ].filter((url, index, all): url is string => Boolean(url) && all.indexOf(url) === index);
 
-  for (const url of urls) {
-    const status = await fetchStatusFrom(url, addresses);
-    if (status) return status;
-  }
-  return fallback(addresses);
+  // Providers can disagree: one may fail to follow the server's SRV record and
+  // return a valid HTTP response with `online: false` while another reaches the
+  // same server successfully. Query the de-duplicated providers together and
+  // prefer any positive result. Only report offline when every responding
+  // provider agrees that no online server was found.
+  const statuses = await Promise.all(urls.map((url) => fetchStatusFrom(url, addresses)));
+  return selectPreferredStatus(statuses) ?? fallback(addresses);
+}
+
+export function selectPreferredStatus<T extends { online: boolean }>(statuses: Array<T | null>): T | null {
+  const reachable = statuses.filter((status): status is T => status !== null);
+  return reachable.find((status) => status.online) ?? reachable[0] ?? null;
 }
 
 export async function getServerStatus(): Promise<ServerStatus> {

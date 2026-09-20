@@ -71,7 +71,7 @@ export async function SiteFooter() {
           <span>
             © {year} {site.name}
           </span>
-          <nav aria-label="Legal" className="flex flex-wrap items-center gap-x-5 gap-y-2 md:justify-end">
+          <nav aria-label="Legal" className="flex w-full flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:w-auto sm:justify-end">
             {legalNav.map((l) => (
               <Link key={l.label} href={l.href} className="hover:text-ink">
                 {l.label}
