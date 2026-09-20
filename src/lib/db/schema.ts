@@ -368,6 +368,30 @@ export const creatorCodeProducts = pgTable(
   }),
 );
 
+export const contentCreators = pgTable(
+  "content_creators",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    profileImageUrl: text("profile_image_url"),
+    bio: text("bio"),
+    socials: jsonb("socials").default([]).notNull(),
+    publicVisible: boolean("public_visible").default(true).notNull(),
+    featuredOnHome: boolean("featured_on_home").default(false).notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdBy: uuid("created_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    publicIdx: index("content_creators_public_idx")
+      .on(t.featuredOnHome.desc(), t.sortOrder, t.createdAt.desc())
+      .where(sql`${t.publicVisible} = true`),
+    nameLengthCheck: check("content_creators_name_length", sql`char_length(${t.name}) between 1 and 80`),
+    bioLengthCheck: check("content_creators_bio_length", sql`${t.bio} is null or char_length(${t.bio}) <= 180`),
+  }),
+);
+
 export const voteSites = pgTable("vote_sites", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),

@@ -47,3 +47,28 @@ export function isValidSocialUrl(value: string): boolean {
     return false;
   }
 }
+
+/** Profile images must come from a host allowed by both CSP and next.config. */
+export function isValidCreatorImageUrl(value: string): boolean {
+  const input = value.trim();
+  if (!input) return true;
+  if (input.startsWith("/images/") && !input.includes("..")) return true;
+  try {
+    const url = new URL(input);
+    if (url.protocol !== "https:") return false;
+    const allowed = new Set([
+      "mc-heads.net",
+      "api.dicebear.com",
+      "cdn.discordapp.com",
+      "media.discordapp.net",
+      "lh3.googleusercontent.com",
+    ]);
+    if (allowed.has(url.hostname) || url.hostname.endsWith(".googleusercontent.com")) return true;
+    const storage = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    if (!storage) return false;
+    const storageUrl = new URL(storage);
+    return url.hostname === storageUrl.hostname && url.pathname.startsWith("/storage/v1/object/");
+  } catch {
+    return false;
+  }
+}

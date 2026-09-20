@@ -14,6 +14,7 @@ import { Input, Modal, Select, Textarea } from "@/components/ui";
 export const MODULE_LABELS: Record<(typeof ALL_PERMISSION_KEYS)[number], string> = {
   "pages.permissions": "Page Content Hub",
   "forums.permissions": "Community Forums",
+  "content-creators.permissions": "Content Creator Directory",
   "news.permissions": "Announcements & Newsroom",
   "gallery.permissions": "Community Gallery & Moderation",
   "play.permissions": "Play Page & Connection Settings",

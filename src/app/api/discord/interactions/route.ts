@@ -33,6 +33,7 @@ import {
   handleStaffNoticeCommand,
 } from "@/lib/discord/staff-notice-command";
 import { site } from "@/lib/site";
+import { readTextBodyLimited } from "@/lib/http/read-limited-body";
 
 /**
  * Discord interactions endpoint (HTTP-only bot — no gateway process).
@@ -51,6 +52,8 @@ import { site } from "@/lib/site";
  */
 
 const DISCORD_API = "https://discord.com/api/v10";
+/** Discord interaction documents are small JSON payloads; leave generous headroom. */
+const MAX_INTERACTION_BODY_BYTES = 256 * 1024;
 
 interface EmbedField {
   name: string;
@@ -753,7 +756,13 @@ export async function POST(request: Request) {
 
   const signature = request.headers.get("x-signature-ed25519");
   const timestamp = request.headers.get("x-signature-timestamp");
-  const rawBody = await request.text();
+  const body = await readTextBodyLimited(request, MAX_INTERACTION_BODY_BYTES);
+  if (!body.ok) {
+    return body.reason === "too_large"
+      ? json({ error: "request body too large" }, 413)
+      : json({ error: "request body could not be read" }, 400);
+  }
+  const rawBody = body.text;
   const timestampSeconds = Number(timestamp);
   const freshTimestamp = Number.isInteger(timestampSeconds)
     && Math.abs(Math.floor(Date.now() / 1000) - timestampSeconds) <= 5 * 60;
@@ -822,6 +831,9 @@ export async function POST(request: Request) {
     const first = await rateLimitShared(`discord-interaction:${interaction.id}`, {
       limit: 1,
       windowMs: 10 * 60_000,
+      // A replay guard that silently becomes per-instance during a Redis
+      // outage does not guard serverless instances from one another.
+      failureMode: "closed",
     });
     if (!first.ok) {
       // Type 6 (DEFERRED_UPDATE_MESSAGE) only makes sense as a reply to a

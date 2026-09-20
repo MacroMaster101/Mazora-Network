@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
+import { reportDatabaseReadFailure } from "@/lib/db/errors";
 import { BUILTIN_ROLES, normalizeRoleKey, roleCatalog, setRoleCatalog, type RoleDef, type RoleKind } from "@/lib/auth/role-catalog-core";
 
 /** How long one instance trusts its copy before re-reading the table. */
@@ -78,7 +79,7 @@ async function load(): Promise<void> {
     // instance — otherwise a persistent outage (e.g. migration 054 not yet
     // applied) logs the same error every CATALOG_TTL_MS forever.
     if (message !== state.lastLoggedFailure) {
-      console.error("Role catalogue could not be loaded; keeping the last good catalogue (built-ins if none)", error);
+      reportDatabaseReadFailure("Role catalogue could not be loaded; keeping the last good catalogue (built-ins if none)", error);
       state.lastLoggedFailure = message;
     }
     fallBackToBuiltIns();

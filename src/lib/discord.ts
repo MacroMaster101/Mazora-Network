@@ -230,8 +230,10 @@ export function channelUrl(guildId: string, channelId: string): string {
  * for someone who is no longer reachable, which is the exact failure the check
  * exists to prevent.
  */
-const memberCache = new Map<string, number>();
+const memberCache = new Map<string, { member: boolean; expiresAt: number }>();
 const MEMBER_CACHE_MS = 2 * 60 * 1000;
+/** Briefly cache a definite miss so a non-member cannot hammer Discord. */
+const NON_MEMBER_CACHE_MS = 20 * 1000;
 
 /**
  * Whether a Discord user is a member of the guild.
@@ -245,19 +247,19 @@ export async function isGuildMember(
   options?: { fresh?: boolean },
 ): Promise<boolean | null> {
   const cacheKey = `${guildId}:${userId}`;
-  const cachedUntil = memberCache.get(cacheKey);
+  const cached = memberCache.get(cacheKey);
   // `fresh` skips the cache for decisions that actually grant something — a
   // stale "yes" there would open a ticket for someone who has already left.
-  if (!options?.fresh && cachedUntil && cachedUntil > Date.now()) return true;
+  if (!options?.fresh && cached && cached.expiresAt > Date.now()) return cached.member;
 
   try {
     const res = await botRequest(token, `/guilds/${guildId}/members/${userId}`, undefined, "GET");
     if (res.ok) {
-      memberCache.set(cacheKey, Date.now() + MEMBER_CACHE_MS);
+      memberCache.set(cacheKey, { member: true, expiresAt: Date.now() + MEMBER_CACHE_MS });
       return true;
     }
     if (res.status === 404) {
-      memberCache.delete(cacheKey);
+      memberCache.set(cacheKey, { member: false, expiresAt: Date.now() + NON_MEMBER_CACHE_MS });
       return false;
     }
     console.error("Discord guild member lookup failed", res.status, res.json);
