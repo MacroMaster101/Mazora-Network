@@ -67,10 +67,11 @@ export function buildContentSecurityPolicy(
     // than as an error. googleusercontent is where Google account photos live.
     `img-src 'self' data: blob: https://mc-heads.net https://api.dicebear.com https://cdn.discordapp.com https://media.discordapp.net https://*.googleusercontent.com${supabaseImageOrigin ? ` ${supabaseImageOrigin}` : ""}`,
     "font-src 'self'",
-    // https: covers the env-configured Supabase host without hard-coding it.
-    // The Supabase realtime socket is allowed by exact host (live online
-    // panels); ws: is dev-only, for the hot-reload socket.
-    `connect-src 'self' https:${supabaseRealtimeOrigin ? ` ${supabaseRealtimeOrigin}` : ""}${isDev ? " ws:" : ""}`,
+    // Browser HTTP calls are same-origin. The Supabase realtime socket is
+    // allowed by exact host; ws: is dev-only for the hot-reload socket. A
+    // blanket `https:` source would let compromised client code exfiltrate to
+    // any HTTPS origin and defeats the point of connect-src.
+    `connect-src 'self'${supabaseRealtimeOrigin ? ` ${supabaseRealtimeOrigin}` : ""}${isDev ? " ws:" : ""}`,
     options.allowSameOriginFrameAncestors ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     "form-action 'self'",
     "base-uri 'self'",

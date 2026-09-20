@@ -9,6 +9,7 @@ import { listAccounts } from "@/lib/data/accounts";
 import type { BroadcastPriority } from "@/lib/data/notification-broadcasts";
 import { updateNotificationTemplate } from "@/lib/data/notification-templates";
 import { getDb, schema } from "@/lib/db/client";
+import { reportDatabaseReadFailure } from "@/lib/db/errors";
 import {
   roleMatchesNotificationAudience,
   type NotificationAudience,
@@ -98,7 +99,7 @@ export async function listMyNotificationsAction(): Promise<AccountNotification[]
       createdAt: row.createdAt.toISOString(),
     }));
   } catch (error) {
-    console.error("Notification list failed", error);
+    reportDatabaseReadFailure("Notification list failed", error);
     return [];
   }
 }

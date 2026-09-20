@@ -22,6 +22,7 @@ import {
   Vote,
   Receipt,
   PanelsTopLeft,
+  Video,
 } from "lucide-react";
 import type { Role } from "@/lib/types";
 import { hasAtLeast, isStaff } from "@/lib/auth/roles";
@@ -53,6 +54,7 @@ export interface AdminNavAccess {
   suggestions: boolean;
   staff: boolean;
   forums: boolean;
+  contentCreators: boolean;
   /** The page-content hub; each editor inside it still checks its own module. */
   pages: boolean;
   play: boolean;
@@ -76,6 +78,7 @@ export const ALL_ADMIN_NAV_ACCESS: AdminNavAccess = {
   suggestions: true,
   staff: true,
   forums: true,
+  contentCreators: true,
   pages: true,
   play: true,
   news: true,
@@ -106,6 +109,7 @@ export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
         { label: "Staff", href: "/admin/staff", icon: ShieldCheck, minRole: "owner", visible: access.staff },
         { label: "Roles", href: "/admin/roles", icon: Tags, minRole: "owner" },
         { label: "Forums", href: "/admin/forums", icon: MessagesSquare, minRole: "administrator", visible: access.forums },
+        { label: "Content Creators", href: "/admin/content-creators", icon: Video, minRole: "administrator", visible: access.contentCreators },
       ],
     },
     {

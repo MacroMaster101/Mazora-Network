@@ -109,7 +109,11 @@ function sharedStoreConfig(): { url: string; token: string } | null {
  */
 export async function rateLimitShared(
   key: string,
-  { limit, windowMs }: { limit: number; windowMs: number },
+  {
+    limit,
+    windowMs,
+    failureMode = "local",
+  }: { limit: number; windowMs: number; failureMode?: "local" | "closed" },
 ): Promise<RateLimitVerdict> {
   const config = sharedStoreConfig();
   if (!config) {
@@ -146,6 +150,16 @@ export async function rateLimitShared(
     };
   } catch (error) {
     // Never printed with the key's identity content — `key` holds only hashes.
+    if (failureMode === "closed") {
+      console.error("Shared rate limit unavailable; refusing a security-sensitive request:", error);
+      return {
+        ok: false,
+        remaining: 0,
+        // A short retry avoids claiming the whole auth window is exhausted;
+        // the next request may succeed as soon as Redis recovers.
+        retryAfter: Math.max(1, Math.min(60, Math.ceil(windowMs / 1000))),
+      };
+    }
     console.error("Shared rate limit unavailable; using per-instance window:", error);
     return rateLimit(key, { limit, windowMs });
   }
@@ -240,10 +254,23 @@ export async function throttleAuthAction(
     contain only truncated SHA-256 digests, never raw email or IP addresses.
   */
   const ipLimit = identity ? Math.max(limit * 5, 20) : limit;
-  const checks = [rateLimitShared(await actionClientKey(`${scope}:ip`), { limit: ipLimit, windowMs })];
+  const checks = [
+    rateLimitShared(await actionClientKey(`${scope}:ip`), {
+      limit: ipLimit,
+      windowMs,
+      // Missing configuration retains the documented local fallback, but once
+      // a production shared store is configured an outage must not silently
+      // turn a global credential limit into one independent limit per lambda.
+      failureMode: "closed",
+    }),
+  ];
   if (identity) {
     checks.push(
-      rateLimitShared(`${scope}:identity:${hashed(identity.trim().toLowerCase())}`, { limit, windowMs }),
+      rateLimitShared(`${scope}:identity:${hashed(identity.trim().toLowerCase())}`, {
+        limit,
+        windowMs,
+        failureMode: "closed",
+      }),
     );
   }
 

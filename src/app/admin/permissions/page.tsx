@@ -14,6 +14,7 @@ import {
   PLAY_PERMISSION_KEY,
   PAGES_PERMISSION_KEY,
   FORUMS_PERMISSION_KEY,
+  CONTENT_CREATORS_PERMISSION_KEY,
   EVENTS_PERMISSION_KEY,
   GAMEMODES_PERMISSION_KEY,
   RULES_PERMISSION_KEY,
@@ -36,6 +37,7 @@ import {
   savePlayPermissionsAction,
   savePagesPermissionsAction,
   saveForumsPermissionsAction,
+  saveContentCreatorsPermissionsAction,
   saveEventsPermissionsAction,
   saveGameModesPermissionsAction,
   saveRulesPermissionsAction,
@@ -216,6 +218,15 @@ export default async function AdminPermissionsPage() {
       selected: perms[FORUMS_PERMISSION_KEY].roles,
       userIds: perms[FORUMS_PERMISSION_KEY].userIds,
       saveAction: saveForumsPermissionsAction,
+    },
+    {
+      id: "content-creators",
+      category: "Community",
+      title: "Content Creator Directory",
+      description: "Manage public creator profiles, profile images, channel links, visibility, and homepage features.",
+      selected: perms[CONTENT_CREATORS_PERMISSION_KEY].roles,
+      userIds: perms[CONTENT_CREATORS_PERMISSION_KEY].userIds,
+      saveAction: saveContentCreatorsPermissionsAction,
     },
 
     // Commerce Modules

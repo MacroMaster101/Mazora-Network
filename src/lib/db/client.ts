@@ -10,6 +10,7 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
+import { databaseUrlForRuntime, isTransactionPoolerUrl } from "./connection-url";
 
 export type Database = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -51,8 +52,8 @@ function warnIfNotPooled(rawUrl: string) {
 
 export function getDb(): Database | null {
   if (cached !== undefined) return cached;
-  const url = process.env.DATABASE_URL;
-  if (!url) {
+  const configuredUrl = process.env.DATABASE_URL;
+  if (!configuredUrl) {
     cached = null;
     return cached;
   }
@@ -89,13 +90,21 @@ export function getDb(): Database | null {
     Raising `max` is NOT the fix on its own — it moves the exhaustion point from
     this pool to Supabase's, unless DATABASE_URL is the transaction-mode pooler.
   */
-  warnIfNotPooled(url);
+  warnIfNotPooled(configuredUrl);
+
+  const url = databaseUrlForRuntime(configuredUrl, process.env.NODE_ENV);
+  const maxConnections = isTransactionPoolerUrl(url) ? 10 : 3;
 
   const sql = postgres(url, {
     prepare: false,
-    max: 10,
+    // Session pooling keeps a backend per connection, so local development
+    // deliberately uses a smaller pool than serverless transaction pooling.
+    max: maxConnections,
     idle_timeout: 20,
-    connect_timeout: 10,
+    // A healthy pooler completes this in well under a second. Failing after
+    // five seconds keeps a temporary Supabase outage from holding every page
+    // request open for the 30 seconds seen in local development.
+    connect_timeout: 5,
     connection: {
       /*
         connect_timeout above only bounds *opening* a connection; a query that

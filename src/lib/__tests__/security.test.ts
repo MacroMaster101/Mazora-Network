@@ -297,6 +297,7 @@ describe("permission-aware admin navigation", () => {
     suggestions: false,
     staff: false,
     forums: false,
+    contentCreators: false,
     pages: false,
     play: false,
     news: false,
