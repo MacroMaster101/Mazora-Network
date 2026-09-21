@@ -38,9 +38,13 @@ export async function resolveCreatorCode(
   const code = await getRedeemableCreatorCode(rawCode);
   if (!code) return { ok: false, reason: "invalid" };
 
+  const hasSpecificProducts = code.productIds.length > 0;
   const eligibleIds = new Set(code.productIds);
   const result = applyCreatorCode(
-    lines.map((line) => ({ ...line, eligible: eligibleIds.has(line.productId) })),
+    lines.map((line) => ({
+      ...line,
+      eligible: !hasSpecificProducts || eligibleIds.has(line.productId),
+    })),
     code.percentOff,
   );
 

@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { getGameModes, getProducts } from "@/lib/data/content";
+import { getActivePublicDiscountAlerts } from "@/lib/data/creator-codes";
 import { getStoreFeaturedSlugs, getStoreRoadmap, getStoreWelcomeBanner } from "@/lib/data/store-settings";
 import { getStoreCategoryConfigs } from "@/lib/data/store-categories";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
@@ -67,7 +68,7 @@ export default async function StorePage({
 }: {
   searchParams: Promise<StoreSearchParams>;
 }) {
-  const [products, modes, params, featuredSlugs, welcomeBanner, roadmap, generalSettings] = await Promise.all([
+  const [products, modes, params, featuredSlugs, welcomeBanner, roadmap, generalSettings, discountAlerts] = await Promise.all([
     getProducts(),
     getGameModes(),
     searchParams,
@@ -75,6 +76,7 @@ export default async function StorePage({
     getStoreWelcomeBanner(),
     getStoreRoadmap(),
     getSiteGeneralSettings(),
+    getActivePublicDiscountAlerts(),
   ]);
   const categoryConfigs = await getStoreCategoryConfigs(modes);
   const view = resolveStoreView(params, modes, categoryConfigs, products);
@@ -185,6 +187,7 @@ export default async function StorePage({
               welcomeBanner={welcomeBanner}
               roadmap={roadmap}
               view={view}
+              discountAlerts={discountAlerts}
             />
           </Reveal>
         </section>

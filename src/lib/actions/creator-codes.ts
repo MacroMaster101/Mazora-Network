@@ -176,6 +176,10 @@ const codeSchema = z.object({
   enabled: z.coerce.boolean(),
   expiresAt: z.string().trim().optional().or(z.literal("")),
   internalNote: z.string().trim().max(500).optional().or(z.literal("")),
+  showPublicAlert: z.coerce.boolean().default(false),
+  alertHeadline: z.string().trim().max(120, "Headlines are at most 120 characters.").optional().or(z.literal("")),
+  alertBadge: z.string().trim().max(40, "Badges are at most 40 characters.").optional().or(z.literal("")),
+  alertPosition: z.enum(["bottom-right", "bottom-left"]).default("bottom-right"),
   productIds: z.array(z.string().uuid()).max(500),
 });
 
@@ -206,6 +210,10 @@ export async function saveCreatorCode(
     enabled: formData.get("enabled") === "on" || formData.get("enabled") === "true",
     expiresAt: formData.get("expiresAt") || "",
     internalNote: formData.get("internalNote") || "",
+    showPublicAlert: formData.get("showPublicAlert") === "on" || formData.get("showPublicAlert") === "true",
+    alertHeadline: formData.get("alertHeadline") || "",
+    alertBadge: formData.get("alertBadge") || "",
+    alertPosition: formData.get("alertPosition") || "bottom-right",
     productIds,
   });
 
@@ -253,6 +261,10 @@ export async function saveCreatorCode(
         enabled: parsed.data.enabled,
         expiresAt,
         internalNote: parsed.data.internalNote || null,
+        showPublicAlert: parsed.data.showPublicAlert,
+        alertHeadline: parsed.data.alertHeadline || null,
+        alertBadge: parsed.data.alertBadge || null,
+        alertPosition: parsed.data.alertPosition,
         updatedAt: new Date(),
       };
 
@@ -295,6 +307,7 @@ export async function saveCreatorCode(
       creatorName: parsed.data.creatorName,
       percentOff: parsed.data.percentOff,
       enabled: parsed.data.enabled,
+      showPublicAlert: parsed.data.showPublicAlert,
       productCount: parsed.data.productIds.length,
       by: session.username,
     },
@@ -304,6 +317,7 @@ export async function saveCreatorCode(
   revalidatePath("/admin/store/creator-codes/creators");
   revalidatePath("/admin/store/creator-codes/events");
   revalidatePath("/admin/store");
+  revalidatePath("/", "layout");
   return { ok: true, message: `Saved ${code}.` };
 }
 
@@ -374,5 +388,6 @@ export async function deleteCreatorCode(
   revalidatePath("/admin/store/creator-codes/creators");
   revalidatePath("/admin/store/creator-codes/events");
   revalidatePath("/admin/store");
+  revalidatePath("/", "layout");
   return { ok: true, message: "Code deleted." };
 }
