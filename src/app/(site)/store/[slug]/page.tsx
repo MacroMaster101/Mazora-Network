@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import { Check, Clock3, ShieldCheck } from "lucide-react";
 import { getGameModes, getProduct } from "@/lib/data/content";
 import { getStoreCategoryConfigs } from "@/lib/data/store-categories";
+import { getActivePublicDiscountAlerts, getBestDiscountAlert } from "@/lib/data/creator-codes";
 import { storeArtFor } from "@/lib/store-art";
 import { usd } from "@/lib/utils";
-import { Icon, Reveal } from "@/components/shared";
+import { Icon, Reveal, StoreDetailDiscountCallout } from "@/components/shared";
 import { TonePill } from "@/components/ui";
 import { AddToCartButton } from "@/components/shared/add-to-cart";
 import { StoreBackButton } from "@/components/shared/store-back-button";
@@ -51,8 +52,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [product, modes] = await Promise.all([getProduct(slug), getGameModes()]);
+  const [product, modes, discountAlerts] = await Promise.all([
+    getProduct(slug),
+    getGameModes(),
+    getActivePublicDiscountAlerts(),
+  ]);
   if (!product) notFound();
+  const discountAlert = getBestDiscountAlert(discountAlerts, product.id);
   const categoryConfigs = await getStoreCategoryConfigs(modes);
   const categoryConfig = categoryConfigs.find((config) => (
     config.gameModeSlug === (product.gameModeSlug ?? "survival-smp") && config.key === product.category
@@ -66,6 +72,19 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     ? product.category
     : productContext;
 
+  const isEligible = Boolean(
+    discountAlert &&
+      (discountAlert.isAllProducts ||
+        discountAlert.productIds.length === 0 ||
+        (product.id && discountAlert.productIds.includes(product.id))),
+  );
+  const discountedPrice = isEligible && discountAlert
+    ? Math.max(Math.round(currentPrice * (1 - discountAlert.percentOff / 100) * 100) / 100, 0)
+    : null;
+  const savings = discountedPrice != null
+    ? Math.round((currentPrice - discountedPrice) * 100) / 100
+    : 0;
+
   return (
     <section className="store-detail-page">
       <JsonLd
@@ -75,7 +94,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             name: product.name,
             description: product.description,
             imageUrl: storeArtFor(product),
-            price: currentPrice,
+            price: discountedPrice ?? currentPrice,
           }),
           breadcrumbSchema([
             { name: "Store", path: "/store" },
@@ -95,11 +114,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             sizes="(max-width: 1024px) 100vw, 55vw"
           />
           <span className="store-detail-media-glow" aria-hidden="true" />
-          {product.badge && (
-            <span className="absolute left-5 top-5 flex gap-2">
-              <TonePill tone={product.accent}>{product.badge}</TonePill>
-            </span>
-          )}
+          <div className="absolute left-5 top-5 z-10 flex flex-wrap items-center gap-2">
+            {product.badge && <TonePill tone={product.accent}>{product.badge}</TonePill>}
+            {isEligible && discountAlert && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/50 bg-violet-600/90 px-3 py-1 text-xs font-black tracking-wide text-white shadow-lg backdrop-blur-md">
+                🏷️ {discountAlert.percentOff}% OFF
+              </span>
+            )}
+          </div>
           <span className="store-detail-media-caption">
             <small>{mediaLabel}</small>
             <strong>{product.name}</strong>
@@ -113,16 +135,43 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <h1 className="mt-3 text-4xl font-black tracking-[-0.045em] sm:text-5xl">{product.name}</h1>
           <p className="mt-4 text-base leading-relaxed text-muted">{product.description}</p>
 
-          <div className="store-detail-price mt-7 flex items-end gap-3 border-y py-5">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Price</span>
-              <div className="telemetry mt-1 flex items-baseline gap-2">
-                <span className="text-4xl font-black">{usd(currentPrice)}</span>
-                <span className="text-sm font-semibold text-muted uppercase">USD</span>
-                {onSale && <span className="text-lg text-muted line-through ml-2">{usd(product.price)}</span>}
+          <div className="store-detail-price mt-7 border-y py-5">
+            {isEligible && discountAlert && discountedPrice != null ? (
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Price</span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/15 px-2.5 py-0.5 text-xs font-black text-violet-700 dark:text-violet-200">
+                    Save {usd(savings)} ({discountAlert.percentOff}% OFF)
+                  </span>
+                </div>
+                <div className="telemetry mt-1 flex flex-wrap items-baseline gap-2.5">
+                  <span className="text-4xl font-black text-violet-600 dark:text-violet-300">
+                    {usd(discountedPrice)}
+                  </span>
+                  <span className="text-xl text-muted line-through ml-1">{usd(currentPrice)}</span>
+                  <span className="text-sm font-semibold text-muted uppercase">USD</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Price</span>
+                <div className="telemetry mt-1 flex items-baseline gap-2">
+                  <span className="text-4xl font-black">{usd(currentPrice)}</span>
+                  <span className="text-sm font-semibold text-muted uppercase">USD</span>
+                  {onSale && <span className="text-lg text-muted line-through ml-2">{usd(product.price)}</span>}
+                </div>
+              </div>
+            )}
           </div>
+
+          {isEligible && discountAlert && discountedPrice != null && (
+            <StoreDetailDiscountCallout
+              code={discountAlert.code}
+              percentOff={discountAlert.percentOff}
+              badge={discountAlert.badge}
+              savingsFormatted={usd(savings)}
+            />
+          )}
 
           <div className="mt-6">
             <h2 className="text-sm font-bold">What&apos;s included</h2>

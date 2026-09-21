@@ -343,6 +343,11 @@ export const creatorCodes = pgTable(
     enabled: boolean("enabled").default(true).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     internalNote: text("internal_note"),
+    /** Whether to feature this discount code as a floating alert across all public pages. */
+    showPublicAlert: boolean("show_public_alert").default(false).notNull(),
+    alertHeadline: text("alert_headline"),
+    alertBadge: text("alert_badge"),
+    alertPosition: text("alert_position").default("bottom-right").notNull(),
     createdBy: uuid("created_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -350,6 +355,7 @@ export const creatorCodes = pgTable(
   (t) => ({
     codeIdx: uniqueIndex("creator_codes_code_idx").on(t.code),
     typeIdx: index("creator_codes_type_idx").on(t.codeType, t.createdAt.desc()),
+    publicAlertIdx: index("creator_codes_public_alert_idx").on(t.showPublicAlert, t.enabled).where(sql`${t.showPublicAlert} = true`),
     percentCheck: check("creator_codes_percent_range", sql`${t.percentOff} between 1 and 90`),
     typeCheck: check("creator_codes_type_check", sql`${t.codeType} in ('creator', 'event')`),
   }),

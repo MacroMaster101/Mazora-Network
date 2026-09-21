@@ -8,12 +8,35 @@ import { usd } from "@/lib/utils";
 import { useCart } from "./cart-provider";
 import { TonePill } from "@/components/ui";
 import { StoreArtwork } from "./store-artwork";
+import { type PublicDiscountAlert, getBestDiscountAlert } from "@/lib/store-discount";
 
-export function ProductCard({ product, onOpenDetails }: { product: Product; onOpenDetails?: () => void }) {
+export function ProductCard({
+  product,
+  onOpenDetails,
+  discountAlert,
+  discountAlerts,
+}: {
+  product: Product;
+  onOpenDetails?: () => void;
+  discountAlert?: PublicDiscountAlert | null;
+  discountAlerts?: PublicDiscountAlert[] | null;
+}) {
   const { add, openCart } = useCart();
   const onSale = product.salePrice != null;
   const currentPrice = product.salePrice ?? product.price;
   const discount = onSale ? Math.round((1 - currentPrice / product.price) * 100) : 0;
+
+  const resolvedAlert = discountAlert ?? getBestDiscountAlert(discountAlerts, product.id);
+
+  const isEligibleForAlert = Boolean(
+    resolvedAlert &&
+      (resolvedAlert.isAllProducts ||
+        resolvedAlert.productIds.length === 0 ||
+        (product.id && resolvedAlert.productIds.includes(product.id))),
+  );
+  const alertDiscountPrice = isEligibleForAlert && resolvedAlert
+    ? Math.max(Math.round(currentPrice * (1 - resolvedAlert.percentOff / 100) * 100) / 100, 0)
+    : null;
   
   /*
     Where the product's name goes: over the artwork, or under it.
@@ -57,11 +80,19 @@ export function ProductCard({ product, onOpenDetails }: { product: Product; onOp
         <span className="store-product-view">
           View details <ArrowUpRight size={13} />
         </span>
-        <span className="absolute left-3 top-3 flex flex-wrap gap-2">
+        <span className="absolute left-3 top-3 z-10 flex flex-wrap gap-2">
           {product.badge && <TonePill tone={product.accent}>{product.badge}</TonePill>}
           {onSale && (
             <span className="rounded-full border border-emerald-300/25 bg-emerald-400/15 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-100 backdrop-blur-md">
               Save {discount}%
+            </span>
+          )}
+          {isEligibleForAlert && resolvedAlert && (
+            <span
+              className="rounded-full border border-violet-400/40 bg-violet-600/90 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-xs backdrop-blur-md"
+              title={`${resolvedAlert.percentOff}% off with code ${resolvedAlert.code}`}
+            >
+              🏷️ {resolvedAlert.percentOff}% OFF
             </span>
           )}
         </span>
@@ -107,10 +138,29 @@ export function ProductCard({ product, onOpenDetails }: { product: Product; onOp
           <div>
             <span className="store-product-currency block text-[9px] font-bold uppercase tracking-widest text-muted">Price</span>
             <div className="telemetry mt-0.5 flex items-baseline gap-1.5">
-              <span className="store-product-amount text-xl font-extrabold text-ink">{usd(currentPrice)}</span>
-              <span className="text-[10px] font-semibold text-muted uppercase">USD</span>
-              {onSale && <span className="text-xs text-muted/60 line-through ml-1">{usd(product.price)}</span>}
+              {alertDiscountPrice != null && resolvedAlert ? (
+                <>
+                  <span className="store-product-amount text-xl font-extrabold text-violet-700 dark:text-accent-bright">
+                    {usd(alertDiscountPrice)}
+                  </span>
+                  <span className="text-[10px] font-semibold text-muted uppercase">USD</span>
+                  <span className="text-xs text-muted/70 line-through ml-1">
+                    {usd(currentPrice)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="store-product-amount text-xl font-extrabold text-ink">{usd(currentPrice)}</span>
+                  <span className="text-[10px] font-semibold text-muted uppercase">USD</span>
+                  {onSale && <span className="text-xs text-muted/60 line-through ml-1">{usd(product.price)}</span>}
+                </>
+              )}
             </div>
+            {isEligibleForAlert && resolvedAlert && (
+              <span className="block text-[10px] font-semibold text-violet-700 dark:text-violet-300">
+                with code {resolvedAlert.code}
+              </span>
+            )}
           </div>
           <button
             type="button"

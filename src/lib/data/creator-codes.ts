@@ -1,7 +1,9 @@
 import "server-only";
-import { and, desc, eq, getTableColumns, isNotNull, ne, sql } from "drizzle-orm";
+import { cache } from "react";
+import { and, desc, eq, getTableColumns, gt, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { SOCIAL_PLATFORM_KEYS, type CreatorSocial } from "@/lib/creator-socials";
+import { getProducts } from "@/lib/data/content";
 
 /**
  * Creator code repositories. Reads only — writes go through the validated
@@ -24,10 +26,24 @@ export interface CreatorCode {
   enabled: boolean;
   expiresAt: string | null;
   internalNote: string | null;
+  showPublicAlert: boolean;
+  alertHeadline: string | null;
+  alertBadge: string | null;
+  alertPosition: "bottom-right" | "bottom-left";
   /** Hand-picked eligibility. Empty means the code discounts nothing. */
   productIds: string[];
   createdAt: string;
 }
+
+import type {
+  PublicDiscountAlertProduct,
+  PublicDiscountAlert,
+} from "@/lib/store-discount";
+export type {
+  PublicDiscountAlertProduct,
+  PublicDiscountAlert,
+} from "@/lib/store-discount";
+export { getBestDiscountAlert } from "@/lib/store-discount";
 
 export interface CreatorCodeStats {
   codeId: string;
@@ -91,6 +107,10 @@ function toCreatorCode(
     enabled: row.enabled,
     expiresAt: optionalDateIso(row.expiresAt),
     internalNote: row.internalNote,
+    showPublicAlert: Boolean(row.showPublicAlert),
+    alertHeadline: row.alertHeadline,
+    alertBadge: row.alertBadge,
+    alertPosition: row.alertPosition === "bottom-left" ? "bottom-left" : "bottom-right",
     productIds,
     createdAt: row.createdAt.toISOString(),
   };
@@ -230,3 +250,104 @@ export async function getCreatorCodeStats(): Promise<Map<string, CreatorCodeStat
   }
   return stats;
 }
+
+/**
+ * Returns all currently active public discount promotions to display across
+ * website pages as an interactive floating carousel.
+ * Cached per-request using React cache().
+ */
+export const getActivePublicDiscountAlerts = cache(loadActivePublicDiscountAlerts);
+
+/**
+ * Returns the primary (most recent) active public discount promotion.
+ * Kept for backward compatibility.
+ */
+export async function getActivePublicDiscountAlert(): Promise<PublicDiscountAlert | null> {
+  const alerts = await getActivePublicDiscountAlerts();
+  return alerts[0] ?? null;
+}
+
+
+
+async function loadActivePublicDiscountAlerts(): Promise<PublicDiscountAlert[]> {
+  const db = getDb();
+  if (!db) return [];
+  try {
+    const now = new Date();
+    const rows = await db
+      .select()
+      .from(schema.creatorCodes)
+      .where(
+        and(
+          eq(schema.creatorCodes.showPublicAlert, true),
+          eq(schema.creatorCodes.enabled, true),
+          or(
+            isNull(schema.creatorCodes.expiresAt),
+            gt(schema.creatorCodes.expiresAt, now),
+          ),
+        ),
+      )
+      .orderBy(desc(schema.creatorCodes.createdAt))
+      .limit(8);
+
+    if (rows.length === 0) return [];
+
+    const rowIds = rows.map((r) => r.id);
+
+    // Fetch hand-picked product associations in a single query
+    const codeProducts = await db
+      .select({ codeId: schema.creatorCodeProducts.codeId, productId: schema.creatorCodeProducts.productId })
+      .from(schema.creatorCodeProducts)
+      .where(inArray(schema.creatorCodeProducts.codeId, rowIds));
+
+    const productIdsByCode = new Map<string, string[]>();
+    for (const item of codeProducts) {
+      const list = productIdsByCode.get(item.codeId) ?? [];
+      list.push(item.productId);
+      productIdsByCode.set(item.codeId, list);
+    }
+
+    // Load active products once to map previews
+    const allProducts = await getProducts();
+    const allProductsPreview: PublicDiscountAlertProduct[] = allProducts.map((p) => ({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      price: p.price,
+      salePrice: p.salePrice ?? null,
+      category: p.category,
+      subcategory: p.subcategory ?? null,
+      accent: p.accent,
+      image: p.imageUrl ?? null,
+    }));
+
+    return rows.map((row) => {
+      const productIds = productIdsByCode.get(row.id) ?? [];
+      const isAllProducts = productIds.length === 0;
+      const eligibleProducts = isAllProducts
+        ? allProductsPreview
+        : allProductsPreview.filter((p) => Boolean(p.id && productIds.includes(p.id)));
+
+      const defaultBadge = row.codeType === "event" ? "SPECIAL EVENT" : "CREATOR CODE";
+      const defaultHeadline = `${row.percentOff}% off eligible items with code ${row.code}`;
+
+      return {
+        code: row.code,
+        codeType: row.codeType === "event" ? "event" : "creator",
+        creatorName: row.creatorName,
+        percentOff: row.percentOff,
+        badge: row.alertBadge?.trim() || defaultBadge,
+        headline: row.alertHeadline?.trim() || defaultHeadline,
+        position: "bottom-right",
+        expiresAt: optionalDateIso(row.expiresAt),
+        productIds,
+        eligibleProducts,
+        isAllProducts,
+      };
+    });
+  } catch (err) {
+    console.error("Failed to load active public discount alerts:", err);
+    return [];
+  }
+}
+
