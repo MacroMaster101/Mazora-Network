@@ -96,3 +96,46 @@ export function applyCreatorCode(
     total: toMoney(subtotalCents - discountCents),
   };
 }
+
+export interface PublicDiscountAlertProduct {
+  id?: string;
+  name: string;
+  slug: string;
+  price: number;
+  salePrice: number | null;
+  category: string;
+  subcategory: string | null;
+  accent?: string;
+  image: string | null;
+}
+
+export interface PublicDiscountAlert {
+  code: string;
+  codeType: "creator" | "event";
+  creatorName: string;
+  percentOff: number;
+  badge: string;
+  headline: string;
+  position: "bottom-right" | "bottom-left";
+  expiresAt: string | null;
+  productIds: string[];
+  eligibleProducts: PublicDiscountAlertProduct[];
+  isAllProducts: boolean;
+}
+
+/**
+ * Resolves the most lucrative active discount promotion for a given product ID.
+ * If multiple promotions discount the same product, the highest discount percentage wins.
+ */
+export function getBestDiscountAlert(
+  alerts: PublicDiscountAlert[] | null | undefined,
+  productId?: string,
+): PublicDiscountAlert | null {
+  if (!alerts || alerts.length === 0) return null;
+  const eligible = alerts.filter(
+    (a) => a.isAllProducts || a.productIds.length === 0 || (productId && a.productIds.includes(productId)),
+  );
+  if (eligible.length === 0) return null;
+  return eligible.reduce((best, curr) => (curr.percentOff > best.percentOff ? curr : best), eligible[0]);
+}
+

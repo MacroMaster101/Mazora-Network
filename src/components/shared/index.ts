@@ -35,3 +35,6 @@ export {
   NOTIFICATION_CATEGORY_CHIPS,
   NOTIFICATION_SENDER_LABELS,
 } from "./notification-detail-dialog";
+export { FloatingDiscountAlert } from "./floating-discount-alert";
+export { EligibleItemsModal } from "./eligible-items-modal";
+export { StoreDetailDiscountCallout } from "./store-detail-discount-callout";

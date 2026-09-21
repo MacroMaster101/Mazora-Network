@@ -10,6 +10,7 @@ import { ProductCard } from "./product-card";
 import { RankOfferCard } from "./rank-offer-card";
 import { Icon } from "./icon";
 import { cn } from "@/lib/utils";
+import type { PublicDiscountAlert } from "@/lib/store-discount";
 import {
   buildStoreHref,
   readStoreReturnState,
@@ -85,6 +86,8 @@ export function StoreExplorer({
   welcomeBanner = DEFAULT_STORE_WELCOME_BANNER,
   roadmap = DEFAULT_STORE_ROADMAP,
   view,
+  discountAlert,
+  discountAlerts,
 }: {
   products: Product[];
   modes: GameMode[];
@@ -93,6 +96,8 @@ export function StoreExplorer({
   welcomeBanner?: StoreWelcomeBannerConfig;
   roadmap?: StoreRoadmapConfig;
   view: StoreViewState;
+  discountAlert?: PublicDiscountAlert | null;
+  discountAlerts?: PublicDiscountAlert[] | null;
 }) {
   const availableModes = modes;
 
@@ -465,7 +470,7 @@ export function StoreExplorer({
               {newArrivals.map((product, index) => (
                 <div key={product.slug} className="store-home-featured-v3-item">
                   <span className="store-home-featured-v3-index telemetry">{String(index + 1).padStart(2, "0")}</span>
-                  <ProductCard product={product} onOpenDetails={rememberStorePosition} />
+                  <ProductCard product={product} onOpenDetails={rememberStorePosition} discountAlert={discountAlert} discountAlerts={discountAlerts} />
                 </div>
               ))}
             </div>
@@ -538,7 +543,7 @@ export function StoreExplorer({
                 {category === "Ranks" ? (
                   <div className="store-rank-grid">
                     {rankFamilies(categoryProducts).map((rank) => (
-                      <RankOfferCard key={rank.family} family={rank.family} products={rank.products} onOpenDetails={rememberStorePosition} />
+                      <RankOfferCard key={rank.family} family={rank.family} products={rank.products} onOpenDetails={rememberStorePosition} discountAlert={discountAlert} discountAlerts={discountAlerts} />
                     ))}
                   </div>
                 ) : category === "Add-ons" ? (
@@ -552,7 +557,7 @@ export function StoreExplorer({
                         </div>
                         <div className={cn("store-product-deck", group.products.length > 3 && "store-product-grid")} data-count={group.products.length}>
                           {group.products.map((product) => (
-                            <ProductCard key={product.slug} product={product} onOpenDetails={rememberStorePosition} />
+                            <ProductCard key={product.slug} product={product} onOpenDetails={rememberStorePosition} discountAlert={discountAlert} discountAlerts={discountAlerts} />
                           ))}
                         </div>
                       </div>
@@ -561,7 +566,7 @@ export function StoreExplorer({
                 ) : (
                   <div className={cn("store-product-deck", categoryProducts.length > 3 && "store-product-grid")} data-count={categoryProducts.length}>
                     {categoryProducts.map((product) => (
-                      <ProductCard key={product.slug} product={product} onOpenDetails={rememberStorePosition} />
+                      <ProductCard key={product.slug} product={product} onOpenDetails={rememberStorePosition} discountAlert={discountAlert} discountAlerts={discountAlerts} />
                     ))}
                   </div>
                 )}

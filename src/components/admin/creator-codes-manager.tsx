@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState, startTransition } from "react";
-import { AlertTriangle, Check, ChevronDown, Link2, Loader2, Pencil, Plus, Trash2, Wand2, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Link2, Loader2, Megaphone, Pencil, Plus, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import { SocialIcon } from "@/components/admin/social-icons";
 import {
   saveCreatorCode,
@@ -38,6 +38,10 @@ interface Draft {
   /** "YYYY-MM-DD" from the date input, or "" for no expiry. */
   expiresAt: string;
   internalNote: string;
+  showPublicAlert: boolean;
+  alertHeadline: string;
+  alertBadge: string;
+  alertPosition: "bottom-right" | "bottom-left";
   socials: CreatorSocial[];
   productIds: string[];
 }
@@ -51,6 +55,10 @@ const emptyDraft: Draft = {
   enabled: true,
   expiresAt: "",
   internalNote: "",
+  showPublicAlert: false,
+  alertHeadline: "",
+  alertBadge: "",
+  alertPosition: "bottom-right",
   socials: [],
   productIds: [],
 };
@@ -168,6 +176,10 @@ function toDraft(code: CreatorCode): Draft {
     */
     expiresAt: code.expiresAt ? String(code.expiresAt).slice(0, 10) : "",
     internalNote: code.internalNote ?? "",
+    showPublicAlert: code.showPublicAlert ?? false,
+    alertHeadline: code.alertHeadline ?? "",
+    alertBadge: code.alertBadge ?? "",
+    alertPosition: code.alertPosition ?? "bottom-right",
     socials: code.socials.map((item) => ({ ...item })),
     productIds: [...code.productIds],
   };
@@ -261,6 +273,10 @@ export function CreatorCodesManager({
     */
     data.append("expiresAt", draft.expiresAt ? `${draft.expiresAt}T23:59:59Z` : "");
     data.append("internalNote", draft.internalNote);
+    data.append("showPublicAlert", draft.showPublicAlert ? "true" : "false");
+    data.append("alertHeadline", draft.alertHeadline);
+    data.append("alertBadge", draft.alertBadge);
+    data.append("alertPosition", draft.alertPosition);
     data.append("socials", JSON.stringify(draft.socials.filter((item) => item.url.trim())));
     data.append("productIds", JSON.stringify(draft.productIds));
     startTransition(() => saveAction(data));
@@ -284,6 +300,10 @@ export function CreatorCodesManager({
     data.append("enabled", code.enabled ? "false" : "true");
     data.append("expiresAt", code.expiresAt ?? "");
     data.append("internalNote", code.internalNote ?? "");
+    data.append("showPublicAlert", code.showPublicAlert ? "true" : "false");
+    data.append("alertHeadline", code.alertHeadline ?? "");
+    data.append("alertBadge", code.alertBadge ?? "");
+    data.append("alertPosition", code.alertPosition ?? "bottom-right");
     data.append("socials", JSON.stringify(code.socials));
     data.append("productIds", JSON.stringify(code.productIds));
     startTransition(() => saveAction(data));
@@ -320,6 +340,11 @@ export function CreatorCodesManager({
         <span>
           <span className="telemetry block font-bold text-accent-bright">{code.code}</span>
           <span className="block text-xs text-muted">{code.creatorName}</span>
+          {code.showPublicAlert && (
+            <span className="mt-1 inline-flex items-center gap-1 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+              <Megaphone size={10} aria-hidden="true" /> Alert active
+            </span>
+          )}
           {code.codeType === "creator" && code.socials.length > 0 && (
             <span className="creator-code-social-links" aria-label={`${code.creatorName} social links`}>
               {code.socials.map((social) => (
@@ -585,6 +610,96 @@ export function CreatorCodesManager({
                   />
                 </FormRow>
               </div>
+            </section>
+
+            {/* --- Storefront floating alert -------------------------------- */}
+            <section className="creator-code-section">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="creator-code-section-title">Storefront discount alert</h3>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Show an interactive floating discount cloud across all website pages to announce this promotion.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={draft.showPublicAlert}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                    draft.showPublicAlert ? "bg-accent" : "bg-ink/20"
+                  }`}
+                  onClick={() => setDraft({ ...draft, showPublicAlert: !draft.showPublicAlert })}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      draft.showPublicAlert ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {draft.showPublicAlert && (
+                <div className="mt-4 space-y-4 rounded-xl border border-line/60 bg-ink/5 p-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormRow label="Badge text (optional)" htmlFor="cc-alert-badge" error={saveState.errors?.alertBadge}>
+                      <Input
+                        id="cc-alert-badge"
+                        value={draft.alertBadge}
+                        maxLength={40}
+                        placeholder={isCreator ? "CREATOR PERK" : "LIMITED TIME"}
+                        onChange={(event) => setDraft({ ...draft, alertBadge: event.target.value })}
+                      />
+                    </FormRow>
+                    <FormRow label="Custom promo headline (optional)" htmlFor="cc-alert-headline" error={saveState.errors?.alertHeadline}>
+                      <Input
+                        id="cc-alert-headline"
+                        value={draft.alertHeadline}
+                        maxLength={120}
+                        placeholder={
+                          isCreator
+                            ? `Support ${draft.creatorName || "our partner"} with ${draft.percentOff}% off!`
+                            : `${draft.creatorName || "Launch"}: ${draft.percentOff}% off eligible items!`
+                        }
+                        onChange={(event) => setDraft({ ...draft, alertHeadline: event.target.value })}
+                      />
+                    </FormRow>
+                  </div>
+
+                  {/* Interactive live preview */}
+                  <div className="pt-1">
+                    <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-muted">
+                      Live Storefront Preview
+                    </span>
+                    <div className="relative overflow-hidden rounded-2xl border border-violet-200/90 bg-white p-3.5 shadow-md dark:border-violet-500/40 dark:bg-[#181126]/95">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-violet-700 dark:border-violet-500/40 dark:bg-violet-500/20 dark:text-violet-200">
+                            <Sparkles size={11} aria-hidden="true" />
+                            {draft.alertBadge.trim() || (isCreator ? "CREATOR PERK" : "LIMITED TIME")}
+                          </span>
+                          <p className="mt-1.5 text-xs font-bold text-slate-900 dark:text-white">
+                            {draft.alertHeadline.trim() || `${draft.percentOff}% off eligible items with code ${previewCode || "CODE"}`}
+                          </p>
+                          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                            <span className="telemetry inline-block rounded-lg border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-mono font-bold text-violet-700 dark:border-violet-500/30 dark:bg-white/5 dark:text-violet-200">
+                              {previewCode || "CODE"}
+                            </span>
+                            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                              · {draft.percentOff}% OFF
+                            </span>
+                            {draft.expiresAt && (
+                              <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                                · Expires {draft.expiresAt}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* --- Creator socials ------------------------------------------- */}
