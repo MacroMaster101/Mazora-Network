@@ -168,7 +168,6 @@ export const gameModes = pgTable(
     slug: text("slug").notNull(),
     description: text("description"),
     imageUrl: text("image_url"),
-    serverAddress: text("server_address"),
     playerCount: integer("player_count").default(0).notNull(),
     icon: text("icon").default("gamepad-2").notNull(),
     accent: text("accent").default("violet").notNull(),
@@ -271,10 +270,6 @@ export const orders = pgTable("orders", {
   // without retaining an auth identifier for the deleted account.
   userId: uuid("user_id"),
   totalAmount: numeric("total_amount").notNull(),
-  // Reserved for a future card provider. The manual Discord flow uses `status`.
-  paymentStatus: text("payment_status").notNull().default("pending"),
-  paymentProvider: text("payment_provider"),
-  externalPaymentId: text("external_payment_id"),
   // --- manual Discord order flow (013) ---
   /** Public MZ-YYYYMMDD-XXXXXX code the buyer quotes to staff. */
   reference: text("reference"),
@@ -326,6 +321,76 @@ export const orderItems = pgTable("order_items", {
   priceCheck: check("order_items_price_nonneg", sql`${t.price} >= 0`),
 }));
 
+/**
+ * The staff-issued invoice for an order.
+ *
+ * Deliberately a separate table rather than more columns on `orders`: an order
+ * is the buyer's request and exists the moment they submit it, while an invoice
+ * is a document staff choose to issue afterwards, and most orders never get
+ * one. One row per order, so re-opening the dialog edits the same invoice
+ * instead of minting a second number for the same purchase.
+ *
+ * Money is NOT copied here. Totals are always re-read from the order and its
+ * line items, so an invoice can never drift from what was actually charged.
+ * `adjustment` is the one figure staff add on top, and it is stored signed so a
+ * credit is just a negative number.
+ */
+export const orderInvoices = pgTable("order_invoices", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  /**
+   * Null for a standalone invoice staff built by hand — most sales are arranged
+   * in Discord and never become an `orders` row. When set, the money is read
+   * from the order so the document cannot drift from what was charged.
+   */
+  orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }),
+  /** Human invoice number. Defaults to the order reference, editable by staff. */
+  invoiceNo: text("invoice_no").notNull(),
+  /** Signed. Negative is a credit; added to the order subtotal minus discount. */
+  adjustment: numeric("adjustment", { precision: 10, scale: 2 }).default("0").notNull(),
+  /** Footer note, e.g. "This rank is valid from … to …". */
+  notes: text("notes"),
+  /** Billing name on the document; falls back to the order's Minecraft name. */
+  billedTo: text("billed_to"),
+  /** Shown as the document date. Staff can backdate a reissue. */
+  /** Buyer on a standalone invoice; order-backed ones read the order. */
+  buyerName: text("buyer_name"),
+  buyerDiscord: text("buyer_discord"),
+  issuedAt: timestamp("issued_at", { withTimezone: true }).defaultNow().notNull(),
+  /** The staff member who raised the invoice on the website. */
+  issuedBy: text("issued_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  orderIdx: uniqueIndex("order_invoices_order_idx").on(t.orderId),
+  invoiceNoIdx: uniqueIndex("order_invoices_invoice_no_idx").on(t.invoiceNo),
+}));
+
+/**
+ * Lines for a standalone invoice. Order-backed invoices read `order_items`
+ * instead, so their figures always match what the buyer was charged.
+ *
+ * `discountPercent` is per line because a Discord sale often discounts one rank
+ * and not the crate keys beside it.
+ */
+export const invoiceItems = pgTable("invoice_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  invoiceId: uuid("invoice_id").notNull().references(() => orderInvoices.id, { onDelete: "cascade" }),
+  /** Null keeps the line readable after the product is deleted. */
+  productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+  /** Snapshot of the name at issue time, so a rename does not rewrite history. */
+  name: text("name").notNull(),
+  quantity: integer("quantity").default(1).notNull(),
+  unitPrice: numeric("unit_price", { precision: 10, scale: 2 }).notNull(),
+  discountPercent: integer("discount_percent").default(0).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  invoiceIdx: index("invoice_items_invoice_idx").on(t.invoiceId, t.sortOrder),
+  quantityCheck: check("invoice_items_quantity_positive", sql`${t.quantity} > 0`),
+  priceCheck: check("invoice_items_price_nonneg", sql`${t.unitPrice} >= 0`),
+  discountCheck: check("invoice_items_discount_range", sql`${t.discountPercent} between 0 and 100`),
+}));
+
 export const creatorCodes = pgTable(
   "creator_codes",
   {
@@ -343,6 +408,16 @@ export const creatorCodes = pgTable(
     enabled: boolean("enabled").default(true).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     internalNote: text("internal_note"),
+    /**
+     * Sitewide eligibility, stored rather than inferred.
+     *
+     * Eligibility is otherwise the hand-picked creatorCodeProducts list, and an
+     * empty list means the code discounts nothing. "Applies to everything" has
+     * to be its own flag: inferring it from an empty list would also catch
+     * codes left empty by mistake, and codes whose picks were cascade-deleted
+     * along with a product, turning both into sitewide discounts nobody chose.
+     */
+    appliesToAllProducts: boolean("applies_to_all_products").default(false).notNull(),
     /** Whether to feature this discount code as a floating alert across all public pages. */
     showPublicAlert: boolean("show_public_alert").default(false).notNull(),
     alertHeadline: text("alert_headline"),
@@ -541,7 +616,6 @@ export const auditLogs = pgTable("audit_logs", {
   targetType: text("target_type"),
   targetId: text("target_id"),
   metadata: jsonb("metadata"),
-  ipAddress: text("ip_address"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({ createdIdx: index("audit_logs_created_idx").on(t.createdAt.desc()) }));
 

@@ -97,7 +97,7 @@ export function TopVotersTable({ entries }: { entries: TopVoter[] }) {
   const pageSize = limit === "all" ? Math.max(1, processedEntries.length) : limit;
   const totalPages = Math.max(1, Math.ceil(processedEntries.length / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
-  
+
   const paginatedEntries = useMemo(() => {
     const start = currentPage * pageSize;
     return processedEntries.slice(start, start + pageSize);

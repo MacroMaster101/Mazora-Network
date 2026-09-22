@@ -1,7 +1,12 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { applyCreatorCode, MAX_PERCENT_OFF } from "@/lib/store-discount";
+import {
+  applyCreatorCode,
+  getBestDiscountAlert,
+  MAX_PERCENT_OFF,
+  type PublicDiscountAlert,
+} from "@/lib/store-discount";
 
 const line = (over: Partial<Parameters<typeof applyCreatorCode>[0][number]> = {}) => ({
   productId: "p1",
@@ -120,5 +125,67 @@ describe("applyCreatorCode", () => {
     assert.ok(Number.isFinite(result.subtotal));
     assert.ok(Number.isFinite(result.discount));
     assert.ok(Number.isFinite(result.total));
+  });
+});
+
+const alert = (over: Partial<PublicDiscountAlert> = {}): PublicDiscountAlert => ({
+  code: "SUMMER",
+  codeType: "event",
+  creatorName: "Summer Sale",
+  percentOff: 20,
+  badge: "SPECIAL EVENT",
+  headline: "20% off",
+  position: "bottom-right",
+  expiresAt: null,
+  productIds: [],
+  eligibleProducts: [],
+  isAllProducts: false,
+  ...over,
+});
+
+describe("getBestDiscountAlert", () => {
+  test("matches a product that the code hand-picked", () => {
+    const picked = alert({ productIds: ["p1"] });
+    assert.equal(getBestDiscountAlert([picked], "p1"), picked);
+  });
+
+  test("does not match a product the code did not pick", () => {
+    assert.equal(getBestDiscountAlert([alert({ productIds: ["p1"] })], "p2"), null);
+  });
+
+  test("matches every product when the sitewide flag is set", () => {
+    const sitewide = alert({ isAllProducts: true });
+    assert.equal(getBestDiscountAlert([sitewide], "anything"), sitewide);
+  });
+
+  /*
+    An empty pick list means the code discounts NOTHING. It briefly meant the
+    opposite, which promoted codes saved with nothing picked — and codes whose
+    picks were cascade-deleted with a product — to a sitewide discount of up to
+    90%. Sitewide is `isAllProducts` alone.
+  */
+  test("an empty pick list without the sitewide flag matches nothing", () => {
+    const inert = alert({ productIds: [], isAllProducts: false });
+    assert.equal(getBestDiscountAlert([inert], "p1"), null);
+    assert.equal(getBestDiscountAlert([inert], undefined), null);
+  });
+
+  test("picks the largest discount when several codes cover the same product", () => {
+    const small = alert({ code: "SMALL", percentOff: 10, productIds: ["p1"] });
+    const big = alert({ code: "BIG", percentOff: 40, productIds: ["p1"] });
+    assert.equal(getBestDiscountAlert([small, big], "p1"), big);
+    assert.equal(getBestDiscountAlert([big, small], "p1"), big);
+  });
+
+  test("ignores a larger discount that does not cover the product", () => {
+    const small = alert({ code: "SMALL", percentOff: 10, productIds: ["p1"] });
+    const big = alert({ code: "BIG", percentOff: 40, productIds: ["p2"] });
+    assert.equal(getBestDiscountAlert([small, big], "p1"), small);
+  });
+
+  test("returns null for an empty or missing alert list", () => {
+    assert.equal(getBestDiscountAlert([], "p1"), null);
+    assert.equal(getBestDiscountAlert(null, "p1"), null);
+    assert.equal(getBestDiscountAlert(undefined, "p1"), null);
   });
 });

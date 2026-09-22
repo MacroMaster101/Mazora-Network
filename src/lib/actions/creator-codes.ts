@@ -180,8 +180,27 @@ const codeSchema = z.object({
   alertHeadline: z.string().trim().max(120, "Headlines are at most 120 characters.").optional().or(z.literal("")),
   alertBadge: z.string().trim().max(40, "Badges are at most 40 characters.").optional().or(z.literal("")),
   alertPosition: z.enum(["bottom-right", "bottom-left"]).default("bottom-right"),
+  appliesToAllProducts: z.coerce.boolean().default(false),
   productIds: z.array(z.string().uuid()).max(500),
-});
+})
+  /*
+    A code has to say what it discounts. Sitewide is the explicit flag; anything
+    else needs at least one pick.
+
+    Saving neither used to be allowed and produced a code that silently
+    discounted nothing. That dead state is what made inferring "everything"
+    from an empty list so costly later — the rows already existed, staff had
+    been told they were harmless, and re-reading them promoted every one of
+    them to a sitewide discount at once.
+  */
+  .superRefine((value, ctx) => {
+    if (value.appliesToAllProducts || value.productIds.length > 0) return;
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["productIds"],
+      message: "Pick at least one eligible product, or turn on “Applies to every product”.",
+    });
+  });
 
 export async function saveCreatorCode(
   _previous: CreatorCodeActionResult,
@@ -214,6 +233,8 @@ export async function saveCreatorCode(
     alertHeadline: formData.get("alertHeadline") || "",
     alertBadge: formData.get("alertBadge") || "",
     alertPosition: formData.get("alertPosition") || "bottom-right",
+    appliesToAllProducts:
+      formData.get("appliesToAllProducts") === "on" || formData.get("appliesToAllProducts") === "true",
     productIds,
   });
 
@@ -261,6 +282,7 @@ export async function saveCreatorCode(
         enabled: parsed.data.enabled,
         expiresAt,
         internalNote: parsed.data.internalNote || null,
+        appliesToAllProducts: parsed.data.appliesToAllProducts,
         showPublicAlert: parsed.data.showPublicAlert,
         alertHeadline: parsed.data.alertHeadline || null,
         alertBadge: parsed.data.alertBadge || null,
@@ -308,6 +330,7 @@ export async function saveCreatorCode(
       percentOff: parsed.data.percentOff,
       enabled: parsed.data.enabled,
       showPublicAlert: parsed.data.showPublicAlert,
+      appliesToAllProducts: parsed.data.appliesToAllProducts,
       productCount: parsed.data.productIds.length,
       by: session.username,
     },

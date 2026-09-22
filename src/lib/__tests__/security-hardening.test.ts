@@ -93,3 +93,53 @@ test("critical distributed limits fail closed when the configured store is unava
   assert.match(limiter, /failureMode:\s*"closed"/);
   assert.match(interactions, /failureMode:\s*"closed"/);
 });
+
+/*
+  Sitewide discount eligibility must be the stored flag, never an empty pick
+  list.
+
+  resolveCreatorCode briefly read `productIds.length === 0` as "applies to
+  everything". That promoted two kinds of row to a discount of up to 90% off
+  the whole cart, with no staff decision behind either: codes saved with
+  nothing picked, which the Store admin describes as inert, and codes scoped to
+  products that were later deleted, since creator_code_products.product_id
+  cascades. Creator code strings are public by design, so anyone holding one
+  could spend it.
+
+  The module is "server-only" and reaches the database, so this asserts on the
+  source the same way the avatar-storage and webhook checks above do.
+*/
+test("creator code eligibility never infers 'all products' from an empty list", () => {
+  const source = readFileSync(
+    new URL("../creator-code-resolve.ts", import.meta.url),
+    "utf8",
+  );
+
+  // Eligibility is the stored flag OR an explicit pick — nothing else.
+  assert.match(
+    source,
+    /eligible:\s*code\.appliesToAllProducts\s*\|\|\s*eligibleIds\.has\(line\.productId\)/,
+  );
+
+  // The length-based inference must not come back in any form.
+  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+  assert.doesNotMatch(code, /productIds\.length/);
+  assert.doesNotMatch(code, /hasSpecificProducts/);
+
+  // A code that discounts nothing is still refused rather than charged silently.
+  assert.match(code, /result\.discount <= 0/);
+});
+
+test("saving a creator code that discounts nothing is rejected", () => {
+  const source = readFileSync(
+    new URL("../actions/creator-codes.ts", import.meta.url),
+    "utf8",
+  );
+  // Sitewide is persisted, not inferred at read time.
+  assert.match(source, /appliesToAllProducts:\s*parsed\.data\.appliesToAllProducts/);
+  // And one of the two must be set before the row can be written.
+  assert.match(
+    source,
+    /if \(value\.appliesToAllProducts \|\| value\.productIds\.length > 0\) return;/,
+  );
+});

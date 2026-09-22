@@ -42,6 +42,8 @@ interface Draft {
   alertHeadline: string;
   alertBadge: string;
   alertPosition: "bottom-right" | "bottom-left";
+  /** Sitewide eligibility. Set deliberately; never inferred from an empty list. */
+  appliesToAllProducts: boolean;
   socials: CreatorSocial[];
   productIds: string[];
 }
@@ -59,6 +61,7 @@ const emptyDraft: Draft = {
   alertHeadline: "",
   alertBadge: "",
   alertPosition: "bottom-right",
+  appliesToAllProducts: false,
   socials: [],
   productIds: [],
 };
@@ -180,6 +183,7 @@ function toDraft(code: CreatorCode): Draft {
     alertHeadline: code.alertHeadline ?? "",
     alertBadge: code.alertBadge ?? "",
     alertPosition: code.alertPosition ?? "bottom-right",
+    appliesToAllProducts: code.appliesToAllProducts ?? false,
     socials: code.socials.map((item) => ({ ...item })),
     productIds: [...code.productIds],
   };
@@ -277,6 +281,7 @@ export function CreatorCodesManager({
     data.append("alertHeadline", draft.alertHeadline);
     data.append("alertBadge", draft.alertBadge);
     data.append("alertPosition", draft.alertPosition);
+    data.append("appliesToAllProducts", draft.appliesToAllProducts ? "true" : "false");
     data.append("socials", JSON.stringify(draft.socials.filter((item) => item.url.trim())));
     data.append("productIds", JSON.stringify(draft.productIds));
     startTransition(() => saveAction(data));
@@ -304,6 +309,7 @@ export function CreatorCodesManager({
     data.append("alertHeadline", code.alertHeadline ?? "");
     data.append("alertBadge", code.alertBadge ?? "");
     data.append("alertPosition", code.alertPosition ?? "bottom-right");
+    data.append("appliesToAllProducts", code.appliesToAllProducts ? "true" : "false");
     data.append("socials", JSON.stringify(code.socials));
     data.append("productIds", JSON.stringify(code.productIds));
     startTransition(() => saveAction(data));
@@ -370,7 +376,9 @@ export function CreatorCodesManager({
       cell: (code) => (
         <span>
           <span className="block font-bold">{code.percentOff}%</span>
-          {code.productIds.length === 0 ? (
+          {code.appliesToAllProducts ? (
+            <span className="block text-xs text-muted">every product</span>
+          ) : code.productIds.length === 0 ? (
             <span className="inline-flex items-center gap-1 text-xs text-warning">
               <AlertTriangle size={11} aria-hidden="true" /> no products
             </span>
@@ -769,16 +777,38 @@ export function CreatorCodesManager({
             <section className="creator-code-section">
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="creator-code-section-title">Eligible products</h3>
-                <span className="text-xs text-muted">{draft.productIds.length} selected</span>
+                <span className="text-xs text-muted">
+                  {draft.appliesToAllProducts ? "every product" : `${draft.productIds.length} selected`}
+                </span>
               </div>
-              {draft.productIds.length === 0 && (
-                <p className="flex items-center gap-1.5 text-xs text-warning">
+
+              <label className="mt-2 flex items-start gap-2.5 rounded-xl border border-line/60 bg-ink/5 p-3">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={draft.appliesToAllProducts}
+                  onChange={(event) =>
+                    setDraft({ ...draft, appliesToAllProducts: event.target.checked })
+                  }
+                />
+                <span>
+                  <span className="block text-sm font-semibold">Applies to every product</span>
+                  <span className="block text-xs text-muted">
+                    Discounts the whole store, including products added later. Leave this off to
+                    discount only the products picked below.
+                  </span>
+                </span>
+              </label>
+
+              {!draft.appliesToAllProducts && draft.productIds.length === 0 && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-warning">
                   <AlertTriangle size={13} aria-hidden="true" />
-                  With nothing selected this code will discount nothing.
+                  Pick at least one product, or turn on “Applies to every product”. A code that
+                  discounts nothing cannot be saved.
                 </p>
               )}
 
-              <div className="creator-code-picker">
+              <div className="creator-code-picker" hidden={draft.appliesToAllProducts}>
                 {[...grouped.entries()].map(([modeSlug, categories]) => (
                   <div key={modeSlug}>
                     <p className="creator-code-picker-mode">{modeName(modeSlug)}</p>

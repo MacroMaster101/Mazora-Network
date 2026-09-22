@@ -184,7 +184,7 @@ export function StoreWelcomeEditor({
         <div className="flex flex-col gap-5">
           <div className="rounded-2xl border border-line bg-card/40 p-4">
             <label className="block text-xs font-bold uppercase tracking-wider text-muted">Photo Upload & Artwork URL</label>
-            
+
             <div className="mt-2.5 flex flex-wrap gap-2">
               <input
                 type="file"
