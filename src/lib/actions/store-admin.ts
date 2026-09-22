@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
@@ -359,17 +359,53 @@ export async function deleteStoreProductAction(formData: FormData): Promise<Stor
   if (!isUuid(id)) return { ok: false, message: "That product no longer exists." };
   const actorId = await getSessionUserId();
   let before: typeof schema.products.$inferSelect | null = null;
+  /*
+    Deleting a product silently narrows every discount code that picked it,
+    because creator_code_products.product_id cascades. A code scoped only to
+    this product is left picking nothing at all, which means it now discounts
+    nothing — the staff member deleting a product has no reason to expect they
+    just retired someone's creator code.
+
+    The codes are read inside the transaction, BEFORE the delete takes the join
+    rows with it, so the audit entry and the message below describe what
+    actually happened rather than what is left afterwards.
+  */
+  let emptiedCodes: string[] = [];
+  let narrowedCodeCount = 0;
   try {
     before = await db.transaction(async (tx) => {
       const [product] = await tx.select().from(schema.products).where(eq(schema.products.id, id)).limit(1);
       if (!product) return null;
+
+      const affected = await tx
+        .select({
+          code: schema.creatorCodes.code,
+          enabled: schema.creatorCodes.enabled,
+          picks: sql<number>`(
+            select count(*)::int from ${schema.creatorCodeProducts} p
+            where p.code_id = ${schema.creatorCodes.id}
+          )`,
+        })
+        .from(schema.creatorCodeProducts)
+        .innerJoin(schema.creatorCodes, eq(schema.creatorCodes.id, schema.creatorCodeProducts.codeId))
+        .where(eq(schema.creatorCodeProducts.productId, id));
+
+      narrowedCodeCount = affected.length;
+      // Only a code that had this product as its ONLY pick is left inert.
+      emptiedCodes = affected.filter((row) => row.enabled && row.picks <= 1).map((row) => row.code);
+
       await tx.delete(schema.products).where(eq(schema.products.id, id));
       await tx.insert(schema.auditLogs).values({
         actorId,
         action: "store.product.delete",
         targetType: "product",
         targetId: product.id,
-        metadata: { by: session.username, before: product },
+        metadata: {
+          by: session.username,
+          before: product,
+          narrowedCodeCount,
+          emptiedCodes,
+        },
       });
       return product;
     });
@@ -380,7 +416,21 @@ export async function deleteStoreProductAction(formData: FormData): Promise<Stor
   if (!before) return { ok: false, message: "That product no longer exists." };
   refreshStore(before.slug);
   revalidatePath(`/admin/store/catalog/${before.gameModeSlug}`);
-  return { ok: true, message: `${before.name} deleted.` };
+  revalidatePath("/admin/store/creator-codes/creators");
+  revalidatePath("/admin/store/creator-codes/events");
+  revalidatePath("/", "layout");
+
+  let message = `${before.name} deleted.`;
+  if (emptiedCodes.length > 0) {
+    // Named, because these need a decision: re-scope them or turn them off.
+    const one = emptiedCodes.length === 1;
+    message += ` ${one ? "Code" : "Codes"} ${emptiedCodes.join(", ")} ${
+      one ? "has" : "have"
+    } no eligible products left and ${one ? "now discounts" : "now discount"} nothing.`;
+  } else if (narrowedCodeCount > 0) {
+    message += ` Removed from ${narrowedCodeCount} discount ${narrowedCodeCount === 1 ? "code" : "codes"}.`;
+  }
+  return { ok: true, message };
 }
 
 export async function deleteStoreModeAction(formData: FormData): Promise<StoreAdminActionResult> {

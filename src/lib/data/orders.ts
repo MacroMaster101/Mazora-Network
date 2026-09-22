@@ -243,7 +243,38 @@ export async function markOrderDecision(
           ? and(eq(schema.orders.reference, reference), inArray(schema.orders.status, from))
           : eq(schema.orders.reference, reference),
       )
-      .returning({ id: schema.orders.id });
+      .returning({ id: schema.orders.id, reference: schema.orders.reference });
+
+    /*
+      A completed order gets its invoice automatically.
+
+      Completion is the point the sale is real, and staff should not have to
+      remember a second step to produce the document. Issued here rather than in
+      the Discord route because this is the one place an order reaches
+      `completed`, so a sale can never end up without an invoice depending on
+      which path closed it.
+
+      Best-effort on purpose: `onConflictDoNothing` leaves an invoice staff
+      already issued by hand alone, and a failure here is logged without
+      reversing the decision. Losing the auto-generated document is recoverable
+      from the Orders admin; losing the completion is not.
+    */
+    if (status === "completed" && rows[0]) {
+      const order = rows[0];
+      try {
+        await db
+          .insert(schema.orderInvoices)
+          .values({
+            orderId: order.id,
+            invoiceNo: order.reference ?? order.id,
+            issuedBy: handledBy,
+          })
+          .onConflictDoNothing({ target: schema.orderInvoices.orderId });
+      } catch (error) {
+        console.error("Failed to auto-issue invoice for completed order:", error);
+      }
+    }
+
     return rows.length > 0;
   } catch (error) {
     console.error("Failed to record order decision:", error);

@@ -19,7 +19,7 @@ export default async function LaunchStatusPage({
   const from = (await searchParams).from ?? "/";
   const gate = getLaunchGate(from);
   const gateIcon = gate?.icon ?? "Clock3";
-  
+
   const isSupportRoute = from.startsWith("/support") || from === "/forums" || from.includes("tickets");
   const isAccountRoute = (from.startsWith("/dashboard") || from.startsWith("/admin")) && !isSupportRoute;
 

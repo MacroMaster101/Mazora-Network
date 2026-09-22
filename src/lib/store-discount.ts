@@ -132,8 +132,11 @@ export function getBestDiscountAlert(
   productId?: string,
 ): PublicDiscountAlert | null {
   if (!alerts || alerts.length === 0) return null;
+  // `isAllProducts` is the stored sitewide flag. An empty `productIds` on its
+  // own means the opposite — nothing is eligible — so it must not match here,
+  // or a badge would promise a discount checkout then refuses.
   const eligible = alerts.filter(
-    (a) => a.isAllProducts || a.productIds.length === 0 || (productId && a.productIds.includes(productId)),
+    (a) => a.isAllProducts || Boolean(productId && a.productIds.includes(productId)),
   );
   if (eligible.length === 0) return null;
   return eligible.reduce((best, curr) => (curr.percentOff > best.percentOff ? curr : best), eligible[0]);

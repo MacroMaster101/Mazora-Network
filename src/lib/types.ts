@@ -31,6 +31,34 @@ export interface StoreWelcomeBannerConfig {
 export const MIN_STORE_FEATURED_SLUGS = 1;
 export const MAX_STORE_FEATURED_SLUGS = 8;
 
+/**
+ * The issuer block printed at the top of every store invoice.
+ *
+ * Kept as an editable setting rather than hard-coded: an invoice carries
+ * business details that only the operator can state correctly, and they change
+ * without a deploy. Every field is optional and blank lines are skipped when
+ * rendering, so a half-filled block still prints cleanly.
+ */
+export interface StoreInvoiceDetails {
+  /** Business or network name in the header. */
+  businessName: string;
+  /** Shown under the name, linked when it looks like a domain. */
+  website: string;
+  /** Free-form address lines, rendered one per row. */
+  addressLines: string[];
+  postcode: string;
+  /** Standing footer text below the line items, above the totals. */
+  footerNote: string;
+}
+
+export const DEFAULT_STORE_INVOICE_DETAILS: StoreInvoiceDetails = {
+  businessName: "Mazora Network",
+  website: "mazora.us",
+  addressLines: [],
+  postcode: "",
+  footerNote: "",
+};
+
 export const DEFAULT_STORE_WELCOME_BANNER: StoreWelcomeBannerConfig = {
   badge: "EST. 2020 · SURVIVAL RPG EXPERIENCE",
   title: "Welcome to Mazora - Survival",
@@ -298,7 +326,6 @@ export interface TopVoter {
   lastMonthVotes: number;
   allTimeVotes: number;
 }
-
 
 
 export interface OnlinePlayer {

@@ -3,6 +3,11 @@ import { ORDERS_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
 import { hasAtLeast } from "@/lib/auth";
 import { getAllOrders } from "@/lib/data/orders";
+import { buildInvoiceView, getOrderInvoices } from "@/lib/data/order-invoices";
+import { getStoreInvoiceDetails } from "@/lib/data/store-settings";
+import { getProducts } from "@/lib/data/content";
+import { CreateInvoiceButton } from "@/components/admin/create-invoice-button";
+import { InvoiceDetailsButton } from "@/components/admin/invoice-details-button";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { OrdersBrowser } from "@/components/admin/orders-browser";
 
@@ -24,13 +29,41 @@ export default async function AdminOrdersPage() {
     ticketChannelId: null,
   }));
 
+  const [rawInvoices, products, invoiceDetails] = await Promise.all([
+    getOrderInvoices(),
+    getProducts(),
+    getStoreInvoiceDetails(),
+  ]);
+
+  /*
+    Resolved on the server so the popup receives a finished document. The list
+    is small — only orders that have an invoice — and doing it here keeps the
+    money arithmetic and the order lookup out of the browser entirely.
+  */
+  const invoices = Object.fromEntries(
+    orders.flatMap((order) => {
+      const invoice = rawInvoices[order.id];
+      return invoice ? [[order.id, buildInvoiceView(invoice, order, invoiceDetails)] as const] : [];
+    }),
+  );
+
   return (
     <>
       <DashHeader
         title="Orders"
         subtitle="Review store requests, track completed sales, and manage order decisions."
+        action={
+          <>
+            <InvoiceDetailsButton details={invoiceDetails} />
+            <CreateInvoiceButton products={products} />
+          </>
+        }
       />
-      <OrdersBrowser orders={orders} canDelete={hasAtLeast(session.role, "owner")} />
+      <OrdersBrowser
+        orders={orders}
+        canDelete={hasAtLeast(session.role, "owner")}
+        invoices={invoices}
+      />
     </>
   );
 }
