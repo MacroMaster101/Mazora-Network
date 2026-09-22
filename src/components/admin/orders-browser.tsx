@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Check, CircleDollarSign, Clock3, Receipt, Search, ShoppingBag, Trash2, TriangleAlert, X } from "lucide-react";
+import { Check, CircleDollarSign, Clock3, Download, Receipt, Search, ShoppingBag, Trash2, TriangleAlert, X } from "lucide-react";
 import type { OrderStatus, StoreOrder } from "@/lib/order-status";
 import { OrderCard } from "@/components/shared/order-card";
 import { Input, useToast } from "@/components/ui";
 import { cn, usd } from "@/lib/utils";
 import { deleteOrderAction, updateOrderDecisionAction } from "@/lib/actions/orders-admin";
+import type { InvoiceView } from "@/lib/invoice-view";
+import { InvoicePreviewDialog } from "@/components/admin/invoice-preview-dialog";
 
 /**
  * Staff order list and guarded web decision controls. Discord remains the
@@ -29,8 +31,18 @@ const FILTERS: { key: Filter; label: string }[] = [
 
 type Confirmation = { type: "decline" | "delete"; order: StoreOrder } | null;
 
-export function OrdersBrowser({ orders, canDelete }: { orders: StoreOrder[]; canDelete: boolean }) {
+export function OrdersBrowser({
+  orders,
+  canDelete,
+  invoices = {},
+}: {
+  orders: StoreOrder[];
+  canDelete: boolean;
+  /** Keyed by order id; an order with no entry has no invoice issued yet. */
+  invoices?: Record<string, InvoiceView>;
+}) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [previewing, setPreviewing] = useState<StoreOrder | null>(null);
   const [query, setQuery] = useState("");
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [typedReference, setTypedReference] = useState("");
@@ -249,13 +261,25 @@ export function OrdersBrowser({ orders, canDelete }: { orders: StoreOrder[]; can
                         <X size={15} /> Decline
                       </button>
                     )}
+                    {/* A completed order already has its invoice, issued on
+                        completion, so this only needs to hand it over. */}
+                    {invoices[order.id] && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewing(order)}
+                        aria-label={`Invoice for ${order.reference}`}
+                        className="btn btn-sm border-accent/35 bg-accent/10 text-accent hover:bg-accent/20"
+                      >
+                        <Download size={15} /> Invoice
+                      </button>
+                    )}
                     {canDelete && (
                       <button
                         type="button"
                         onClick={() => openConfirmation("delete", order)}
                         disabled={pending}
                         aria-label={`Delete ${order.reference}`}
-                        className="btn btn-sm border-danger/25 bg-transparent text-muted hover:border-danger/40 hover:bg-danger/10 hover:text-danger disabled:opacity-50"
+                        className="btn btn-danger btn-sm disabled:opacity-50"
                       >
                         <Trash2 size={15} /> Delete
                       </button>
@@ -337,6 +361,14 @@ export function OrdersBrowser({ orders, canDelete }: { orders: StoreOrder[]; can
           </div>
         </div>,
         document.body,
+      )}
+
+      {previewing && invoices[previewing.id] && (
+        <InvoicePreviewDialog
+          view={invoices[previewing.id]}
+          reference={previewing.reference}
+          onClose={() => setPreviewing(null)}
+        />
       )}
     </div>
   );

@@ -38,12 +38,25 @@ export async function resolveCreatorCode(
   const code = await getRedeemableCreatorCode(rawCode);
   if (!code) return { ok: false, reason: "invalid" };
 
-  const hasSpecificProducts = code.productIds.length > 0;
+  /*
+    Sitewide eligibility is read from the stored flag, never inferred from an
+    empty pick list.
+
+    This briefly keyed off `productIds.length === 0` instead, which quietly
+    promoted two kinds of row to a discount of up to 90% off the whole cart:
+    codes saved with nothing picked — which the Store admin still describes as
+    inert — and codes scoped to products that were later deleted, since
+    creator_code_products.product_id cascades. Neither is a decision anyone
+    made, and the code string is public by design.
+
+    An empty list with the flag off still discounts nothing, and the guard
+    below turns that into `not_applicable`.
+  */
   const eligibleIds = new Set(code.productIds);
   const result = applyCreatorCode(
     lines.map((line) => ({
       ...line,
-      eligible: !hasSpecificProducts || eligibleIds.has(line.productId),
+      eligible: code.appliesToAllProducts || eligibleIds.has(line.productId),
     })),
     code.percentOff,
   );

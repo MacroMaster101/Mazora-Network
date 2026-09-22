@@ -30,7 +30,14 @@ export interface CreatorCode {
   alertHeadline: string | null;
   alertBadge: string | null;
   alertPosition: "bottom-right" | "bottom-left";
-  /** Hand-picked eligibility. Empty means the code discounts nothing. */
+  /** Sitewide eligibility, set deliberately. Overrides `productIds`. */
+  appliesToAllProducts: boolean;
+  /**
+   * Hand-picked eligibility. Empty means the code discounts nothing unless
+   * `appliesToAllProducts` is set — "everything" is never inferred from an
+   * empty list, because a list can also empty itself when a picked product is
+   * deleted.
+   */
   productIds: string[];
   createdAt: string;
 }
@@ -107,6 +114,7 @@ function toCreatorCode(
     enabled: row.enabled,
     expiresAt: optionalDateIso(row.expiresAt),
     internalNote: row.internalNote,
+    appliesToAllProducts: Boolean(row.appliesToAllProducts),
     showPublicAlert: Boolean(row.showPublicAlert),
     alertHeadline: row.alertHeadline,
     alertBadge: row.alertBadge,
@@ -268,7 +276,6 @@ export async function getActivePublicDiscountAlert(): Promise<PublicDiscountAler
 }
 
 
-
 async function loadActivePublicDiscountAlerts(): Promise<PublicDiscountAlert[]> {
   const db = getDb();
   if (!db) return [];
@@ -321,9 +328,18 @@ async function loadActivePublicDiscountAlerts(): Promise<PublicDiscountAlert[]> 
       image: p.imageUrl ?? null,
     }));
 
-    return rows.map((row) => {
+    return rows.flatMap((row) => {
       const productIds = productIdsByCode.get(row.id) ?? [];
-      const isAllProducts = productIds.length === 0;
+      const isAllProducts = Boolean(row.appliesToAllProducts);
+
+      /*
+        Advertise only what checkout will actually honour. Sitewide is the
+        stored flag, matching resolveCreatorCode — a code with neither the flag
+        nor any picks discounts nothing, so promoting it across every page
+        would send buyers to a checkout that refuses the code.
+      */
+      if (!isAllProducts && productIds.length === 0) return [];
+
       const eligibleProducts = isAllProducts
         ? allProductsPreview
         : allProductsPreview.filter((p) => Boolean(p.id && productIds.includes(p.id)));
@@ -331,7 +347,7 @@ async function loadActivePublicDiscountAlerts(): Promise<PublicDiscountAlert[]> 
       const defaultBadge = row.codeType === "event" ? "SPECIAL EVENT" : "CREATOR CODE";
       const defaultHeadline = `${row.percentOff}% off eligible items with code ${row.code}`;
 
-      return {
+      return [{
         code: row.code,
         codeType: row.codeType === "event" ? "event" : "creator",
         creatorName: row.creatorName,
@@ -343,7 +359,7 @@ async function loadActivePublicDiscountAlerts(): Promise<PublicDiscountAlert[]> 
         productIds,
         eligibleProducts,
         isAllProducts,
-      };
+      }];
     });
   } catch (err) {
     console.error("Failed to load active public discount alerts:", err);

@@ -37,7 +37,7 @@ export function ProductCard({
   const alertDiscountPrice = isEligibleForAlert && resolvedAlert
     ? Math.max(Math.round(currentPrice * (1 - resolvedAlert.percentOff / 100) * 100) / 100, 0)
     : null;
-  
+
   /*
     Where the product's name goes: over the artwork, or under it.
 
@@ -116,7 +116,7 @@ export function ProductCard({
           </div>
         )}
       </Link>
- 
+
       <div className="store-product-body flex flex-1 flex-col p-4">
         {!isOverlaid && (
           <>
