@@ -139,3 +139,61 @@ export async function getStoreRoadmap(): Promise<StoreRoadmapConfig> {
     return DEFAULT_STORE_ROADMAP;
   }
 }
+
+import {
+  DEFAULT_STORE_INVOICE_DETAILS,
+  type StoreInvoiceDetails,
+} from "@/lib/types";
+export { DEFAULT_STORE_INVOICE_DETAILS, type StoreInvoiceDetails };
+
+export const STORE_INVOICE_DETAILS_KEY = "store.invoice_details";
+
+/** Trims, drops blanks, and caps the list so one paste cannot grow the header. */
+function toAddressLines(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((line): line is string => typeof line === "string")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function optionalText(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+/**
+ * The issuer block for store invoices. Degrades to the defaults whenever the
+ * row is missing or malformed, so the invoice page always renders rather than
+ * erroring on a document staff are about to hand to a buyer.
+ */
+export async function getStoreInvoiceDetails(): Promise<StoreInvoiceDetails> {
+  let db: ReturnType<typeof getDb>;
+  try {
+    db = getDb();
+  } catch {
+    return DEFAULT_STORE_INVOICE_DETAILS;
+  }
+  if (!db) return DEFAULT_STORE_INVOICE_DETAILS;
+
+  try {
+    const [row] = await db
+      .select({ value: schema.siteSettings.settingValue })
+      .from(schema.siteSettings)
+      .where(eq(schema.siteSettings.settingKey, STORE_INVOICE_DETAILS_KEY))
+      .limit(1);
+    if (!row?.value || typeof row.value !== "object") return DEFAULT_STORE_INVOICE_DETAILS;
+    const v = row.value as Record<string, unknown>;
+    return {
+      businessName: optionalText(v.businessName, DEFAULT_STORE_INVOICE_DETAILS.businessName),
+      website: optionalText(v.website, DEFAULT_STORE_INVOICE_DETAILS.website),
+      addressLines: toAddressLines(v.addressLines),
+      // These two are genuinely optional, so an empty string stays empty
+      // instead of falling back to a default the operator never entered.
+      postcode: typeof v.postcode === "string" ? v.postcode.trim() : "",
+      footerNote: typeof v.footerNote === "string" ? v.footerNote.trim() : "",
+    };
+  } catch {
+    return DEFAULT_STORE_INVOICE_DETAILS;
+  }
+}

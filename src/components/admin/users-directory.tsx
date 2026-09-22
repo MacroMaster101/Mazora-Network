@@ -92,7 +92,6 @@ function RowActions({ row }: { row: DirectoryRow }) {
 }
 
 
-
 function ReleaseMinecraftButton({ userId, username, minecraftUsername }: { userId: string; username: string; minecraftUsername: string }) {
   const [state, formAction, pending] = useActionState(adminReleaseMinecraftUsernameAction, initialAdminState);
   const { toast } = useToast();
