@@ -26,7 +26,7 @@ const builder: RoleDef = {
   kind: "staff", position: 450, locked: false, showOnTeam: true,
 };
 
-test("built-ins are seeded in today's order, IT labelled Web Dev", () => {
+test("built-ins are seeded in today's order, the top role labelled Web Dev", () => {
   assert.deepEqual(
     [...BUILTIN_ROLES].sort((a, b) => a.position - b.position).map((r) => r.key),
     ["guest", "member", "sponsor", "vip", "helper", "moderator", "senior_moderator", "administrator", "owner", "web_dev"],

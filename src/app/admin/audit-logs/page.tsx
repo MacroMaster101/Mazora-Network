@@ -8,7 +8,7 @@ import { AuditBrowser } from "@/components/admin/audit-browser";
 export const metadata: Metadata = { title: "Audit Logs · Admin" };
 
 export default async function AdminAuditLogsPage() {
-  // IT-only by default, but grantable: IT_ONLY_MODULES stops the owner
+  // Web Dev-only by default, but grantable: WEB_DEV_ONLY_MODULES stops the owner
   // short-circuit, so an owner reaches this only when explicitly granted.
   await requireModuleAccess(AUDIT_PERMISSION_KEY, "/admin/audit-logs");
   const entries = await getAuditEntries();

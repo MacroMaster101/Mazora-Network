@@ -2,19 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { canAccessModule } from "../auth/module-access-shared.js";
 
-const normal = { itOnly: false, configuredRoles: [] as const, configuredUserIds: [] as const };
-const itOnly = { itOnly: true, configuredRoles: [] as const, configuredUserIds: [] as const };
+const normal = { webDevOnly: false, configuredRoles: [] as const, configuredUserIds: [] as const };
+const webDevOnly = { webDevOnly: true, configuredRoles: [] as const, configuredUserIds: [] as const };
 
 test("a signed-out visitor is refused everything", () => {
   assert.equal(canAccessModule(null, normal), false);
-  assert.equal(canAccessModule(null, itOnly), false);
+  assert.equal(canAccessModule(null, webDevOnly), false);
 });
 
-test("web_dev reaches everything, including an IT-only module", () => {
+test("web_dev reaches everything, including an Web Dev-only module", () => {
   // TOP_ROLE has nobody above it to appeal to. If it could be locked out of a
   // module, nobody could unlock it.
   assert.equal(canAccessModule("web_dev", normal), true);
-  assert.equal(canAccessModule("web_dev", itOnly), true);
+  assert.equal(canAccessModule("web_dev", webDevOnly), true);
 });
 
 test("an owner keeps blanket access to ordinary modules", () => {
@@ -24,26 +24,26 @@ test("an owner keeps blanket access to ordinary modules", () => {
   assert.equal(canAccessModule("administrator", normal), false);
 });
 
-test("an owner is refused an IT-only module — the whole point of the change", () => {
-  assert.equal(canAccessModule("owner", itOnly), false);
+test("an owner is refused an Web Dev-only module — the whole point of the change", () => {
+  assert.equal(canAccessModule("owner", webDevOnly), false);
 });
 
-test("an owner granted an IT-only module explicitly does get in", () => {
-  // So IT can hand audit to an owner from the permissions page, and the grant
+test("an owner granted an Web Dev-only module explicitly does get in", () => {
+  // So Web Dev can hand audit to an owner from the permissions page, and the grant
   // takes effect through the ordinary configured-roles path.
   assert.equal(
-    canAccessModule("owner", { itOnly: true, configuredRoles: ["owner"], configuredUserIds: [] }),
+    canAccessModule("owner", { webDevOnly: true, configuredRoles: ["owner"], configuredUserIds: [] }),
     true,
   );
 });
 
 test("a configured role reaches a module it is listed on", () => {
   assert.equal(
-    canAccessModule("helper", { itOnly: false, configuredRoles: ["helper"], configuredUserIds: [] }),
+    canAccessModule("helper", { webDevOnly: false, configuredRoles: ["helper"], configuredUserIds: [] }),
     true,
   );
   assert.equal(
-    canAccessModule("moderator", { itOnly: false, configuredRoles: ["helper"], configuredUserIds: [] }),
+    canAccessModule("moderator", { webDevOnly: false, configuredRoles: ["helper"], configuredUserIds: [] }),
     false,
   );
 });
@@ -51,7 +51,7 @@ test("a configured role reaches a module it is listed on", () => {
 test("an individually granted user reaches a module their role does not", () => {
   assert.equal(
     canAccessModule("helper", {
-      itOnly: false,
+      webDevOnly: false,
       configuredRoles: [],
       configuredUserIds: ["user-1"],
       userId: "user-1",
@@ -60,7 +60,7 @@ test("an individually granted user reaches a module their role does not", () => 
   );
   assert.equal(
     canAccessModule("helper", {
-      itOnly: false,
+      webDevOnly: false,
       configuredRoles: [],
       configuredUserIds: ["user-1"],
       userId: "user-2",
@@ -69,10 +69,10 @@ test("an individually granted user reaches a module their role does not", () => 
   );
 });
 
-test("an individual grant on an IT-only module is honoured", () => {
+test("an individual grant on an Web Dev-only module is honoured", () => {
   assert.equal(
     canAccessModule("moderator", {
-      itOnly: true,
+      webDevOnly: true,
       configuredRoles: [],
       configuredUserIds: ["user-9"],
       userId: "user-9",
@@ -84,16 +84,16 @@ test("an individual grant on an IT-only module is honoured", () => {
 test("an owner is still refused audit when the module's own list is the real one", () => {
   // The bug this guards: ALWAYS_ALLOWED = ["owner","web_dev"] was force-injected
   // into EVERY module's roles on read and write, so configuredRoles always
-  // contained "owner" and the fall-through granted it — defeating IT-only
+  // contained "owner" and the fall-through granted it — defeating Web Dev-only
   // silently, through the very mechanism meant to guarantee access. The
   // earlier tests missed it because they passed an empty configuredRoles,
   // which never occurs in production.
   assert.equal(
-    canAccessModule("owner", { itOnly: true, configuredRoles: ["web_dev"], configuredUserIds: [] }),
+    canAccessModule("owner", { webDevOnly: true, configuredRoles: ["web_dev"], configuredUserIds: [] }),
     false,
   );
   assert.equal(
-    canAccessModule("web_dev", { itOnly: true, configuredRoles: ["web_dev"], configuredUserIds: [] }),
+    canAccessModule("web_dev", { webDevOnly: true, configuredRoles: ["web_dev"], configuredUserIds: [] }),
     true,
   );
 });

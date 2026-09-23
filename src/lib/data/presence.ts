@@ -198,7 +198,7 @@ export async function getOnlineMembers(): Promise<OnlineMember[]> {
 
       Roles are written to app_metadata by the service key (see accounts.ts),
       and that is what every session resolves its role from. profiles.role is a
-      stale column that reads "member" even for IT and owners. DATABASE_URL
+      stale column that reads "member" even for Web Dev and owners. DATABASE_URL
       connects as a role that can read the auth schema, so this stays one query.
     */
     const rows = await db.execute(sql`

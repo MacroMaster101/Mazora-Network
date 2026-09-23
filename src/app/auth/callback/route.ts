@@ -50,8 +50,8 @@ export async function GET(request: NextRequest) {
         // throw, so a failure cannot break the OAuth redirect.
         await dispatchSignInNotifications(data.user.id);
       }
-      // No explicit destination → route by role (staff → their dashboard,
-      // everyone else → home). An explicit `next` (e.g. account linking) wins.
+      // No explicit destination → home, for every role. An explicit `next`
+      // (e.g. account linking) wins.
       await ensureRoleCatalog();
       // normalizeRoleKey: legacy key read as web_dev until migration 055 (removable after).
       const raw = normalizeRoleKey(data.user?.app_metadata?.role);

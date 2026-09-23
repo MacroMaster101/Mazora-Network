@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "@/components/ui/app-link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, Bell, Check, CheckCheck, ChevronDown, LayoutDashboard, LogIn, LogOut, RotateCcw, Settings, Shield, Sparkles, Trash2, User } from "lucide-react";
+import { ArrowRight, Bell, Check, CheckCheck, ChevronDown, Compass, LayoutDashboard, LogIn, LogOut, RotateCcw, Settings, Shield, Sparkles, Trash2, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Session } from "@/lib/auth";
 import { accountMenuFor, type AccountMenuIcon as AccountMenuIconName } from "@/lib/account-menu";
+import { openSiteGuide } from "@/lib/site-guide";
+import { openStaffGuide } from "@/lib/staff-guide";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { PresenceDot, PresencePill } from "@/components/presence/presence-dot";
@@ -137,6 +139,7 @@ export function HeaderActions({ session, presence = "online" }: { session: Sessi
   const activeMenuHref = menu
     .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+  const inAdmin = pathname.startsWith("/admin");
 
   const unreadCount = notifs.filter((n) => !n.read).length;
 
@@ -472,6 +475,20 @@ export function HeaderActions({ session, presence = "online" }: { session: Sessi
                   <span className="flex-1 truncate">{m.label}</span>
                 </Link>
               ))}
+              {/* An action, not a destination, so it sits outside accountMenuFor. */}
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  (inAdmin ? openStaffGuide : openSiteGuide)();
+                }}
+                className="account-menu-link group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-bold transition-all duration-150 text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-purple-700 dark:hover:text-white"
+              >
+                <span className="account-menu-link-icon grid h-8 w-8 place-items-center rounded-xl border border-purple-500/20 bg-purple-500/10 dark:bg-purple-400/15 text-purple-600 dark:text-purple-300 group-hover:scale-105 transition-transform duration-150">
+                  <Compass size={15} />
+                </span>
+                <span className="flex-1 truncate">{inAdmin ? "Staff guide" : "Site guide"}</span>
+              </button>
             </nav>
 
             <form action="/logout" method="post" className="account-menu-footer p-2.5 border-t border-slate-200/80 dark:border-purple-900/40">

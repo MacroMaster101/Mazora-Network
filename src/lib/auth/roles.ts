@@ -79,7 +79,11 @@ export function roleDashboardPath(_role: Role): string {
   return "/admin";
 }
 
-/** Staff go to their dashboard after login; everyone else goes home. */
-export function landingPathFor(role: Role): string {
-  return isStaff(role) ? roleDashboardPath(role) : "/";
+/**
+ * Everyone lands on the home page after login, staff included — the control
+ * room is one click away in the account menu, and being dropped into /admin on
+ * every sign-in got in the way of staff who came to use the site.
+ */
+export function landingPathFor(_role: Role): string {
+  return "/";
 }

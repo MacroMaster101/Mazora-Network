@@ -6,7 +6,7 @@ import { getSession, getSessionUserId, hasAtLeast } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getDb, schema } from "@/lib/db/client";
 import { refreshRoleCatalog, getRoleCatalogData, roleCatalogIsLive } from "@/lib/data/roles";
-import { ALL_PERMISSION_KEYS, getModulePermissions, isItOnlyModule } from "@/lib/auth/permissions";
+import { ALL_PERMISSION_KEYS, getModulePermissions, isWebDevOnlyModule } from "@/lib/auth/permissions";
 import { TOP_ROLE } from "@/lib/auth/roles";
 import {
   bandOrder, editableFields, isValidDeleteDestination, placeAbove, positionsFor, validateRoleInput, type RoleInput,
@@ -61,7 +61,7 @@ function normaliseGrantValue(value: unknown): { roles: string[]; userIds: string
  * failure, just nothing stored yet) falls back to the module's computed
  * defaults via `getModulePermissions`.
  *
- * IT-only modules (isItOnlyModule, e.g. Audit) are left exactly as they are
+ * Web Dev-only modules (isWebDevOnlyModule, e.g. Audit) are left exactly as they are
  * unless the actor is the top role: an Owner can neither add nor remove this
  * role's membership there, whatever `modules` says.
  *
@@ -87,8 +87,8 @@ async function setModuleGrants(roleKey: string, modules: string[], actorRole: st
 
   try {
     for (const key of ALL_PERMISSION_KEYS) {
-      // Only Web Dev may change who holds an IT-only module.
-      if (isItOnlyModule(key) && actorRole !== TOP_ROLE) continue;
+      // Only Web Dev may change who holds an Web Dev-only module.
+      if (isWebDevOnlyModule(key) && actorRole !== TOP_ROLE) continue;
       const current = byKey.has(key) ? normaliseGrantValue(byKey.get(key)) : await getModulePermissions(key);
       const has = current.roles.includes(roleKey);
       if (has === wanted.has(key)) continue;
@@ -304,7 +304,7 @@ export async function deleteRoleAction(key: string, destinationKey: string): Pro
     moved += 1;
   }
 
-  // A deleted role leaves every module list, IT-only ones included — a stale
+  // A deleted role leaves every module list, Web Dev-only ones included — a stale
   // key there would hand Audit to any later role recreated under the same ID.
   // This can only remove grants (the wanted set is empty), never add one.
   const grantsOk = await setModuleGrants(key, [], TOP_ROLE);

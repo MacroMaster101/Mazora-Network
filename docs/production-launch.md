@@ -57,6 +57,23 @@ NEXT_PUBLIC_DISCORD_INVITE_URL=...
 
 Keep `AUTH_DEMO_MODE` empty or remove it in production. Confirm Supabase redirect URLs include the production `/auth/callback` URL before enabling registration or social login.
 
+`SUPABASE_SERVICE_ROLE_KEY` also signs the `mz_pw_reset` grant that a verified
+password-reset session now needs before it can set a new password — without it,
+password reset fails outright, not just the admin screens that already depended
+on this key.
+
+## Supabase dashboard settings
+
+Set these in Supabase Authentication settings, not in code:
+
+- **Secure password change** — keep ON. It refuses a password change from a
+  session older than 24 hours until the caller confirms an emailed code;
+  Settings → Change password already handles that step.
+- **Email OTP expiration** — raise it from the 60-second default to around
+  600 seconds. It applies to the signup, password-reset and password-change
+  codes alike, and 60 seconds is tight for someone reading a code out of their
+  inbox.
+
 ## Required verification
 
 ```bash

@@ -27,7 +27,7 @@ export function BotActivityPanel({
    * Whether this viewer can actually open /admin/audit-logs.
    *
    * Bot-console access and audit access are separate permissions: audit is
-   * IT-tier, the bot console is not. Rendering the link for someone the audit
+   * Web Dev-tier, the bot console is not. Rendering the link for someone the audit
    * page will bounce is an invitation to a redirect, so it is hidden rather
    * than shown-and-refused.
    */

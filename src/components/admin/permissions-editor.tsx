@@ -21,7 +21,7 @@ export interface PermissionModuleConfig {
   saveAction: (formData: FormData) => Promise<PermissionActionResult>;
   /**
    * Roles that cannot be unticked for THIS module. Defaults to the manager's
-   * global set. An IT-tier module overrides it, because owner is not always
+   * global set. An Web Dev-tier module overrides it, because owner is not always
    * included there and showing it locked-on would be a lie.
    */
   locked?: Role[];

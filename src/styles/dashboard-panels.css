@@ -271,3 +271,76 @@
 .role-preview .role-preview-caption {
   opacity: 0.7;
 }
+
+/* Staff guide (components/admin/staff-guide.tsx). Admin-only, so these live
+   here rather than in the shared .site-guide* block in globals.css. */
+.site-guide-subhead {
+  margin-top: 1rem;
+  font-weight: 600;
+  color: rgb(var(--ink));
+}
+
+.site-guide-group-title {
+  margin: 0.875rem 0 0.375rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(var(--muted));
+}
+
+.site-guide-board {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--line));
+  background: rgb(var(--ink) / 0.03);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.site-guide-board + .site-guide-board {
+  margin-top: 0.375rem;
+}
+
+.site-guide-board:hover {
+  border-color: rgb(var(--accent) / 0.5);
+  background: rgb(var(--accent) / 0.06);
+}
+
+.site-guide-board svg {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  color: rgb(var(--accent-bright));
+}
+
+.site-guide-board strong {
+  display: block;
+  font-size: 0.82rem;
+}
+
+.site-guide-board span {
+  display: block;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: rgb(var(--muted));
+}
+
+/* In a centred slide the board list still spans the dialog, left-aligned. */
+.site-guide-centered .site-guide-boards {
+  align-self: stretch;
+  text-align: left;
+}
+
+.site-guide-boards {
+  max-height: min(46dvh, 24rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.site-guide-boards > .site-guide-group:first-child .site-guide-group-title {
+  margin-top: 0;
+}
