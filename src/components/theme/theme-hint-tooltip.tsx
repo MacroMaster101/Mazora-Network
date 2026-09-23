@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } f
 import { Moon, Sun, SunMoon, X } from "lucide-react";
 import { CONSENT_EVENT, readConsent } from "@/lib/consent-client";
 import { UNMOUNT_AFTER_MS as SPLASH_MS } from "@/components/shared/initial-site-loader";
+import { SITE_GUIDE_ACTIVE_ATTR, SITE_GUIDE_CLOSED_EVENT } from "@/lib/site-guide";
 import { cn } from "@/lib/utils";
 import { useTheme } from "./theme-provider";
 import {
@@ -43,6 +44,7 @@ export function ThemeHint({ variant, children }: { variant: ThemeHintVariant; ch
     if (!shouldShowThemeHint(hintStorage())) return;
     let revealTimer = 0;
     let stopWaitingForConsent = () => {};
+    let stopWaitingForGuide = () => {};
 
     const reveal = () => {
       // offsetParent is null inside the header variant hidden at this width.
@@ -52,15 +54,29 @@ export function ThemeHint({ variant, children }: { variant: ThemeHintVariant; ch
       setVisible(true);
     };
 
+    // A member's site guide goes first; the hint takes its turn once it closes.
+    const revealWhenGuideIdle = () => {
+      if (!document.documentElement.hasAttribute(SITE_GUIDE_ACTIVE_ATTR)) {
+        reveal();
+        return;
+      }
+      const onGuideClosed = () => {
+        stopWaitingForGuide();
+        revealTimer = window.setTimeout(reveal, AFTER_CONSENT_MS);
+      };
+      window.addEventListener(SITE_GUIDE_CLOSED_EVENT, onGuideClosed);
+      stopWaitingForGuide = () => window.removeEventListener(SITE_GUIDE_CLOSED_EVENT, onGuideClosed);
+    };
+
     const splashTimer = window.setTimeout(() => {
       if (readConsent() !== null) {
-        reveal();
+        revealWhenGuideIdle();
         return;
       }
       const onConsent = () => {
         if (readConsent() === null) return;
         stopWaitingForConsent();
-        revealTimer = window.setTimeout(reveal, AFTER_CONSENT_MS);
+        revealTimer = window.setTimeout(revealWhenGuideIdle, AFTER_CONSENT_MS);
       };
       window.addEventListener(CONSENT_EVENT, onConsent);
       stopWaitingForConsent = () => window.removeEventListener(CONSENT_EVENT, onConsent);
@@ -70,6 +86,7 @@ export function ThemeHint({ variant, children }: { variant: ThemeHintVariant; ch
       window.clearTimeout(splashTimer);
       window.clearTimeout(revealTimer);
       stopWaitingForConsent();
+      stopWaitingForGuide();
     };
   }, []);
 

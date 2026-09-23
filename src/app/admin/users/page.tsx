@@ -18,7 +18,7 @@ export default async function AdminUsersPage() {
   const accounts = await listAccounts();
 
   // Ranks this actor may hand out, from the live catalogue. The top rank may
-  // also grant its own, so a second IT can be appointed without dropping to
+  // also grant its own, so a second Web Dev can be appointed without dropping to
   // the CLI.
   const assignableRolesList = assignableRoles(session.role);
   const assignable: Role[] = assignableRolesList.map((role) => role.key as Role);

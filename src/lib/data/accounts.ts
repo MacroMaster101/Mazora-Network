@@ -328,7 +328,7 @@ export async function listPublicStaffAccounts(): Promise<PublicStaffMember[] | n
   const staff = await listStaffAccounts();
   if (!staff) return null;
   return staff
-    // IT is an internal systems role, never a public team rank. Keep this
+    // Web Dev is an internal systems role, never a public team rank. Keep this
     // guard in the repository so no public caller can accidentally expose it.
     .filter((account) => account.role !== "web_dev" && !account.pendingInvite && account.publicStaffVisible)
     .map(({ userId, username, role, minecraftUsername, minecraftSkinUrl, avatarUrl }) => {

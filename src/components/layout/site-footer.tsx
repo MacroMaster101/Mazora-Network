@@ -6,14 +6,22 @@ import { Icon } from "@/components/shared/icon";
 import { CopyIpButton } from "@/components/shared/copy-ip-button";
 import { getServerAddresses } from "@/lib/data/site-settings";
 import { CookieSettingsLink } from "@/components/shared/cookie-settings-link";
+import { SiteGuide } from "@/components/shared/site-guide";
+import { getSiteGuideSeen } from "@/lib/data/site-guide";
 
 export async function SiteFooter() {
-  const addresses = await getServerAddresses();
+  // SiteHeader already resolves getSession on every route and it's memoised per
+  // request, so running these together costs no extra round trip to the auth
+  // server. getSiteGuideSeen fails closed ("seen") on any error and returns
+  // true with no session, so it's safe to call for guests too.
+  const [addresses, session, guideSeen] = await Promise.all([
+    getServerAddresses(),
+    getSession(),
+    getSiteGuideSeen(),
+  ]);
   const year = new Date().getFullYear();
-  // SiteHeader already resolves this on every route and getSession is memoised
-  // per request, so this costs no extra round trip to the auth server.
-  const session = await getSession();
   const accountLinks = session ? accountNavFor(isStaff(session.role)) : accountNavGuest;
+  // guideSeen is only used below, when a session exists.
   return (
     <footer className="site-footer">
       <div className="shell grid grid-cols-2 gap-x-8 gap-y-10 py-14 sm:py-16 lg:grid-cols-[1.4fr_repeat(4,1fr)] lg:gap-x-10">
@@ -81,6 +89,18 @@ export async function SiteFooter() {
           </nav>
         </div>
       </div>
+      {session && (
+        // key={session.username}: re-mounts the guide if the signed-in user changes
+        // on this footer instance, so the once-per-mount auto-open check reruns.
+        <SiteGuide
+          key={session.username}
+          autoOpen={!guideSeen}
+          username={session.username}
+          displayName={session.displayName}
+          avatarUrl={session.avatarUrl}
+          addresses={addresses}
+        />
+      )}
     </footer>
   );
 }

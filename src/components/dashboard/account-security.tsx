@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, KeyRound, Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, LockKeyhole, MailCheck, RotateCw, ShieldCheck } from "lucide-react";
 import { updatePasswordAction, type AuthResult } from "@/lib/actions/auth";
 import { FormRow, Input, useToast } from "@/components/ui";
 
@@ -42,22 +42,29 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  // Set once Supabase asks for the emailed reauthentication code; stays until
+  // the change succeeds or is cancelled, so the typed passwords are reused.
+  const [codeRequested, setCodeRequested] = useState(false);
+  const [code, setCode] = useState("");
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
+    if (state.needsCode) setCodeRequested(true);
     if (state.ok && state.message) {
       toast(state.message, "success");
       setIsOpen(false);
       setCurrentPassword("");
       setPassword("");
       setConfirm("");
+      setCodeRequested(false);
+      setCode("");
       // Re-run the settings server component so the "Set a password" /
       // "Change password" label reflects the just-updated has_password flag
       // without requiring the user to manually reload the page.
       router.refresh();
     } else if (!state.ok && state.message) {
-      toast(state.message, "error");
+      toast(state.message, state.needsCode ? "info" : "error");
     }
   }, [state, toast, router]);
 
@@ -77,7 +84,10 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
   const mismatch = confirm.length > 0 && password !== confirm;
   const tooShort = password.length > 0 && password.length < 8;
   const canSubmit =
-    password.length >= 8 && password === confirm && (!hasPassword || currentPassword.length > 0);
+    password.length >= 8 &&
+    password === confirm &&
+    (!hasPassword || currentPassword.length > 0) &&
+    (!codeRequested || code.replace(/\s+/g, "").length >= 6);
 
   return (
     <form
@@ -183,6 +193,41 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
         </div>
       </FormRow>
 
+      {/*
+        Supabase "Secure password change": a session older than 24 hours must
+        confirm the emailed code before the password can change.
+      */}
+      {codeRequested && (
+        <FormRow label="Confirmation code" htmlFor="settings-reauth-code" error={state.errors?.nonce}>
+          <Input
+            id="settings-reauth-code"
+            name="nonce"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="6-digit code from the email"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={12}
+            required
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+            <span className="inline-flex items-center gap-1.5">
+              <MailCheck size={13} className="text-accent-bright" /> Check your email for the code.
+            </span>
+            <button
+              type="submit"
+              name="resendCode"
+              value="1"
+              formNoValidate
+              disabled={pending}
+              className="inline-flex items-center gap-1 font-semibold text-accent-bright hover:underline disabled:opacity-50"
+            >
+              <RotateCw size={12} /> Send a new code
+            </button>
+          </div>
+        </FormRow>
+      )}
+
       <div className="flex items-center gap-2">
         <button
           type="submit"
@@ -194,7 +239,7 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
           ) : (
             <ShieldCheck size={14} />
           )}
-          {pending ? "Saving…" : hasPassword ? "Update password" : "Set password"}
+          {pending ? "Saving…" : codeRequested ? "Confirm and update" : hasPassword ? "Update password" : "Set password"}
         </button>
         <button
           type="button"
@@ -202,6 +247,8 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
             setIsOpen(false);
             setPassword("");
             setConfirm("");
+            setCodeRequested(false);
+            setCode("");
           }}
           className="btn btn-ghost btn-sm"
         >
