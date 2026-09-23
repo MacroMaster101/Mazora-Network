@@ -29,6 +29,8 @@ import {
   type OtpType,
 } from "@/lib/validation/auth";
 import { isPasswordBreached, PWNED_PASSWORD_MESSAGE } from "@/lib/auth/pwned-password";
+import { clearResetGrant, hasResetGrant, issueResetGrant } from "@/lib/auth/reset-grant";
+import { classifyPasswordUpdateError, normaliseReauthCode } from "@/lib/auth/password-reauth";
 
 export interface AuthResult {
   ok: boolean;
@@ -36,6 +38,8 @@ export interface AuthResult {
   errors?: Record<string, string>;
   /** Set by loginAction when credentials were correct but the account's email isn't confirmed yet. */
   unverifiedEmail?: string;
+  /** Set by updatePasswordAction when Supabase wants the emailed reauthentication code. */
+  needsCode?: boolean;
 }
 
 /** Supabase's distinct error for "credentials correct, email not confirmed" — matched by
@@ -200,8 +204,7 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
     // backfills accounts created before this dispatch existed.
     await dispatchSignInNotifications(await getSessionUserId());
 
-    // Honour an explicit destination; otherwise route by role (staff → their
-    // dashboard, everyone else → home).
+    // Honour an explicit destination; otherwise land on home (every role).
     if (parsed.data.next && parsed.data.next !== "/") redirect(safeNext(parsed.data.next));
     const session = await getSession();
     redirect(session ? landingPathFor(session.role) : "/");
@@ -445,7 +448,7 @@ export async function confirmEmailAction(_previous: AuthResult, formData: FormDa
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
-  const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+  const { data: verified, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
   if (error) {
     return {
       ok: false,
@@ -454,6 +457,11 @@ export async function confirmEmailAction(_previous: AuthResult, formData: FormDa
   }
 
   if (type === "signup" || type === "email") await linkVerifiedRegistration(supabase);
+  // The reset link's session is the only kind finishPasswordResetAction accepts.
+  if (type === "recovery" && !(await issueResetGrant(supabase, verified.session?.access_token))) {
+    console.error("Password reset grant could not be issued (reset link)");
+    return { ok: false, message: "Authentication is temporarily unavailable. Please try again." };
+  }
 
   redirect(type === "recovery" ? "/reset-password" : "/");
 }
@@ -587,13 +595,18 @@ export async function verifyResetCodeAction(_previous: AuthResult, formData: For
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
-  const { error } = await supabase.auth.verifyOtp({
+  const { data: verified, error } = await supabase.auth.verifyOtp({
     email: parsed.data.email,
     token: parsed.data.token,
     type: "recovery",
   });
   if (error) return { ok: false, errors: { token: "That code is incorrect or has expired." } };
 
+  // Marks this session as a recovery session; step 3 requires it.
+  if (!(await issueResetGrant(supabase, verified.session?.access_token))) {
+    console.error("Password reset grant could not be issued (reset code)");
+    return { ok: false, message: "Authentication is temporarily unavailable. Please try again." };
+  }
   return { ok: true };
 }
 
@@ -618,7 +631,14 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
 
     const { data: userData } = await supabase.auth.getUser();
     const email = userData?.user?.email;
-    if (!email) return { ok: false, message: "Your reset session expired. Request a new code and try again." };
+    // Only a session created by the emailed code or link may skip the current
+    // password. Without this, any signed-in session (an unattended device, a
+    // copied cookie) could call this action directly and take the account over
+    // — the exact case updatePasswordAction's current-password check prevents.
+    if (!email || !(await hasResetGrant(supabase))) {
+      await clearResetGrant();
+      return { ok: false, message: "Your reset session expired. Request a new code and try again." };
+    }
 
     if (await passwordMatchesCurrent(email, parsed.data.password)) {
       return { ok: false, errors: { password: "New password must be different from your current password." } };
@@ -628,6 +648,7 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
     if (error) return { ok: false, message: "The password could not be updated. Request a new code and try again." };
     await markHasPassword(userData?.user?.id);
 
+    await clearResetGrant();
     await supabase.auth.signOut();
   } else if (!isDemoAuthEnabled()) {
     return { ok: false, message: "Authentication has not been configured yet." };
@@ -728,11 +749,44 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       return { ok: false, errors: { password: "New password must be different from your current password." } };
     }
 
+    /*
+      "Secure password change" is on in Supabase: a session older than 24 hours
+      must prove it still controls the email address. The first attempt without
+      a code gets reauthentication_needed, so we email one and the form asks for
+      it; the resubmission carries it as the nonce. "Send a new code" submits
+      with resendCode set, which drops any typed code and emails a fresh one.
+    */
+    const resend = formData.get("resendCode") === "1";
+    const typedCode = resend ? "" : String(formData.get("nonce") ?? "").trim();
+    const nonce = typedCode ? normaliseReauthCode(typedCode) : null;
+    if (typedCode && !nonce) {
+      return { ok: false, needsCode: true, errors: { nonce: "Enter the code from the email." } };
+    }
+
     const { error } = await supabase.auth.updateUser({
       password: parsed.data.password,
       data: { has_password: true },
+      ...(nonce ? { nonce } : {}),
     });
-    if (error) return { ok: false, message: "The password could not be updated. Request a new recovery link." };
+    if (error) {
+      const kind = classifyPasswordUpdateError(error.code);
+      if (kind === "send-code") {
+        const { error: sendError } = await supabase.auth.reauthenticate();
+        if (sendError) {
+          console.error("Could not send the password-change confirmation code:", sendError.message);
+          return { ok: false, needsCode: true, message: "We couldn't send a confirmation code. Try again in a minute." };
+        }
+        return {
+          ok: false,
+          needsCode: true,
+          message: "For your security, we've emailed you a confirmation code. Enter it below to finish.",
+        };
+      }
+      if (kind === "bad-code") {
+        return { ok: false, needsCode: true, errors: { nonce: "That code is incorrect or has expired. Send a new one." } };
+      }
+      return { ok: false, message: "The password could not be updated. Please try again." };
+    }
     await markHasPassword(userData?.user?.id);
 
     /*

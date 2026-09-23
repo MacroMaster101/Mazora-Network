@@ -22,7 +22,7 @@ export default async function AdminRolesPage() {
     roles.map((role) => [role.key, ALL_PERMISSION_KEYS.filter((key) => modules[key]?.roles.includes(role.key))]),
   );
   // Same rule as the Permissions page: only offer modules this viewer can manage
-  // (Audit is IT-only unless IT has granted it). Hidden grants are preserved on save.
+  // (Audit is Web Dev-only unless Web Dev has granted it). Hidden grants are preserved on save.
   const moduleKeys = (
     await Promise.all(ALL_PERMISSION_KEYS.map(async (key) => ((await canManageModule(key, session, viewerId)) ? key : null)))
   ).filter((key): key is (typeof ALL_PERMISSION_KEYS)[number] => key !== null);

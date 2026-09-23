@@ -77,6 +77,22 @@ The mobile header contains a cropped logo and menu button. The logo crop compens
 
 The drawer starts with all dropdown groups collapsed. Its backdrop is not an accessible button; the explicit close button is the single reliable close target for keyboard and automated interaction.
 
+## 🧭 First-visit guides
+
+Two short tours share one shell: `GuideDialog`, `GuidePausePill`, `guideStorage()` and the `useGuide` hook in `src/components/shared/guide-dialog.tsx`. Both are portal-rendered dialogs with a focus trap, Esc to close, arrow-key navigation between slides, and a scroll lock.
+
+**Site guide** (`src/components/shared/site-guide.tsx`, `src/lib/site-guide.ts`) is five slides — welcome, set Minecraft IGN, link Discord, join the server (Java and Bedrock addresses), find your way around — shown to every signed-in member. It opens once per account, timed to appear after the splash screen and any unanswered cookie banner so a newcomer is never shown three things at once, and it skips itself if an error state is on screen. Seen state lives in `profiles.site_guide_seen_at` (migration 068); the read in `src/lib/data/site-guide.ts` fails closed, so a query error answers "already seen" rather than risk showing the tour to everyone. The account menu's "Site guide" item (desktop dropdown and mobile drawer) reopens it any time.
+
+**Staff guide** (`src/components/admin/staff-guide.tsx`, `src/lib/staff-guide.ts`) is four slides built from `visibleAdminNav`, so it lists exactly the boards the viewer can open today — rank plus any custom role or Permissions grant. The first `/admin` visit shows the full tour; later, when a promotion, a new custom role, or a new grant adds boards, the next visit shows a single "New for you" slide listing only the boards gained, and losing access shows nothing. State is `profiles.staff_guide_boards` (migration 069, `text[]`), recomputed server-side by `markStaffGuideSeen` from the viewer's current rank and grants rather than trusting anything the client sends. Every board in `src/lib/admin-nav.ts` needs a one-line entry in `ADMIN_BOARD_DESCRIPTIONS` — a test fails if one is missing. The account menu shows "Staff guide" only inside `/admin`.
+
+**Pausing.** Closing a guide mid-tour, or following a link inside a slide (Set my IGN, Link Discord, a staff board), pauses it rather than ending it: `src/lib/guide-pause.ts` remembers the slide per account and per guide in `localStorage`, a small compass "Continue" pill appears on every page (bottom-left for the site guide, bottom-right in `/admin`, since the sidebar owns the left edge there), and resuming reopens that slide. Only Skip tour, Finish, or closing on the last slide actually ends a tour.
+
+## 🔑 Password reset and secure password change
+
+Finishing a password reset used to only need an ordinary Supabase session, and the emailed code was just what started one — so a stolen or unattended session could call the same server action and set a new password without ever knowing the current one. `finishPasswordResetAction` now additionally requires a signed, httpOnly `mz_pw_reset` cookie (`src/lib/auth/reset-grant.ts`, `src/lib/auth/reset-grant-core.ts`), issued only immediately after `verifyOtp({ type: "recovery" })` succeeds for the emailed 6-digit code or reset link. The grant is an HMAC over the user id and session id, keyed from `SUPABASE_SERVICE_ROLE_KEY`, expires after 15 minutes, and is checked against the current session's own claims, so copying it into another session — or keeping it after signing in again — never verifies. Without `SUPABASE_SERVICE_ROLE_KEY` the grant cannot be issued and the reset fails outright rather than silently falling back to the old behavior.
+
+Production also has Supabase's "Secure password change" turned on, which refuses `updateUser({ password })` from a session older than 24 hours until the caller proves they still control the email address via a `reauthenticate()` code. `src/lib/auth/password-reauth.ts` classifies Supabase's error codes, and `updatePasswordAction` together with `AccountSecurity` (`src/components/dashboard/account-security.tsx`) turn that into an inline "enter the code we emailed you" step instead of a dead end.
+
 ## ⛏️ Live Minecraft status
 
 `src/lib/data/status.ts` fetches Minecraft server data on the server and normalizes common status API shapes. The default endpoint is:
@@ -236,7 +252,7 @@ If a development cache produces route-type errors after route groups or slots ch
 
 ## 🔒 Dependency security
 
-Run `npm audit --audit-level=moderate` for the complete dependency tree and `npm audit --omit=dev --audit-level=high` for production-only risk. As of 2026-08-11, the production-only audit reports zero vulnerabilities; the complete tree reports four moderate development-only findings through `drizzle-kit -> @esbuild-kit/* -> esbuild <=0.24.2`. npm's suggested remediation downgrades Drizzle Kit to `0.18.1`, so it is not a safe automatic fix. Recheck on each Drizzle release and review automated upgrades deliberately; never use `npm audit fix --force` without checking framework and Drizzle compatibility.
+Run `npm audit --audit-level=moderate` for the complete dependency tree and `npm audit --omit=dev --audit-level=high` for production-only risk. As of 2026-09-24, both the production-only audit and the complete tree report zero vulnerabilities (the earlier moderate development-only findings through `drizzle-kit -> @esbuild-kit/* -> esbuild` no longer appear). Review automated upgrades deliberately; never use `npm audit fix --force` without checking framework and Drizzle compatibility.
 
 Next.js may print an Edge-runtime compatibility warning from `@supabase/supabase-js` while bundling the session-refresh middleware. The optimized build still succeeds. Do not silence it by forcing middleware to the Node.js runtime: with the current broad matcher, that makes public routes dynamic. Recheck the warning after Supabase or Next.js upgrades.
 

@@ -19,8 +19,8 @@ import { formatBackupAge, formatBackupSize, type BackupStatus } from "@/lib/data
  * Server component: the GitHub token is read during render and never reaches
  * the browser.
  *
- * `canOpenRun` narrows the GitHub link to IT. Access to the ops repository is
- * granted per person, not per role in this application, and today only IT holds
+ * `canOpenRun` narrows the GitHub link to Web Dev. Access to the ops repository is
+ * granted per person, not per role in this application, and today only Web Dev holds
  * it — so for an owner the link is a 404 dressed up as an answer. The figures
  * are the part that transfers, and those stay visible to both.
  */

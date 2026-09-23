@@ -51,18 +51,18 @@ test("deleteRoleAction validates the destination and checks the auth update erro
   assert.ok(errorCheck < roleRowDelete, "the auth update error must be checked before the role row is deleted");
 });
 
-test("only Web Dev can change IT-only module grants from the role modal", () => {
+test("only Web Dev can change Web Dev-only module grants from the role modal", () => {
   const grants = actions.slice(actions.indexOf("async function setModuleGrants"));
-  assert.match(grants.slice(0, grants.search(/\r?\n\}\r?\n/)), /if \(isItOnlyModule\(key\) && actorRole !== TOP_ROLE\) continue;/);
+  assert.match(grants.slice(0, grants.search(/\r?\n\}\r?\n/)), /if \(isWebDevOnlyModule\(key\) && actorRole !== TOP_ROLE\) continue;/);
   assert.equal([...actions.matchAll(/setModuleGrants\([^)]*me\.session\.role\)/g)].length, 2, "create and update pass the actor role");
   assert.match(actions, /setModuleGrants\(key, \[\], TOP_ROLE\)/, "delete only ever removes the deleted role's grants");
   assert.doesNotMatch(actions, /setModuleGrants\([^,)]*,[^,)]*\)/, "no call without the actor role");
 });
 
-test("saveModulePermissionAction refuses IT-only modules for anyone below Web Dev", () => {
+test("saveModulePermissionAction refuses Web Dev-only modules for anyone below Web Dev", () => {
   const body = permissionActions.slice(permissionActions.indexOf("export async function saveModulePermissionAction"));
-  const guard = body.indexOf("if (isItOnlyModule(settingKey) && session.role !== TOP_ROLE)");
-  assert.ok(guard > -1, "IT-only guard present");
+  const guard = body.indexOf("if (isWebDevOnlyModule(settingKey) && session.role !== TOP_ROLE)");
+  assert.ok(guard > -1, "Web Dev-only guard present");
   assert.ok(guard < body.indexOf(".insert("), "guard runs before the write");
   assert.match(body, /Only Web Dev can change this permission\./);
 });

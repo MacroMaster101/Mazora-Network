@@ -38,6 +38,7 @@ backed by real data today.
 - Discord-based store ordering with ticket lifecycle, purchase announcements, and transcript archival
 - Role-based admin control room with live telemetry, user management, permissions editor, player management, and content tools
 - Member dashboard with profile editing, avatar upload, connected accounts (Discord), purchase history, and notification preferences; support tickets use the public Support flow
+- A first-visit site guide walks new members through setting their Minecraft name, linking Discord, and joining the server; a matching staff guide in the control room is built from exactly the boards each person can open. Both open once automatically and can be reopened any time from the account menu
 - Keyboard focus states, semantic landmarks, skip navigation, accessible labels, and reduced-motion support
 
 ## 🧱 Technology
@@ -83,7 +84,7 @@ Open [http://localhost:3000](http://localhost:3000). Environment variables and a
 | `npm run db:seed:store` | Load the storefront catalogue into `products` |
 | `npm run db:seed:rules` | Load the baseline community rulebook |
 | `npm run db:rehost:news-images` | Re-host expiring Discord CDN artwork into Supabase storage |
-| `npm run role:set -- <email> <role>` | Grant the first owner/IT account |
+| `npm run role:set -- <email> <role>` | Grant the first owner/Web Dev account |
 | `npm run backup` | Dump every table to `backups/<timestamp>/db` as newline-delimited JSON |
 | `npm run backup:storage` | Download every storage object into the same backup directory |
 
@@ -144,7 +145,7 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `CRON_SECRET` | Scheduled jobs | Shared secret for **every** cron route, not only the news sync (minimum 16 characters). Each route rejects an unauthenticated call with 401, and returns 503 rather than running if this is unset or shorter than 16 characters — the jobs fail closed. See [Scheduled jobs](#-scheduled-jobs). |
 | `MAZORA_LAUNCH_MODE` | No | `true` (default) shows the launch-status page for unfinished routes. Set to `false` to restore every implementation. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Legacy auth | Legacy browser-safe anonymous key; used only when no publishable key is set. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Admin features | Server-only Supabase service key used for user, invitation, staff, and avatar administration. Never expose it publicly. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Admin features | Server-only Supabase service key used for user, invitation, staff, and avatar administration, and to sign the `mz_pw_reset` grant that lets a verified password-reset session set a new password. Password reset fails without it. Never expose it publicly. |
 | `BOT_CONFIG_SECRET` | Presence worker | Shared secret the standalone Render presence bot presents to read its rotation config from `/api/bot/presence-config`. Must be identical in Vercel and Render. The endpoint refuses every request while this is unset. |
 | `DISCORD_GRANTABLE_ROLE_IDS` | No | Allowlist of Discord role ids staff may add or remove from the admin bot console, comma-separated. Unset means the role picker is read-only and every grant request is refused — Discord's own hierarchy is only a second limit, so this list is the real control. |
 | `RESEND_API_KEY` | Welcome email | Resend API key for the app's OWN sender. Separate from the SMTP credentials configured inside Supabase for auth emails — the app cannot reach those. Unset makes the welcome email a silent no-op; sign-in is unaffected. |
@@ -275,11 +276,13 @@ Forums contains staff applications, ban appeals, suggestions, and the discussion
 - `/dashboard` — the member area: overview with stats, profile avatar editor, connected accounts (Discord), tickets, appeals, reports, events, votes, purchases, notifications, and settings. Features a glass-panel sidebar with Minecraft skin avatar and rank badge.
 - `/admin` — the staff control room with role-based access. Includes live telemetry dashboard, user directory with role management, permissions editor, player management, content tools (news, rules, gallery, store, game modes, events, pages), moderation (reports, tickets, suggestions), orders with Discord ticket lifecycle, voting configuration, site settings, and audit logs. Each staff role sees only the sections relevant to their rank.
 
-Members and staff land in different places. After signing in, a non-staff member goes to
-the homepage and a staff member goes to `/admin`. Staff do not use `/dashboard` — their
-account screens (settings, connected accounts, notifications, purchases) live under
-`/admin/account`. The header dropdown reflects this: staff see Control Room and My Settings,
-members see Dashboard, Tickets, and Settings.
+Everyone lands on the homepage after signing in, staff included — the control room is one
+click away in the account menu, and being dropped into `/admin` on every sign-in got in the
+way of staff who came to use the site rather than moderate it. An explicit `?next=` on the
+auth flow is still honoured. Staff do not use `/dashboard` — their account screens (settings,
+connected accounts, notifications, purchases) live under `/admin/account`. The header
+dropdown reflects this: staff see Control Room and My Settings, members see Dashboard,
+Tickets, and Settings.
 
 ### Roles
 
@@ -296,7 +299,7 @@ The ladder, lowest to highest:
 | `senior_moderator` | yes | Moderation oversight |
 | `administrator` | yes | Content and commerce (`is_admin`) |
 | `owner` | yes | Users, staff and role management |
-| `it` | yes | Highest rank; settings and audit |
+| `web_dev` | yes | Highest rank; settings and audit |
 
 `ROLES`, `hasAtLeast`, `isStaff`, `isAdmin` and `roleLabel` in `src/lib/auth/roles.ts` are
 the single source of truth — validate against `ROLES` rather than re-listing roles.
@@ -304,7 +307,7 @@ the single source of truth — validate against `ROLES` rather than re-listing r
 The session role is read from Supabase `app_metadata.role` (server-controlled), never from
 client-writable `user_metadata`. `profiles.role` mirrors it for RLS. Change roles only
 through `changeUserRole`, which enforces rank rules and writes an audit entry. Bootstrap
-the first privileged account with `npm run role:set -- <email> it`, then sign out and in.
+the first privileged account with `npm run role:set -- <email> web_dev`, then sign out and in.
 
 The control room at `/admin` is one adaptive screen: boards appear according to the
 viewer's rank. It marks where each figure comes from — live values are bracketed, and
@@ -382,17 +385,23 @@ consistent — and if you do, update its `version` in
 
 Every table in `public` has RLS enabled. Public content (products, rules,
 `rule_categories`, `game_modes`, `news_articles`, `gallery_images`, `vote_sites`) is
-world-readable; user-owned data (orders, order items, Minecraft links, vote history,
-suggestions) is restricted to its owner and staff, and `audit_logs` and `site_settings`
-are admin-only. Role checks use the `is_staff()` / `is_admin()` helpers, which read
-`profiles.role`.
+world-readable; user-owned data (`profiles`, `minecraft_accounts`, `orders`, `order_items`,
+`suggestions`, `suggestion_votes`, `vote_history`) is self-read only, and `audit_logs` and
+`site_settings` are admin-only. Role checks use the `is_staff()` / `is_admin()` helpers,
+which read `profiles.role`.
 
 `profiles` is deliberately NOT world-readable. It was, until migration 029: the policy
 named no role, so it also granted `anon`, and since the anon key ships to every browser
 the whole member list — auth id, rank and account status — could be read straight off
-PostgREST. It is now self-or-staff, and nothing in the app noticed, because every profile
-read here runs through the service role or Drizzle. Do not widen it again without a
-concrete reader that needs it.
+PostgREST. Migration 070 went further and dropped the staff-wide read clause on all seven
+self-read tables above: `is_staff()` / `is_admin()` let any Helper or a de-permissioned
+administrator read every row of these tables straight off PostgREST with their own session
+token, bypassing the admin panel's module permissions entirely. Nothing in the app noticed
+either time, because every staff read of this data runs through the service role or
+`DATABASE_URL`, never a user session. The same migration dropped the leftover public
+`SELECT` policy on the `profile-avatars` storage bucket, which let anyone list every
+account's internal user id. Do not widen any of this again without a concrete reader that
+needs it.
 
 `creator_codes`, `creator_code_products`, `gallery_likes` and `minecraft_players` carry
 RLS with no policies at all, which denies every non-service-role caller. That is the

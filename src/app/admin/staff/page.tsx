@@ -45,8 +45,8 @@ export default async function AdminStaffPage() {
 
   const total = active.length;
 
-  // Uses the canonical grant rule (via assignableRoles), including IT
-  // appointing another IT, restricted to staff-kind ranks for this board's
+  // Uses the canonical grant rule (via assignableRoles), including Web Dev
+  // appointing another Web Dev, restricted to staff-kind ranks for this board's
   // invitations.
   const staffKeys = new Set(staffRoleKeys());
   const assignable: Role[] = assignableRoles(session.role)

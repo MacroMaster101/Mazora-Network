@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getSession, getSessionUserId, type Session } from "@/lib/auth";
 import { isStaff } from "@/lib/auth/roles";
 import { canAccessModule } from "@/lib/auth/module-access-shared";
-import { getAllModulePermissions, isItOnlyModule, PAGES_PERMISSION_KEY } from "@/lib/auth/permissions";
+import { getAllModulePermissions, isWebDevOnlyModule, PAGES_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { PAGE_CONTENT_DEFINITIONS, type PageContentDefinition } from "@/lib/page-content";
 
 /**
@@ -38,7 +38,7 @@ export async function getPageHubAccess(
     const permission = permissions[permissionKey];
     if (!permission) return false;
     return canAccessModule(session.role, {
-      itOnly: isItOnlyModule(permissionKey),
+      webDevOnly: isWebDevOnlyModule(permissionKey),
       configuredRoles: permission.roles,
       configuredUserIds: permission.userIds,
       userId,

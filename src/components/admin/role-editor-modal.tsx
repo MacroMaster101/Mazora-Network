@@ -101,7 +101,7 @@ function RoleEditorForm({ target, title, roles, grants, moduleKeys, pending, onC
       const patch: UpdatePayload = { label, color, icon: trimmedIcon, description };
       if (editing.kind === "staff") patch.showOnTeam = showOnTeam;
       if (showModules) {
-        // Keep grants for modules this viewer cannot see (e.g. IT-only Audit) — the action replaces the whole set.
+        // Keep grants for modules this viewer cannot see (e.g. Web Dev-only Audit) — the action replaces the whole set.
         const hidden = (grants[editing.key] ?? []).filter((m) => !moduleKeys.includes(m));
         patch.modules = [...modules, ...hidden];
       }

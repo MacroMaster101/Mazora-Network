@@ -7,7 +7,7 @@ import { isRoleKey, TOP_ROLE } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 import {
   alwaysAllowedFor,
-  isItOnlyModule,
+  isWebDevOnlyModule,
   getModulePermissions,
   NEWS_PERMISSION_KEY,
   GALLERY_PERMISSION_KEY,
@@ -51,7 +51,7 @@ export async function saveModulePermissionAction(
   if (!session || !hasAtLeast(session.role, "owner")) {
     return { ok: false, message: "Only owners can change permissions." };
   }
-  if (isItOnlyModule(settingKey) && session.role !== TOP_ROLE) {
+  if (isWebDevOnlyModule(settingKey) && session.role !== TOP_ROLE) {
     return { ok: false, message: "Only Web Dev can change this permission." };
   }
   if (!PERMISSION_KEYS.includes(settingKey)) {

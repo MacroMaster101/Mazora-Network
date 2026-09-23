@@ -276,7 +276,7 @@ export async function revokeInviteAction(
     return { ok: false, message: "That invitation was already accepted." };
   }
   // Revoking hard-deletes the pending row, so it obeys the same rank ceiling as
-  // deletion: an Owner must not undo an invite an IT created at Owner/IT rank.
+  // deletion: an Owner must not undo an invite a Web Dev created at Owner/Web Dev rank.
   const targetRole = (normalizeRoleKey(target.user.app_metadata?.role) as Role) ?? "member";
   if (!canManageRank(session.role, targetRole)) {
     return { ok: false, message: "You cannot withdraw an invitation at or above your rank." };

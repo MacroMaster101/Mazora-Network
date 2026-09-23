@@ -39,17 +39,17 @@ export const ALWAYS_ALLOWED: Role[] = ["owner", TOP_ROLE];
 /**
  * Roles force-included in one module's list, whatever is stored or submitted.
  *
- * Owner is excluded for an IT-tier module. ALWAYS_ALLOWED is injected on both
+ * Owner is excluded for an Web Dev-tier module. ALWAYS_ALLOWED is injected on both
  * read and write, so leaving owner in it would put "owner" into the audit
  * module's own role list — and the access check consults that list once the
- * owner short-circuit is skipped. The IT-only rule would be defeated silently,
+ * owner short-circuit is skipped. The Web Dev-only rule would be defeated silently,
  * by the very mechanism meant to guarantee access.
  *
  * Web Dev is never removed: it is TOP_ROLE, and a module nobody can reach is a
  * module nobody can fix.
  */
 export function alwaysAllowedFor(key?: string): Role[] {
-  return key && IT_ONLY_MODULES.has(key) ? [TOP_ROLE] : [...ALWAYS_ALLOWED];
+  return key && WEB_DEV_ONLY_MODULES.has(key) ? [TOP_ROLE] : [...ALWAYS_ALLOWED];
 }
 
 export interface ModulePermissions {
@@ -174,19 +174,19 @@ export const getAllModulePermissions = cache(
 
   Settings is deliberately NOT here: owners are expected to reach it.
 
-  An owner can still be given audit access; IT grants it from the permissions
+  An owner can still be given audit access; Web Dev grants it from the permissions
   page and the grant lands in the module's own role list, which the check below
   consults after the short-circuit is skipped.
 */
-const IT_ONLY_MODULES: ReadonlySet<string> = new Set([AUDIT_PERMISSION_KEY]);
+const WEB_DEV_ONLY_MODULES: ReadonlySet<string> = new Set([AUDIT_PERMISSION_KEY]);
 
-export function isItOnlyModule(key: string): boolean {
-  return IT_ONLY_MODULES.has(key);
+export function isWebDevOnlyModule(key: string): boolean {
+  return WEB_DEV_ONLY_MODULES.has(key);
 }
 
 export async function canManageModule(key: string, session: Session | null, userId?: string | null): Promise<boolean> {
   if (!session) return false;
-  const itOnly = IT_ONLY_MODULES.has(key);
+  const webDevOnly = WEB_DEV_ONLY_MODULES.has(key);
 
   /*
     Answer without touching the database where the answer cannot depend on it.
@@ -194,14 +194,14 @@ export async function canManageModule(key: string, session: Session | null, user
     This mirrors the first two branches of canAccessModule exactly, and exists
     for availability rather than speed: getModulePermissions fails CLOSED on a
     database error, so reading it first would lock owners out of every admin
-    page during an outage — which is how this behaved before IT-only modules
+    page during an outage — which is how this behaved before Web Dev-only modules
     existed, and must keep behaving.
   */
-  if (!itOnly && hasAtLeast(session.role, "owner")) return true;
+  if (!webDevOnly && hasAtLeast(session.role, "owner")) return true;
 
   const perms = await getModulePermissions(key);
   return canAccessModule(session.role, {
-    itOnly,
+    webDevOnly,
     configuredRoles: perms.roles,
     configuredUserIds: perms.userIds,
     userId,

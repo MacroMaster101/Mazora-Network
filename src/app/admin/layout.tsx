@@ -6,6 +6,8 @@ import { getAdminNavAccess } from "@/lib/auth/permissions";
 import { SiteHeader } from "@/components/layout/site-header";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminDiagnosticsProvider } from "@/components/admin/admin-diagnostics-context";
+import { StaffGuide } from "@/components/admin/staff-guide";
+import { getStaffGuideSeenBoards } from "@/lib/data/staff-guide";
 // The staff panel reuses the dashboard's account/avatar panels.
 import "@/styles/dashboard-panels.css";
 
@@ -28,7 +30,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   if (!isStaff(session.role)) redirect("/");
 
   const userId = await getSessionUserId();
-  const navAccess = await getAdminNavAccess(session, userId);
+  const [navAccess, staffGuideSeen] = await Promise.all([getAdminNavAccess(session, userId), getStaffGuideSeenBoards()]);
 
   return (
     <AdminDiagnosticsProvider enabled={session.role === "web_dev"}>
@@ -38,6 +40,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <AdminSidebar session={session} role={session.role} access={navAccess} />
           <div className="account-content min-w-0">{children}</div>
         </main>
+        {/* The control room's own guide: first visit, then only boards gained since. */}
+        <StaffGuide
+          role={session.role}
+          access={navAccess}
+          seenBoards={staffGuideSeen}
+          username={session.username}
+          displayName={session.displayName}
+          avatarUrl={session.avatarUrl}
+        />
       </div>
     </AdminDiagnosticsProvider>
   );
