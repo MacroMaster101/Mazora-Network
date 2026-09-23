@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "@/components/ui/app-link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, ChevronDown, Home, LayoutDashboard, LogOut, Menu, Shield, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Compass, Home, LayoutDashboard, LogOut, Menu, Shield, X } from "lucide-react";
 import { isStaff } from "@/lib/auth/roles";
 import { accountMenuFor, type AccountMenuIcon as AccountMenuIconName } from "@/lib/account-menu";
+import { openSiteGuide } from "@/lib/site-guide";
+import { openStaffGuide } from "@/lib/staff-guide";
 import { primaryNav, site } from "@/lib/site";
 import type { Session } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -27,6 +29,9 @@ function AccountMenuIcon({ icon }: { icon: AccountMenuIconName }) {
   if (icon === "dashboard") return <LayoutDashboard size={14} className={tint} />;
   return <NavIcon label="Settings" size={14} />;
 }
+
+const SHORTCUT_CLASS =
+  "flex items-center justify-center gap-2 rounded-xl border border-slate-200/80 dark:border-purple-900/30 bg-slate-50 dark:bg-purple-950/20 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-900/40 hover:text-purple-700 dark:hover:text-white transition-all";
 
 export interface DrawerNavGroup {
   heading: string;
@@ -63,6 +68,8 @@ export function MobileMenu({
   // Inside the staff area the drawer becomes the admin menu: on small screens
   // this replaces the horizontally-scrolling sidebar rather than sitting beside it.
   const inAdmin = pathname.startsWith("/admin");
+  // The hero card in the drawer is already the /dashboard destination.
+  const shortcuts = session ? accountMenuFor(session.role).filter((entry) => entry.icon !== "dashboard") : [];
   const showAdminNav = inAdmin && Boolean(adminNav?.length);
 
   useEffect(() => setOpen(false), [pathname]);
@@ -184,6 +191,20 @@ export function MobileMenu({
                       </span>
                       <span>Back to site</span>
                     </Link>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpen(false);
+                        openStaffGuide();
+                      }}
+                      className="flex items-center gap-3 rounded-xl border border-slate-200/80 dark:border-purple-900/40 bg-slate-50 dark:bg-purple-950/30 px-4 py-3 text-xs font-bold text-slate-800 dark:text-slate-100 transition-all hover:border-purple-400"
+                    >
+                      <span className="grid h-8 w-8 place-items-center rounded-lg border border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                        <Compass size={15} />
+                      </span>
+                      <span>Staff guide</span>
+                    </button>
 
                     {adminNav!.map((group) => (
                       <div key={group.heading}>
@@ -319,24 +340,31 @@ export function MobileMenu({
                       {/* Quick Shortcut Buttons — the same destinations the
                           desktop account menu offers, minus the hero card's
                           own /dashboard link, so nothing is duplicated and
-                          nothing is missing. An odd last item spans the row. */}
+                          nothing is missing. The Site guide button always
+                          closes the grid, so an even count of links leaves it
+                          alone on the last row, spanning it. */}
                       <div className="grid grid-cols-2 gap-2">
-                        {accountMenuFor(session.role)
-                          // The hero card above is already this destination.
-                          .filter((entry) => entry.icon !== "dashboard")
-                          .map((shortcut, index, all) => (
+                        {shortcuts.map((shortcut) => (
                           <Link
                             key={shortcut.href}
                             href={shortcut.href}
-                            className={cn(
-                              "flex items-center justify-center gap-2 rounded-xl border border-slate-200/80 dark:border-purple-900/30 bg-slate-50 dark:bg-purple-950/20 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-900/40 hover:text-purple-700 dark:hover:text-white transition-all",
-                              all.length % 2 === 1 && index === all.length - 1 && "col-span-2",
-                            )}
+                            className={SHORTCUT_CLASS}
                           >
                             <AccountMenuIcon icon={shortcut.icon} />
                             <span>{shortcut.label}</span>
                           </Link>
                         ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpen(false);
+                            (inAdmin ? openStaffGuide : openSiteGuide)();
+                          }}
+                          className={cn(SHORTCUT_CLASS, shortcuts.length % 2 === 0 && "col-span-2")}
+                        >
+                          <Compass size={14} className="text-purple-600 dark:text-purple-400" />
+                          <span>{inAdmin ? "Staff guide" : "Site guide"}</span>
+                        </button>
                       </div>
                     </div>
                   </div>

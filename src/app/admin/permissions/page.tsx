@@ -293,7 +293,7 @@ export default async function AdminPermissionsPage() {
       description: "Read every sensitive action recorded across the network, including rank changes and account deletions.",
       selected: perms[AUDIT_PERMISSION_KEY].roles,
       userIds: perms[AUDIT_PERMISSION_KEY].userIds,
-      // IT-tier: owner is NOT force-included here, so it must not render locked-on.
+      // Web Dev-tier: owner is NOT force-included here, so it must not render locked-on.
       locked: alwaysAllowedFor(AUDIT_PERMISSION_KEY),
       saveAction: saveAuditPermissionsAction,
     },
@@ -304,8 +304,8 @@ export default async function AdminPermissionsPage() {
 
     Rendering a module an owner cannot reach invites them to hand out access
     they do not hold, and the save would be refused anyway. Audit is the case
-    that matters: it is IT-only, so canManageModule returns false for an owner
-    unless IT has explicitly granted it — and then it appears, which is the
+    that matters: it is Web Dev-only, so canManageModule returns false for an owner
+    unless Web Dev has explicitly granted it — and then it appears, which is the
     point. Filtering here is safe because each card saves independently, so a
     hidden module's stored configuration is never rewritten.
   */
@@ -317,7 +317,7 @@ export default async function AdminPermissionsPage() {
     await Promise.all(
       modules.map(async (module) => {
         const key = moduleKeys[module.id];
-        // Only the IT-tier modules can be hidden; everything else has always
+        // Only the Web Dev-tier modules can be hidden; everything else has always
         // been visible to owners and stays that way.
         if (!key) return module;
         return (await canManageModule(key, session, viewerId)) ? module : null;

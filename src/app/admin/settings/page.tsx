@@ -18,8 +18,8 @@ export default async function AdminSettingsPage() {
   const settings = await getSiteGeneralSettings();
 
   /*
-    Backup health is owner and IT only, a narrower gate than the settings page
-    itself. `hasAtLeast(role, "owner")` covers both, since IT sits above owner
+    Backup health is owner and Web Dev only, a narrower gate than the settings page
+    itself. `hasAtLeast(role, "owner")` covers both, since Web Dev sits above owner
     in the ladder.
 
     Deliberately not merely hidden in CSS: the status is fetched only for those
@@ -33,7 +33,7 @@ export default async function AdminSettingsPage() {
 
   /*
     The link into the ops repository is narrower still. Access there is granted
-    per person on GitHub rather than by role here, and only IT holds it — so for
+    per person on GitHub rather than by role here, and only Web Dev holds it — so for
     an owner the link resolves to a 404, which reads as "the backup is missing"
     when it means "you are not on the repository". The numbers carry the same
     information and are shown to both roles.

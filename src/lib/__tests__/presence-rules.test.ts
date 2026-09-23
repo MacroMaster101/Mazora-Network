@@ -138,7 +138,7 @@ describe("presence storage", () => {
   });
 
   test("the online roster reads roles from auth app_metadata, not profiles.role", () => {
-    // profiles.role is stale and reads "member" even for IT and owners.
+    // profiles.role is stale and reads "member" even for Web Dev and owners.
     assert.match(presence, /raw_app_meta_data ->> 'role'/);
     assert.doesNotMatch(presence, /role: schema\.profiles\.role/);
   });

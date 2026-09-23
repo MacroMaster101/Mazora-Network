@@ -180,3 +180,36 @@ export function isAdminNavItemActive(item: AdminNavItem, pathname: string): bool
   }
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
+
+/**
+ * One line per board for the staff guide, keyed by href. Kept beside the nav
+ * so a new board and its description land together — a test fails if one is
+ * missing or left behind.
+ */
+export const ADMIN_BOARD_DESCRIPTIONS: Record<string, string> = {
+  "/admin": "Network overview and your staff queues at a glance.",
+  "/admin/users": "Find member accounts and manage their details.",
+  "/admin/players": "Players online now, linked Minecraft accounts, stats and playtime.",
+  "/admin/staff": "Everyone holding a staff rank, and their roles.",
+  "/admin/roles": "Create, rename, recolour and reorder roles.",
+  "/admin/forums": "Forum categories, ordering, locking and cleanup.",
+  "/admin/content-creators": "Creator profiles, codes and the public creator directory.",
+  "/admin/pages": "One place to open every public page editor.",
+  "/admin/play": "Join steps, live stats sync and the Play page FAQ.",
+  "/admin/news": "Write, review and publish network news.",
+  "/admin/events": "Competitions, schedules, rewards and participant caps.",
+  "/admin/game-modes": "Game modes shown on the site and in the store.",
+  "/admin/rules": "Edit the public rulebook.",
+  "/admin/gallery": "Community screenshots and the moderation queue.",
+  "/admin/support": "Support centre cards and their detail pages.",
+  "/admin/appeals": "Appeal and application forms: status, intake and links.",
+  "/admin/suggestions": "Player ideas and reported content.",
+  "/admin/store": "Store products, prices and the catalogue.",
+  "/admin/orders": "Store requests, decisions and completed sales.",
+  "/admin/voting": "Vote sites, rewards and cooldowns.",
+  "/admin/mazora-bot": "Discord bot health, configuration and activity.",
+  "/admin/notifications": "Compose and broadcast notifications to members.",
+  "/admin/permissions": "Grant staff roles or individual people access to each board.",
+  "/admin/settings": "Site identity, server addresses, socials and feature toggles.",
+  "/admin/audit-logs": "A record of staff actions across the control room.",
+};
