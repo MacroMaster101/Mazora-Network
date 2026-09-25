@@ -273,7 +273,7 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
                 <div className="flex items-center gap-2.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
                   <h3 className="font-display text-base font-bold text-ink">Online Now</h3>
-                  <span className="rounded-md border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                  <span className="rounded-md border border-emerald-400/40 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
                     {onlinePlayers.length}
                   </span>
                 </div>
@@ -338,7 +338,7 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
             <div className="flex items-center gap-2.5">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
               <h3 className="font-display text-base font-bold text-ink">Online Players</h3>
-              <span className="rounded-md border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+              <span className="rounded-md border border-emerald-400/40 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
                 {onlinePlayers.length}
               </span>
             </div>
@@ -415,7 +415,7 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
               <div className="flex items-center gap-2.5 border-b border-emerald-400/30 pb-3">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
                 <h3 className="font-display text-base font-bold text-ink">Online Members</h3>
-                <span className="rounded-md border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                <span className="rounded-md border border-emerald-400/40 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
                   {memberOnlinePlayers.length}
                 </span>
               </div>

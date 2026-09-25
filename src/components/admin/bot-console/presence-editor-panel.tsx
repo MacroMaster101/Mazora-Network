@@ -319,7 +319,7 @@ export function PresenceEditorPanel({
                           onClick={() => update(row.id, { template: DISCORD_TEMPLATES[mode] })}
                         >
                           <span className="block text-xs font-bold">{title}</span>
-                          <span className="mt-0.5 block text-[10px] opacity-75">{example}</span>
+                          <span className="mt-0.5 block text-[10px]">{example}</span>
                         </button>
                       ))}
                     </div>
