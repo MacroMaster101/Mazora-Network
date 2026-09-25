@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getSession, hasAtLeast } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManageSettings } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
 import {
   getSiteGeneralSettings,
@@ -55,9 +56,12 @@ export async function saveSiteGeneralSettingsAction(
   _prev: unknown,
   formData: FormData,
 ): Promise<SiteSettingsActionResult> {
+  // Same rule as the page (requireModuleAccess): Owner and Web Dev, plus anyone
+  // an owner has granted Site Settings on the Permissions screen.
   const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "web_dev")) {
-    return { ok: false, message: "Only Web Dev can modify site settings." };
+  const userId = session ? await getSessionUserId() : null;
+  if (!session || !(await canManageSettings(session, userId))) {
+    return { ok: false, message: "You do not have permission to modify site settings." };
   }
 
   const db = getDb();

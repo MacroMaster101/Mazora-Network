@@ -34,7 +34,6 @@ export const MODULE_LABELS: Record<(typeof ALL_PERMISSION_KEYS)[number], string>
   "notifications.permissions": "System Broadcasts & Announcements",
   "bot.permissions": "Mazora Bot Console",
   "settings.permissions": "Site Settings",
-  "audit.permissions": "Audit Logs",
 };
 
 const moduleLabel = (key: string) => (MODULE_LABELS as Record<string, string>)[key] ?? key;
