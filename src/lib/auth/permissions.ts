@@ -30,7 +30,6 @@ export const STAFF_PERMISSION_KEY = "staff.permissions";
 export const ROLES_ASSIGN_PERMISSION_KEY = "roles.assign.permissions";
 export const NOTIFICATIONS_PERMISSION_KEY = "notifications.permissions";
 export const SETTINGS_PERMISSION_KEY = "settings.permissions";
-export const AUDIT_PERMISSION_KEY = "audit.permissions";
 export const MAZORA_BOT_PERMISSION_KEY = "bot.permissions";
 
 /** Owner and Web Dev can never be removed, so the owner cannot lock themselves out. */
@@ -40,7 +39,7 @@ export const ALWAYS_ALLOWED: Role[] = ["owner", TOP_ROLE];
  * Roles force-included in one module's list, whatever is stored or submitted.
  *
  * Owner is excluded for an Web Dev-tier module. ALWAYS_ALLOWED is injected on both
- * read and write, so leaving owner in it would put "owner" into the audit
+ * read and write, so leaving owner in it would put "owner" into that
  * module's own role list — and the access check consults that list once the
  * owner short-circuit is skipped. The Web Dev-only rule would be defeated silently,
  * by the very mechanism meant to guarantee access.
@@ -70,7 +69,7 @@ function defaultRolesForModule(key?: string): Role[] {
   ) {
     return roleKeys().filter((r) => hasAtLeast(r, "owner"));
   }
-  if (key === SETTINGS_PERMISSION_KEY || key === AUDIT_PERMISSION_KEY) {
+  if (key === SETTINGS_PERMISSION_KEY) {
     return roleKeys().filter((r) => hasAtLeast(r, TOP_ROLE));
   }
   return roleKeys().filter((r) => hasAtLeast(r, "administrator"));
@@ -138,7 +137,6 @@ export const ALL_PERMISSION_KEYS = [
   NOTIFICATIONS_PERMISSION_KEY,
   MAZORA_BOT_PERMISSION_KEY,
   SETTINGS_PERMISSION_KEY,
-  AUDIT_PERMISSION_KEY,
 ] as const;
 
 export const getAllModulePermissions = cache(
@@ -159,26 +157,21 @@ export const getAllModulePermissions = cache(
         keys.map((key) => [key, byKey.has(key) ? normalise(byKey.get(key), key) : defaults(key)]),
       );
     } catch {
-      return Object.fromEntries(keys.map((key) => [key, failClosed()]));
+      return Object.fromEntries(keys.map((key) => [key, failClosed(key)]));
     }
   },
 );
 
 /*
-  Modules an owner must not reach by rank alone.
+  Modules an owner must not reach by rank alone: only Web Dev gets in
+  automatically, and anyone else, owners included, needs an explicit grant.
 
-  Everything else keeps the long-standing owner short-circuit. Audit is the
-  exception because it exposes every sensitive action taken across the site,
-  including actions taken against owners — which is the one record an owner
-  should not be able to quietly grant themselves.
+  None currently. Audit Logs used to be the one member, but it is no longer a
+  grantable module at all — see canManageAudit.
 
   Settings is deliberately NOT here: owners are expected to reach it.
-
-  An owner can still be given audit access; Web Dev grants it from the permissions
-  page and the grant lands in the module's own role list, which the check below
-  consults after the short-circuit is skipped.
 */
-const WEB_DEV_ONLY_MODULES: ReadonlySet<string> = new Set([AUDIT_PERMISSION_KEY]);
+const WEB_DEV_ONLY_MODULES: ReadonlySet<string> = new Set<string>();
 
 export function isWebDevOnlyModule(key: string): boolean {
   return WEB_DEV_ONLY_MODULES.has(key);
@@ -262,8 +255,14 @@ export const canAssignRoles = (s: Session | null, u?: string | null) => canManag
 export const getNotificationsPermissions = () => getModulePermissions(NOTIFICATIONS_PERMISSION_KEY);
 export const canManageNotifications = (s: Session | null, u?: string | null) => canManageModule(NOTIFICATIONS_PERMISSION_KEY, s, u);
 
-export const canManageSettings = (s: Session | null) => Boolean(s && hasAtLeast(s.role, TOP_ROLE));
-export const canManageAudit = (s: Session | null) => Boolean(s && hasAtLeast(s.role, TOP_ROLE));
+export const canManageSettings = (s: Session | null, u?: string | null) => canManageModule(SETTINGS_PERMISSION_KEY, s, u);
+/*
+  Audit Logs are Owner and Web Dev, by rank, and cannot be granted to anyone
+  below. They record every sensitive staff action, including rank changes and
+  account deletions, so no permission list stored in the database — which an
+  owner could edit — decides who reads them.
+*/
+export const canManageAudit = (s: Session | null) => Boolean(s && hasAtLeast(s.role, "owner"));
 
 /** One shared permission snapshot for desktop and mobile admin navigation. */
 export async function getAdminNavAccess(
@@ -291,7 +290,8 @@ export async function getAdminNavAccess(
     voting: VOTING_PERMISSION_KEY,
     notifications: NOTIFICATIONS_PERMISSION_KEY,
     bot: MAZORA_BOT_PERMISSION_KEY,
-  } as const;
+    settings: SETTINGS_PERMISSION_KEY,
+  } as const satisfies Record<keyof AdminNavAccess, string>;
 
   if (!session) {
     return Object.fromEntries(Object.keys(keys).map((name) => [name, false])) as unknown as AdminNavAccess;

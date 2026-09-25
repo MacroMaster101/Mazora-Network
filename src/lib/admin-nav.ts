@@ -70,6 +70,7 @@ export interface AdminNavAccess {
   voting: boolean;
   notifications: boolean;
   bot: boolean;
+  settings: boolean;
 }
 
 export const ALL_ADMIN_NAV_ACCESS: AdminNavAccess = {
@@ -93,6 +94,7 @@ export const ALL_ADMIN_NAV_ACCESS: AdminNavAccess = {
   voting: true,
   notifications: true,
   bot: true,
+  settings: true,
 };
 
 export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
@@ -146,8 +148,8 @@ export function buildAdminNav(access: AdminNavAccess): AdminNavGroup[] {
         { label: "Mazora Bot", href: "/admin/mazora-bot", icon: Bot, minRole: "owner", visible: access.bot },
         { label: "Notifications", href: "/admin/notifications", icon: Bell, minRole: "owner", visible: access.notifications },
         { label: "Permissions", href: "/admin/permissions", icon: KeyRound, minRole: "owner" },
-        { label: "Settings", href: "/admin/settings", icon: Settings, minRole: "web_dev" },
-        { label: "Audit Logs", href: "/admin/audit-logs", icon: UsersRound, minRole: "web_dev" },
+        { label: "Settings", href: "/admin/settings", icon: Settings, minRole: "owner", visible: access.settings },
+        { label: "Audit Logs", href: "/admin/audit-logs", icon: UsersRound, minRole: "owner" },
       ],
     },
   ];

@@ -31,7 +31,6 @@ import {
   NOTIFICATIONS_PERMISSION_KEY,
   MAZORA_BOT_PERMISSION_KEY,
   ALL_PERMISSION_KEYS,
-  AUDIT_PERMISSION_KEY,
   SETTINGS_PERMISSION_KEY,
 } from "@/lib/auth/permissions";
 
@@ -94,9 +93,6 @@ export async function saveModulePermissionAction(
   return { ok: true, message: `${label} permissions saved.` };
 }
 
-export async function saveAuditPermissionsAction(fd: FormData) {
-  return saveModulePermissionAction(AUDIT_PERMISSION_KEY, "Audit Logs", fd);
-}
 export async function saveSettingsPermissionsAction(fd: FormData) {
   return saveModulePermissionAction(SETTINGS_PERMISSION_KEY, "Site Settings", fd);
 }

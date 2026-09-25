@@ -24,8 +24,8 @@ export interface ModuleAccessInput {
  * The owner short-circuit is deliberately narrow. It predates this function and
  * every ordinary module still depends on it, so it stays — but it must not
  * cover an Web Dev-tier module, or "Web Dev only" would mean nothing: the owner branch
- * fires before the configured role list is ever read, which is exactly why the
- * audit module's Web Dev-only default had no effect for so long.
+ * fires before the configured role list is ever read, which is exactly why a
+ * Web Dev-only default once had no effect for owners.
  *
  * The top role is never gated. Locking TOP_ROLE out of a module would leave
  * nobody able to unlock it.
