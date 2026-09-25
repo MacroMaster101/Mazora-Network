@@ -11,6 +11,7 @@ import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageNews } from "@/lib/auth/permissions";
 import { roleLabel } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
+import { isUuid } from "@/lib/validation/id";
 import { fetchChannelMessage, getAnnouncementsChannelId, getDiscordBotToken } from "@/lib/discord";
 import { normalizeCategory } from "@/lib/news/categories";
 import { importDiscordAnnouncements, slugifyTitle } from "@/lib/news/discord-import";
@@ -215,7 +216,7 @@ async function publish(
   const db = getDb();
   if (!db) return NO_DB;
   const id = clean(formData.get("id"), 64);
-  if (!id) return { ok: false, message: "Missing article." };
+  if (!isUuid(id)) return { ok: false, message: "Missing article." };
 
   const [existing] = await db
     .select({ publishedAt: schema.newsArticles.publishedAt })
@@ -300,7 +301,7 @@ export async function unpublishArticleAction(formData: FormData): Promise<NewsAc
     const db = getDb();
     if (!db) return NO_DB;
     const id = clean(formData.get("id"), 64);
-    if (!id) return { ok: false, message: "Missing article." };
+    if (!isUuid(id)) return { ok: false, message: "Missing article." };
 
     const [row] = await db
       .update(schema.newsArticles)
@@ -325,7 +326,7 @@ export async function rejectArticleAction(formData: FormData): Promise<NewsActio
     const db = getDb();
     if (!db) return NO_DB;
     const id = clean(formData.get("id"), 64);
-    if (!id) return { ok: false, message: "Missing article." };
+    if (!isUuid(id)) return { ok: false, message: "Missing article." };
 
     const [row] = await db
       .update(schema.newsArticles)
@@ -351,7 +352,7 @@ export async function saveArticleAction(formData: FormData): Promise<NewsActionR
     const content = clean(formData.get("content"), 20000);
     const excerpt = clean(formData.get("excerpt"), 320);
     const category = normalizeCategory(formData.get("category"));
-    if (!id) return { ok: false, message: "Missing article." };
+    if (!isUuid(id)) return { ok: false, message: "Missing article." };
     if (!title) return { ok: false, message: "An article needs a title." };
 
     // The image is only touched when the form actually carries the field, so
@@ -463,7 +464,7 @@ export async function deleteArticleAction(formData: FormData): Promise<NewsActio
     const db = getDb();
     if (!db) return NO_DB;
     const id = clean(formData.get("id"), 64);
-    if (!id) return { ok: false, message: "Missing article." };
+    if (!isUuid(id)) return { ok: false, message: "Missing article." };
 
     const [existing] = await db
       .select({
@@ -513,7 +514,7 @@ export async function uploadArticleImageAction(formData: FormData): Promise<News
     if (!db) return NO_DB;
 
     const id = clean(formData.get("id"), 64);
-    if (!id) return { ok: false, message: "Missing article." };
+    if (!isUuid(id)) return { ok: false, message: "Missing article." };
 
     const file = formData.get("imageFile");
     if (!(file instanceof File) || file.size === 0) {
@@ -555,7 +556,7 @@ export async function restoreDiscordImageAction(formData: FormData): Promise<New
     if (!db) return NO_DB;
 
     const id = clean(formData.get("id"), 64);
-    if (!id) return { ok: false, message: "Missing article." };
+    if (!isUuid(id)) return { ok: false, message: "Missing article." };
 
     const [article] = await db
       .select({ slug: schema.newsArticles.slug, messageId: schema.newsArticles.discordMessageId })

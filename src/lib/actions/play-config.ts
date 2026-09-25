@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManagePlay } from "@/lib/auth/permissions";
 import { updatePlayPageConfig, type PlayPageConfig } from "@/lib/data/play-page-config";
+import { recordAudit } from "@/lib/audit-log";
 
 /**
  * Server Actions are public POST endpoints — Next.js ships their ids in the
@@ -46,6 +47,13 @@ export async function savePlayConfigAction(
 
   try {
     await updatePlayPageConfig(parsed.data);
+    await recordAudit({
+      action: "play.config.update",
+      actorId: userId,
+      by: session.username,
+      targetType: "play_config",
+      metadata: { fields: Object.keys(parsed.data) },
+    });
     revalidatePath("/play");
     revalidatePath("/status");
     revalidatePath("/admin/play");

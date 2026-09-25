@@ -69,7 +69,7 @@ export default async function AdminUsersPage() {
         action={<InviteUserButton assignable={assignable} label="Invite person" />}
       />
       {!accounts && (
-        <ReadOnlyBanner note="User management requires SUPABASE_SERVICE_ROLE_KEY to be configured on the server." />
+        <ReadOnlyBanner note="User management requires SUPABASE_SECRET_KEY to be configured on the server." />
       )}
       <UsersDirectory rows={rows} assignable={assignableRolesList} />
     </>

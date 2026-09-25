@@ -9,6 +9,8 @@ import { resolveAvatarUrl } from "@/lib/avatar-source";
 import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
 import { isPlaceholderUsername, realDisplayName } from "@/lib/auth/placeholder";
 import { ensureRoleCatalog } from "@/lib/data/roles";
+import { clearRecoveryGrant, hasRecoveryGrant } from "@/lib/auth/recovery-grant";
+import { SESSION_ONLY_COOKIE } from "@/lib/supabase/session-cookie";
 import {
   assignableRoles,
   canGrantRank,
@@ -18,6 +20,7 @@ import {
   isRoleKey,
   isStaff,
   landingPathFor,
+  needsTwoFactor,
   normalizeRoleKey,
   roleDashboardPath,
   roleKeys,
@@ -34,6 +37,10 @@ export interface Session {
   bio?: string;
   avatarUrl?: string;
   role: Role;
+  /** This sign-in used a recovery code instead of the authenticator app. */
+  recoveredSignIn?: boolean;
+  /** The account has two-step verification turned on. */
+  twoFactorEnabled?: boolean;
 }
 
 // Re-export the pure helpers so existing server-side callers of "@/lib/auth"
@@ -111,21 +118,99 @@ function cleanUsername(value: string): string {
  * single render reuse the first result. This changes no behaviour: within one
  * request the answer cannot legitimately differ.
  */
-const getAuthUser = cache(async () => {
+const getAuthState = cache(async () => {
   if (!isSupabaseConfigured()) return null;
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
-  return data.user;
+
+  /*
+    The assurance level lives in the access token's `aal` claim. getUser() above
+    has just had the auth server validate that exact token, so decoding it here
+    trusts nothing the server did not already vouch for — and costs no second
+    round trip, unlike getClaims() on a symmetric-key project.
+  */
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = accessTokenClaims(sessionData.session?.access_token);
+  // From the auth server's own user record, not the cookie: a cookie's stored
+  // copy of the user could be edited to hide a factor.
+  const hasAuthenticator = data.user.factors?.some((factor) => factor.status === "verified") ?? false;
+
+  /*
+    A sign-in that used a recovery code instead of the authenticator carries a
+    signed pass for exactly this session (lib/auth/recovery-grant). It counts as
+    having passed two-step verification — the industry-standard behaviour —
+    while two-step verification itself stays on.
+  */
+  const recovered =
+    hasAuthenticator &&
+    token.aal !== "aal2" &&
+    (await hasRecoveryGrant({ userId: data.user.id, sessionId: token.sessionId }));
+
+  // `aal` is the level this sign-in counts as: aal2 by code, or by recovery pass.
+  const aal: "aal1" | "aal2" = recovered ? "aal2" : token.aal;
+  return { user: data.user, aal, hasAuthenticator, recovered, sessionId: token.sessionId };
 });
+
+/** The Supabase session id of the current sign-in, for binding session-scoped passes. */
+export async function getSignInSessionId(): Promise<string | null> {
+  return (await getAuthState())?.sessionId || null;
+}
+
+/**
+ * The signed-in user, or null — including while two-step verification is owed.
+ *
+ * Two-step verification is a login gate: once an account has an authenticator,
+ * a sign-in that has not entered its code is not signed in. getSession,
+ * getSessionUserId and every guard built on them go through here, so none of
+ * them can hand out a half-finished sign-in.
+ */
+const getAuthUser = cache(async () => {
+  const state = await getAuthState();
+  if (!state || needsTwoFactor(state.aal, state.hasAuthenticator)) return null;
+  return state.user;
+});
+
+/**
+ * True when the browser holds a valid sign-in for an account with two-step
+ * verification on, but has not entered this sign-in's code yet. Everything
+ * treats that as signed out; this is how pages tell the difference and send
+ * the visitor to /two-factor rather than to the login form.
+ */
+export async function isTwoFactorPending(): Promise<boolean> {
+  const state = await getAuthState();
+  return Boolean(state && needsTwoFactor(state.aal, state.hasAuthenticator));
+}
+
+/** The user owing a code, for the /two-factor page and its actions only. */
+export async function getTwoFactorPendingUser() {
+  const state = await getAuthState();
+  return state && needsTwoFactor(state.aal, state.hasAuthenticator) ? state.user : null;
+}
+
+function accessTokenClaims(token: string | undefined): { aal: "aal1" | "aal2"; sessionId: string } {
+  const payload = token?.split(".")[1];
+  if (!payload) return { aal: "aal1", sessionId: "" };
+  try {
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { aal?: unknown; session_id?: unknown };
+    return {
+      aal: claims.aal === "aal2" ? "aal2" : "aal1",
+      sessionId: typeof claims.session_id === "string" ? claims.session_id : "",
+    };
+  } catch {
+    return { aal: "aal1", sessionId: "" };
+  }
+}
 
 export const getSession = cache(async (): Promise<Session | null> => {
   await ensureRoleCatalog();
   if (isSupabaseConfigured()) {
-    const user = await getAuthUser();
-    if (!user) return null;
-    const data = { user };
+    const state = await getAuthState();
+    if (!state) return null;
+    // Owed a two-step code: not signed in yet (see getAuthUser).
+    if (needsTwoFactor(state.aal, state.hasAuthenticator)) return null;
+    const data = { user: state.user };
 
     // Prefer the Google identity's metadata for display name so it doesn't
     // flip to the Discord username when signing in with Discord.
@@ -181,6 +266,8 @@ export const getSession = cache(async (): Promise<Session | null> => {
           .map((identity) => identity.identity_data),
       ) ?? undefined,
       role: safeRole(data.user.app_metadata?.role),
+      ...(state.recovered ? { recoveredSignIn: true } : {}),
+      twoFactorEnabled: state.hasAuthenticator,
     };
   }
 
@@ -204,11 +291,9 @@ export async function getSessionUserId(): Promise<string | null> {
 
 /** Discord identity of the signed-in user, when they authenticated with Discord. */
 export async function getDiscordIdentity(): Promise<DiscordIdentity | null> {
-  if (!isSupabaseConfigured()) return null;
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
+  const user = await getAuthUser();
+  if (!user) return null;
+  const data = { user };
 
   const identity = pickDiscordIdentity(data.user.identities);
   const fromDiscord = Boolean(identity) || data.user.app_metadata?.provider === "discord";
@@ -231,10 +316,21 @@ export async function getDiscordIdentity(): Promise<DiscordIdentity | null> {
   };
 }
 
-/** Returns the session or redirects to login. Use in protected pages. */
+/** The two-step verification page, returning to `next` once it is passed. */
+export function twoFactorPath(next = "/"): string {
+  return `/two-factor?next=${encodeURIComponent(next)}`;
+}
+
+/**
+ * Returns the session or redirects to login — or, for a sign-in that still owes
+ * its two-step code, to /two-factor. Use in protected pages.
+ */
 export async function requireSession(next = "/dashboard"): Promise<Session> {
   const session = await getSession();
-  if (!session) redirect(`/login?next=${encodeURIComponent(next)}`);
+  if (!session) {
+    if (await isTwoFactorPending()) redirect(twoFactorPath(next));
+    redirect(`/login?next=${encodeURIComponent(next)}`);
+  }
   return session;
 }
 
@@ -285,4 +381,6 @@ export async function destroySession(): Promise<void> {
   }
   const store = await cookies();
   store.delete(SESSION_COOKIE);
+  store.delete(SESSION_ONLY_COOKIE);
+  await clearRecoveryGrant();
 }

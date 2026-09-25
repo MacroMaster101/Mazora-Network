@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageGallery } from "@/lib/auth/permissions";
+import { recordAudit } from "@/lib/audit-log";
 import { getDb, schema } from "@/lib/db/client";
 import { rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
 import { throttleAuthAction } from "@/lib/rate-limit";
@@ -261,10 +262,22 @@ export async function adminApproveGalleryAction(id: string, status: "published" 
   if (!galleryIdSchema.safeParse(id).success) return { ok: false, message: "Missing artwork ID." };
   if (!galleryStatusSchema.safeParse(status).success) return { ok: false, message: "Unknown artwork status." };
 
-  await db
+  const [reviewed] = await db
     .update(schema.galleryImages)
     .set({ status, updatedAt: new Date() })
-    .where(eq(schema.galleryImages.id, id));
+    .where(eq(schema.galleryImages.id, id))
+    .returning({ title: schema.galleryImages.title });
+
+  if (reviewed) {
+    await recordAudit({
+      action: status === "published" ? "gallery.approve" : "gallery.reject",
+      actorId: userId,
+      by: session.username,
+      targetType: "gallery_image",
+      targetId: id,
+      metadata: { title: reviewed.title },
+    });
+  }
 
   refresh();
   return {
@@ -312,11 +325,19 @@ export async function adminSaveGalleryAction(formData: FormData): Promise<Galler
         updatedAt: new Date(),
       })
       .where(eq(schema.galleryImages.id, id));
+    await recordAudit({
+      action: "gallery.update",
+      actorId: userId,
+      by: session.username,
+      targetType: "gallery_image",
+      targetId: id,
+      metadata: { title, status, featured },
+    });
     refresh();
     return { ok: true, message: "Artwork updated successfully!" };
   }
 
-  await db.insert(schema.galleryImages).values({
+  const [created] = await db.insert(schema.galleryImages).values({
     title,
     description: description || null,
     imageUrl,
@@ -328,6 +349,15 @@ export async function adminSaveGalleryAction(formData: FormData): Promise<Galler
     likesCount: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
+  }).returning({ id: schema.galleryImages.id });
+
+  await recordAudit({
+    action: "gallery.create",
+    actorId: userId,
+    by: session.username,
+    targetType: "gallery_image",
+    targetId: created?.id ?? null,
+    metadata: { title, status, featured },
   });
 
   refresh();
@@ -344,7 +374,22 @@ export async function adminDeleteGalleryAction(id: string): Promise<GalleryActio
   if (!db) return NO_DB;
   if (!galleryIdSchema.safeParse(id).success) return { ok: false, message: "Missing artwork ID." };
 
-  await db.delete(schema.galleryImages).where(eq(schema.galleryImages.id, id));
+  const [removed] = await db
+    .delete(schema.galleryImages)
+    .where(eq(schema.galleryImages.id, id))
+    .returning({ title: schema.galleryImages.title, imageUrl: schema.galleryImages.imageUrl });
+
+  if (removed) {
+    // A hard delete: the log is the only record the artwork existed.
+    await recordAudit({
+      action: "gallery.delete",
+      actorId: userId,
+      by: session.username,
+      targetType: "gallery_image",
+      targetId: id,
+      metadata: { title: removed.title, imageUrl: removed.imageUrl },
+    });
+  }
   refresh();
   return { ok: true, message: "Artwork deleted permanently." };
 }
