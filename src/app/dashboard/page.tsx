@@ -82,7 +82,7 @@ export default async function DashboardOverview() {
                 Active Account
               </span>
             </div>
-            <h1 className="mt-1 truncate font-display text-2xl font-bold sm:text-3xl text-ink">
+            <h1 className="mt-1 font-display text-2xl font-bold sm:text-3xl text-ink [overflow-wrap:anywhere]">
               Welcome back, {session.displayName || session.username}
             </h1>
             <p className="mt-1 text-xs text-muted font-medium">

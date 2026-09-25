@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { BUILTIN_ROLES } from "@/lib/auth/role-catalog-core";
-import { badgeStyle, contrastRatio, DARK_BADGE_BG, LIGHT_BADGE_BG, readableOn } from "@/lib/auth/role-colors";
+import { badgeStyle, contrastRatio, DARK_BADGE_BG, LIGHT_BADGE_BG, readableOn, tintedBadgeBg } from "@/lib/auth/role-colors";
 
 test("contrast ratio matches WCAG for black on white", () => {
   assert.equal(Math.round(contrastRatio("#000000", "#ffffff")), 21);
@@ -12,6 +12,17 @@ test("every built-in colour and extreme picks reach AA in both themes", () => {
   for (const hex of samples) {
     assert.ok(contrastRatio(readableOn(hex, LIGHT_BADGE_BG), LIGHT_BADGE_BG) >= 4.5, `${hex} light`);
     assert.ok(contrastRatio(readableOn(hex, DARK_BADGE_BG), DARK_BADGE_BG) >= 4.5, `${hex} dark`);
+  }
+});
+
+test("badge text reaches AA on the badge's own tinted background, not just the page", () => {
+  const samples = [...BUILTIN_ROLES.map((r) => r.color), "#ffffff", "#000000", "#ffff00", "#0000ff", "#777777", "#06b6d4", "#a855f7"];
+  for (const hex of samples) {
+    const style = badgeStyle(hex) as Record<string, string>;
+    const light = tintedBadgeBg(hex, LIGHT_BADGE_BG);
+    const dark = tintedBadgeBg(hex, DARK_BADGE_BG);
+    assert.ok(contrastRatio(style["--rank-fg-light"], light) >= 4.5, `${hex} light tint`);
+    assert.ok(contrastRatio(style["--rank-fg-dark"], dark) >= 4.5, `${hex} dark tint`);
   }
 });
 

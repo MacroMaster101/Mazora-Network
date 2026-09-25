@@ -255,7 +255,7 @@
   root-level rank-chip rule.
 */
 .role-preview[data-theme="light"] {
-  background-color: #ffffff;
+  background-color: #e0dbeb;
   color: #1a1325;
 }
 .role-preview[data-theme="dark"] {

@@ -42,7 +42,9 @@ function Row({
   muted?: boolean;
 }) {
   return (
-    <div className={`flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-4 sm:px-5 ${muted ? "opacity-70" : ""}`}>
+    // Muted rows dim only their icon: the "Coming soon" pill already says the
+    // option is unavailable, and fading the whole row took its small text below 4.5:1.
+    <div className={`flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-4 sm:px-5 ${muted ? "[&>span:first-child]:opacity-60" : ""}`}>
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-line-strong bg-ink/5 text-accent-bright">
         {icon}
       </span>
