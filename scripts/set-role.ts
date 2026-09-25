@@ -7,6 +7,7 @@
  *   e.g. npm run role:set -- you@example.com web_dev
  */
 import { createClient } from "@supabase/supabase-js";
+import { supabaseSecretKey } from "../src/lib/supabase/secret-key";
 
 const ROLES = ["member", "sponsor", "vip", "helper", "moderator", "senior_moderator", "administrator", "owner", "web_dev"];
 
@@ -22,9 +23,9 @@ async function main() {
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const key = supabaseSecretKey();
   if (!url || !key) {
-    console.error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env.");
+    console.error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY) must be set in .env.");
     process.exit(1);
   }
 

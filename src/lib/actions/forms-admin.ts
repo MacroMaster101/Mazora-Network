@@ -7,6 +7,7 @@ import { canManageAppeals } from "@/lib/auth/permissions";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { FORMS_CONFIG_KEY, getFormsConfig, FormConfigItem } from "@/lib/data/forms-config";
+import { recordAudit } from "@/lib/audit-log";
 
 export interface FormActionState {
   ok: boolean;
@@ -79,6 +80,14 @@ export async function toggleFormStatusAction(
     }
   }
 
+  await recordAudit({
+    action: enabled ? "forms.enable" : "forms.disable",
+    actorId: userId,
+    by: session.username,
+    targetType: "form",
+    targetId: formId,
+  });
+
   revalidatePath("/admin/appeals");
   revalidatePath("/support/appeal");
   revalidatePath("/support/staff-application");
@@ -143,6 +152,15 @@ export async function updateFormUrlAction(
       return { ok: false, message: "Could not save setting to database." };
     }
   }
+
+  await recordAudit({
+    action: "forms.url.update",
+    actorId: userId,
+    by: session.username,
+    targetType: "form",
+    targetId: formId,
+    metadata: { from: current[formId]?.publicUrl ?? null, to: parsedUrl.data },
+  });
 
   revalidatePath("/admin/appeals");
   revalidatePath("/support/appeal");

@@ -14,7 +14,7 @@ import "server-only";
 import type { ReactNode } from "react";
 import Link from "@/components/ui/app-link";
 import { ArrowLeft, Receipt } from "lucide-react";
-import { requireSession, getDiscordIdentity, getSessionUserId } from "@/lib/auth";
+import { requireSession, getDiscordIdentity, getSessionUserId, isStaff } from "@/lib/auth";
 import { getOrdersForUser } from "@/lib/data/orders";
 import { OrderCard } from "@/components/shared/order-card";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -23,6 +23,8 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { DashHeader, DashEmpty } from "@/components/dashboard/dash-ui";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { AccountSecurity } from "@/components/dashboard/account-security";
+import { TwoFactorCard, type TwoFactorOverview } from "@/components/dashboard/two-factor-card";
+import { remainingRecoveryCodes } from "@/lib/auth/recovery-codes";
 import { ProfileForm } from "@/components/dashboard/profile-form";
 import { ProfileAvatarEditor } from "@/components/dashboard/profile-avatar-editor";
 import { DangerZone } from "@/components/dashboard/danger-zone";
@@ -60,6 +62,7 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
   let hasGoogle = false;
   let hasPassword = false;
   let security: SecurityState | null = null;
+  let twoFactor: TwoFactorOverview | null = null;
   let minecraftIdentity: { username: string; uuid: string; linkedAt: string; skinUrl: string | null } | null = null;
   const discord = await getDiscordIdentity();
   if (isSupabaseConfigured()) {
@@ -95,6 +98,13 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
           emailConfirmedAt: data.user.email_confirmed_at,
           lastSignInAt: data.user.last_sign_in_at,
         });
+        const authenticator = data.user.factors?.find((factor) => factor.status === "verified" && factor.factor_type === "totp");
+        twoFactor = {
+          enabled: Boolean(authenticator),
+          enrolledAt: authenticator?.created_at ?? null,
+          codesRemaining: authenticator ? await remainingRecoveryCodes(data.user.id) : 0,
+          recovered: Boolean(session.recoveredSignIn),
+        };
         const accountStore = getSupabaseAdmin() ?? supabase;
         const { data: minecraftAccount } = await accountStore
           .from("minecraft_accounts")
@@ -143,6 +153,8 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
           </FormRow>
           <AccountSecurity hasPassword={hasPassword} />
         </Card>
+
+        {twoFactor ? <TwoFactorCard overview={twoFactor} staff={isStaff(session.role)} /> : null}
 
         <Card title="Connected accounts">
           <p className="-mt-2 text-xs text-muted">

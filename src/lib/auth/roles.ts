@@ -69,6 +69,18 @@ export function isStaff(role: Role): boolean {
   return roleDef(role)?.kind === "staff";
 }
 
+/**
+ * Whether a sign-in still owes its two-step verification code.
+ *
+ * Two-step verification is optional and open to every account; it is turned
+ * on from Settings. Once an account has a verified authenticator, a sign-in is
+ * not a sign-in until it reaches assurance level aal2. Accounts without one
+ * are never asked.
+ */
+export function needsTwoFactor(aal: string | null | undefined, hasAuthenticator: boolean): boolean {
+  return hasAuthenticator && aal !== "aal2";
+}
+
 /** Human-readable label from the catalogue ("web_dev" → "Web Dev"). */
 export function roleLabel(role: Role): string {
   return roleDef(role)?.label ?? role;

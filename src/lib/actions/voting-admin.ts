@@ -7,6 +7,7 @@ import { canManageVoting as hasVotingAccess } from "@/lib/auth/permissions";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { recordAudit } from "@/lib/audit-log";
 
 export interface VotingActionResult {
   ok: boolean;
@@ -26,14 +27,16 @@ const voteSiteSchema = z.object({
   enabled: z.boolean(),
 });
 
-async function canManageVoting(): Promise<boolean> {
+/** The staff member making the change, or null when they may not. */
+async function votingActor(): Promise<{ userId: string | null; username: string } | null> {
   const session = await getSession();
   const userId = session ? await getSessionUserId() : null;
-  return Boolean(session && (await hasVotingAccess(session, userId)));
+  return session && (await hasVotingAccess(session, userId)) ? { userId, username: session.username } : null;
 }
 
 export async function saveVoteSiteAction(formData: FormData): Promise<VotingActionResult> {
-  if (!(await canManageVoting())) {
+  const actor = await votingActor();
+  if (!actor) {
     return { ok: false, message: "Unauthorized staff action." };
   }
 
@@ -77,6 +80,15 @@ export async function saveVoteSiteAction(formData: FormData): Promise<VotingActi
       });
     }
 
+    await recordAudit({
+      action: id ? "voting.site.update" : "voting.site.create",
+      actorId: actor.userId,
+      by: actor.username,
+      targetType: "vote_site",
+      targetId: id ?? null,
+      metadata: { title: name, url, enabled },
+    });
+
     revalidatePath("/admin/voting");
     revalidatePath("/vote");
 
@@ -91,7 +103,8 @@ export async function saveVoteSiteAction(formData: FormData): Promise<VotingActi
 }
 
 export async function toggleVoteSiteAction(id: string, enabled: boolean): Promise<VotingActionResult> {
-  if (!(await canManageVoting())) {
+  const actor = await votingActor();
+  if (!actor) {
     return { ok: false, message: "Unauthorized staff action." };
   }
   if (!z.string().uuid().safeParse(id).success) return { ok: false, message: "Invalid vote site." };
@@ -105,6 +118,14 @@ export async function toggleVoteSiteAction(id: string, enabled: boolean): Promis
       .set({ enabled })
       .where(eq(schema.voteSites.id, id));
 
+    await recordAudit({
+      action: enabled ? "voting.site.enable" : "voting.site.disable",
+      actorId: actor.userId,
+      by: actor.username,
+      targetType: "vote_site",
+      targetId: id,
+    });
+
     revalidatePath("/admin/voting");
     revalidatePath("/vote");
 
@@ -116,7 +137,8 @@ export async function toggleVoteSiteAction(id: string, enabled: boolean): Promis
 }
 
 export async function deleteVoteSiteAction(id: string): Promise<VotingActionResult> {
-  if (!(await canManageVoting())) {
+  const actor = await votingActor();
+  if (!actor) {
     return { ok: false, message: "Unauthorized staff action." };
   }
   if (!z.string().uuid().safeParse(id).success) return { ok: false, message: "Invalid vote site." };
@@ -125,7 +147,21 @@ export async function deleteVoteSiteAction(id: string): Promise<VotingActionResu
   if (!db) return { ok: false, message: "Database connection unavailable." };
 
   try {
-    await db.delete(schema.voteSites).where(eq(schema.voteSites.id, id));
+    const [removed] = await db
+      .delete(schema.voteSites)
+      .where(eq(schema.voteSites.id, id))
+      .returning({ name: schema.voteSites.name, url: schema.voteSites.url });
+
+    if (removed) {
+      await recordAudit({
+        action: "voting.site.delete",
+        actorId: actor.userId,
+        by: actor.username,
+        targetType: "vote_site",
+        targetId: id,
+        metadata: { title: removed.name, url: removed.url },
+      });
+    }
 
     revalidatePath("/admin/voting");
     revalidatePath("/vote");

@@ -18,6 +18,7 @@
  * incremental top-up rather than a full re-download.
  */
 import { createClient } from "@supabase/supabase-js";
+import { supabaseSecretKey } from "../src/lib/supabase/secret-key";
 import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -47,9 +48,9 @@ async function latestBackupDir(): Promise<string> {
 
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const key = supabaseSecretKey();
   if (!url || !key) {
-    throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env.");
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY) must be set in .env.");
   }
 
   const outDir = path.resolve(arg("out") ?? (await latestBackupDir()));

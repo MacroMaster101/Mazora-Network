@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { Role } from "@/lib/types";
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { SESSION_ONLY_COOKIE } from "@/lib/supabase/session-cookie";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { dispatchSignInNotifications } from "@/lib/notifications-auto";
 import { isRoleKey, landingPathFor, normalizeRoleKey } from "@/lib/auth/roles";
@@ -37,7 +39,10 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const next = safeNext(request.nextUrl.searchParams.get("next"));
   const origin = redirectOrigin(request);
-  const supabase = await createSupabaseServerClient();
+  // Google/Discord sign-in has no "Remember me" box: it stays signed in, so
+  // any earlier "this browser session only" choice is dropped.
+  (await cookies()).delete(SESSION_ONLY_COOKIE);
+  const supabase = await createSupabaseServerClient({ sessionOnly: false });
 
   if (code && supabase) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -57,6 +62,14 @@ export async function GET(request: NextRequest) {
       const raw = normalizeRoleKey(data.user?.app_metadata?.role);
       const role: Role = typeof raw === "string" && isRoleKey(raw) ? raw : "member";
       const dest = next && next !== "/" ? next : landingPathFor(role);
+      // A fresh OAuth session is never past two-step verification, so an
+      // account that has it on enters its code next (see getSession).
+      const hasAuthenticator = data.user?.factors?.some((factor) => factor.status === "verified") ?? false;
+      if (hasAuthenticator) {
+        const twoFactor = new URL("/two-factor", origin);
+        twoFactor.searchParams.set("next", dest);
+        return NextResponse.redirect(twoFactor);
+      }
       return NextResponse.redirect(new URL(dest, origin));
     }
   }

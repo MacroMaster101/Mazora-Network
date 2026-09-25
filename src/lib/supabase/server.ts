@@ -1,8 +1,15 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseConfig } from "./config";
+import { SESSION_ONLY_COOKIE, applySessionLength } from "./session-cookie";
 
-export async function createSupabaseServerClient() {
+/**
+ * `sessionOnly` overrides the "Remember me" marker for this client: the login
+ * action passes the checkbox's answer directly, because the marker it sets in
+ * the same request is not guaranteed to be readable back yet. Every other
+ * caller omits it and follows the marker.
+ */
+export async function createSupabaseServerClient({ sessionOnly }: { sessionOnly?: boolean } = {}) {
   const config = getSupabaseConfig();
   if (!config) return null;
 
@@ -27,8 +34,12 @@ export async function createSupabaseServerClient() {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+        // "Remember me" unticked: keep the auth cookies to this browser session.
+        const shortLived = sessionOnly ?? cookieStore.get(SESSION_ONLY_COOKIE)?.value === "1";
         try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, applySessionLength(value, options, shortLived)),
+          );
         } catch {
           // Server Components cannot write cookies. Middleware refreshes them.
         }
