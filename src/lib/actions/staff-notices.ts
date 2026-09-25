@@ -9,13 +9,10 @@ import { changeUserRole } from "@/lib/actions/roles";
 import { getDb, schema } from "@/lib/db/client";
 import type { Role } from "@/lib/types";
 import {
-  addGuildMemberRole,
   getDiscordBotToken,
   fetchGuildMember,
   getDiscordGuildId,
-  getGrantableRoleIds,
   listGuildRoles,
-  removeGuildMemberRole,
   searchGuildMembers,
   sendBotDirectMessage,
   type GuildMemberMatch,
@@ -321,15 +318,12 @@ export interface RecipientContext {
   account: { userId: string; username: string; role: Role } | null;
   /** Ranks the actor may grant. Empty when they may not manage this account. */
   grantableRanks: Role[];
-  /** Allowlisted roles, with whether the recipient currently holds each. */
-  discordRoles: { id: string; name: string; colour: number; held: boolean }[];
   /**
    * Every Discord role the recipient holds, highest first — including ones
    * that cannot be changed from here.
    *
    * Shown rather than hidden because "what do they have now" is the question
-   * asked before "what should they have": the allowlist is usually one or two
-   * roles, so a picker alone said nothing about the account being looked at.
+   * asked before anything else about the account being looked at.
    */
   currentDiscordRoles: { id: string; name: string; colour: number }[];
 }
@@ -346,7 +340,6 @@ export async function getRecipientContext(discordUserId: string): Promise<Recipi
     ok: false,
     account: null,
     grantableRanks: [],
-    discordRoles: [],
     currentDiscordRoles: [],
   };
 
@@ -386,29 +379,20 @@ export async function getRecipientContext(discordUserId: string): Promise<Recipi
 
   const token = getDiscordBotToken();
   const guildId = getDiscordGuildId();
-  const allowlist = getGrantableRoleIds();
 
-  let discordRoles: RecipientContext["discordRoles"] = [];
   let currentDiscordRoles: RecipientContext["currentDiscordRoles"] = [];
-  // No allowlist check here any more: showing what someone already has is
-  // useful even on a server where nothing may be granted from this panel.
+  // Read-only: what Discord roles the recipient holds. Discord roles are not
+  // granted from this panel.
   if (token && guildId) {
     const [lookup, guildRoles] = await Promise.all([
       fetchGuildMember(token, guildId, discordUserId),
       listGuildRoles(token, guildId),
     ]);
-    // Only offer the control when membership is actually confirmed. A Discord
-    // outage (`lookup === null`) or a departed member (`lookup.member ===
-    // null`) must render nothing here — the existing UI gating already hides
-    // an empty array — rather than a control that always fails with a
-    // misleading hierarchy error.
+    // Only when membership is confirmed: a Discord outage (`lookup === null`)
+    // or a departed member (`lookup.member === null`) renders nothing.
     if (lookup?.member) {
       const held = new Set(lookup.member.roles ?? []);
       const roles = guildRoles ?? [];
-
-      discordRoles = roles
-        .filter((role) => allowlist.includes(role.id))
-        .map((role) => ({ id: role.id, name: role.name, colour: role.colour, held: held.has(role.id) }));
 
       currentDiscordRoles = roles
         // @everyone shares the guild's id and is implicit for all members, so
@@ -423,75 +407,7 @@ export async function getRecipientContext(discordUserId: string): Promise<Recipi
     ok: true,
     account: matched ? { userId: matched.userId, username: matched.username, role: matched.role } : null,
     grantableRanks,
-    discordRoles,
     currentDiscordRoles,
   };
 }
 
-/**
- * Add or remove one allowlisted Discord role.
- *
- * The allowlist is re-checked here, not just in the UI: the role id arrives
- * from the browser, and the dropdown is not a security boundary. Discord's own
- * hierarchy is a second limit that this cannot bypass — it refuses any role at
- * or above the bot's highest, server-side.
- */
-export async function setRecipientDiscordRole(input: {
-  discordUserId: string;
-  roleId: string;
-  grant: boolean;
-}): Promise<{ ok: boolean; message: string }> {
-  const auth = await authorize();
-  if (!auth.ok) return { ok: false, message: auth.message };
-  const { session, actorId } = auth;
-
-  if (!/^\d{17,20}$/.test(input.discordUserId)) {
-    return { ok: false, message: "That is not a valid Discord user." };
-  }
-  if (!getGrantableRoleIds().includes(input.roleId)) {
-    return { ok: false, message: "That role cannot be granted from here." };
-  }
-
-  // A mutation, so it gets the same ceiling as sending a staff notice.
-  const limit = await rateLimitShared(await actionClientKey("discord-role", actorId), {
-    limit: 10,
-    windowMs: 60_000,
-  });
-  if (!limit.ok) return { ok: false, message: "Too many changes. Wait a moment and try again." };
-
-  const token = getDiscordBotToken();
-  const guildId = getDiscordGuildId();
-  if (!token || !guildId) return { ok: false, message: "The Discord bot is not configured." };
-
-  const applied = input.grant
-    ? await addGuildMemberRole(token, guildId, input.discordUserId, input.roleId)
-    : await removeGuildMemberRole(token, guildId, input.discordUserId, input.roleId);
-
-  const db = getDb();
-  if (db) {
-    try {
-      await db.insert(schema.auditLogs).values({
-        actorId,
-        action: "discord.role",
-        targetType: "discord_user",
-        targetId: input.discordUserId,
-        metadata: { roleId: input.roleId, granted: input.grant, applied, by: session.username },
-      });
-    } catch (error) {
-      console.error("Discord role audit insert failed", error);
-    }
-  }
-
-  if (!applied) {
-    // Almost always Discord's hierarchy rule: the bot cannot manage a role at
-    // or above its own highest, whatever the allowlist says.
-    return { ok: false, message: "Discord refused that change. Check the bot's role is above it." };
-  }
-
-  // Without this, "Recent bot activity" keeps showing stale data until the
-  // next unrelated navigation, so an operator cannot see the change they just
-  // made — matches sendStaffNotice's revalidation below.
-  revalidatePath("/admin/mazora-bot");
-
-  return { ok: true, message: input.grant ? "Role added." : "Role removed." };
-}
