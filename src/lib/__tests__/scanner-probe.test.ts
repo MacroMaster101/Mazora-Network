@@ -9,6 +9,7 @@ test("scanner probes are recognised", () => {
     "/.env.production", "/api/.env", "/.aws/credentials", "/phpmyadmin/", "/cgi-bin/luci", "/vendor/phpunit/x",
     "/backup.sql", "/%2e%2egit/config", "/%E0%A4%A",
     "/_profiler/phpinfo", "/admin/phpinfo", "/_ignition/execute-solution", "/telescope/requests", "/server-status",
+    "/_environment", "/api/_environment",
   ]) {
     assert.equal(isScannerProbe(path), true, path);
   }

@@ -8,7 +8,6 @@ import {
   getRecipientContext,
   searchDiscordMembers,
   sendStaffNotice,
-  setRecipientDiscordRole,
   type RecipientContext,
 } from "@/lib/actions/staff-notices";
 import type { GuildMemberMatch } from "@/lib/discord";
@@ -101,8 +100,6 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
 
   const [context, setContext] = useState<RecipientContext | null>(null);
   const [pendingRank, setPendingRank] = useState<Role | null>(null);
-  const [roleMessage, setRoleMessage] = useState<string | null>(null);
-  const [rolePending, startRole] = useTransition();
 
   const [template, setTemplate] = useState<StaffNoticeTemplate>("warning");
   const [reason, setReason] = useState("");
@@ -180,7 +177,6 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
     currentTargetId.current = target?.id ?? null;
     setContext(null);
     setPendingRank(null);
-    setRoleMessage(null);
     if (!target?.id) return;
     let cancelled = false;
     void getRecipientContext(target.id).then((next) => {
@@ -364,12 +360,11 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
         )}
 
 
-        {context?.ok && (context.discordRoles.length > 0 || context.currentDiscordRoles.length > 0) && (
+        {context?.ok && context.currentDiscordRoles.length > 0 && (
           <section className="grid gap-2 rounded-xl border border-line dark:border-white/10 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Discord roles</p>
 
-            {/* What they have now, before what can be changed — the same order
-                the rank picker reads in. */}
+            {/* Read-only: Discord roles are not changed from this panel. */}
             <p className="flex flex-wrap items-center gap-1.5 text-sm">
               {target ? (target.displayName ?? target.username) : "This member"} currently has
               {context.currentDiscordRoles.length === 0 ? (
@@ -387,57 +382,6 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
               )}
             </p>
 
-            {context.discordRoles.length > 0 && (
-              <>
-                {/*
-                  Toggles, not a radio group. A rank is one value, so its picker
-                  offers "leave unchanged" and one choice; Discord roles are held
-                  in any combination, so each is independently on or off. These
-                  also apply immediately rather than on send, which is why they
-                  read as state rather than as a pending change.
-                */}
-                <div role="group" aria-label="Discord roles" className="flex flex-wrap gap-2">
-                  {context.discordRoles.map((role) => (
-                    <button
-                      key={role.id}
-                      type="button"
-                      aria-pressed={role.held}
-                      disabled={rolePending}
-                      title={role.held ? `Remove ${role.name}` : `Add ${role.name}`}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                        role.held ? "border-accent bg-accent/20 text-ink" : "border-line text-muted hover:bg-ink/[0.06]"
-                      }`}
-                      onClick={() => {
-                        if (!target) return;
-                        const discordUserId = target.id;
-                        startRole(async () => {
-                          const result = await setRecipientDiscordRole({
-                            discordUserId,
-                            roleId: role.id,
-                            grant: !role.held,
-                          });
-                          if (currentTargetId.current !== discordUserId) return;
-                          setRoleMessage(result.message);
-                          if (result.ok) {
-                            const refreshed = await getRecipientContext(discordUserId);
-                            if (currentTargetId.current !== discordUserId) return;
-                            setContext(refreshed);
-                          }
-                        });
-                      }}
-                    >
-                      {role.name}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted">
-                  Changes apply straight away, not when the message is sent. Only roles below the bot&apos;s own can be
-                  changed.
-                </p>
-              </>
-            )}
-
-            {roleMessage && <p className="text-xs text-muted">{roleMessage}</p>}
           </section>
         )}
 
