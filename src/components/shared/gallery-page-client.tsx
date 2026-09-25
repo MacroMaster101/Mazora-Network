@@ -37,7 +37,7 @@ export function GalleryPageClient({
           >
             <Sparkles size={18} /> <span data-page-field="submitCta">{copy.submitCta}</span>
           </button>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/25 bg-accent/10 px-3.5 py-1.5 text-xs font-semibold text-accent-bright backdrop-blur-md">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/25 bg-card/90 px-3.5 py-1.5 text-xs font-semibold text-accent-bright backdrop-blur-md">
             <Sparkles size={13} /> <span data-page-field="submitBadge">{copy.submitBadge}</span>
           </span>
         </div>

@@ -368,9 +368,11 @@
 }
 /* Continue the Store world beneath the hero with the original marketplace artwork. */
 
-/* The marketplace is a dark in-world surface in both site themes. */
-.store-marketplace,
-:root[data-theme="light"] .site-world-main .store-marketplace {
+/* Night palette for the marketplace. Scoped to the dark theme: daylight
+   inherits the shared light tokens from globals.css. It used to apply in both
+   themes and rely on later light blocks re-declaring every token; once those
+   local copies were removed, the night palette leaked into light mode. */
+:root:not([data-theme="light"]) .store-marketplace {
   color-scheme: dark;
   --base: 8 6 14;
   --surface: 15 11 24;
@@ -789,7 +791,7 @@
 
 :root[data-theme="light"] .site-world-main .store-hero-cart-trigger:hover {
   border-color: rgb(var(--accent)) !important;
-  background: rgb(237 230 249) !important;
+  background: rgb(var(--surface)) !important;
   color: rgb(var(--ink)) !important;
 }
 
@@ -1134,15 +1136,6 @@
    letting the catalog UI follow the site theme, just like the Home page. */
 :root[data-theme="light"] .site-world-main .store-marketplace .store-catalog-shell {
   color-scheme: light;
-  --surface: 246 242 252;
-  --card: 253 251 255;
-  --line: 218 207 232;
-  --line-strong: 194 178 215;
-  --ink: 30 23 43;
-  --muted: 101 88 119;
-  --accent: 124 58 237;
-  --accent-bright: 109 40 217;
-  --accent-rgb: 124 58 237;
   color: rgb(var(--ink));
 }
 
@@ -1177,7 +1170,7 @@
 ) {
   border-color: rgb(var(--line-strong) / 0.5) !important;
   color: rgb(var(--ink)) !important;
-  background: rgb(255 255 255 / 0.9) !important;
+  background: rgb(var(--card) / 0.9) !important;
   box-shadow:
     0 18px 46px -36px rgb(58 35 91 / 0.4),
     inset 0 1px rgb(255 255 255 / 0.98) !important;
@@ -1226,7 +1219,7 @@
 }
 
 :root[data-theme="light"]:has(.store-marketplace) body {
-  background-color: rgb(247 245 251);
+  background-color: rgb(var(--base));
 }
 
 :root[data-theme="light"] .store-hero-v2 > .store-world-art {
@@ -1262,7 +1255,7 @@
 :root[data-theme="light"] .store-hero-v2-note {
   border-color: rgb(147 51 234 / 0.45);
   color: #1a0f2e;
-  background: rgb(255 255 255 / 0.98);
+  background: rgb(var(--card) / 0.98);
   box-shadow: 0 18px 45px -15px rgb(88 28 135 / 0.25), 0 0 20px -5px rgb(147 51 234 / 0.2), inset 0 1px 1px #ffffff;
   backdrop-filter: blur(14px) saturate(1.08);
 }
@@ -1294,15 +1287,6 @@
 
 :root[data-theme="light"] .site-world-main .store-marketplace {
   color-scheme: light;
-  --surface: 246 242 252;
-  --card: 253 251 255;
-  --line: 218 207 232;
-  --line-strong: 194 178 215;
-  --ink: 30 23 43;
-  --muted: 101 88 119;
-  --accent: 124 58 237;
-  --accent-bright: 109 40 217;
-  --accent-rgb: 124 58 237;
   color: rgb(var(--ink));
 }
 
@@ -1337,7 +1321,7 @@
   /* Was 0.72 — the same translucency the dark theme uses, which read as a
      washed-out/foggy card once boosted against the light backdrop instead of
      the crisp, near-solid look .panel/.glass use elsewhere in light theme. */
-  background: rgb(255 255 255 / 0.92) !important;
+  background: rgb(var(--card) / 0.92) !important;
   box-shadow: 0 18px 46px -36px rgb(58 35 91 / 0.4), inset 0 1px rgb(255 255 255 / 0.84) !important;
   backdrop-filter: blur(12px) saturate(1.04);
 }
@@ -1398,7 +1382,7 @@
   .store-home-roadmap-v3
 ) {
   border-color: rgb(193 182 213 / 0.72) !important;
-  background: rgb(248 246 251) !important;
+  background: rgb(var(--card)) !important;
   box-shadow: 0 24px 58px -40px rgb(49 30 80 / 0.52), inset 0 1px white !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;

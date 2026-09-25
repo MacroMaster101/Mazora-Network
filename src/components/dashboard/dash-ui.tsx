@@ -52,11 +52,19 @@ export function DashEmpty({
   );
 }
 
+/** Long values (a 12-16 character Minecraft name) step the size down so they
+ *  stay on one line instead of splitting mid-word; wrapping is the fallback. */
+function statValueSize(value: string): string {
+  if (value.length >= 12) return "text-base sm:text-xl";
+  if (value.length >= 9) return "text-lg sm:text-2xl";
+  return "text-2xl";
+}
+
 export function StatTile({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return (
     <div className="dashboard-stat-tile panel p-5">
       <div className="text-xs uppercase tracking-widest text-muted">{label}</div>
-      <div className="telemetry mt-1 text-2xl font-bold [overflow-wrap:anywhere]">{value}</div>
+      <div className={`telemetry mt-1 font-bold [overflow-wrap:anywhere] ${statValueSize(value)}`} title={value}>{value}</div>
       {detail && <div className="text-xs text-muted">{detail}</div>}
     </div>
   );

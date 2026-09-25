@@ -20,12 +20,19 @@
   --world-vote-body: url("/images/worlds/vote-body-light.webp");
   --world-news-hero: url("/images/worlds/news-hero-light.webp");
   --world-news-body: url("/images/worlds/news-body-light.webp");
-  --world-shade: 247 245 251;
-  /* Shared by public worlds, account areas, auth, and loading screens. Kept
-     close to the dark wash so the art reads as clearly; text that sits on the
-     scenery gets its own local scrim instead of a heavier global wash. */
-  --world-wash: 0.5;
+  /* Shared by public worlds, account areas, auth, and loading screens. The
+     wash used to be near-white at 0.5, which laid a milky glare over artwork
+     that is already bright. A dusky lavender plus a slight dim (below) calms
+     the scene instead of bleaching it. Text on the scenery never relies on
+     this wash: page heroes get a local scrim, like the dark theme's. */
+  --world-shade: 184 174 206;
+  --world-wash: 0.42;
+  --world-dim: brightness(0.94) saturate(1.06);
 }
+
+/* Only the public frame's art layer is a pseudo-element; the account area
+   paints its art on the element itself, where a filter would dim the content. */
+:root[data-theme="light"] body .site-world-frame::before { filter: var(--world-dim); }
 
 .world-backdrop {
   position: absolute;
@@ -120,19 +127,24 @@
 }
 :root[data-theme="light"] body :is(.hero-vignette, .vote-redesign-vignette) {
   display: block;
-  background: linear-gradient(180deg, rgb(247 245 251 / 0.12), transparent 45%, rgb(235 226 246 / 0.06));
+  background: linear-gradient(180deg, rgb(var(--base) / 0.12), transparent 45%, rgb(235 226 246 / 0.06));
 }
-:root[data-theme="light"] body .site-world-main::before,
-:root[data-theme="light"] body .page-hero-atmosphere {
-  background: linear-gradient(180deg, rgb(247 245 251 / 0.12), transparent);
+:root[data-theme="light"] body .site-world-main::before {
+  background: linear-gradient(180deg, rgb(var(--base) / 0.12), transparent);
 }
+/* No fog panel behind light page heroes. A big radial glow pinned to the left
+   (tried 2026-09-26) read as a milky patch, sat off-centre on centred heroes
+   like /staff, and needed a mask to avoid a hard edge. Hero copy instead gets
+   the per-line halo Home uses (see the end of this file), so the scene stays
+   clear everywhere the text is not. */
+:root[data-theme="light"] body .page-hero-atmosphere { background: none; }
 /* .home-world overlaps the hero's last 8rem (negative margin, higher z-index).
    A film starting at its top edge drew a visible line through the hero CTAs on
    mobile; the shared frame already provides the daylight wash. */
 :root[data-theme="light"] body .home-world::before { background: none; }
 :root[data-theme="light"] body .hero-logo-aura {
-  background: rgb(247 245 251 / 0.35);
-  box-shadow: 0 0 60px 20px rgb(247 245 251 / 0.2);
+  background: rgb(var(--base) / 0.35);
+  box-shadow: 0 0 60px 20px rgb(var(--base) / 0.2);
 }
 
 /* Text placed directly on the daylight landscape. Do not globally recolor
@@ -170,7 +182,7 @@
 }
 :root[data-theme="light"] body :is(.hero-stat, .home-network-facts, .home-map-shell, .home-map-toolbar, .home-map-coming-soon) {
   color: rgb(var(--ink));
-  background: rgb(248 246 251 / 0.96);
+  background: rgb(var(--card) / 0.96);
   border-color: rgb(var(--line-strong) / 0.8);
   box-shadow: 0 18px 48px -32px rgb(62 39 98 / 0.3), inset 0 1px white;
   backdrop-filter: none;
@@ -201,7 +213,7 @@
   text-shadow: none;
 }
 :root[data-theme="light"] body :is(.hero-stat:hover, .hero-actions > .btn:hover, .home-clean-join .btn-ghost:hover) {
-  background: rgb(237 230 249);
+  background: rgb(var(--line) / 0.75);
   border-color: rgb(var(--accent));
 }
 /* The primary CTA's night bevel (a white top highlight, a pale gradient start
@@ -232,12 +244,12 @@
   inset: 0 0 -1.5rem;
   opacity: 1;
   border: 0;
-  background: linear-gradient(180deg, rgb(247 245 251 / 0.88), rgb(247 245 251 / 0.5) 58%, rgb(247 245 251 / 0));
+  background: linear-gradient(180deg, rgb(var(--base) / 0.88), rgb(var(--base) / 0.5) 58%, rgb(var(--base) / 0));
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-:root[data-theme="light"] body:has(.site-world-frame) .scroll-header[data-away="true"][data-hidden="false"]::before { background: rgb(247 245 251 / 0.96); }
+:root[data-theme="light"] body:has(.site-world-frame) .scroll-header[data-away="true"][data-hidden="false"]::before { background: rgb(var(--base) / 0.96); }
 
 /* Specialist hero copy uses explicit historic colors rather than tokens. */
 :root[data-theme="light"] body :is(.store-hero-v2-copy, .vote-redesign-copy) > p,
@@ -246,7 +258,7 @@
 :root[data-theme="light"] body :is(.store-hero-v2-copy, .vote-redesign-copy) h1 span { color: rgb(var(--accent-bright)); }
 :root[data-theme="light"] body :is(.store-hero-v2-live-pill, .store-hero-v2-stat, .newsroom-live-pill, .newsroom-mast-stat, .newsroom-hero-note, .vote-redesign-status, .vote-redesign-stat, .vote-redesign-journey) {
   color: rgb(var(--ink));
-  background: rgb(248 246 251 / 0.96);
+  background: rgb(var(--card) / 0.96);
   border-color: rgb(var(--line-strong));
   box-shadow: 0 16px 40px -30px rgb(62 39 98 / 0.25);
 }
@@ -258,7 +270,7 @@
 :root[data-theme="light"] body .site-footer { --muted: 55 43 72; }
 :root[data-theme="light"] body .account-area .site-footer {
   color: rgb(var(--ink));
-  background: linear-gradient(transparent, rgb(247 245 251 / 0.9));
+  background: linear-gradient(transparent, rgb(var(--base) / 0.9));
 }
 :root[data-theme="light"] body .account-area .site-footer :is(h3, button) { color: rgb(var(--ink)); }
 :root[data-theme="light"] body .account-area .site-footer .text-muted { color: rgb(var(--muted)); }
@@ -399,7 +411,7 @@ body .site-world-main :is(.store-marketplace, .store-detail-page)::before {
 }
 :root[data-theme="light"] body .vote-redesign-copy > div:not([class]),
 :root[data-theme="light"] body :is(.store-hero-v2-copy, .vote-redesign-copy, .newsroom-hero-copy, .news-detail-intro) > p:not(.eyebrow) {
-  background: rgb(247 245 251 / 0.94);
+  background: rgb(var(--card) / 0.94);
 }
 :root[data-theme="light"] body .store-hero-cart-trigger {
   background: rgb(var(--card));
@@ -419,7 +431,9 @@ body .site-world-main :is(.store-marketplace, .store-detail-page)::before {
 :root[data-theme="light"] body :is(.text-emerald-400, .text-emerald-500, .text-emerald-600, .text-emerald-700) { color: rgb(6 95 70); }
 :root[data-theme="light"] body :is(.text-sky-400, .text-sky-500, .text-sky-600) { color: rgb(7 89 133); }
 :root[data-theme="light"] body :is(.text-red-400, .text-red-500) { color: rgb(185 28 28); }
-:root[data-theme="light"] body :is(.text-amber-400, .text-amber-500, .text-amber-600) { color: rgb(146 64 14); }
+:root[data-theme="light"] body :is(.text-amber-400, .text-amber-500, .text-amber-600, .text-amber-700) { color: rgb(146 64 14); }
+:root[data-theme="light"] body :is(.text-rose-500, .text-rose-600, .text-rose-700) { color: rgb(159 18 57); }
+:root[data-theme="light"] body :is(.text-red-600) { color: rgb(185 28 28); }
 :root[data-theme="light"] body .text-gray-500 { color: rgb(75 85 99); }
 /* Admin store pages: the creator-code intro was white text written for the
    night backdrop (1.3:1 on daylight). */
@@ -461,15 +475,21 @@ body .site-world-main :is(.store-marketplace, .store-detail-page)::before {
   text-shadow: none;
 }
 :root[data-theme="light"] body .newsroom-hero-copy h1 span { color: rgb(var(--accent-bright)); }
+/* The game-mode picker's intro sits straight on the marketplace art; sampled
+   worst case was 3.6:1 without a halo. Same treatment as the Home copy. Must
+   stay after the `text-shadow: none` list above, which has equal specificity. */
+:root[data-theme="light"] body .store-mode-selector-intro :is(span, p) {
+  text-shadow: 0 0 10px rgb(var(--base)), 0 0 20px rgb(var(--base) / 0.85);
+}
 :root[data-theme="light"] body .vote-hub-guide-list > div > span { color: rgb(var(--muted)); }
 :root[data-theme="light"] body .vote-hub-guide-list i { color: rgb(var(--accent-bright)); }
 :root[data-theme="light"] body .vote-hub-reward-note { color: #92400e; background: #fffbeb; border-color: #fcd34d; }
 :root[data-theme="light"] body .vote-hub-reward-note span { color: rgb(var(--muted)); }
 :root[data-theme="light"] body :is(.vote-hub-guide-head, .vote-hub-guide-list > div) { border-color: rgb(var(--line-strong)); }
-:root[data-theme="light"] body .news-detail-kicker { color: rgb(var(--accent-bright)); background: rgb(240 237 248); }
-:root[data-theme="light"] body .newsroom-page .newsroom-hero-backdrop::before { background: rgb(247 245 251 / 0.18); }
+:root[data-theme="light"] body .news-detail-kicker { color: rgb(var(--accent-bright)); background: rgb(var(--surface)); }
+:root[data-theme="light"] body .newsroom-page .newsroom-hero-backdrop::before { background: rgb(var(--base) / 0.18); }
 :root[data-theme="light"] body .news-detail-hero-backdrop {
-  background-image: linear-gradient(rgb(247 245 251 / 0.18), rgb(247 245 251 / 0.18)), var(--world-news-hero);
+  background-image: linear-gradient(rgb(var(--base) / 0.18), rgb(var(--base) / 0.18)), var(--world-news-hero);
   filter: none;
 }
 :root[data-theme="light"] body .site-world-frame:has(main) .site-footer,
@@ -492,4 +512,54 @@ body .site-world-main :is(.store-marketplace, .store-detail-page)::before {
   :root[data-theme="light"] { --world-news-hero: url("/images/worlds/news-hero-light-mobile.webp"); }
   :root body .site-world-frame::before { background-position: center, 32% center !important; }
   .world-backdrop { background-position: 42% center; }
+}
+
+
+/* ---------------------------------------------------------------------------
+   Daylight text on scenery.
+   Anything that sits straight on the world art (no card, chip or button behind
+   it) is measured against the art itself, which the page wash only partly
+   calms. Sampling the art on every public page put the violet eyebrows at
+   ~2:1 and muted copy at ~2.3:1; only near-black ink held up. So on-art text:
+     - takes near-ink for "muted" and violet-950 for "accent-bright", by
+       overriding those tokens on the element itself (every rule that paints
+       rgb(var(--muted)) or rgb(var(--accent-bright)) picks it up), and
+     - gets a tight halo in the page colour around each line (the Home-copy
+       technique), which carries small text over the busiest pixels.
+   "On art" = not inside, and not itself, a surface: .panel/.glass, anything
+   with a bg-* utility or a *card* class, buttons and button-styled links
+   (.btn*, *cta*, role=button), chips, pills and badges.
+   Text inside those keeps the normal tokens and no halo.
+   Kept last in the file: several rules above set text-shadow: none on hero
+   and section copy at equal or lower specificity.
+   --------------------------------------------------------------------------- */
+:root[data-theme="light"] body :is(.site-world-content, .account-content, .site-footer) :is(h1, h2, h3, h4, h5, p, span, li, small, dt, dd, label, a, strong, em, time, div):not(:is(.panel, .glass, [class*="bg-"], [class*="card"], [class*="chip"], [class*="pill"], [class*="badge"], [class*="btn"], [class*="cta"], [role="button"], button, .btn, input, select, textarea) *):not(.panel, .glass, [class*="bg-"], [class*="card"], [class*="chip"], [class*="pill"], [class*="badge"], [class*="btn"], [class*="cta"], [role="button"], button, .btn) {
+  --muted: 44 34 62;
+  /* violet-950: the deepest step that still reads as brand violet; any
+     lighter and the 11px eyebrows fall under 3:1 on the busiest art. */
+  --accent-bright: 46 16 101;
+  text-shadow:
+    0 0 6px rgb(var(--base)),
+    0 0 14px rgb(var(--base) / 0.95),
+    0 0 28px rgb(var(--base) / 0.8);
+}
+/* The 11px mono eyebrow is too thin to hold its own over detailed scenery even
+   with the halo; a heavier weight keeps it legible without a backing panel. */
+:root[data-theme="light"] body :is(.site-world-content, .account-content) .eyebrow:not(:is(.panel, .glass, [class*="bg-"], [class*="card"]) *) { font-weight: 700; font-size: 0.76rem; }
+/* Custom properties and text-shadow inherit, so an on-art wrapper would hand
+   its darker tokens and halo down to a card inside it. Surfaces restore the
+   shared daylight values (globals.css) for themselves and their contents. */
+:root[data-theme="light"] body :is(.site-world-content, .account-content, .site-footer) :is(.panel, .glass, [class*="bg-"], [class*="card"], [class*="chip"], [class*="pill"], [class*="badge"], [class*="btn"], [class*="cta"], [role="button"], button, .btn) {
+  --muted: 84 74 102;
+  --accent-bright: 101 32 205;
+  text-shadow: none;
+}
+/* .chip's 3% ink tint is effectively transparent over scenery (the game-mode
+   detail chips measured ~2:1). In daylight give chips a solid surface; inside
+   cards it matches the card, so only the border shows, as before. */
+:root[data-theme="light"] body .chip { background: rgb(var(--card) / 0.94); }
+/* The refresh control's 14% muted tint vanished over scenery (/players). */
+:root[data-theme="light"] body .refresh-button { background: rgb(var(--card) / 0.94); }
+:root[data-theme="light"] body .refresh-button:hover:not(:disabled) {
+  background: linear-gradient(rgb(var(--accent) / 0.08), rgb(var(--accent) / 0.08)), rgb(var(--card));
 }
