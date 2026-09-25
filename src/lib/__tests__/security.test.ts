@@ -312,6 +312,7 @@ describe("permission-aware admin navigation", () => {
     voting: false,
     notifications: false,
     bot: false,
+    settings: false,
   };
 
   function labels(role: "helper" | "moderator" | "senior_moderator", access: AdminNavAccess) {
@@ -358,6 +359,39 @@ describe("permission-aware admin navigation", () => {
       group.items.map((item) => item.href),
     );
     assert.ok(hrefs.includes("/admin/mazora-bot"));
+  });
+
+  test("Site Settings follows its grant, so an owner can hand it to staff", () => {
+    const hrefs = (role: "helper" | "owner", access: AdminNavAccess) =>
+      visibleAdminNav(role, access).flatMap((group) => group.items.map((item) => item.href));
+
+    assert.ok(hrefs("owner", ALL_ADMIN_NAV_ACCESS).includes("/admin/settings"));
+    assert.ok(hrefs("helper", { ...denied, settings: true }).includes("/admin/settings"));
+    assert.ok(!hrefs("helper", denied).includes("/admin/settings"));
+  });
+
+  test("Audit Logs are Owner and Web Dev by rank, whatever else is granted", () => {
+    const hrefs = (role: "administrator" | "owner" | "web_dev") =>
+      visibleAdminNav(role, ALL_ADMIN_NAV_ACCESS).flatMap((group) => group.items.map((item) => item.href));
+
+    assert.ok(hrefs("owner").includes("/admin/audit-logs"));
+    assert.ok(hrefs("web_dev").includes("/admin/audit-logs"));
+    assert.ok(!hrefs("administrator").includes("/admin/audit-logs"));
+  });
+
+  test("Audit Logs cannot be granted, and Site Settings saves honour the grant", () => {
+    const permissions = readFileSync(new URL("../auth/permissions.ts", import.meta.url), "utf8");
+    const auditPage = readFileSync(new URL("../../app/admin/audit-logs/page.tsx", import.meta.url), "utf8");
+    const settingsAction = readFileSync(new URL("../actions/site-settings.ts", import.meta.url), "utf8");
+
+    // No stored permission list decides who reads the audit trail.
+    assert.ok(!permissions.includes("audit.permissions"), "audit must not be a grantable module");
+    assert.match(permissions, /canManageAudit = \(s: Session \| null\) => Boolean\(s && hasAtLeast\(s\.role, "owner"\)\)/);
+    assert.match(auditPage, /requireRole\("owner", "\/admin\/audit-logs"\)/);
+
+    // The page lets granted staff in, so the save must too.
+    assert.match(permissions, /canManageSettings = [^\n]*canManageModule\(SETTINGS_PERMISSION_KEY/);
+    assert.match(settingsAction, /canManageSettings\(session, userId\)/);
   });
 });
 

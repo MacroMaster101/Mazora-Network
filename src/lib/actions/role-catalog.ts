@@ -61,7 +61,7 @@ function normaliseGrantValue(value: unknown): { roles: string[]; userIds: string
  * failure, just nothing stored yet) falls back to the module's computed
  * defaults via `getModulePermissions`.
  *
- * Web Dev-only modules (isWebDevOnlyModule, e.g. Audit) are left exactly as they are
+ * Web Dev-only modules (isWebDevOnlyModule) are left exactly as they are
  * unless the actor is the top role: an Owner can neither add nor remove this
  * role's membership there, whatever `modules` says.
  *

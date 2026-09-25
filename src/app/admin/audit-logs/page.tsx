@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { AUDIT_PERMISSION_KEY } from "@/lib/auth/permissions";
-import { requireModuleAccess } from "@/lib/auth/require-module";
+import { requireRole } from "@/lib/auth";
 import { getAuditEntries } from "@/lib/data/audit";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AuditBrowser } from "@/components/admin/audit-browser";
@@ -8,9 +7,8 @@ import { AuditBrowser } from "@/components/admin/audit-browser";
 export const metadata: Metadata = { title: "Audit Logs · Admin" };
 
 export default async function AdminAuditLogsPage() {
-  // Web Dev-only by default, but grantable: WEB_DEV_ONLY_MODULES stops the owner
-  // short-circuit, so an owner reaches this only when explicitly granted.
-  await requireModuleAccess(AUDIT_PERMISSION_KEY, "/admin/audit-logs");
+  // Owner and Web Dev, by rank. Not grantable below owner: see canManageAudit.
+  await requireRole("owner", "/admin/audit-logs");
   const entries = await getAuditEntries();
 
   return (
