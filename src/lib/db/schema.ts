@@ -619,6 +619,15 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({ createdIdx: index("audit_logs_created_idx").on(t.createdAt.desc()) }));
 
+/** Hashed single-use two-step verification recovery codes (migration 073). */
+export const mfaRecoveryCodes = pgTable("mfa_recovery_codes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  codeHash: text("code_hash").notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({ userIdx: index("mfa_recovery_codes_user_idx").on(t.userId) }));
+
 export const siteSettings = pgTable(
   "site_settings",
   {

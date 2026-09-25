@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManagePlay } from "@/lib/auth/permissions";
 import { saveFaqs as saveFaqsData, type FaqItem } from "@/lib/data/faqs";
+import { recordAudit } from "@/lib/audit-log";
 
 /**
  * Guarded for the same reason as savePlayConfigAction: the action id ships to
@@ -39,6 +40,13 @@ export async function saveFaqsAction(faqs: FaqItem[]): Promise<{ ok: boolean; me
 
   const result = await saveFaqsData(parsed.data);
   if (result.ok) {
+    await recordAudit({
+      action: "play.faqs.update",
+      actorId: userId,
+      by: session.username,
+      targetType: "faqs",
+      metadata: { count: parsed.data.length },
+    });
     // The FAQs render on the public Play page and in both admin editors; without
     // this the save lands in the database but every cached render keeps serving
     // the previous list.

@@ -1,9 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { SESSION_ONLY_COOKIE, sessionOnlyMarkerOptions } from "@/lib/supabase/session-cookie";
 import { createClient } from "@supabase/supabase-js";
 import type { Role } from "@/lib/types";
-import { createSession, getSession, getSessionUserId, isRoleKey, isStaff, landingPathFor, normalizeRoleKey, pickDiscordIdentity } from "@/lib/auth";
+import { createSession, getSession, getSessionUserId, isRoleKey, isStaff, landingPathFor, normalizeRoleKey, isTwoFactorPending, pickDiscordIdentity, twoFactorPath } from "@/lib/auth";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { site } from "@/lib/site";
@@ -31,6 +33,8 @@ import {
 import { isPasswordBreached, PWNED_PASSWORD_MESSAGE } from "@/lib/auth/pwned-password";
 import { clearResetGrant, hasResetGrant, issueResetGrant } from "@/lib/auth/reset-grant";
 import { classifyPasswordUpdateError, normaliseReauthCode } from "@/lib/auth/password-reauth";
+import { redeemRecoveryCode } from "@/lib/auth/two-factor-recovery";
+import type { User } from "@supabase/supabase-js";
 
 export interface AuthResult {
   ok: boolean;
@@ -40,6 +44,8 @@ export interface AuthResult {
   unverifiedEmail?: string;
   /** Set by updatePasswordAction when Supabase wants the emailed reauthentication code. */
   needsCode?: boolean;
+  /** Set by finishPasswordResetAction when the account also needs its two-step code. */
+  needsTwoFactor?: boolean;
 }
 
 /** Supabase's distinct error for "credentials correct, email not confirmed" — matched by
@@ -87,6 +93,13 @@ async function linkVerifiedRegistration(
   await linkMinecraftIgn(admin, data.user.id, username).catch((error) => {
     console.error("Verified registration IGN link failed:", error);
   });
+}
+
+/** Record (or clear) the "don't remember me" choice for this browser. */
+async function setSessionOnly(sessionOnly: boolean): Promise<void> {
+  const store = await cookies();
+  if (sessionOnly) store.set(SESSION_ONLY_COOKIE, "1", sessionOnlyMarkerOptions());
+  else store.delete(SESSION_ONLY_COOKIE);
 }
 
 const usernameFromIdentifier = (identifier: string) =>
@@ -173,7 +186,15 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
   if (throttled) return { ok: false, message: throttled };
 
   if (isSupabaseConfigured()) {
-    const supabase = await createSupabaseServerClient();
+    /*
+      "Remember me". Unticked, this sign-in ends when the browser closes: the
+      marker cookie tells every later cookie refresh to keep the auth cookies
+      session-only (lib/supabase/session-cookie), and this client applies it to
+      the cookies the sign-in itself writes.
+    */
+    const remember = formData.get("remember") === "on";
+    await setSessionOnly(!remember);
+    const supabase = await createSupabaseServerClient({ sessionOnly: !remember });
     if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
     // A username is translated to its address here; an email passes through.
@@ -205,9 +226,13 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
     await dispatchSignInNotifications(await getSessionUserId());
 
     // Honour an explicit destination; otherwise land on home (every role).
-    if (parsed.data.next && parsed.data.next !== "/") redirect(safeNext(parsed.data.next));
     const session = await getSession();
-    redirect(session ? landingPathFor(session.role) : "/");
+    const destination =
+      parsed.data.next && parsed.data.next !== "/" ? safeNext(parsed.data.next) : session ? landingPathFor(session.role) : "/";
+    // An account with two-step verification on is not signed in until its code
+    // is entered (see getSession), so the code comes next.
+    if (!session && (await isTwoFactorPending())) redirect(twoFactorPath(destination));
+    redirect(destination);
   }
 
   if (!isDemoAuthEnabled()) return { ok: false, message: "Authentication has not been configured yet." };
@@ -378,7 +403,9 @@ export async function oauthAction(_previous: AuthResult, formData: FormData): Pr
   // different account whenever the provider email differs. Requires the
   // "Manual Linking" toggle in Supabase Authentication settings.
   const { data: existingUser } = await supabase.auth.getUser();
-  if (existingUser?.user) {
+  // Linking changes the account, so a sign-in still owing its two-step code
+  // does not count as signed in here either.
+  if (existingUser?.user && !(await isTwoFactorPending())) {
     const linkThrottled = await throttleAuthAction("oauth-link", {
       limit: 10,
       windowMs: 15 * 60_000,
@@ -617,7 +644,11 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
   const parsed = newPasswordSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
 
-  const throttled = await throttleAuthAction("reset-finish", { limit: 10, windowMs: 15 * 60_000 });
+  const throttled = await throttleAuthAction("reset-finish", {
+    limit: 10,
+    windowMs: 15 * 60_000,
+    identity: (await getSessionUserId()) ?? undefined,
+  });
   if (throttled) return { ok: false, message: throttled };
 
   // Same breach check as registration; fails open. See lib/auth/pwned-password.
@@ -635,7 +666,7 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
     // password. Without this, any signed-in session (an unattended device, a
     // copied cookie) could call this action directly and take the account over
     // — the exact case updatePasswordAction's current-password check prevents.
-    if (!email || !(await hasResetGrant(supabase))) {
+    if (!email || !userData.user || !(await hasResetGrant(supabase))) {
       await clearResetGrant();
       return { ok: false, message: "Your reset session expired. Request a new code and try again." };
     }
@@ -644,7 +675,28 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
       return { ok: false, errors: { password: "New password must be different from your current password." } };
     }
 
-    const { error } = await supabase.auth.updateUser({ password: parsed.data.password, data: { has_password: true } });
+    // With two-step verification on, the emailed code alone must not be enough
+    // to replace the password — someone in the member's inbox could otherwise
+    // reset their way past it. It also takes the authenticator code (or a
+    // recovery code), exactly as signing in does; Supabase itself refuses the
+    // change from a session that has not passed it (insufficient_aal).
+    let viaRecoveryCode = false;
+    if (await isTwoFactorPending()) {
+      const step = await passResetTwoFactor(supabase, userData.user, formData);
+      if (typeof step === "object") return step;
+      viaRecoveryCode = step === "recovery";
+    }
+
+    /*
+      After a recovery code the session is still aal1, and Supabase refuses a
+      password change from it while the account has a verified factor — so the
+      service role sets it. Two-step verification stays on either way.
+    */
+    const admin = viaRecoveryCode ? getSupabaseAdmin() : null;
+    if (viaRecoveryCode && !admin) return { ok: false, message: "Authentication is temporarily unavailable. Please try again." };
+    const { error } = admin
+      ? await admin.auth.admin.updateUserById(userData.user.id, { password: parsed.data.password })
+      : await supabase.auth.updateUser({ password: parsed.data.password, data: { has_password: true } });
     if (error) return { ok: false, message: "The password could not be updated. Request a new code and try again." };
     await markHasPassword(userData?.user?.id);
 
@@ -655,6 +707,44 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
   }
 
   return { ok: true, message: "Your password has been updated." };
+}
+
+/**
+ * The two-step part of a password reset. Returns how it was passed once the
+ * reset may go ahead — "code" (the session is now aal2) or "recovery" (one
+ * recovery code spent; two-step verification stays on). Otherwise returns what
+ * to show, with `needsTwoFactor` set so the form asks for the code; the typed
+ * passwords stay in place.
+ */
+async function passResetTwoFactor(
+  supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>,
+  user: User,
+  formData: FormData,
+): Promise<AuthResult | "code" | "recovery"> {
+  const mfaCode = String(formData.get("mfaCode") ?? "").replace(/\s/g, "");
+  const recoveryCode = String(formData.get("recoveryCode") ?? "").trim();
+  const ask = (extra: Partial<AuthResult>): AuthResult => ({ ok: false, needsTwoFactor: true, ...extra });
+
+  if (!mfaCode && !recoveryCode) {
+    return ask({ message: "This account has two-step verification on. Enter the code from your authenticator app to finish." });
+  }
+
+  const throttled = await throttleAuthAction("mfa-verify", { limit: 5, windowMs: 15 * 60_000, identity: user.id });
+  if (throttled) return ask({ message: throttled });
+
+  if (recoveryCode) {
+    const outcome = await redeemRecoveryCode(user, recoveryCode, "password-reset");
+    if (!outcome.ok) return ask({ errors: { recoveryCode: "That recovery code is incorrect or has already been used." } });
+    return "recovery";
+  }
+
+  if (!/^\d{6}$/.test(mfaCode)) return ask({ errors: { mfaCode: "Enter the six-digit code from your authenticator app." } });
+  const { data: factors } = await supabase.auth.mfa.listFactors();
+  const factor = factors?.totp[0];
+  if (!factor) return ask({ message: "Two-step verification is unavailable right now. Please try again." });
+  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code: mfaCode });
+  if (error) return ask({ errors: { mfaCode: "That code is incorrect or has expired." } });
+  return "code";
 }
 
 /**
@@ -705,7 +795,13 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
 
   // This one re-checks the current password, so it is a credential oracle too.
-  const throttled = await throttleAuthAction("password-update", { limit: 10, windowMs: 15 * 60_000 });
+  // The account bucket matters most: whoever holds a copied session cookie can
+  // rotate addresses, but cannot rotate which account they are guessing for.
+  const throttled = await throttleAuthAction("password-update", {
+    limit: 10,
+    windowMs: 15 * 60_000,
+    identity: (await getSessionUserId()) ?? undefined,
+  });
   if (throttled) return { ok: false, message: throttled };
 
   // Same breach check as registration; fails open. See lib/auth/pwned-password.
@@ -719,7 +815,8 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
 
     const { data: userData } = await supabase.auth.getUser();
     const email = userData?.user?.email;
-    if (!email) return { ok: false, message: "Your session has expired. Sign in again." };
+    // A sign-in still owing its two-step code is not signed in (see getSession).
+    if (!email || (await isTwoFactorPending())) return { ok: false, message: "Your session has expired. Sign in again." };
 
     /*
       Prove the caller knows the existing secret before replacing it.
@@ -763,11 +860,24 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       return { ok: false, needsCode: true, errors: { nonce: "Enter the code from the email." } };
     }
 
-    const { error } = await supabase.auth.updateUser({
+    let { error } = await supabase.auth.updateUser({
       password: parsed.data.password,
       data: { has_password: true },
       ...(nonce ? { nonce } : {}),
     });
+
+    /*
+      A sign-in that used a recovery code passed two-step verification, but
+      Supabase still sees an aal1 session and refuses a password change on an
+      account with a verified factor. The current password was checked above,
+      so the service role makes the change.
+    */
+    if (error?.code === "insufficient_aal" && (await getSession())?.recoveredSignIn) {
+      const admin = getSupabaseAdmin();
+      if (admin && userData?.user?.id) {
+        ({ error } = await admin.auth.admin.updateUserById(userData.user.id, { password: parsed.data.password }));
+      }
+    }
     if (error) {
       const kind = classifyPasswordUpdateError(error.code);
       if (kind === "send-code") {
@@ -815,7 +925,7 @@ export async function switchDiscordAction(_previous: AuthResult): Promise<AuthRe
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
   const { data, error: userError } = await supabase.auth.getUser();
-  if (userError || !data.user) return { ok: false, message: "You must be signed in to switch accounts." };
+  if (userError || !data.user || (await isTwoFactorPending())) return { ok: false, message: "You must be signed in to switch accounts." };
 
   const throttled = await throttleAuthAction("discord-switch", {
     limit: 5,
@@ -881,7 +991,7 @@ export async function switchDiscordAccountAction(
   // the existing session and throttling before sign-out prevents it from being
   // used as a public bypass around oauthAction's initiation limit.
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { ok: false, message: "You must be signed in to switch accounts." };
+  if (userError || !userData.user || (await isTwoFactorPending())) return { ok: false, message: "You must be signed in to switch accounts." };
   const throttled = await throttleAuthAction("discord-account-switch", {
     limit: 5,
     windowMs: 15 * 60_000,
@@ -922,7 +1032,7 @@ export async function unlinkDiscordAction(_previous: AuthResult): Promise<AuthRe
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
   const { data, error: userError } = await supabase.auth.getUser();
-  if (userError || !data.user) return { ok: false, message: "You must be signed in to unlink an account." };
+  if (userError || !data.user || (await isTwoFactorPending())) return { ok: false, message: "You must be signed in to unlink an account." };
 
   const throttled = await throttleAuthAction("discord-unlink", {
     limit: 5,

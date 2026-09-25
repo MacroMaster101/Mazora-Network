@@ -2,6 +2,7 @@
 
 import sharp from "sharp";
 import { revalidatePath } from "next/cache";
+import { isTwoFactorPending } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { throttleAuthAction } from "@/lib/rate-limit";
@@ -48,6 +49,8 @@ async function authenticatedUser() {
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
+  // Signed in but still owing the two-step code: not signed in (see getSession).
+  if (await isTwoFactorPending()) return null;
   return data.user;
 }
 

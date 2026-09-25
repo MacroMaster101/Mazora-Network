@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { supabaseSecretKey } from "@/lib/supabase/secret-key";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   RESET_GRANT_TTL_SECONDS,
@@ -23,7 +24,7 @@ import {
 const RESET_GRANT_COOKIE = "mz_pw_reset";
 
 function grantKey(): Buffer | null {
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const secret = supabaseSecretKey();
   return secret ? deriveResetGrantKey(secret) : null;
 }
 

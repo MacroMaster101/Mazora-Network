@@ -7,7 +7,7 @@ import {
   UsersRound,
   Radio,
 } from "lucide-react";
-import { getSession, hasAtLeast, isStaff } from "@/lib/auth";
+import { hasAtLeast, isStaff, requireSession } from "@/lib/auth";
 import { getServerStatus } from "@/lib/data/status";
 import { getDiscordStats } from "@/lib/data/discord";
 import { getPlayers } from "@/lib/data/players";
@@ -16,6 +16,7 @@ import { getEvents, getNews, getProducts } from "@/lib/data/content";
 import { getAccountsSnapshot, getRecentAudit } from "@/lib/data/admin-overview";
 import { MinecraftAvatar, UserAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
+import { StaffTwoFactorHint } from "@/components/admin/staff-two-factor-hint";
 import {
   Board,
   BoardNotice,
@@ -27,8 +28,7 @@ import {
 export const metadata: Metadata = { title: "Control room · Admin" };
 
 export default async function ControlRoom() {
-  const session = await getSession();
-  if (!session) redirect("/login?next=/admin");
+  const session = await requireSession("/admin");
   if (!isStaff(session.role)) redirect("/");
 
   const role = session.role;
@@ -61,6 +61,8 @@ export default async function ControlRoom() {
 
   return (
     <div className="space-y-6">
+      {/* Optional, but recommended to every staff account that has not turned it on. */}
+      {session.twoFactorEnabled === false ? <StaffTwoFactorHint /> : null}
       <WatchBar
         username={session.username}
         displayName={session.displayName}
@@ -184,7 +186,7 @@ export default async function ControlRoom() {
             ) : (
               <BoardNotice>
                 {showDiagnostics ? (
-                  <>Account data needs <code className="text-ink">SUPABASE_SERVICE_ROLE_KEY</code> on the server.</>
+                  <>Account data needs <code className="text-ink">SUPABASE_SECRET_KEY</code> on the server.</>
                 ) : (
                   "Account insights are temporarily unavailable."
                 )}

@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
@@ -17,8 +16,8 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const session = await getSession();
-  if (!session) redirect("/login?next=/dashboard");
+  // Signed out → login; signed in but owing a two-step code → /two-factor.
+  const session = await requireSession("/dashboard");
 
   return (
     <div className="account-area">

@@ -10,6 +10,7 @@
  * Usage: npm run db:rehost:news-images
  */
 import postgres from "postgres";
+import { supabaseSecretKey } from "../src/lib/supabase/secret-key";
 import { createClient } from "@supabase/supabase-js";
 
 const BUCKET = "news-images";
@@ -33,9 +34,9 @@ function detectMime(b: Uint8Array): string | null {
 async function main() {
   const dbUrl = process.env.DATABASE_URL?.trim();
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const serviceKey = supabaseSecretKey();
   if (!dbUrl || !supabaseUrl || !serviceKey) {
-    console.error("Need DATABASE_URL, NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+    console.error("Need DATABASE_URL, NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY).");
     process.exit(1);
   }
 

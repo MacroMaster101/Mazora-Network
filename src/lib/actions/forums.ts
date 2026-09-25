@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageModule, FORUMS_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
+import { recordAudit } from "@/lib/audit-log";
 import { getPostForEdit } from "@/lib/data/forums";
 import { attachForumPostImages, removeForumPostImages } from "@/lib/forums/image-store";
 import { dispatchForumReplyNotification } from "@/lib/forums/notify";
@@ -395,6 +396,20 @@ export async function deletePostAction(postId: string): Promise<ForumActionResul
           .where(eq(schema.forumPosts.topicId, target.topicId))
       : [{ id: postId, authorId: target.authorId, hasOpenReport: await hasOpenReport(db, postId) }];
     await removeForumPostImages(purgeableImagePosts(covered, me.actor));
+
+    // Staff removing someone else's post is moderation and is logged, as the
+    // suggestion-reply delete is. An author removing their own stays quiet.
+    if (me.userId !== target.authorId) {
+      const session = await getSession();
+      await recordAudit({
+        action: removedTopic ? "forums.topic.remove" : "forums.post.remove",
+        actorId: me.userId,
+        by: session?.username ?? me.username,
+        targetType: "forum_post",
+        targetId: postId,
+        metadata: { topicId: target.topicId, authorId: target.authorId, moderated: true },
+      });
+    }
 
     revalidatePath(`/forums/topic/${target.topicId}`);
     revalidatePath("/forums");

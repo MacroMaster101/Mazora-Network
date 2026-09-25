@@ -1,7 +1,7 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
-import { getSession, getSessionUserId } from "@/lib/auth";
+import { getSession, getSessionUserId, isTwoFactorPending, twoFactorPath } from "@/lib/auth";
 import { isStaff } from "@/lib/auth/roles";
 import { canManageModule } from "@/lib/auth/permissions";
 import type { Session } from "@/lib/auth";
@@ -12,6 +12,8 @@ export async function requireModuleAccess(key: string, path: string): Promise<Se
   const userId = session ? await getSessionUserId() : null;
 
   if (session && (await canManageModule(key, session, userId))) return session;
+
+  if (!session && (await isTwoFactorPending())) redirect(twoFactorPath(path));
 
   if (session && isStaff(session.role)) {
     const params = new URLSearchParams({ from: path });

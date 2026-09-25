@@ -206,7 +206,7 @@ function AuthMessage({ message }: { message?: string }) {
   return message ? <p className="auth-form-message" role="alert">{message}</p> : null;
 }
 
-function OtpInput({ id, name, error }: { id: string; name: string; error?: string }) {
+export function OtpInput({ id, name, error }: { id: string; name: string; error?: string }) {
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
 
@@ -819,6 +819,62 @@ function VerifyResetCodeForm({ email, onVerified }: { email: string; onVerified:
   );
 }
 
+/**
+ * Password reset for an account with two-step verification: the emailed code
+ * is not enough on its own, so the form also asks for the authenticator code
+ * (or a recovery code) once the server says so. The typed passwords stay put.
+ */
+function ResetTwoFactorFields({ state }: { state: AuthResult }) {
+  const [useRecovery, setUseRecovery] = useState(false);
+  if (!state.needsTwoFactor) return null;
+  const mfaError = state.errors?.mfaCode;
+  const recoveryError = state.errors?.recoveryCode;
+
+  return (
+    <div className="grid gap-3 rounded-2xl border border-accent/30 bg-accent/5 p-4">
+      <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+        <ShieldCheck size={16} className="text-accent-bright" aria-hidden="true" /> Two-step verification
+      </p>
+      {useRecovery ? (
+        <FormRow label="Recovery code" htmlFor="reset-recovery-code" error={recoveryError}>
+          <Input
+            id="reset-recovery-code"
+            name="recoveryCode"
+            placeholder="XXXXX-XXXXX"
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={20}
+            aria-invalid={Boolean(recoveryError)}
+            className="auth-field font-mono tracking-widest"
+          />
+        </FormRow>
+      ) : (
+        <>
+          <OtpInput id="reset-mfa-code" name="mfaCode" error={mfaError} />
+          {mfaError ? (
+            <p id="reset-mfa-code-error" className="text-sm text-danger" role="alert">
+              {mfaError}
+            </p>
+          ) : null}
+        </>
+      )}
+      <button
+        type="button"
+        onClick={() => setUseRecovery((value) => !value)}
+        className="justify-self-start text-xs font-semibold text-accent-bright hover:underline"
+      >
+        {useRecovery ? "Use your authenticator app instead" : "Lost your phone? Use a recovery code"}
+      </button>
+      {useRecovery ? (
+        <p className="text-xs leading-relaxed text-muted">
+          Each recovery code works once. Two-step verification stays on.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function NewPasswordAfterResetForm({ onDone }: { onDone: () => void }) {
   const [state, action, pending] = useActionState(finishPasswordResetAction, initial);
   const validation = useClientValidation(newPasswordSchema, state);
@@ -839,6 +895,7 @@ function NewPasswordAfterResetForm({ onDone }: { onDone: () => void }) {
       <FormRow label="Confirm new password" htmlFor="reset-new-confirm" error={confirmError}>
         <PasswordInput id="reset-new-confirm" name="confirm" placeholder="Repeat your new password" autoComplete="new-password" error={confirmError} />
       </FormRow>
+      <ResetTwoFactorFields state={state} />
       <AuthMessage message={validation.message} />
       <button type="submit" disabled={pending} className="btn btn-primary auth-submit disabled:opacity-70">
         {pending ? <Loader2 size={17} className="animate-spin" /> : <KeyRound size={17} />} Reset password <ArrowRight size={16} className="ml-auto" />
@@ -924,6 +981,7 @@ export function PasswordResetForm() {
       <FormRow label="Confirm new password" htmlFor="confirm" error={confirmError}>
         <PasswordInput id="confirm" name="confirm" placeholder="Repeat your new password" autoComplete="new-password" error={confirmError} />
       </FormRow>
+      <ResetTwoFactorFields state={state} />
       <AuthMessage message={validation.message} />
       <button type="submit" disabled={pending} className="btn btn-primary auth-submit disabled:opacity-70">
         {pending ? <Loader2 size={17} className="animate-spin" /> : <KeyRound size={17} />} Reset password <ArrowRight size={16} className="ml-auto" />

@@ -73,7 +73,7 @@ export default async function AdminStaffPage() {
       />
 
       {!staff && (
-        <ReadOnlyBanner note="The team list requires SUPABASE_SERVICE_ROLE_KEY to be configured on the server." />
+        <ReadOnlyBanner note="The team list requires SUPABASE_SECRET_KEY to be configured on the server." />
       )}
 
       {staff && (
