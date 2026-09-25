@@ -132,18 +132,6 @@ export function getStoreStaffRoleId(): string | null {
   return getStoreStaffRoleIds()[0] ?? null;
 }
 
-/**
- * Roles staff may grant or remove from the notice composer.
- *
- * Unset means no role control renders and every request is refused. Discord's
- * own hierarchy is a second, independent limit — it refuses any role at or
- * above the bot's highest — but relying on that alone would be wrong, because
- * the bot's role usually sits above most of the ladder.
- */
-export function getGrantableRoleIds(): string[] {
-  return parseRoleIdList(process.env.DISCORD_GRANTABLE_ROLE_IDS);
-}
-
 export interface GuildRole {
   id: string;
   name: string;
@@ -173,40 +161,6 @@ export async function listGuildRoles(token: string, guildId: string): Promise<Gu
       }));
   } catch {
     return null;
-  }
-}
-
-export async function addGuildMemberRole(
-  token: string,
-  guildId: string,
-  userId: string,
-  roleId: string,
-): Promise<boolean> {
-  try {
-    const res = await botRequest(token, `/guilds/${guildId}/members/${userId}/roles/${roleId}`, undefined, "PUT");
-    if (!res.ok) {
-      console.error("Discord guild member role grant failed", res.status, res.json, { roleId, userId });
-    }
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-export async function removeGuildMemberRole(
-  token: string,
-  guildId: string,
-  userId: string,
-  roleId: string,
-): Promise<boolean> {
-  try {
-    const res = await botRequest(token, `/guilds/${guildId}/members/${userId}/roles/${roleId}`, undefined, "DELETE");
-    if (!res.ok) {
-      console.error("Discord guild member role removal failed", res.status, res.json, { roleId, userId });
-    }
-    return res.ok;
-  } catch {
-    return false;
   }
 }
 

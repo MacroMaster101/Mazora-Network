@@ -10,8 +10,8 @@
 const SCANNER_EXTENSION = /\.(?:php\d?|phtml|asp|aspx|jsp|cgi|env|ini|sql|bak|old|swp|log)$/i;
 const SCANNER_PREFIX = /^\/(?:wp-|wordpress|xmlrpc|phpmyadmin|pma|cgi-bin|vendor\/|boaform|actuator|owa\/|hnap1)/i;
 // Framework debug consoles and PHP info pages, wherever they appear in the path
-// (/_profiler/phpinfo, /admin/phpinfo, /_ignition/execute-solution…).
-const SCANNER_SEGMENT = /(?:^|\/)(?:phpinfo|_profiler|_ignition|telescope|server-status|server-info)(?:\/|$)/i;
+// (/_profiler/phpinfo, /admin/phpinfo, /_ignition/execute-solution, /_environment…).
+const SCANNER_SEGMENT = /(?:^|\/)(?:phpinfo|_profiler|_ignition|_environment|telescope|server-status|server-info)(?:\/|$)/i;
 
 export function isScannerProbe(pathname: string): boolean {
   let path: string;
