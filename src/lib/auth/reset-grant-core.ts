@@ -22,7 +22,16 @@ export interface ResetGrantSubject {
 
 /** A purpose-bound HMAC key, so the source secret is never used directly. */
 export function deriveResetGrantKey(secret: string): Buffer {
-  return createHash("sha256").update(`mazora:password-reset-grant:v1:${secret}`).digest();
+  return deriveGrantKey(secret, "password-reset-grant");
+}
+
+/**
+ * A key for one purpose. Different purposes never share a key, so a grant
+ * signed for one (a password reset) can never verify as another (a
+ * recovery-code sign-in), even with identical payloads.
+ */
+export function deriveGrantKey(secret: string, purpose: string): Buffer {
+  return createHash("sha256").update(`mazora:${purpose}:v1:${secret}`).digest();
 }
 
 function mac(payload: string, key: Buffer): string {
@@ -30,11 +39,19 @@ function mac(payload: string, key: Buffer): string {
 }
 
 export function signResetGrant(subject: ResetGrantSubject, key: Buffer, nowSeconds: number): string {
+  return signSessionGrant(subject, key, nowSeconds, RESET_GRANT_TTL_SECONDS);
+}
+
+/** Sign a grant for exactly this user and session, valid for `ttlSeconds`. */
+export function signSessionGrant(subject: ResetGrantSubject, key: Buffer, nowSeconds: number, ttlSeconds: number): string {
   const payload = Buffer.from(
-    JSON.stringify({ u: subject.userId, s: subject.sessionId, e: nowSeconds + RESET_GRANT_TTL_SECONDS }),
+    JSON.stringify({ u: subject.userId, s: subject.sessionId, e: nowSeconds + ttlSeconds }),
   ).toString("base64url");
   return `${payload}.${mac(payload, key)}`;
 }
+
+/** Alias for any session-bound grant; the check is the same for every purpose. */
+export const verifySessionGrant = (...args: Parameters<typeof verifyResetGrant>) => verifyResetGrant(...args);
 
 /** True only for an unexpired grant signed with `key` for exactly this user and session. */
 export function verifyResetGrant(

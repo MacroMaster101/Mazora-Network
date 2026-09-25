@@ -5,6 +5,7 @@ import { getLaunchGate, isLaunchModeEnabled } from "@/lib/launch";
 import { buildContentSecurityPolicy, generateNonce } from "@/lib/csp";
 import { EDITABLE_PAGE_PATHS } from "@/lib/page-paths";
 import { isScannerProbe } from "@/lib/scanner-probe";
+import { SESSION_ONLY_COOKIE, applySessionLength } from "@/lib/supabase/session-cookie";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -129,7 +130,11 @@ export async function middleware(request: NextRequest) {
         requestHeaders.set("cookie", request.headers.get("cookie") ?? "");
         response = NextResponse.next({ request: { headers: requestHeaders } });
         setResponseSecurityHeaders(response, csp, isAdminPagePreview);
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        // "Remember me" unticked: refreshed auth cookies stay browser-session only.
+        const sessionOnly = request.cookies.get(SESSION_ONLY_COOKIE)?.value === "1";
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, applySessionLength(value, options, sessionOnly)),
+        );
       },
     },
   });

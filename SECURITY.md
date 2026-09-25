@@ -25,3 +25,8 @@ local modifications are not supported.
 Use local or explicitly authorized test environments. Do not access another
 person's account or data, disrupt production, send spam, perform denial-of-
 service testing, or modify/delete live records.
+
+## For maintainers
+
+Responding to an incident (a leaked secret, a compromised account, abuse)?
+Follow [`docs/incident-response.md`](docs/incident-response.md).
