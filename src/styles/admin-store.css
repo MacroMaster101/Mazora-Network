@@ -180,18 +180,10 @@ html:has(.admin-store-page) {
 }
 
 /* Light theme: the account artwork remains atmospheric, but this editor uses
-   bright surfaces and dark type so the theme toggle is visually truthful. */
+   solid surfaces and dark type so the theme toggle is visually truthful. It
+   inherits the shared daylight tokens rather than a brighter local palette. */
 :root[data-theme="light"] .admin-store-page {
   color-scheme: light;
-  --card: 252 250 255;
-  --surface: 246 242 252;
-  --line: 218 207 232;
-  --line-strong: 194 178 215;
-  --ink: 35 25 49;
-  --muted: 105 91 124;
-  --accent: 124 58 237;
-  --accent-bright: 109 40 217;
-  --accent-rgb: 124 58 237;
   color: rgb(var(--ink));
 }
 
@@ -229,7 +221,7 @@ html:has(.admin-store-page) {
 
 :root[data-theme="light"] .admin-store-page .field {
   border-color: rgb(94 65 128 / 0.22);
-  background: rgb(255 255 255 / 0.88);
+  background: rgb(var(--card) / 0.88);
   color: rgb(var(--ink));
 }
 
@@ -261,21 +253,15 @@ html:has(.admin-store-page) {
 
 :root[data-theme="light"] .store-admin-modal {
   color-scheme: light;
-  --card: 252 250 255;
-  --surface: 246 242 252;
-  --line: 218 207 232;
-  --line-strong: 194 178 215;
-  --ink: 35 25 49;
-  --muted: 105 91 124;
   color: rgb(var(--ink));
   border-color: rgb(83 52 119 / 0.24);
-  background: linear-gradient(155deg, rgb(255 255 255 / 0.99), rgb(244 238 251 / 0.98));
+  background: linear-gradient(155deg, rgb(var(--card) / 0.99), rgb(var(--surface) / 0.98));
   box-shadow: 0 36px 90px -30px rgb(35 19 54 / 0.55), inset 0 1px white;
 }
 
 :root[data-theme="light"] .store-admin-modal .field {
   border-color: rgb(94 65 128 / 0.22);
-  background: white;
+  background: rgb(var(--card));
   color: rgb(var(--ink));
 }
 
@@ -857,8 +843,13 @@ html:has(.admin-store-page) {
   box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / 0.12);
 }
 
+/* A hidden game mode is marked by its dashed border, recessed surface and the
+   HIDDEN pill, not by opacity. Whole-card opacity made the Enable button (the
+   one control you want on a hidden mode) read as disabled at 3.2:1, and even
+   dimming only the summary took its small labels to 3.7:1. */
 .store-admin-mode-choice.is-disabled {
-  opacity: 0.6;
+  border-style: dashed;
+  background: rgb(var(--surface) / 0.85);
 }
 
 .store-admin-category-choice.is-disabled {
@@ -1009,19 +1000,20 @@ html:has(.admin-store-page) {
 
 :root[data-theme="light"] .store-admin-mode-choice,
 :root[data-theme="light"] .store-admin-category-choice {
-  background: rgb(255 255 255 / 0.88);
+  background: rgb(var(--card) / 0.88);
   border-color: rgb(210 200 230 / 0.8);
 }
 
+:root[data-theme="light"] .store-admin-mode-choice.is-disabled,
 :root[data-theme="light"] .store-admin-category-choice.is-disabled {
-  background: rgb(246 242 252 / 0.8);
-  border-color: rgb(190 180 215 / 0.7);
+  background: rgb(var(--surface) / 0.8);
+  border-color: rgb(var(--line-strong) / 0.7);
   border-style: dashed;
 }
 
 :root[data-theme="light"] .store-admin-badge-live {
   background: rgb(16 185 129 / 0.15) !important;
-  color: rgb(4 120 87) !important;
+  color: rgb(6 95 70) !important;
   border-color: rgb(16 185 129 / 0.4) !important;
 }
 
@@ -1459,13 +1451,13 @@ html:has(.admin-store-page) {
 .admin-store-page .btn-danger {
   border-color: rgb(239 68 68 / 0.24);
   background: rgb(239 68 68 / 0.08);
-  color: rgb(220 38 38);
+  color: rgb(185 28 28);
 }
 
 .admin-store-page .btn-danger:hover:not(:disabled) {
   border-color: rgb(239 68 68 / 0.42);
   background: rgb(239 68 68 / 0.14);
-  color: rgb(185 28 28);
+  color: rgb(153 27 27);
 }
 
 .store-admin-category-actions {
@@ -1670,7 +1662,7 @@ html:has(.admin-store-page) {
 
 :root[data-theme="light"] .store-admin-preview-caption {
   border-color: rgb(83 52 119 / 0.16);
-  background: rgb(255 255 255 / 0.82);
+  background: rgb(var(--card) / 0.82);
 }
 
 :root[data-theme="light"] .store-admin-preview-caption small,

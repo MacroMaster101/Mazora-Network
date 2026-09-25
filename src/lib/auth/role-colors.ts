@@ -1,9 +1,14 @@
 import type { CSSProperties } from "react";
 import { isValidHexColor } from "@/lib/auth/role-catalog-core";
 
-export const LIGHT_BADGE_BG = "#ffffff";
+/* The surface a badge sits on in each theme. Light is the daylight --surface
+   token, the darkest of the light panels, so a badge that reads there reads on
+   every lighter panel too. */
+export const LIGHT_BADGE_BG = "#e0dbeb";
 export const DARK_BADGE_BG = "#1a1325";
 const FALLBACK = "#64748b";
+/** Opacity of the badge's own colour laid over the surface (see --rank-bg). */
+const BADGE_TINT = 0.16;
 
 function rgb(hex: string): [number, number, number] {
   const n = Number.parseInt(hex.slice(1), 16);
@@ -44,13 +49,25 @@ export function readableOn(hex: string, background: string, target = 4.5): strin
  * meet WCAG AA; background and border are translucent tints. Only colour
  * values are emitted — the input is validated first.
  */
+/**
+ * The colour a badge's text actually sits on: its own tint over the surface.
+ * Checking text against the bare surface passed at 4.5:1 and then landed at
+ * 3.4-4.2:1 on the real, darker tinted chip.
+ */
+export function tintedBadgeBg(hex: string, surface: string): string {
+  const color = isValidHexColor(hex) ? hex : FALLBACK;
+  const top = rgb(color);
+  const bottom = rgb(surface);
+  return toHex(top.map((v, i) => v * BADGE_TINT + bottom[i] * (1 - BADGE_TINT)) as [number, number, number]);
+}
+
 export function badgeStyle(hex: string): CSSProperties {
   const color = isValidHexColor(hex) ? hex : FALLBACK;
   const [r, g, b] = rgb(color);
   return {
-    "--rank-fg-light": readableOn(color, LIGHT_BADGE_BG),
-    "--rank-fg-dark": readableOn(color, DARK_BADGE_BG),
-    "--rank-bg": `rgba(${r}, ${g}, ${b}, 0.16)`,
+    "--rank-fg-light": readableOn(color, tintedBadgeBg(color, LIGHT_BADGE_BG)),
+    "--rank-fg-dark": readableOn(color, tintedBadgeBg(color, DARK_BADGE_BG)),
+    "--rank-bg": `rgba(${r}, ${g}, ${b}, ${BADGE_TINT})`,
     "--rank-border": `rgba(${r}, ${g}, ${b}, 0.45)`,
   } as CSSProperties;
 }

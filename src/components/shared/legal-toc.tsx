@@ -93,7 +93,7 @@ export function LegalToc({ sections }: { sections: Section[] }) {
                 )}
               >
                 <span className={cn(
-                  "font-mono text-[10px] shrink-0 opacity-70 transition-colors",
+                  "font-mono text-[10px] shrink-0 transition-colors",
                   isActive ? "text-accent-bright font-bold" : "text-muted group-hover:text-ink"
                 )}>
                   {indexStr}

@@ -17,7 +17,7 @@
 :root[data-theme="light"] .newsroom-page .newsroom-filter {
   border-color: rgb(109 40 217 / 0.25);
   color: rgb(34 23 49);
-  background: rgb(255 255 255 / 0.9);
+  background: rgb(var(--card) / 0.9);
 }
 
 :root[data-theme="light"] .newsroom-page .newsroom-filter:hover {
@@ -36,7 +36,7 @@
 :root[data-theme="light"] .newsroom-page .newsroom-search {
   border-color: rgb(109 40 217 / 0.28);
   color: rgb(72 58 91);
-  background: rgb(255 255 255 / 0.96);
+  background: rgb(var(--card) / 0.96);
   box-shadow: 0 4px 22px -8px rgb(49 30 80 / 0.14);
 }
 
