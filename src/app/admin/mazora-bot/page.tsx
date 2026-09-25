@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { getSessionUserId, hasAtLeast } from "@/lib/auth";
-import { AUDIT_PERMISSION_KEY, MAZORA_BOT_PERMISSION_KEY, canManageModule } from "@/lib/auth/permissions";
+import { hasAtLeast } from "@/lib/auth";
+import { MAZORA_BOT_PERMISSION_KEY, canManageAudit } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { readPresenceHealth } from "@/lib/data/discord-presence-health";
@@ -31,7 +31,7 @@ export default async function MazoraBotPage() {
   // Two separate permissions: reaching this page says nothing about whether the
   // full, site-wide audit log is reachable. Checked here so the panel can hide
   // a link that would only redirect.
-  const canViewAuditLog = await canManageModule(AUDIT_PERMISSION_KEY, session, await getSessionUserId());
+  const canViewAuditLog = canManageAudit(session);
   // No roster is loaded here any more. The composer searches the Discord guild
   // directly, because most people it messages are ordinary community members
   // with no site account at all — a staff-only dropdown could not reach them.

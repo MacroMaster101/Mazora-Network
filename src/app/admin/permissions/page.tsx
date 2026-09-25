@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-import { getSessionUserId, requireRole } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { staffRoleKeys } from "@/lib/auth/roles";
 import { listAccounts } from "@/lib/data/accounts";
 import {
-  alwaysAllowedFor,
-  canManageModule,
   SETTINGS_PERMISSION_KEY,
-  AUDIT_PERMISSION_KEY,
   ALWAYS_ALLOWED,
   getAllModulePermissions,
   NEWS_PERMISSION_KEY,
@@ -53,7 +50,6 @@ import {
   saveRolesAssignPermissionsAction,
   saveNotificationsPermissionsAction,
   saveBotPermissionsAction,
-  saveAuditPermissionsAction,
   saveSettingsPermissionsAction,
 } from "@/lib/actions/permissions";
 import { DashHeader } from "@/components/dashboard/dash-ui";
@@ -64,8 +60,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminPermissionsPage() {
-  const session = await requireRole("owner", "/admin/permissions");
-  const viewerId = await getSessionUserId();
+  await requireRole("owner", "/admin/permissions");
 
   const [perms, accounts] = await Promise.all([getAllModulePermissions(), listAccounts()]);
 
@@ -286,44 +281,7 @@ export default async function AdminPermissionsPage() {
       userIds: perms[SETTINGS_PERMISSION_KEY].userIds,
       saveAction: saveSettingsPermissionsAction,
     },
-    {
-      id: "audit",
-      category: "System",
-      title: "Audit Logs",
-      description: "Read every sensitive action recorded across the network, including rank changes and account deletions.",
-      selected: perms[AUDIT_PERMISSION_KEY].roles,
-      userIds: perms[AUDIT_PERMISSION_KEY].userIds,
-      // Web Dev-tier: owner is NOT force-included here, so it must not render locked-on.
-      locked: alwaysAllowedFor(AUDIT_PERMISSION_KEY),
-      saveAction: saveAuditPermissionsAction,
-    },
   ];
-
-  /*
-    Show only the modules this viewer can actually manage.
-
-    Rendering a module an owner cannot reach invites them to hand out access
-    they do not hold, and the save would be refused anyway. Audit is the case
-    that matters: it is Web Dev-only, so canManageModule returns false for an owner
-    unless Web Dev has explicitly granted it — and then it appears, which is the
-    point. Filtering here is safe because each card saves independently, so a
-    hidden module's stored configuration is never rewritten.
-  */
-  const moduleKeys: Record<string, string> = {
-    settings: SETTINGS_PERMISSION_KEY,
-    audit: AUDIT_PERMISSION_KEY,
-  };
-  const visibleModules = (
-    await Promise.all(
-      modules.map(async (module) => {
-        const key = moduleKeys[module.id];
-        // Only the Web Dev-tier modules can be hidden; everything else has always
-        // been visible to owners and stays that way.
-        if (!key) return module;
-        return (await canManageModule(key, session, viewerId)) ? module : null;
-      }),
-    )
-  ).filter((module): module is PermissionModuleConfig => module !== null);
 
   return (
     <>
@@ -332,7 +290,7 @@ export default async function AdminPermissionsPage() {
         subtitle="Control which staff roles and individual users can manage site content, store items, moderation queues and network tools."
       />
       <PermissionsManager
-        modules={visibleModules}
+        modules={modules}
         staffRoles={staffRoles}
         locked={ALWAYS_ALLOWED}
         allAccounts={allAccounts}
