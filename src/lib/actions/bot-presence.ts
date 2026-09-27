@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageModule, MAZORA_BOT_PERMISSION_KEY } from "@/lib/auth/permissions";
@@ -8,6 +8,7 @@ import { getDb, schema } from "@/lib/db/client";
 import {
   ACTIVITY_TYPES,
   BOT_PRESENCE_KEY,
+  BOT_PRESENCE_TAG,
   DEFAULT_KINDS,
   MAX_REFRESH_MS,
   MAX_ROTATE_MS,
@@ -140,6 +141,8 @@ export async function saveBotPresenceAction(formData: FormData): Promise<BotPres
     return { ok: false, message: "Those settings could not be saved." };
   }
 
+  // The config route serves a cached copy; drop it so the worker's next poll sees this save.
+  revalidateTag(BOT_PRESENCE_TAG);
   revalidatePath("/admin/mazora-bot");
   return { ok: true, message: "Presence updated. The bot picks this up within a minute." };
 }
