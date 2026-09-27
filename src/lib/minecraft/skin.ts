@@ -1,4 +1,5 @@
 import type { PlayerSkin, SkinSourceKind } from "@/lib/types";
+import { hostMatches } from "@/lib/net/host-match";
 
 /**
  * One definition of "which image represents this Minecraft player", the way
@@ -40,7 +41,7 @@ function isSelfUploadedSkin(value: string | null | undefined): value is string {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-    if (url.hostname.includes("mc-heads.net")) return false;
+    if (hostMatches(url.hostname, "mc-heads.net")) return false;
     return true;
   } catch {
     return false;

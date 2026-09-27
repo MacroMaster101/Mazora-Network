@@ -20,6 +20,10 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
   const Icon = iconMap[iconName] ?? Gavel;
   const [enabled, setEnabled] = useState(config.enabled);
   const [url, setUrl] = useState(config.publicUrl);
+  // Only an https link is ever rendered as a clickable href, so a typed
+  // javascript: or data: value can never become a live link (the server
+  // separately accepts Google Forms URLs only).
+  const safeUrl = url.trim().toLowerCase().startsWith("https://") ? url.trim() : null;
   const [loadingToggle, setLoadingToggle] = useState(false);
   const [savingUrl, setSavingUrl] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -134,9 +138,9 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
             {enabled ? "Publicly Active" : "Intake Paused"}
           </span>
 
-          {url && (
+          {safeUrl && (
             <a
-              href={url}
+              href={safeUrl}
               target="_blank"
               rel="noreferrer"
               className={`text-xs hover:underline inline-flex items-center gap-1 font-medium transition-colors ${
@@ -172,9 +176,9 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
             <label htmlFor={`form-url-${config.id}`} className="block text-xs font-bold uppercase tracking-wider text-ink">
               🔗 Form Link URL
             </label>
-            {url && (
+            {safeUrl && (
               <a
-                href={url}
+                href={safeUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-[11px] font-bold text-accent-bright hover:underline inline-flex items-center gap-1"

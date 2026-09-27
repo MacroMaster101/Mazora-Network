@@ -11,6 +11,7 @@ import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
 import { databaseUrlForRuntime, isTransactionPoolerUrl } from "./connection-url";
+import { hostMatches } from "@/lib/net/host-match";
 
 export type Database = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -41,7 +42,7 @@ function warnIfNotPooled(rawUrl: string) {
   } catch {
     return;
   }
-  if (host.includes("pooler.supabase.com") && port === "6543") return;
+  if (hostMatches(host, "pooler.supabase.com") && port === "6543") return;
   warnedDirectConnection = true;
   console.error(
     "DATABASE_URL is not the Supabase transaction pooler (expected host *.pooler.supabase.com on port 6543). " +
