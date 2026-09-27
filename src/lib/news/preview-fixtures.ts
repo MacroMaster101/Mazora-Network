@@ -33,7 +33,7 @@ export function getPreviewNews(): NewsArticle[] {
     body: [excerpt, "This is local preview content used to test the newsroom layout with a realistic publishing volume."],
     accent: accents[index % accents.length],
     date: new Date(NOW - index * DAY).toISOString(),
-    author: index % 3 === 0 ? "Mazora Team" : index % 3 === 1 ? "Crafty_Kim" : "Network Staff",
+    author: index % 3 === 0 ? "Mazora Team" : index % 3 === 1 ? "Community Team" : "Network Staff",
     readMinutes: 2 + (index % 5),
   }));
 }

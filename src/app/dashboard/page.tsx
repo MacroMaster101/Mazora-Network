@@ -63,7 +63,7 @@ export default async function DashboardOverview() {
           </div>
           <Link
             href="/admin"
-            className="inline-flex items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 dark:bg-accent-bright dark:hover:bg-accent-bright/90 px-4 py-2 text-xs font-bold text-white shadow-md transition-all"
+            className="inline-flex items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 px-4 py-2 text-xs font-bold text-white shadow-md transition-all"
           >
             Control Room <ArrowRight size={14} />
           </Link>

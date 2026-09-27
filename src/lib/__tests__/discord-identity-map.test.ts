@@ -3,7 +3,7 @@ import test from "node:test";
 import { buildDiscordIdentityMap } from "../discord-identity-map.js";
 
 test("groups every Discord id a user holds under that user", () => {
-  // StaffAlex_04 really does have two Discord identities. Keeping only the first
+  // A member can link two Discord identities. Keeping only the first
   // is what made the composer silently fail to match: pick the second account
   // and the rank control vanished with no explanation.
   const map = buildDiscordIdentityMap([

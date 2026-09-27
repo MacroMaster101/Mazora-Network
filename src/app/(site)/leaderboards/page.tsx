@@ -36,26 +36,28 @@ export default async function LeaderboardsPage() {
         illustration={<FloatingBrandLogo />}
       />
       <section className="section shell">
-        {/* Right-aligned above the standings rather than in the hero, whose
-            right side is the floating brand illustration. */}
-        <div className="mb-4 flex justify-end">
-          <RefreshButton iconOnly />
-        </div>
         <Reveal>
           {entries.some((list) => list.length > 0) ? (
             <LeaderboardExplorer
               tabs={leaderboardTabs as { key: LeaderboardKey; label: string }[]}
               data={data}
               labels={labels}
+              toolbarEnd={<RefreshButton iconOnly />}
             />
           ) : (
-            <EmptyState
-              icon={<Trophy size={24} />}
-              title={copy.emptyTitle}
-              message={copy.emptyMessage}
-              cta={{ label: copy.emptyCta, href: "/play" }}
-              fieldIds={{ title: "emptyTitle", message: "emptyMessage", cta: "emptyCta" }}
-            />
+            <>
+              {/* No tab row to host it, so refresh sits above the empty state. */}
+              <div className="mb-4 flex justify-end">
+                <RefreshButton iconOnly />
+              </div>
+              <EmptyState
+                icon={<Trophy size={24} />}
+                title={copy.emptyTitle}
+                message={copy.emptyMessage}
+                cta={{ label: copy.emptyCta, href: "/play" }}
+                fieldIds={{ title: "emptyTitle", message: "emptyMessage", cta: "emptyCta" }}
+              />
+            </>
           )}
         </Reveal>
       </section>

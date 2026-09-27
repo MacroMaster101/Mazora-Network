@@ -48,7 +48,7 @@ const FALLBACK_PATCHES: PatchUpdate[] = [
     version: "Patch Update 1.15",
     targetMode: "Survival - 1.21.11",
     date: "2026-07-26T20:49:00Z",
-    author: "Example_Player",
+    author: "Mazora Team",
     authorRole: "Owner",
     changes: [
       "Clearlag added with optimizations",
@@ -62,7 +62,7 @@ const FALLBACK_PATCHES: PatchUpdate[] = [
     version: "Patch Update 1.14",
     targetMode: "Survival - 1.21.11",
     date: "2026-07-22T02:34:00Z",
-    author: "Example_Player",
+    author: "Mazora Team",
     authorRole: "Owner",
     changes: ["Orders System Added"],
     discordChannel: "#PATCH-UPDATE",
@@ -72,7 +72,7 @@ const FALLBACK_PATCHES: PatchUpdate[] = [
     version: "Patch Update 1.13",
     targetMode: "Survival - 1.21.11",
     date: "2026-07-14T15:15:00Z",
-    author: "Example_Player",
+    author: "Mazora Team",
     authorRole: "Owner",
     changes: [
       "Teleporting cool down = 20seconds",
@@ -233,7 +233,7 @@ export function PlayPageEditor({
   const [editingPatchId, setEditingPatchId] = useState<string | null>(null);
   const [patchVersion, setPatchVersion] = useState("");
   const [patchMode, setPatchMode] = useState("Survival - 1.21.11");
-  const [patchAuthor, setPatchAuthor] = useState("Example_Player");
+  const [patchAuthor, setPatchAuthor] = useState("Mazora Team");
   const [patchChangesText, setPatchChangesText] = useState("");
 
   // FAQ CRUD Modal State
@@ -362,7 +362,7 @@ export function PlayPageEditor({
     setEditingPatchId(null);
     setPatchVersion(`Patch Update 1.${15 + patches.length - 2}`);
     setPatchMode("Survival - 1.21.11");
-    setPatchAuthor(currentUser?.name || "Example_Player");
+    setPatchAuthor(currentUser?.name || "Mazora Team");
     setPatchChangesText("");
     setIsModalOpen(true);
   };
@@ -411,7 +411,7 @@ export function PlayPageEditor({
         version: patchVersion.trim(),
         targetMode: patchMode.trim(),
         date: new Date().toISOString(),
-        author: patchAuthor.trim() || currentUser?.name || "Example_Player",
+        author: patchAuthor.trim() || currentUser?.name || "Mazora Team",
         authorRole: patchAuthor === "Mazora Team" ? "Official Team" : (currentUser?.role || "Owner"),
         authorAvatar: patchAuthor === "Mazora Team" ? "/images/mazora-icon.png" : (patchAuthor === currentUser?.name ? currentUser?.avatarUrl : undefined),
         changes: changesList.length > 0 ? changesList : ["Performance improvements & bug fixes."],
@@ -1464,15 +1464,15 @@ export function PlayPageEditor({
                 <div className="flex flex-wrap gap-2 mb-1.5">
                   <button
                     type="button"
-                    onClick={() => setPatchAuthor(currentUser?.name || "Example_Player")}
+                    onClick={() => setPatchAuthor(currentUser?.name || "Mazora Team")}
                     className={`text-xs px-3 py-1.5 rounded-lg border font-bold transition-all flex items-center gap-1.5 ${
-                      patchAuthor === (currentUser?.name || "Example_Player")
+                      patchAuthor === (currentUser?.name || "Mazora Team")
                         ? "bg-gold/25 text-gold border-gold shadow-xs ring-1 ring-gold/50"
                         : "bg-surface text-ink border-line-strong/60 hover:border-gold/40 hover:bg-gold/10"
                     }`}
                   >
-                    <AuthorAvatar name={currentUser?.name || "Example_Player"} avatarUrl={currentUser?.avatarUrl} size={18} />
-                    {currentUser?.name || "Example_Player"} ({currentUser?.role || "Owner"})
+                    <AuthorAvatar name={currentUser?.name || "Mazora Team"} avatarUrl={currentUser?.avatarUrl} size={18} />
+                    {currentUser?.name || "Mazora Team"} ({currentUser?.role || "Owner"})
                   </button>
                   <button
                     type="button"

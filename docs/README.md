@@ -98,7 +98,7 @@ Production also has Supabase's "Secure password change" turned on, which refuses
 `src/lib/data/status.ts` fetches Minecraft server data on the server and normalizes common status API shapes. The default endpoint is:
 
 ```text
-https://api.mcsrvstat.us/3/mc.mazora.us
+https://api.mcsrvstat.us/3/mc.example.com
 ```
 
 Set `MINECRAFT_STATUS_API_URL` to use a custom proxy or plugin API. Successful responses are cached for 15 seconds. The default integration falls back to mcstatus.io, keeps a last-known live result through transient failures, and retries stale/failure states quickly rather than inventing counts.
@@ -114,7 +114,7 @@ The `/api/status` route exposes the normalized site status for same-origin clien
 The default invite is:
 
 ```text
-https://discord.gg/ZPrzyGpMyt
+https://discord.gg/your-invite-code
 ```
 
 Set `NEXT_PUBLIC_DISCORD_INVITE_URL` only when the official invite changes. Invalid invites fail safely and show a join action without invented numbers.
