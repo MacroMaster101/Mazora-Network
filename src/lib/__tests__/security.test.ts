@@ -250,7 +250,7 @@ describe("resolvePublicOrigin (canonical domain)", () => {
 
 describe("isMinecraftAvatarUrl", () => {
   test("accepts Minecraft head URLs used by public staff cards", () => {
-    assert.equal(isMinecraftAvatarUrl("https://mc-heads.net/avatar/Staff_Nine/256"), true);
+    assert.equal(isMinecraftAvatarUrl("https://mc-heads.net/avatar/Example_Player/256"), true);
     assert.equal(
       isMinecraftAvatarUrl("https://project.supabase.co/storage/v1/object/public/profile-avatars/id/skin-head-1.png"),
       true,

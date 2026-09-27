@@ -12,14 +12,21 @@ import Link from "@/components/ui/app-link";
  * leaving its own buttons intact.
  */
 export function DashHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+  /*
+    Laid out by .dash-header-layout (globals.css): on phones the refresh icon
+    sits in the top-right corner beside the title and the page's own actions
+    take the full width below; from 768px everything shares one row. It used
+    to be one wrapping flex row, so on phones refresh fell onto a line of its
+    own under full-width actions.
+  */
   return (
-    <div className="panel p-6 sm:p-7 mb-6 border-line-strong bg-card/90 dark:bg-card/80 backdrop-blur-xl shadow-lg flex flex-wrap items-center justify-between gap-4">
-      <div>
+    <div className={`dash-header-layout panel p-6 sm:p-7 mb-6 border-line-strong bg-card/90 dark:bg-card/80 backdrop-blur-xl shadow-lg ${action ? "has-actions" : ""}`}>
+      <div className="dash-header-title min-w-0">
         <h1 className="font-display text-2xl font-bold sm:text-3xl text-ink">{title}</h1>
         {subtitle && <p className="mt-1 text-xs text-muted font-medium">{subtitle}</p>}
       </div>
-      <div className="dash-header-actions flex items-center gap-2">
-        {action}
+      {action && <div className="dash-header-actions">{action}</div>}
+      <div className="dash-header-refresh">
         <RefreshButton iconOnly />
       </div>
     </div>

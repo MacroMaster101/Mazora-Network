@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Search,
   X,
@@ -20,6 +20,8 @@ type FilterKey = "all" | "online" | "members";
 interface PlayerExplorerProps {
   players: DirectoryPlayer[];
   serverStatus?: ServerStatus;
+  /** Shown beside the search box, e.g. the page refresh control. */
+  toolbarEnd?: ReactNode;
 }
 
 /**
@@ -28,7 +30,7 @@ interface PlayerExplorerProps {
  *
  * Fully responsive and styled for crystal-clear contrast in both Light and Dark themes.
  */
-export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
+export function PlayerExplorer({ players, serverStatus, toolbarEnd }: PlayerExplorerProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [selected, setSelected] = useState<string | null>(null);
@@ -131,31 +133,34 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
     <div className="space-y-6">
       {/* 1. SEARCH & FILTER CONTROLS */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        {/* Search Input */}
-        <label className="relative flex-1 md:max-w-md">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-purple-300/70"
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by username…"
-            aria-label="Search players by username"
-            className="h-11 w-full rounded-xl border border-slate-300/90 bg-white/95 pl-10 pr-10 text-sm font-medium text-slate-900 placeholder:text-slate-500 shadow-sm focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/25 dark:border-line/80 dark:bg-surface/80 dark:text-white dark:placeholder:text-purple-300/50 dark:focus:border-accent dark:focus:bg-surface transition-all [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 dark:text-purple-300/70 dark:hover:text-white transition-colors"
-            >
-              <X size={16} />
-            </button>
-          )}
-        </label>
+        {/* Search Input, with the refresh control beside it */}
+        <div className="flex flex-1 items-center gap-2 md:max-w-md">
+          <label className="relative min-w-0 flex-1">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-purple-300/70"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by username…"
+              aria-label="Search players by username"
+              className="h-11 w-full rounded-xl border border-slate-300/90 bg-white/95 pl-10 pr-10 text-sm font-medium text-slate-900 placeholder:text-slate-500 shadow-sm focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/25 dark:border-line/80 dark:bg-surface/80 dark:text-white dark:placeholder:text-purple-300/50 dark:focus:border-accent dark:focus:bg-surface transition-all [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 dark:text-purple-300/70 dark:hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </label>
+          {toolbarEnd && <div className="shrink-0">{toolbarEnd}</div>}
+        </div>
 
         {/* Filter Tabs */}
         <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-300/90 bg-white/90 p-1.5 shadow-sm backdrop-blur-md dark:border-line/70 dark:bg-card/70">
@@ -170,7 +175,7 @@ export function PlayerExplorer({ players, serverStatus }: PlayerExplorerProps) {
                 className={cn(
                   "inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all duration-150",
                   isActive
-                    ? "bg-accent text-white shadow-sm"
+                    ? "bg-violet-600 text-white shadow-sm"
                     : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-purple-200/80 dark:hover:bg-surface/80 dark:hover:text-white",
                 )}
               >

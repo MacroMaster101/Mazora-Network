@@ -23,7 +23,7 @@ export default async function AdminPlayPage() {
   ]);
 
   const currentUser = {
-    name: session.displayName ?? session.username ?? "Example_Player",
+    name: session.displayName ?? session.username ?? "Mazora Team",
     role: session ? roleLabel(session.role) : "Owner",
     avatarUrl: session?.avatarUrl || undefined,
   };

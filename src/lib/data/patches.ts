@@ -81,7 +81,7 @@ const DISCORD_PATCH_UPDATES: PatchUpdate[] = [
     version: "Patch Update 1.15",
     targetMode: "Survival - 1.21.11",
     date: "2026-07-26T20:49:00Z",
-    author: "Example_Player",
+    author: "Mazora Team",
     authorRole: "Owner",
     changes: [
       "Clearlag added with optimizations",
@@ -95,7 +95,7 @@ const DISCORD_PATCH_UPDATES: PatchUpdate[] = [
     version: "Patch Update 1.14",
     targetMode: "Survival - 1.21.11",
     date: "2026-07-22T02:34:00Z",
-    author: "Example_Player",
+    author: "Mazora Team",
     authorRole: "Owner",
     changes: ["Orders System Added"],
     discordChannel: "#PATCH-UPDATE",
@@ -105,7 +105,7 @@ const DISCORD_PATCH_UPDATES: PatchUpdate[] = [
     version: "Patch Update 1.13",
     targetMode: "Survival - 1.21.11",
     date: "2026-07-14T15:15:00Z",
-    author: "Example_Player",
+    author: "Mazora Team",
     authorRole: "Owner",
     changes: [
       "Teleporting cool down = 20seconds",
@@ -121,7 +121,7 @@ const DISCORD_PATCH_UPDATES: PatchUpdate[] = [
     version: "Patch Update 1.12",
     targetMode: "Survival - 1.21.11",
     date: "2026-07-05T12:00:00Z",
-    author: "Example_Player",
+    author: "Mazora Team",
     authorRole: "Owner",
     changes: [
       "Nether World expansion & spawn safety zone",
@@ -135,7 +135,7 @@ const DISCORD_PATCH_UPDATES: PatchUpdate[] = [
     version: "Patch Update 1.11",
     targetMode: "Survival - 1.21.11",
     date: "2026-06-28T18:30:00Z",
-    author: "Example_Player",
+    author: "Mazora Team",
     authorRole: "Owner",
     changes: [
       "Auction House added /ah for player trading",
@@ -227,7 +227,7 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
             .filter((l) => l !== versionLine && l !== modeLine && !l.includes("@everyone") && !l.includes("@here"))
             .map((l) => l.replace(/^[-*•]\s*/, ""));
 
-          const author = msg.member?.nick || msg.author.global_name || msg.author.username || "Example_Player";
+          const author = msg.member?.nick || msg.author.global_name || msg.author.username || "Mazora Team";
 
           livePatches.push({
             id: msg.id,
@@ -292,7 +292,7 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
             version: r.title,
             targetMode,
             date: (r.publishedAt ?? r.createdAt).toISOString(),
-            author: r.authorName || r.discordAuthor || "Example_Player",
+            author: r.authorName || r.discordAuthor || "Mazora Team",
             authorRole: r.authorRole || r.discordAuthorRole || "Owner",
             authorAvatar: r.authorAvatarUrl || r.discordAuthorAvatarUrl || undefined,
             changes: changes.length > 0 ? changes : [r.excerpt || r.title],

@@ -28,22 +28,23 @@ export default async function PlayersPage() {
         illustration={<FloatingBrandLogo />}
       />
       <section className="section shell space-y-8">
-        {/* Right-aligned above the directory rather than in the hero, whose
-            right side is the floating brand illustration. */}
-        <div className="flex justify-end">
-          <RefreshButton iconOnly />
-        </div>
         <Reveal>
           {directory.length > 0 || status.playerList.length > 0 ? (
-            <PlayerExplorer players={directory} serverStatus={status} />
+            <PlayerExplorer players={directory} serverStatus={status} toolbarEnd={<RefreshButton iconOnly />} />
           ) : (
-            <EmptyState
-              icon={<Users size={24} />}
-              title={copy.emptyTitle}
-              message={copy.emptyMessage}
-              cta={{ label: copy.emptyCta, href: "/play" }}
-              fieldIds={{ title: "emptyTitle", message: "emptyMessage", cta: "emptyCta" }}
-            />
+            <>
+              {/* No search row to host it, so refresh sits above the empty state. */}
+              <div className="mb-4 flex justify-end">
+                <RefreshButton iconOnly />
+              </div>
+              <EmptyState
+                icon={<Users size={24} />}
+                title={copy.emptyTitle}
+                message={copy.emptyMessage}
+                cta={{ label: copy.emptyCta, href: "/play" }}
+                fieldIds={{ title: "emptyTitle", message: "emptyMessage", cta: "emptyCta" }}
+              />
+            </>
           )}
         </Reveal>
       </section>

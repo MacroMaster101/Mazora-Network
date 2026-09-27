@@ -1,6 +1,6 @@
 # Incident response runbook
 
-What to do when something security-related goes wrong on mazora.us. Work top to
+What to do when something security-related goes wrong on the production site. Work top to
 bottom; skip steps that do not apply. Speed matters more than polish — contain
 first, investigate second.
 
