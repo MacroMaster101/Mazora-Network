@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { bearerMatches, readBearer } from "@/lib/bot-config-auth";
-import { getBotPresenceConfig } from "@/lib/data/bot-presence-config";
+import { getCachedBotPresenceConfig } from "@/lib/data/bot-presence-config";
 import { clientKey, rateLimit, retryAfterHeaders } from "@/lib/rate-limit";
 
-/** Config must never be served from a cache; the worker polls for changes. */
+/*
+  The HTTP response is never cached (every request is authenticated, and
+  no-store keeps it out of shared caches). The config it carries comes from the
+  server-side data cache, which an admin save invalidates immediately.
+*/
 export const dynamic = "force-dynamic";
 
 /**
@@ -43,6 +47,6 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  const config = await getBotPresenceConfig();
+  const config = await getCachedBotPresenceConfig();
   return NextResponse.json(config, { headers: { "Cache-Control": "no-store" } });
 }
