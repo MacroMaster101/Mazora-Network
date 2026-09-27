@@ -19,6 +19,7 @@ import type { AccountActionResult } from "@/lib/actions/account";
 import { Modal, useToast } from "@/components/ui";
 import { MinecraftAvatar } from "@/components/shared/minecraft-avatar";
 import { useExampleIgn } from "@/lib/example-names";
+import { urlHostMatches } from "@/lib/net/host-match";
 
 const initialState: AccountActionResult = { ok: false };
 const initialSkinUploadState: SkinUploadActionState = { ok: false };
@@ -134,7 +135,7 @@ export function ProfileAvatarEditor({
   // catch-all) told them they had set a picture they never chose, and left
   // Remove looking broken because clearing it just falls back to the same
   // image again.
-  const isProviderPhoto = Boolean(avatarUrl?.includes("googleusercontent.com"));
+  const isProviderPhoto = urlHostMatches(avatarUrl, "googleusercontent.com");
   // Distinguished from the general mc-heads.net lookup below: this is a file
   // the member uploaded themselves, stored in our own bucket, not a live
   // lookup — the "Remove skin" option (further down) keys off this too.
@@ -143,9 +144,9 @@ export function ProfileAvatarEditor({
     ? "New photo"
     : hasCustomSkin
       ? "Custom skin"
-      : avatarUrl?.includes("mc-heads.net")
+      : urlHostMatches(avatarUrl, "mc-heads.net")
         ? "Minecraft skin"
-        : avatarUrl?.includes("cdn.discordapp.com")
+        : urlHostMatches(avatarUrl, "cdn.discordapp.com")
           ? "Discord photo"
           : isProviderPhoto
             ? "Email photo"

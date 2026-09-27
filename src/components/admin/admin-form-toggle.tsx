@@ -20,6 +20,10 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
   const Icon = iconMap[iconName] ?? Gavel;
   const [enabled, setEnabled] = useState(config.enabled);
   const [url, setUrl] = useState(config.publicUrl);
+  // Links open the saved URL, never the text being typed. It is replaced only
+  // by what updateFormUrlAction validated (googleFormUrlSchema) and stored, so
+  // a typed javascript: or data: value can never become a live link.
+  const [savedUrl, setSavedUrl] = useState(config.publicUrl);
   const [loadingToggle, setLoadingToggle] = useState(false);
   const [savingUrl, setSavingUrl] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -46,6 +50,7 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
 
     const res = await updateFormUrlAction(config.id, url.trim());
     if (res.ok) {
+      if (res.publicUrl) setSavedUrl(res.publicUrl);
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } else {
@@ -134,9 +139,9 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
             {enabled ? "Publicly Active" : "Intake Paused"}
           </span>
 
-          {url && (
+          {savedUrl && (
             <a
-              href={url}
+              href={savedUrl}
               target="_blank"
               rel="noreferrer"
               className={`text-xs hover:underline inline-flex items-center gap-1 font-medium transition-colors ${
@@ -172,9 +177,9 @@ export function AdminFormToggleCard({ config, iconName }: AdminFormToggleProps) 
             <label htmlFor={`form-url-${config.id}`} className="block text-xs font-bold uppercase tracking-wider text-ink">
               🔗 Form Link URL
             </label>
-            {url && (
+            {savedUrl && (
               <a
-                href={url}
+                href={savedUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-[11px] font-bold text-accent-bright hover:underline inline-flex items-center gap-1"

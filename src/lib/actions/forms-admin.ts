@@ -12,6 +12,8 @@ import { recordAudit } from "@/lib/audit-log";
 export interface FormActionState {
   ok: boolean;
   message?: string;
+  /** The link as validated and stored (updateFormUrlAction), for the admin preview. */
+  publicUrl?: string;
 }
 
 const googleFormUrlSchema = z
@@ -170,5 +172,6 @@ export async function updateFormUrlAction(
   return {
     ok: true,
     message: `${current[formId]?.title ?? formId} link updated successfully.`,
+    publicUrl: parsedUrl.data,
   };
 }
