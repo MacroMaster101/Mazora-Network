@@ -8,6 +8,7 @@ import { dispatchSignInNotifications } from "@/lib/notifications-auto";
 import { isRoleKey, landingPathFor, normalizeRoleKey } from "@/lib/auth/roles";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { safeNext } from "@/lib/safe-redirect";
+import { SUSPENDED_PATH } from "@/lib/auth/login-identifier";
 import { resolvePublicOrigin } from "@/lib/site";
 
 /**
@@ -49,7 +50,15 @@ export async function GET(request: NextRequest) {
     if (!error) {
       const { data } = await supabase.auth.getUser();
       if (data.user) {
-        await ensureUserProfile(data.user);
+        const profile = await ensureUserProfile(data.user);
+        // Suspended from the Users board: end this new session at once and say
+        // why, instead of landing on a page that quietly treats them as signed out.
+        // With two-step verification on it waits for the code (/two-factor checks it).
+        const hasFactor = data.user.factors?.some((factor) => factor.status === "verified") ?? false;
+        if (profile?.account_status === "suspended" && !hasFactor) {
+          await supabase.auth.signOut({ scope: "local" });
+          return NextResponse.redirect(new URL(SUSPENDED_PATH, origin));
+        }
         // Social sign-in is a sign-in like any other, so the fixed default
         // templates fire here too. Both dispatches are deduplicated and never
         // throw, so a failure cannot break the OAuth redirect.

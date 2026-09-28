@@ -1,11 +1,12 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
-import { Gamepad2, Loader2, MailCheck, Search, Unlink, UserX } from "lucide-react";
+import { Ban, Gamepad2, Loader2, MailCheck, Search, Unlink, UserX } from "lucide-react";
 import type { Role } from "@/lib/types";
 import { RankChip, rankTier } from "@/components/admin/rank-chip";
 import { RoleManager } from "@/components/admin/role-manager";
 import { DeleteUserButton } from "@/components/admin/delete-user";
+import { SuspendUserButton } from "@/components/admin/suspend-user";
 import { adminReleaseMinecraftUsernameAction, type AdminActionResult } from "@/lib/actions/user-admin";
 import { UserAvatar } from "@/components/shared";
 import { PresenceDot } from "@/components/presence/presence-dot";
@@ -27,6 +28,12 @@ export interface DirectoryRow {
   lockedReason: string | null;
   /** Invited but not yet accepted — cannot sign in, so it reads differently. */
   pendingInvite: boolean;
+  /** Suspended from this board: cannot sign in until restored. */
+  suspended: boolean;
+  /** Whether this viewer may suspend or restore the account (the rank-change rule). */
+  canSuspend: boolean;
+  /** Whether this viewer's rank allows releasing the account's claimed IGN. */
+  canReleaseIgn: boolean;
   /** Website status right now; absent when offline or invisible. */
   status?: Exclude<PresenceShown, "offline"> | null;
 }
@@ -61,6 +68,11 @@ function Identity({ row }: { row: DirectoryRow }) {
             <MailCheck size={11} aria-hidden="true" /> Invite not accepted
           </span>
         )}
+        {row.suspended && (
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-danger/40 bg-danger/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-danger">
+            <Ban size={10} aria-hidden="true" /> Suspended
+          </span>
+        )}
       </span>
     </span>
   );
@@ -79,13 +91,14 @@ function McChip({ row }: { row: DirectoryRow }) {
 function RowActions({ row }: { row: DirectoryRow }) {
   return (
     <>
-      {row.minecraftUsername && (
+      {row.minecraftUsername && row.canReleaseIgn && (
         <ReleaseMinecraftButton
           userId={row.userId}
           username={row.username}
           minecraftUsername={row.minecraftUsername}
         />
       )}
+      {row.canSuspend && <SuspendUserButton userId={row.userId} username={row.username} suspended={row.suspended} />}
       {row.lockedReason ? null : <DeleteUserButton userId={row.userId} username={row.username} />}
     </>
   );
@@ -111,13 +124,13 @@ function ReleaseMinecraftButton({ userId, username, minecraftUsername }: { userI
         className="inline-flex items-center gap-1 rounded-md border border-line bg-ink/5 px-2 py-1 text-xs font-semibold text-muted transition hover:border-danger/40 hover:bg-danger/10 hover:text-danger disabled:opacity-50"
       >
         {pending ? <Loader2 size={12} className="animate-spin" /> : <Unlink size={12} />}
-        {pending ? "Releasing…" : "Release IGN"}
+        <span className="xl:max-2xl:sr-only">{pending ? "Releasing…" : "Release IGN"}</span>
       </button>
     </form>
   );
 }
 
-type Scope = "all" | "leadership" | "staff" | "supporter" | "player";
+type Scope = "all" | "leadership" | "staff" | "supporter" | "player" | "suspended";
 
 const SCOPES: { key: Scope; label: string }[] = [
   { key: "all", label: "Everyone" },
@@ -125,6 +138,8 @@ const SCOPES: { key: Scope; label: string }[] = [
   { key: "staff", label: "Staff" },
   { key: "supporter", label: "Supporters" },
   { key: "player", label: "Players" },
+  // Listed only while someone is suspended.
+  { key: "suspended", label: "Suspended" },
 ];
 
 export function UsersDirectory({
@@ -142,6 +157,7 @@ export function UsersDirectory({
     for (const row of rows) {
       const tier = rankTier(row.role);
       map[tier] = (map[tier] ?? 0) + 1;
+      if (row.suspended) map.suspended = (map.suspended ?? 0) + 1;
     }
     return map;
   }, [rows]);
@@ -149,7 +165,7 @@ export function UsersDirectory({
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return rows.filter((row) => {
-      if (scope !== "all" && rankTier(row.role) !== scope) return false;
+      if (scope === "suspended" ? !row.suspended : scope !== "all" && rankTier(row.role) !== scope) return false;
       if (!needle) return true;
       return (
         row.username.toLowerCase().includes(needle) ||
@@ -183,7 +199,7 @@ export function UsersDirectory({
           role="group"
           aria-label="Filter accounts by tier"
         >
-          {SCOPES.map((entry) => {
+          {SCOPES.filter((entry) => entry.key !== "suspended" || counts.suspended || scope === "suspended").map((entry) => {
             const active = scope === entry.key;
             return (
               <button
@@ -231,16 +247,19 @@ export function UsersDirectory({
       ) : (
         <>
           {/*
-            Cards on phones, the table from md up.
+            Cards until xl, the table from xl up.
 
             The page cannot scroll sideways — body is overflow-x:hidden — so a
-            640px table in a 346px window meant swiping a box back and forth to
-            read one row. The card is the same data relaid out: identity and
-            rank on top, the fields that need a control below, actions last.
+            table wider than its column meant swiping a box back and forth to
+            read one row. With the admin sidebar open (lg up) the column is only
+            ~700-760px until xl, narrower than the table, which hid the row
+            actions off the right edge. The card is the same data relaid out:
+            identity and rank on top, the fields that need a control below,
+            actions last; two to a row once there is room.
           */}
-          <div className="grid gap-3 md:hidden">
+          <div className="grid items-start gap-3 md:grid-cols-2 xl:hidden">
             {visible.map((row) => (
-              <article key={row.userId} className="panel grid gap-3 p-4">
+              <article key={row.userId} className="panel grid min-w-0 gap-3 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <Identity row={row} />
                   <RankChip role={row.role} />
@@ -272,15 +291,15 @@ export function UsersDirectory({
             ))}
           </div>
 
-          <div className="panel hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[640px] text-sm">
+          <div className="panel hidden overflow-x-auto xl:block">
+            <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs uppercase tracking-widest text-muted">
-                <th className="px-4 py-3 font-medium">Account</th>
-                <th className="px-4 py-3 font-medium">Minecraft IGN</th>
-                <th className="px-4 py-3 font-medium">Rank</th>
-                <th className="px-4 py-3 font-medium">Change rank</th>
-                <th className="px-4 py-3 text-right font-medium">
+                <th className="px-3 py-3 2xl:px-4 font-medium">Account</th>
+                <th className="px-3 py-3 2xl:px-4 font-medium">Minecraft IGN</th>
+                <th className="px-3 py-3 2xl:px-4 font-medium">Rank</th>
+                <th className="px-3 py-3 2xl:px-4 font-medium">Change rank</th>
+                <th className="px-3 py-3 2xl:px-4 text-right font-medium">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
@@ -291,16 +310,16 @@ export function UsersDirectory({
                   key={row.userId}
                   className="border-b border-line/60 last:border-0 hover:bg-ink/[0.02]"
                 >
-                  <td className="px-4 py-3">
+                  <td className="max-w-[15rem] 2xl:max-w-[18rem] px-3 py-3 2xl:px-4">
                     <Identity row={row} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 2xl:px-4">
                     <McChip row={row} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 2xl:px-4">
                     <RankChip role={row.role} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 2xl:px-4">
                     {row.lockedReason ? (
                       <span className="text-xs text-muted">
                         {row.lockedReason}
@@ -313,8 +332,8 @@ export function UsersDirectory({
                       />
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <td className="px-3 py-3 2xl:px-4 text-right">
+                    <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                       <RowActions row={row} />
                     </div>
                   </td>

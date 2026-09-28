@@ -12,16 +12,16 @@ export type RecoveryOutcome = { ok: true; remaining: number } | { ok: false };
  * The code is used up and nothing else changes: two-step verification stays
  * on, the authenticator stays linked (a phone that turns up still works), and
  * the other codes stay valid until used or regenerated. The caller decides
- * what the spent code unlocks — a sign-in (a recovery pass for that session)
- * or a password reset.
+ * what the spent code unlocks — a sign-in (a recovery pass for that session),
+ * a password reset, or a change to the two-step settings themselves.
  *
- * Shared by the sign-in code page and password reset, so both apply exactly
- * the same rule.
+ * Shared by the sign-in code page, password reset and Settings, so all of them
+ * apply exactly the same rule.
  */
 export async function redeemRecoveryCode(
   user: Pick<User, "id" | "email" | "user_metadata">,
   input: string,
-  purpose: "sign-in" | "password-reset",
+  purpose: "sign-in" | "password-reset" | "two-step-settings" | "account-deletion",
 ): Promise<RecoveryOutcome> {
   if (!(await consumeRecoveryCode(user.id, input))) return { ok: false };
   const remaining = await remainingRecoveryCodes(user.id);

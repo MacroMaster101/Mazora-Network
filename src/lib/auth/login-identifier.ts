@@ -35,3 +35,5 @@ export function looksLikeEmail(identifier: string): boolean {
  * addresses exist on the server, one guess at a time.
  */
 export const SIGN_IN_FAILED = "Wrong username or password.";
+/** Where a suspended account is sent, only after a correct password (loginAction) or provider sign-in (auth/callback). */
+export const SUSPENDED_PATH = "/account-suspended";

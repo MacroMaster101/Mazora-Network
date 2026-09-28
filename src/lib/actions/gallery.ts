@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -142,7 +143,7 @@ export async function submitGalleryAction(formData: FormData): Promise<GalleryAc
 
   if (!title) return { ok: false, message: "Please provide a title for your artwork." };
 
-  const { url: imageUrl, error } = await resolveGalleryImage(formData, `submit-${Date.now()}`);
+  const { url: imageUrl, error } = await resolveGalleryImage(formData, `submit-${randomUUID()}`);
   if (!imageUrl) return { ok: false, message: error || "Please provide a valid image URL." };
 
   const initialStatus = "pending";
@@ -307,7 +308,7 @@ export async function adminSaveGalleryAction(formData: FormData): Promise<Galler
   if (!galleryStatusSchema.safeParse(status).success) return { ok: false, message: "Unknown artwork status." };
   if (!title) return { ok: false, message: "Please provide a title." };
 
-  const { url: imageUrl, error } = await resolveGalleryImage(formData, id || `admin-${Date.now()}`);
+  const { url: imageUrl, error } = await resolveGalleryImage(formData, id || `admin-${randomUUID()}`);
   if (!imageUrl) return { ok: false, message: error || "Please provide an image URL." };
 
   if (id) {

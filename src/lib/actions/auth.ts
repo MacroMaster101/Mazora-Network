@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { SESSION_ONLY_COOKIE, sessionOnlyMarkerOptions } from "@/lib/supabase/session-cookie";
 import { createClient } from "@supabase/supabase-js";
 import type { Role } from "@/lib/types";
-import { createSession, getSession, getSessionUserId, isRoleKey, isStaff, landingPathFor, normalizeRoleKey, isTwoFactorPending, pickDiscordIdentity, twoFactorPath } from "@/lib/auth";
+import { createSession, getSession, getSessionUserId, isRoleKey, isStaff, landingPathFor, normalizeRoleKey, isTwoFactorPending, hasActiveSession, pickDiscordIdentity, twoFactorPath } from "@/lib/auth";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { site } from "@/lib/site";
@@ -16,7 +16,9 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { ignAvailability, linkMinecraftIgn } from "@/lib/minecraft/link";
 import { dispatchSignInNotifications } from "@/lib/notifications-auto";
 import { throttleAuthAction } from "@/lib/rate-limit";
-import { SIGN_IN_FAILED, UNRESOLVED_IDENTIFIER, looksLikeEmail } from "@/lib/auth/login-identifier";
+import { SIGN_IN_FAILED, SUSPENDED_PATH, UNRESOLVED_IDENTIFIER, looksLikeEmail } from "@/lib/auth/login-identifier";
+import { accountStatusFor } from "@/lib/data/account-status";
+import { accountHasPassword, passwordMatchesCurrent } from "@/lib/auth/reauth";
 import { getDb } from "@/lib/db/client";
 import { sql } from "drizzle-orm";
 import {
@@ -106,19 +108,6 @@ const usernameFromIdentifier = (identifier: string) =>
   (identifier.includes("@") ? identifier.split("@")[0] : identifier).replace(/[^a-zA-Z0-9_]/g, "");
 
 /**
- * True if `password` is already the account's current password. Uses an
- * isolated, non-persisting client so the probe sign-in never touches the
- * real session cookies that `supabase` (cookie-bound) writes to.
- */
-async function passwordMatchesCurrent(email: string, password: string): Promise<boolean> {
-  const config = getSupabaseConfig();
-  if (!config) return false;
-  const probe = createClient(config.url, config.key, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { error } = await probe.auth.signInWithPassword({ email, password });
-  return !error;
-}
-
-/**
  * Proves that a caller resuming an unfinished registration knows that pending
  * account's password. Supabase deliberately returns `email_not_confirmed` only
  * after the credentials are valid; an incorrect password returns the same
@@ -200,7 +189,7 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
     // A username is translated to its address here; an email passes through.
     const loginEmail = await resolveLoginEmail(parsed.data.identifier);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: signedIn, error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password: parsed.data.password,
     });
@@ -217,6 +206,17 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
         };
       }
       return { ok: false, message: SIGN_IN_FAILED };
+    }
+
+    // Suspended from the Users board. Shown only once the password has matched,
+    // so it tells someone guessing at accounts nothing; the new session is
+    // ended straight away, then /account-suspended explains how to appeal.
+    // With two-step verification on it waits for the code too (the /two-factor
+    // actions check it), so a leaked password alone learns nothing either.
+    const hasAuthenticator = signedIn.user?.factors?.some((factor) => factor.status === "verified") ?? false;
+    if (signedIn.user && !hasAuthenticator && (await accountStatusFor(signedIn.user.id)) === "suspended") {
+      await supabase.auth.signOut({ scope: "local" });
+      redirect(SUSPENDED_PATH);
     }
 
     // Fire the fixed default templates before any redirect — redirect() throws
@@ -404,8 +404,8 @@ export async function oauthAction(_previous: AuthResult, formData: FormData): Pr
   // "Manual Linking" toggle in Supabase Authentication settings.
   const { data: existingUser } = await supabase.auth.getUser();
   // Linking changes the account, so a sign-in still owing its two-step code
-  // does not count as signed in here either.
-  if (existingUser?.user && !(await isTwoFactorPending())) {
+  // (or a suspended account) does not count as signed in here either.
+  if (existingUser?.user && (await hasActiveSession())) {
     const linkThrottled = await throttleAuthAction("oauth-link", {
       limit: 10,
       windowMs: 15 * 60_000,
@@ -687,6 +687,15 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
       viaRecoveryCode = step === "recovery";
     }
 
+    // Suspended from the Users board: no new password. Checked only after every
+    // other proof (the emailed code and any two-step code) has passed, then the
+    // reset session is ended and /account-suspended explains how to appeal.
+    if ((await accountStatusFor(userData.user.id)) === "suspended") {
+      await clearResetGrant();
+      await supabase.auth.signOut({ scope: "local" });
+      redirect(SUSPENDED_PATH);
+    }
+
     /*
       After a recovery code the session is still aal1, and Supabase refuses a
       password change from it while the account has a verified factor — so the
@@ -747,36 +756,6 @@ async function passResetTwoFactor(
   return "code";
 }
 
-/**
- * Whether this account already has a password, decided from sources the account
- * holder cannot rewrite.
- *
- * The old check read `user_metadata.has_password`, which fails twice. It is
- * never set at registration — signUp only records username/display_name — so
- * every email+password account reported "no password yet" and skipped the
- * current-password prompt entirely. And `user_metadata` is writable by the user
- * themselves through GoTrue, so even a correctly flagged account could clear it
- * and skip the prompt on the next call.
- *
- * `identities` is managed by GoTrue and answers the common case. It cannot
- * answer the OAuth-user-who-later-set-a-password case, because updateUser({
- * password }) adds no "email" identity — that is what the flag is for, so it now
- * lives in `app_metadata`, which only the service role can write.
- *
- * user_metadata is still consulted, but only as an additional way to say *yes*.
- * It can never be used to say no, so forging it buys nothing.
- */
-function accountHasPassword(user: {
-  identities?: { provider?: string }[] | null;
-  app_metadata?: Record<string, unknown> | null;
-  user_metadata?: Record<string, unknown> | null;
-} | null | undefined): boolean {
-  if (!user) return false;
-  if ((user.identities ?? []).some((identity) => identity?.provider === "email")) return true;
-  if (user.app_metadata?.has_password === true) return true;
-  return user.user_metadata?.has_password === true;
-}
-
 /** Record "this account has a password" where only the service role can write it. */
 async function markHasPassword(userId: string | undefined) {
   if (!userId) return;
@@ -815,8 +794,8 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
 
     const { data: userData } = await supabase.auth.getUser();
     const email = userData?.user?.email;
-    // A sign-in still owing its two-step code is not signed in (see getSession).
-    if (!email || (await isTwoFactorPending())) return { ok: false, message: "Your session has expired. Sign in again." };
+    // A sign-in still owing its two-step code, or a suspended account, is not signed in (see getSession).
+    if (!email || !(await hasActiveSession())) return { ok: false, message: "Your session has expired. Sign in again." };
 
     /*
       Prove the caller knows the existing secret before replacing it.
@@ -925,7 +904,7 @@ export async function switchDiscordAction(_previous: AuthResult): Promise<AuthRe
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
   const { data, error: userError } = await supabase.auth.getUser();
-  if (userError || !data.user || (await isTwoFactorPending())) return { ok: false, message: "You must be signed in to switch accounts." };
+  if (userError || !data.user || !(await hasActiveSession())) return { ok: false, message: "You must be signed in to switch accounts." };
 
   const throttled = await throttleAuthAction("discord-switch", {
     limit: 5,
@@ -991,7 +970,7 @@ export async function switchDiscordAccountAction(
   // the existing session and throttling before sign-out prevents it from being
   // used as a public bypass around oauthAction's initiation limit.
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user || (await isTwoFactorPending())) return { ok: false, message: "You must be signed in to switch accounts." };
+  if (userError || !userData.user || !(await hasActiveSession())) return { ok: false, message: "You must be signed in to switch accounts." };
   const throttled = await throttleAuthAction("discord-account-switch", {
     limit: 5,
     windowMs: 15 * 60_000,
@@ -1032,7 +1011,7 @@ export async function unlinkDiscordAction(_previous: AuthResult): Promise<AuthRe
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
   const { data, error: userError } = await supabase.auth.getUser();
-  if (userError || !data.user || (await isTwoFactorPending())) return { ok: false, message: "You must be signed in to unlink an account." };
+  if (userError || !data.user || !(await hasActiveSession())) return { ok: false, message: "You must be signed in to unlink an account." };
 
   const throttled = await throttleAuthAction("discord-unlink", {
     limit: 5,

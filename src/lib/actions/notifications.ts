@@ -14,6 +14,7 @@ import {
   roleMatchesNotificationAudience,
   type NotificationAudience,
 } from "@/lib/notification-targeting";
+import { isSafeLink } from "@/lib/net/safe-url";
 import { actionClientKey, rateLimitShared } from "@/lib/rate-limit";
 
 export type NotificationCategory = "welcome" | "system" | "support" | "security" | "announcement" | "event";
@@ -37,7 +38,13 @@ const contentSchema = z.object({
   message: z.string().trim().min(1).max(2000),
   category: z.enum(["welcome", "system", "support", "security", "announcement", "event"]),
   sender: z.enum(["mazora", "staff", "system"]),
-  href: z.string().trim().max(500).optional(),
+  // A site path or an https link; never javascript: or data:.
+  href: z
+    .string()
+    .trim()
+    .max(500)
+    .refine((value) => value === "" || isSafeLink(value), "Link must be a site path like /news or an https:// URL.")
+    .optional(),
 });
 
 const broadcastSchema = contentSchema.extend({

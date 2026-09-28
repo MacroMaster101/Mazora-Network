@@ -11,6 +11,7 @@ import {
   SITE_GENERAL_SETTINGS_KEY,
 } from "@/lib/data/site-settings";
 import { updatePlayPageConfig } from "@/lib/data/play-page-config";
+import { isHttpsUrl } from "@/lib/net/safe-url";
 
 export interface SiteSettingsActionResult {
   ok: boolean;
@@ -28,8 +29,9 @@ const siteSettingsSchema = z.object({
   javaIp: z.string().trim().min(3, "Java IP is required.").max(120, "Java IP must be under 120 characters."),
   bedrockIp: z.string().trim().min(3, "Bedrock IP is required.").max(120, "Bedrock IP must be under 120 characters."),
   bedrockPort: z.string().trim().min(1, "Bedrock port is required.").max(10, "Port must be under 10 characters."),
-  discord: z.string().trim().url("Discord invite must be a valid URL.").or(z.literal("")),
-  discordSupportTickets: z.string().trim().url("Support tickets link must be a valid URL.").or(z.literal("")),
+  // Shown as public links, so https only: .url() alone also passes javascript: and data:.
+  discord: z.string().trim().refine(isHttpsUrl, "Discord invite must be an https:// link.").or(z.literal("")),
+  discordSupportTickets: z.string().trim().refine(isHttpsUrl, "Support tickets link must be an https:// link.").or(z.literal("")),
   maintenanceMode: z.boolean(),
   registrationEnabled: z.boolean(),
   storeEnabled: z.boolean(),
