@@ -62,6 +62,8 @@ export interface AccountSummary {
    * notice composer silently fail whenever the second account was chosen.
    */
   discordUserIds: string[];
+  /** `profiles.account_status`: "suspended" is set from the Users board; null when there is no profile row. */
+  accountStatus: string | null;
 }
 
 export type PublicStaffMember = Pick<
@@ -79,6 +81,7 @@ interface ProfileName {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  accountStatus: string;
 }
 
 /** The one place the site's username precedence is defined. */
@@ -140,6 +143,7 @@ async function profileNames(): Promise<Map<string, ProfileName>> {
         username: schema.profiles.username,
         displayName: schema.profiles.displayName,
         avatarUrl: schema.profiles.avatarUrl,
+        accountStatus: schema.profiles.accountStatus,
       })
       .from(schema.profiles);
     for (const row of rows) {
@@ -147,6 +151,7 @@ async function profileNames(): Promise<Map<string, ProfileName>> {
         username: row.username,
         displayName: row.displayName,
         avatarUrl: row.avatarUrl,
+        accountStatus: row.accountStatus,
       });
     }
   } catch (error) {
@@ -308,6 +313,7 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
         // the latter null, which is why this was always null before.
         discordUserIds: discordIds.get(user.id) ?? [],
         discordUserId: (discordIds.get(user.id) ?? [])[0] ?? null,
+        accountStatus: profile?.accountStatus ?? null,
       };
     });
   } catch (error) {
@@ -330,7 +336,14 @@ export async function listPublicStaffAccounts(): Promise<PublicStaffMember[] | n
   return staff
     // Web Dev is an internal systems role, never a public team rank. Keep this
     // guard in the repository so no public caller can accidentally expose it.
-    .filter((account) => account.role !== "web_dev" && !account.pendingInvite && account.publicStaffVisible)
+    // A suspended member keeps their rank but is not shown as part of the team.
+    .filter(
+      (account) =>
+        account.role !== "web_dev" &&
+        !account.pendingInvite &&
+        account.publicStaffVisible &&
+        account.accountStatus !== "suspended",
+    )
     .map(({ userId, username, role, minecraftUsername, minecraftSkinUrl, avatarUrl }) => {
       const safeSkinUrl = isMinecraftAvatarUrl(minecraftSkinUrl) ? minecraftSkinUrl : null;
       return {

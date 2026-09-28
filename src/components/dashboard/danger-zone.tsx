@@ -1,9 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { AlertTriangle, Loader2, UserRoundX } from "lucide-react";
+import { AlertTriangle, LifeBuoy, Loader2, ShieldCheck, Smartphone, UserRoundX } from "lucide-react";
 import { deleteAccountAction, type AccountActionResult } from "@/lib/actions/account";
 import { FormRow, Input, Modal, useToast } from "@/components/ui";
+import { OtpInput } from "@/components/auth/auth-forms";
 
 const initialState: AccountActionResult = { ok: false };
 
@@ -15,9 +16,22 @@ const initialState: AccountActionResult = { ok: false };
  * a Minecraft name now lives entirely in the Connected accounts card, which is
  * where users look for it.
  */
-export function DangerZone({ username, enabled }: { username: string; enabled: boolean }) {
+export function DangerZone({
+  username,
+  enabled,
+  hasPassword = false,
+  twoFactor = false,
+}: {
+  username: string;
+  enabled: boolean;
+  /** The account has a password, so deleting asks for it (deleteAccountAction). */
+  hasPassword?: boolean;
+  /** Two-step verification is on, so deleting also asks for a code. */
+  twoFactor?: boolean;
+}) {
   const [dialog, setDialog] = useState<"delete" | null>(null);
   const [confirmation, setConfirmation] = useState("");
+  const [useRecovery, setUseRecovery] = useState(false);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteAccountAction, initialState);
   const { toast } = useToast();
 
@@ -34,6 +48,7 @@ export function DangerZone({ username, enabled }: { username: string; enabled: b
     if (deletePending) return;
     setDialog(null);
     setConfirmation("");
+    setUseRecovery(false);
   };
 
   return (
@@ -81,6 +96,58 @@ export function DangerZone({ username, enabled }: { username: string; enabled: b
                 aria-invalid={Boolean(deleteState.errors?.confirmation)}
               />
             </FormRow>
+            {hasPassword ? (
+              <div className="mt-4">
+                <FormRow label="Current password" htmlFor="delete-password" error={deleteState.errors?.currentPassword}>
+                  <Input
+                    id="delete-password"
+                    name="currentPassword"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    aria-invalid={Boolean(deleteState.errors?.currentPassword)}
+                  />
+                </FormRow>
+              </div>
+            ) : null}
+            {twoFactor ? (
+              /* The same step as signing in: the app's code, or a recovery code. */
+              <div className="mt-4 grid gap-3">
+                <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <ShieldCheck size={16} className="text-accent-bright" aria-hidden="true" />
+                  {useRecovery ? "Recovery code" : "Code from your authenticator app"}
+                </p>
+                {useRecovery ? (
+                  <Input
+                    key="recovery"
+                    name="recoveryCode"
+                    placeholder="XXXXX-XXXXX"
+                    aria-label="Recovery code"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    maxLength={20}
+                    aria-invalid={Boolean(deleteState.errors?.code)}
+                    className="text-center font-mono tracking-widest"
+                  />
+                ) : (
+                  <OtpInput key="app" id="delete-two-step-code" name="code" error={deleteState.errors?.code} />
+                )}
+                {deleteState.errors?.code ? (
+                  <p className="text-sm text-danger" role="alert">
+                    {deleteState.errors.code}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setUseRecovery((value) => !value)}
+                  className="inline-flex items-center gap-1.5 justify-self-start text-xs font-semibold text-accent-bright hover:underline"
+                >
+                  {useRecovery ? <Smartphone size={14} aria-hidden="true" /> : <LifeBuoy size={14} aria-hidden="true" />}
+                  {useRecovery ? "Use your authenticator app instead" : "Lost your phone? Use a recovery code"}
+                </button>
+              </div>
+            ) : null}
           </div>
           <div className="mt-6 flex flex-wrap justify-end gap-2">
             <button type="button" onClick={closeDialog} className="btn btn-ghost btn-sm" disabled={deletePending}>

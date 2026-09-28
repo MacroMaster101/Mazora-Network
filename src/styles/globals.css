@@ -6387,9 +6387,12 @@ html {
   box-shadow: 0 11px 28px -16px rgb(var(--accent-rgb) / 0.9), 0 0 0 3px rgb(var(--accent-rgb) / 0.1);
 }
 
-/* Dark theme hero header action buttons */
+/* Dark theme hero header action buttons. The phone menu button is one of them:
+   left on its faint bg-ink/5 it read as a grey, disabled-looking box beside the
+   bell once the header docked. */
 :root[data-theme="dark"] .hero-nav .header-notif-trigger,
-:root[data-theme="dark"] .hero-nav .theme-orb {
+:root[data-theme="dark"] .hero-nav .theme-orb,
+:root[data-theme="dark"] .hero-nav .mobile-menu-trigger {
   border-color: rgb(216 180 254 / 0.28);
   background: rgb(12 7 24 / 0.82);
   color: #f3e8ff;
@@ -6398,7 +6401,8 @@ html {
 
 /* Light theme hero header action buttons */
 :root:not([data-theme="dark"]) .hero-nav .header-notif-trigger,
-:root:not([data-theme="dark"]) .hero-nav .theme-orb {
+:root:not([data-theme="dark"]) .hero-nav .theme-orb,
+:root:not([data-theme="dark"]) .hero-nav .mobile-menu-trigger {
   border-color: rgba(147, 51, 234, 0.3);
   background: rgba(255, 255, 255, 0.92);
   color: #2e1065;
@@ -6810,17 +6814,8 @@ html {
   -webkit-backdrop-filter: none;
 }
 
-/* Scrolled workspace header: an opaque strip, not the public floating-pill
-   look. With a transparent bar the sticky sidebar and page cards slid up
-   under the bare logo. Still no blur, for the compositor reason above.
-   Specificity has to beat the later floating-pill reset
-   (`:root[data-theme="dark"] .scroll-header.hero-nav[...]::before`). */
-:root .account-area .scroll-header.hero-nav.workspace-nav[data-away="true"][data-hidden="false"]::before {
-  inset: 0;
-  opacity: 1;
-  border-bottom: 1px solid rgb(var(--line) / 0.7);
-  background: rgb(var(--base) / 0.97);
-}
+/* Scrolled workspace header: the shared frosted band (see "Once scrolled,
+   every page" further down), the same as the public pages. */
 
 /* Public pages use the same fixed world artwork as the account area. Keep the
    shared sticky navigation out of its own moving/blurred compositor layers so
@@ -8774,18 +8769,32 @@ html {
   }
 }
 
-/* Scrolling back up reveals only the nav items — no bar, border, or blur.
-   Applies to every page variant that previously opted into the solid strip. */
+/* Once scrolled, every page — public and dashboard — gets a frosted-glass
+   band behind the nav: the page colour, see-through, with the content under it
+   blurred, so the logo and buttons stay readable over whatever scrolls beneath
+   (on phones the logo has no pill of its own). The band's lower edge is masked
+   into a soft fade rather than a hard line.
+
+   Blur was once removed here because Chromium left stale "ghost" header frames
+   over the fixed world artwork. That came from a header that translated while
+   hiding, plus a second blurred sticky layer (the admin sidebar). Headers are
+   now stable (no transform) and the sidebar stays unblurred, so the blurred
+   layer is only this pseudo-element. The !important beats the stable-nav and
+   workspace-nav rules that switch blur off on the header's ::before. */
 .scroll-header.hero-nav[data-away="true"][data-hidden="false"]::before,
 :root[data-theme="dark"] .scroll-header.hero-nav[data-away="true"][data-hidden="false"]::before,
 body:has(.store-hero) .scroll-header[data-away="true"][data-hidden="false"]::before,
 body:has(.store-detail-page) .scroll-header[data-away="true"][data-hidden="false"]::before {
-  opacity: 0;
+  inset: 0 0 -1rem 0;
+  opacity: 1;
   border: 0;
-  background: none;
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  pointer-events: none;
+  background: rgb(var(--base) / 0.55);
+  backdrop-filter: blur(14px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
 }
 
 /* Instead of a page-wide bar, the floating nav and account dock each carry

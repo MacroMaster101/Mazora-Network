@@ -38,7 +38,8 @@ export default async function AdminUsersPage() {
     // something having failed rather than as a deliberate rule.
     let lockedReason: string | null = null;
     if (!canAssign) lockedReason = "No permission";
-    else if (account.username === session.username) lockedReason = "Your account";
+    // By account id: usernames are user-editable, so two could briefly match.
+    else if (account.userId === actorId) lockedReason = "Your account";
     else if (!canManageRank(session.role, account.role)) lockedReason = "Equal or higher rank";
 
     return {
@@ -51,6 +52,11 @@ export default async function AdminUsersPage() {
       avatarUrl: account.avatarUrl,
       lockedReason,
       pendingInvite: account.pendingInvite,
+      suspended: account.accountStatus === "suspended",
+      // Same rule as a rank change (lockedReason); an unused invite has no sign-in to block.
+      canSuspend: lockedReason === null && !account.pendingInvite,
+      // Same rank rule the server applies to releasing someone's claimed IGN.
+      canReleaseIgn: account.userId === actorId || canManageRank(session.role, account.role),
       status: presence.get(account.userId) ?? null,
     };
   });

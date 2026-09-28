@@ -16,6 +16,8 @@ import {
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { usernameForUser } from "@/lib/data/accounts";
 import { cleanupAccountOwnedData } from "@/lib/data/account-deletion";
+import { endAllSessions, setAccountSuspended } from "@/lib/data/account-status";
+import { recordAudit } from "@/lib/audit-log";
 import { getDb, schema } from "@/lib/db/client";
 import { canAssignRoles, canManageMinecraft } from "@/lib/auth/permissions";
 import { ensureRoleCatalog } from "@/lib/data/roles";
@@ -23,7 +25,7 @@ import { normalizeRoleKey, roleDef } from "@/lib/auth/role-catalog-core";
 import { site } from "@/lib/site";
 
 /**
- * User administration: invite, re-send, withdraw, delete.
+ * User administration: invite, re-send, withdraw, suspend, delete.
  *
  * Every action here re-checks the caller server-side. These are ordinary HTTP
  * endpoints once compiled, so the rank rules cannot live in the UI: the same
@@ -347,6 +349,85 @@ export async function resendInviteAction(
 }
 
 /* ------------------------------------------------------------------ *
+ * Suspend / unsuspend
+ * ------------------------------------------------------------------ */
+
+const suspendSchema = z.object({
+  userId: z.string().uuid(),
+  suspend: z.enum(["true", "false"]),
+  reason: z.string().trim().max(300, "Keep the reason under 300 characters.").optional(),
+});
+
+/**
+ * Suspend an account, or lift a suspension (lib/data/account-status).
+ *
+ * The same people and the same ladder as a rank change: the Assign roles
+ * permission, a target below your own rank, and never yourself. Suspending
+ * blocks sign-in and ends every session the account has; nothing is deleted,
+ * so unsuspending restores it exactly as it was.
+ */
+export async function setUserSuspendedAction(
+  _previous: AdminActionResult,
+  formData: FormData,
+): Promise<AdminActionResult> {
+  const session = await getSession();
+  const actorId = await getSessionUserId();
+  if (!session || !actorId || !(await canAssignRoles(session, actorId))) {
+    return { ok: false, message: "Not authorized." };
+  }
+
+  const parsed = suspendSchema.safeParse({
+    userId: String(formData.get("userId") ?? "").trim(),
+    suspend: String(formData.get("suspend") ?? ""),
+    reason: String(formData.get("reason") ?? "").trim() || undefined,
+  });
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Missing account." };
+  const { userId, reason } = parsed.data;
+  const suspend = parsed.data.suspend === "true";
+
+  // By account id, never username (usernames are user-editable).
+  if (userId === actorId) return { ok: false, message: "You cannot suspend your own account." };
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return { ok: false, message: "Server is not configured for account management." };
+  const { data: target, error } = await admin.auth.admin.getUserById(userId);
+  if (error || !target?.user) return { ok: false, message: "That account no longer exists." };
+
+  const targetRole = (normalizeRoleKey(target.user.app_metadata?.role) as Role) ?? "member";
+  if (!canManageRank(session.role, targetRole)) {
+    return { ok: false, message: "You cannot suspend an account at or above your rank." };
+  }
+  const targetName = await usernameForUser(userId, target.user);
+
+  if (!(await setAccountSuspended(userId, suspend))) {
+    return {
+      ok: false,
+      message: suspend ? `${targetName} is not an active account.` : `${targetName} is not suspended.`,
+    };
+  }
+  // Sign them out everywhere. getSession already refuses them on their next
+  // request; this also removes the refresh tokens a browser would renew with.
+  if (suspend && !(await endAllSessions(userId))) {
+    console.error("Suspension saved, but existing sessions could not be ended", { userId });
+  }
+
+  await recordAudit({
+    action: suspend ? "user.suspend" : "user.unsuspend",
+    actorId,
+    by: session.username,
+    targetType: "user",
+    targetId: userId,
+    // The account id only, no name: audit rows outlive a later deletion.
+    ...(reason ? { metadata: { reason } } : {}),
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/staff");
+  revalidatePath("/staff");
+  return { ok: true, message: suspend ? `${targetName} is suspended.` : `${targetName} can sign in again.` };
+}
+
+/* ------------------------------------------------------------------ *
  * Delete
  * ------------------------------------------------------------------ */
 
@@ -464,6 +545,17 @@ export async function adminReleaseMinecraftUsernameAction(
 
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false, message: "Server is not configured." };
+
+  // The same ladder as every other action on someone else's account: only
+  // below your own rank. Your own claim you release from Settings instead.
+  if (actorId !== userId) {
+    const { data: target, error: targetError } = await admin.auth.admin.getUserById(userId);
+    if (targetError || !target?.user) return { ok: false, message: "That account no longer exists." };
+    const targetRole = (normalizeRoleKey(target.user.app_metadata?.role) as Role) ?? "member";
+    if (!canManageRank(session.role, targetRole)) {
+      return { ok: false, message: "You cannot release the IGN of an account at or above your rank." };
+    }
+  }
 
   const { error } = await admin.from("minecraft_accounts").delete().eq("user_id", userId);
   if (error) return { ok: false, message: "Could not release Minecraft IGN." };

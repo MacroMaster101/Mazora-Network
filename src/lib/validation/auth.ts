@@ -1,7 +1,14 @@
 import { z } from "zod";
 
-/** Supabase's verifyOtp() token types, shared between the confirm-email action and its UI. */
-export const otpTypes = ["signup", "email", "recovery", "invite", "magiclink", "email_change"] as const;
+/**
+ * The verifyOtp() token types /confirm-email accepts, shared between the
+ * action and its UI: only the links this site actually emails (the signup
+ * template's type=email, and the password-reset fallback). Invites go through
+ * /auth/callback, and magic links and email changes are never sent. Accepting
+ * a magiclink here let anyone mail a victim a link to their OWN account's
+ * token, and one "Confirm" click signed the victim into it.
+ */
+export const otpTypes = ["signup", "email", "recovery"] as const;
 export type OtpType = (typeof otpTypes)[number];
 
 const email = z

@@ -9,6 +9,7 @@ import { getDb, schema } from "@/lib/db/client";
 import { rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 import { isUuid } from "@/lib/validation/id";
+import { isSitePath } from "@/lib/net/safe-url";
 import {
   parseStoreProductForm,
   STORE_PRODUCT_ACCENTS,
@@ -92,7 +93,9 @@ async function resolveStoreArtwork(
 
   const raw = text(formData, "imageUrl").trim();
   if (!raw) return { url: currentUrl };
-  if (raw.startsWith("/") || isOwnStorageUrl(raw) || raw === currentUrl) return { url: raw };
+  // A site path ("/images/…") is kept as typed; "//host" is not one — browsers
+  // read it as another site — so it goes through the re-host below like any link.
+  if (isSitePath(raw) || isOwnStorageUrl(raw) || raw === currentUrl) return { url: raw };
 
   const hosted = await rehostImageFromUrl(raw, `store/${keyBase}-${Date.now()}`);
   if (!hosted) return { url: currentUrl, error: "That artwork link could not be fetched as an image under 8 MB." };

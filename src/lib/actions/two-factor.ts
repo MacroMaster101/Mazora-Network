@@ -10,6 +10,10 @@ import { safeNext } from "@/lib/safe-redirect";
 import { clearRecoveryCodes, issueRecoveryCodes } from "@/lib/auth/recovery-codes";
 import { redeemRecoveryCode, removeAllFactors, removeFactor } from "@/lib/auth/two-factor-recovery";
 import { clearRecoveryGrant, issueRecoveryGrant } from "@/lib/auth/recovery-grant";
+import { clearReplaceGrant, hasReplaceGrant, issueReplaceGrant } from "@/lib/auth/replace-grant";
+import { confirmSecondStep as confirmSecondStepFor } from "@/lib/auth/reauth";
+import { accountStatusFor } from "@/lib/data/account-status";
+import { SUSPENDED_PATH } from "@/lib/auth/login-identifier";
 
 /**
  * Optional two-step verification (TOTP, via Supabase Auth MFA), for every
@@ -20,12 +24,15 @@ import { clearRecoveryGrant, issueRecoveryGrant } from "@/lib/auth/recovery-gran
  * reaches assurance level aal2, which only a verified code produces. Recovery
  * codes (lib/auth/recovery-codes) cover a lost phone. Turning it off, replacing
  * the authenticator and regenerating codes all need a completed sign-in —
- * which, with two-step verification on, means one that entered its code.
+ * which, with two-step verification on, means one that entered its code — and
+ * turning it off or regenerating codes asks for a code again (confirmSecondStep).
  */
 
 export interface TwoFactorEnrollment {
   ok: boolean;
   message?: string;
+  /** Replacing an authenticator: the current code (or a recovery code) is needed before a new QR code. */
+  needsConfirm?: boolean;
   factorId?: string;
   /** An SVG data URL of the authenticator QR code. */
   qrCode?: string;
@@ -78,12 +85,38 @@ function refreshSettings() {
   revalidatePath("/dashboard/settings");
 }
 
+type SignedIn = NonNullable<Awaited<ReturnType<typeof signedIn>>>;
+
+/**
+ * Turning two-step verification off and reissuing recovery codes also need the
+ * second step again, right now: a code from the authenticator app or an unused
+ * recovery code. A signed-in browser alone is not enough — whoever sits at an
+ * unlocked computer, or holds a copied session cookie, could otherwise switch
+ * the protection off or mint codes of their own. A recovery code keeps this
+ * possible after losing the phone. Returns an error message, or null when the
+ * step is passed.
+ */
+async function confirmSecondStep(actor: SignedIn, formData: FormData): Promise<string | null> {
+  return confirmSecondStepFor(actor.supabase, actor.user, formData, "two-step-settings");
+}
+
+/** The replace pass is bound to this user and this sign-in's session. */
+async function replaceSubject(actor: SignedIn) {
+  return { userId: actor.user.id, sessionId: (await getSignInSessionId()) ?? "" };
+}
+
 /**
  * Setup step 1 — turning it on, or replacing the authenticator: create a new,
  * unverified factor and hand back its QR code. An existing authenticator keeps
  * working until the new one is confirmed.
+ *
+ * Replacing asks for the current authenticator's code (or a recovery code)
+ * first, and records that in a short-lived replace pass the confirm step
+ * requires: otherwise the new app's own code would be enough to remove the old
+ * one, and a signed-in browser alone could take over the second factor. A
+ * sign-in that used a recovery code has already spent one, so it goes straight on.
  */
-export async function startTwoFactorEnrollmentAction(): Promise<TwoFactorEnrollment> {
+export async function startTwoFactorEnrollmentAction(formData?: FormData): Promise<TwoFactorEnrollment> {
   const actor = await signedIn();
   if (!actor) return { ok: false, message: "Your session has expired. Sign in again." };
 
@@ -92,6 +125,17 @@ export async function startTwoFactorEnrollmentAction(): Promise<TwoFactorEnrollm
 
   const { data: factors, error: listError } = await actor.supabase.auth.mfa.listFactors();
   if (listError) return { ok: false, message: UNAVAILABLE };
+
+  if (factors.totp.length > 0 && !actor.recovered) {
+    const subject = await replaceSubject(actor);
+    // A pass from a moment ago still counts, so "Try again" does not ask twice.
+    if (!(await hasReplaceGrant(subject))) {
+      if (!formData) return { ok: false, needsConfirm: true };
+      const stepError = await confirmSecondStep(actor, formData);
+      if (stepError) return { ok: false, needsConfirm: true, message: stepError };
+      if (!(await issueReplaceGrant(subject))) return { ok: false, message: UNAVAILABLE };
+    }
+  }
 
   // Abandoned setups leave unverified factors behind, and Supabase caps how
   // many an account may hold. None of them was ever usable, so clear them.
@@ -151,6 +195,12 @@ export async function confirmTwoFactorSetupAction(_previous: TwoFactorResult, fo
   if (!factor) return { ok: false, message: "This setup has expired. Close it and start again." };
 
   const previous = factors.totp;
+  // Replacing: only with the pass the start step issued after the current
+  // authenticator's code (see startTwoFactorEnrollmentAction). Checked before
+  // the new factor is verified, so nothing changes without it.
+  if (previous.length > 0 && !actor.recovered && !(await hasReplaceGrant(await replaceSubject(actor)))) {
+    return { ok: false, message: "Confirm it's you again: close this and start the switch over." };
+  }
   const { error } = await actor.supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code });
   if (error) return { ok: false, errors: { code: "That code is incorrect or has expired." } };
 
@@ -164,8 +214,10 @@ export async function confirmTwoFactorSetupAction(_previous: TwoFactorResult, fo
 
   const replacing = previous.length > 0;
   const recoveryCodes = replacing ? undefined : ((await issueRecoveryCodes(actor.user.id)) ?? undefined);
-  // The session is aal2 now; a recovery pass it may have carried is spent.
+  // The session is aal2 now; a recovery pass it may have carried is spent, and
+  // so is the replace pass.
   await clearRecoveryGrant();
+  await clearReplaceGrant();
 
   await recordAudit({
     action: replacing ? "auth.two_factor_replaced" : "auth.two_factor_enabled",
@@ -181,6 +233,18 @@ export async function confirmTwoFactorSetupAction(_previous: TwoFactorResult, fo
     message: replacing ? "Your new authenticator app is set up." : "Two-step verification is on.",
     recoveryCodes,
   };
+}
+
+/**
+ * A suspended account (Users board) finds out only here, once the password and
+ * the second step have both passed — loginAction and auth/callback leave it to
+ * this step when the account has an authenticator, so a leaked password alone
+ * learns nothing. The session is ended, then /account-suspended says why.
+ */
+async function refuseIfSuspended(pending: NonNullable<Awaited<ReturnType<typeof pendingSignIn>>>) {
+  if ((await accountStatusFor(pending.user.id)) !== "suspended") return;
+  await pending.supabase.auth.signOut({ scope: "local" });
+  redirect(SUSPENDED_PATH);
 }
 
 /** Sign-in step 2: the code from the authenticator app. Success completes the sign-in. */
@@ -210,6 +274,7 @@ export async function verifyTwoFactorAction(_previous: TwoFactorResult, formData
     }
   }
   if (!verified) return { ok: false, errors: { code: "That code is incorrect or has expired." } };
+  await refuseIfSuspended(pending);
 
   const nextValue = formData.get("next");
   redirect(safeNext(typeof nextValue === "string" ? nextValue : undefined));
@@ -238,6 +303,8 @@ export async function redeemRecoveryCodeAction(_previous: TwoFactorResult, formD
     return { ok: false, errors: { recoveryCode: "That recovery code is incorrect or has already been used." } };
   }
 
+  await refuseIfSuspended(pending);
+
   const sessionId = await getSignInSessionId();
   if (!sessionId || !(await issueRecoveryGrant({ userId: pending.user.id, sessionId }))) {
     return { ok: false, message: UNAVAILABLE };
@@ -247,7 +314,7 @@ export async function redeemRecoveryCodeAction(_previous: TwoFactorResult, formD
 }
 
 /** Replace the recovery codes with a fresh set; the old ones stop working. */
-export async function regenerateRecoveryCodesAction(): Promise<TwoFactorResult> {
+export async function regenerateRecoveryCodesAction(formData: FormData): Promise<TwoFactorResult> {
   const actor = await signedIn();
   if (!actor) return { ok: false, message: "Your session has expired. Sign in again." };
 
@@ -257,6 +324,9 @@ export async function regenerateRecoveryCodesAction(): Promise<TwoFactorResult> 
   const { data: factors, error: listError } = await actor.supabase.auth.mfa.listFactors();
   if (listError) return { ok: false, message: UNAVAILABLE };
   if (factors.totp.length === 0) return { ok: false, message: "Turn on two-step verification first." };
+
+  const stepError = await confirmSecondStep(actor, formData);
+  if (stepError) return { ok: false, message: stepError };
 
   const recoveryCodes = await issueRecoveryCodes(actor.user.id);
   if (!recoveryCodes) return { ok: false, message: UNAVAILABLE };
@@ -274,12 +344,15 @@ export async function regenerateRecoveryCodesAction(): Promise<TwoFactorResult> 
 }
 
 /** Turn two-step verification off: every authenticator and recovery code goes. */
-export async function disableTwoFactorAction(): Promise<TwoFactorResult> {
+export async function disableTwoFactorAction(formData: FormData): Promise<TwoFactorResult> {
   const actor = await signedIn();
   if (!actor) return { ok: false, message: "Your session has expired. Sign in again." };
 
   const throttled = await throttleAuthAction("mfa-disable", { limit: 5, windowMs: 15 * 60_000, identity: actor.user.id });
   if (throttled) return { ok: false, message: throttled };
+
+  const stepError = await confirmSecondStep(actor, formData);
+  if (stepError) return { ok: false, message: stepError };
 
   // The service role removes the factors, so this also works from a sign-in
   // that used a recovery code (not aal2, which the member's own client needs).

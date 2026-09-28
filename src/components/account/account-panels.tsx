@@ -187,7 +187,12 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
           <SecurityCard state={security} />
         </Card>
 
-        <DangerZone username={session.username} enabled={isSupabaseConfigured()} />
+        <DangerZone
+          username={session.username}
+          enabled={isSupabaseConfigured()}
+          hasPassword={hasPassword}
+          twoFactor={Boolean(twoFactor?.enabled)}
+        />
       </div>
     </>
   );

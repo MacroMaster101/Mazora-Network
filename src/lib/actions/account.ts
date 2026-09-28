@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { isTwoFactorPending } from "@/lib/auth";
+import { hasActiveSession } from "@/lib/auth";
+import { accountHasPassword, confirmSecondStep, passwordMatchesCurrent } from "@/lib/auth/reauth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { throttleAuthAction } from "@/lib/rate-limit";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET } from "@/lib/storage/avatar-bucket";
 import { removeStoredSkinFiles } from "@/lib/storage/skin-files";
@@ -47,8 +49,8 @@ async function authenticatedUser() {
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
-  // Signed in but still owing the two-step code: not signed in (see getSession).
-  if (await isTwoFactorPending()) return null;
+  // Owing the two-step code, or suspended: not signed in (see getSession).
+  if (!(await hasActiveSession())) return null;
   return { supabase, user: data.user };
 }
 
@@ -168,8 +170,33 @@ export async function deleteAccountAction(
     return { ok: false, errors: { confirmation: `Type ${username || "your username"} to confirm.` } };
   }
 
+  /*
+    Deleting cannot be undone, so a signed-in browser alone is not enough: an
+    unlocked computer or a copied cookie could otherwise erase the account. The
+    same proof as changing the password — the current password when there is
+    one — plus, with two-step verification on, a code from the app or a
+    recovery code. An account made through Google or Discord with neither has
+    nothing more to prove than the typed username.
+  */
+  // Checked before any proof is taken, so a recovery code is never spent on a
+  // deletion that could not go ahead anyway.
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false, message: "Account deletion is temporarily unavailable." };
+
+  if (accountHasPassword(auth.user)) {
+    const currentPassword = String(formData.get("currentPassword") ?? "");
+    if (!currentPassword) return { ok: false, errors: { currentPassword: "Enter your current password." } };
+    // Per account, so a signed-in browser cannot be used to guess the password.
+    const throttled = await throttleAuthAction("account-delete", { limit: 5, windowMs: 15 * 60_000, identity: auth.user.id });
+    if (throttled) return { ok: false, message: throttled };
+    if (!auth.user.email || !(await passwordMatchesCurrent(auth.user.email, currentPassword))) {
+      return { ok: false, errors: { currentPassword: "That is not your current password." } };
+    }
+  }
+  if (auth.user.factors?.some((factor) => factor.status === "verified")) {
+    const stepError = await confirmSecondStep(auth.supabase, auth.user, formData, "account-deletion");
+    if (stepError) return { ok: false, errors: { code: stepError } };
+  }
 
   /*
     Before the auth user goes: once it is deleted the FK has already nulled

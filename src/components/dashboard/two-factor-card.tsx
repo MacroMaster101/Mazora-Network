@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Fingerprint,
   KeyRound,
+  LifeBuoy,
   Loader2,
   MessageSquareText,
   ShieldCheck,
@@ -13,7 +14,8 @@ import {
   Smartphone,
   TriangleAlert,
 } from "lucide-react";
-import { Modal, useToast } from "@/components/ui";
+import { Input, Modal, useToast } from "@/components/ui";
+import { OtpInput } from "@/components/auth/auth-forms";
 import { disableTwoFactorAction, regenerateRecoveryCodesAction } from "@/lib/actions/two-factor";
 import { relative } from "@/lib/utils";
 import { RecoveryCodesView } from "./recovery-codes-view";
@@ -106,6 +108,8 @@ export function TwoFactorCard({ overview, staff = false }: { overview: TwoFactor
     }
   }
   const [dialogError, setDialogError] = useState<string | null>(null);
+  // The dialog asks for the authenticator code; a recovery code is the fallback.
+  const [useRecovery, setUseRecovery] = useState(false);
 
   const closeSetup = useCallback(() => setSetup(null), []);
   const finishedSetup = useCallback(
@@ -121,13 +125,15 @@ export function TwoFactorCard({ overview, staff = false }: { overview: TwoFactor
     setDialog(null);
     setNewCodes(null);
     setDialogError(null);
+    setUseRecovery(false);
   }
 
-  async function run(kind: "regenerate" | "disable") {
+  async function run(kind: "regenerate" | "disable", formData: FormData) {
     setBusy(true);
     setDialogError(null);
     try {
-      const result = kind === "regenerate" ? await regenerateRecoveryCodesAction() : await disableTwoFactorAction();
+      // Both need the second step again, not just this signed-in browser.
+      const result = kind === "regenerate" ? await regenerateRecoveryCodesAction(formData) : await disableTwoFactorAction(formData);
       if (!result.ok) {
         setDialogError(result.message ?? "Something went wrong. Please try again.");
         return;
@@ -264,7 +270,7 @@ export function TwoFactorCard({ overview, staff = false }: { overview: TwoFactor
                   <Row
                     icon={<ShieldOff size={18} aria-hidden="true" />}
                     title="Turn off two-step verification"
-                    detail="Signing in will only need your password. Your recovery codes stop working."
+                    detail="Signing in will only need your password. Your app's code and recovery codes stop working."
                     action={
                       <button type="button" onClick={() => setDialog("disable")} className={`${actionButton} hover:border-danger/50 hover:text-danger`}>
                         Turn off
@@ -280,62 +286,107 @@ export function TwoFactorCard({ overview, staff = false }: { overview: TwoFactor
 
       {setup ? <TwoFactorSetupScreen mode={setup} onClose={closeSetup} onFinished={finishedSetup} /> : null}
 
+      {/* Same shape as the other confirm dialogs (Settings → Delete account). */}
       <Modal
         open={dialog !== null}
         onClose={closeDialog}
         label={dialog === "disable" ? "Turn off two-step verification" : "Regenerate recovery codes"}
-        size="compact"
       >
-        <div className="panel overflow-hidden">
-          {/* Right padding reserves the modal's own close button. */}
-          <header className="flex items-start gap-3 border-b border-line/60 py-5 pl-6 pr-[4.5rem]">
-            <span className={`mt-0.5 rounded-lg p-2 ${dialog === "disable" ? "bg-danger/10 text-danger" : "bg-accent/10 text-accent"}`}>
-              {dialog === "disable" ? <ShieldOff size={18} aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />}
-            </span>
-            <div>
-              <h2 className="font-display text-lg font-extrabold text-ink">
-                {dialog === "disable" ? "Turn off two-step verification?" : newCodes ? "Your new recovery codes" : "Regenerate recovery codes?"}
-              </h2>
-              <p className="mt-1 text-sm text-muted">
-                {dialog === "disable"
-                  ? "Signing in will only need your password again, and your authenticator app and recovery codes will stop working."
-                  : newCodes
-                    ? "Save these now — this is the only time they are shown. Your old codes no longer work."
-                    : "You will get 10 new codes, and every code you have now will stop working."}
-              </p>
-            </div>
-          </header>
-          <div className="space-y-4 p-6">
-            {newCodes ? <RecoveryCodesView codes={newCodes} /> : null}
-            {dialogError ? (
-              <p className="auth-form-message" role="alert">
-                {dialogError}
-              </p>
-            ) : null}
-            <div className="flex flex-wrap justify-end gap-2">
-              {newCodes ? (
-                <button type="button" onClick={closeDialog} className="btn btn-primary btn-sm">
-                  I have saved them
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (newCodes) closeDialog();
+            else if (dialog && !busy) run(dialog, new FormData(event.currentTarget));
+          }}
+          noValidate
+          className={`panel mx-auto max-w-md p-6 sm:p-7 ${dialog === "disable" ? "border-danger/40" : ""}`}
+        >
+          <h2 className={`font-display text-xl font-bold ${dialog === "disable" ? "text-danger" : "text-ink"}`}>
+            {dialog === "disable" ? "Turn off two-step verification?" : newCodes ? "Your new recovery codes" : "Regenerate recovery codes?"}
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            {dialog === "disable"
+              ? "Signing in will only need your password again. The Mazora code in your authenticator app and your recovery codes stop working for good — turning it back on later means scanning a new QR code."
+              : newCodes
+                ? "Save these now — this is the only time they are shown. Your old codes no longer work."
+                : "You will get 10 new codes, and every code you have now will stop working."}
+          </p>
+          <div className="mt-5">
+            {newCodes ? (
+              <RecoveryCodesView codes={newCodes} />
+            ) : (
+              /* The same step as signing in (/two-factor): the app's code in
+                 the six boxes, or a recovery code for a lost phone. */
+              <div className="grid gap-3">
+                <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <ShieldCheck size={16} className="text-accent-bright" aria-hidden="true" />
+                  {useRecovery ? "Enter a recovery code to confirm" : "Enter the code from your authenticator app"}
+                </p>
+                {useRecovery ? (
+                  <Input
+                    key="recovery"
+                    id="two-step-confirm-recovery"
+                    name="recoveryCode"
+                    placeholder="XXXXX-XXXXX"
+                    aria-label="Recovery code"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    maxLength={20}
+                    aria-invalid={Boolean(dialogError)}
+                    className="text-center font-mono tracking-widest"
+                    autoFocus
+                  />
+                ) : (
+                  <OtpInput key="app" id="two-step-confirm-code" name="code" error={dialogError ?? undefined} />
+                )}
+                {dialogError ? (
+                  <p className="text-sm text-danger" role="alert">
+                    {dialogError}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseRecovery((value) => !value);
+                    setDialogError(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 justify-self-start text-xs font-semibold text-accent-bright hover:underline"
+                >
+                  {useRecovery ? <Smartphone size={14} aria-hidden="true" /> : <LifeBuoy size={14} aria-hidden="true" />}
+                  {useRecovery ? "Use your authenticator app instead" : "Lost your phone? Use a recovery code"}
                 </button>
-              ) : (
-                <>
-                  <button type="button" onClick={closeDialog} disabled={busy} className="btn btn-ghost btn-sm">
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => dialog && run(dialog)}
-                    disabled={busy}
-                    className={`btn btn-sm ${dialog === "disable" ? "btn-ghost text-danger" : "btn-primary"}`}
-                  >
-                    {busy ? <Loader2 size={14} className="animate-spin" /> : null}
-                    {dialog === "disable" ? "Turn off" : "Regenerate codes"}
-                  </button>
-                </>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        </div>
+          <div className="mt-6 flex flex-wrap justify-end gap-2">
+            {newCodes ? (
+              <button type="submit" className="btn btn-primary btn-sm">
+                I have saved them
+              </button>
+            ) : (
+              <>
+                <button type="button" onClick={closeDialog} disabled={busy} className="btn btn-ghost btn-sm">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className={`btn btn-sm ${dialog === "disable" ? "btn-ghost border-danger/40 bg-danger/10 text-danger" : "btn-primary"}`}
+                >
+                  {busy ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : dialog === "disable" ? (
+                    <ShieldOff size={14} aria-hidden="true" />
+                  ) : (
+                    <KeyRound size={14} aria-hidden="true" />
+                  )}
+                  {dialog === "disable" ? (busy ? "Turning off…" : "Turn off") : busy ? "Creating…" : "Regenerate codes"}
+                </button>
+              </>
+            )}
+          </div>
+        </form>
       </Modal>
     </section>
   );

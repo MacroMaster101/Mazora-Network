@@ -25,26 +25,31 @@ export function isBlockedAddress(ip: string): boolean {
     return false;
   }
   if (isIPv6(ip)) {
-    const low = ip.toLowerCase();
-    if (low === "::1" || low === "::") return true;
-    if (low.startsWith("fc") || low.startsWith("fd")) return true; // unique-local
-    const firstHextet = Number.parseInt(low.split(":", 1)[0] || "0", 16);
-    if (firstHextet >= 0xfe80 && firstHextet <= 0xfebf) return true; // fe80::/10 link-local
-    if (firstHextet >= 0xff00 && firstHextet <= 0xffff) return true; // multicast
-    if (low.startsWith("2001:db8:")) return true; // documentation prefix
+    const words = ipv6Words(ip);
+    if (!words) return true;
+    const [w0, w1, w2, w3, w4, w5, w6, w7] = words;
+    const embedded = `${w6 >>> 8}.${w6 & 0xff}.${w7 >>> 8}.${w7 & 0xff}`;
+    const zeroPrefix = w0 === 0 && w1 === 0 && w2 === 0 && w3 === 0 && w4 === 0;
 
-    // IPv4-mapped IPv6 can be emitted in dotted or hexadecimal form. Checking
-    // only ::ffff:127.0.0.1 misses the canonical ::ffff:7f00:1 spelling.
-    const dotted = low.match(/^::(?:ffff:)?(\d+\.\d+\.\d+\.\d+)$/);
-    if (dotted) return isBlockedAddress(dotted[1]);
-    const mappedHex = low.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
-    if (mappedHex) {
-      const high = Number.parseInt(mappedHex[1], 16);
-      const lowWord = Number.parseInt(mappedHex[2], 16);
-      return isBlockedAddress(
-        `${high >>> 8}.${high & 0xff}.${lowWord >>> 8}.${lowWord & 0xff}`,
-      );
-    }
+    // ::/96 covers :: and ::1 and the deprecated IPv4-compatible form
+    // (::127.0.0.1 or ::7f00:1); ::ffff:0:0/96 is IPv4-mapped. Both carry an
+    // IPv4 address in the last 32 bits, so that address decides.
+    if (zeroPrefix && w5 === 0) return w6 === 0 && w7 <= 1 ? true : isBlockedAddress(embedded);
+    if (zeroPrefix && w5 === 0xffff) return isBlockedAddress(embedded);
+    // NAT64 (64:ff9b::/96) translates to the embedded IPv4 address; the local-use
+    // NAT64 range (64:ff9b:1::/48) is internal by definition.
+    if (w0 === 0x64 && w1 === 0xff9b && w2 === 0 && w3 === 0 && w4 === 0 && w5 === 0) return isBlockedAddress(embedded);
+    if (w0 === 0x64 && w1 === 0xff9b && w2 === 1) return true;
+    // 6to4 (2002::/16) carries an IPv4 address in bits 16-47.
+    if (w0 === 0x2002) return isBlockedAddress(`${w1 >>> 8}.${w1 & 0xff}.${w2 >>> 8}.${w2 & 0xff}`);
+    // Teredo (2001:0::/32) tunnels to an obfuscated IPv4 address; never a
+    // legitimate image host, so it is refused outright.
+    if (w0 === 0x2001 && w1 === 0) return true;
+    if (w0 === 0x2001 && w1 === 0xdb8) return true; // documentation prefix
+    if (w0 >= 0xfc00 && w0 <= 0xfdff) return true; // fc00::/7 unique-local
+    if (w0 >= 0xfe80 && w0 <= 0xfebf) return true; // fe80::/10 link-local
+    if (w0 >= 0xfec0 && w0 <= 0xfeff) return true; // fec0::/10 deprecated site-local
+    if (w0 >= 0xff00) return true; // multicast
     return false;
   }
   return true; // unparseable — fail closed
@@ -62,4 +67,29 @@ export function isBlockedIpLiteralHost(hostname: string): boolean {
   const host = hostname.replace(/^\[|\]$/g, "");
   if (!isIPv4(host) && !isIPv6(host)) return false;
   return isBlockedAddress(host);
+}
+
+/**
+ * The eight 16-bit words of an IPv6 address, with "::" expanded and a trailing
+ * dotted IPv4 part converted. Null when it does not parse. Checking prefixes
+ * as strings missed equivalent spellings (leading zeros, "::" in other places).
+ */
+function ipv6Words(ip: string): number[] | null {
+  let text = ip.toLowerCase().split("%", 1)[0];
+  const dotted = text.match(/(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (dotted) {
+    const bytes = dotted.slice(1).map(Number);
+    if (bytes.some((byte) => byte > 255)) return null;
+    text = `${text.slice(0, dotted.index)}${((bytes[0] << 8) | bytes[1]).toString(16)}:${((bytes[2] << 8) | bytes[3]).toString(16)}`;
+  }
+  const halves = text.split("::");
+  if (halves.length > 2) return null;
+  const parse = (part: string) => (part ? part.split(":") : []);
+  const head = parse(halves[0]);
+  const tail = halves.length === 2 ? parse(halves[1]) : [];
+  const missing = 8 - head.length - tail.length;
+  if (halves.length === 1 ? missing !== 0 : missing < 1) return null;
+  const all = [...head, ...Array(halves.length === 2 ? missing : 0).fill("0"), ...tail];
+  const words = all.map((word) => (/^[0-9a-f]{1,4}$/.test(word) ? Number.parseInt(word, 16) : Number.NaN));
+  return words.length === 8 && words.every((word) => !Number.isNaN(word)) ? words : null;
 }

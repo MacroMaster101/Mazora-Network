@@ -10,6 +10,8 @@ import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
 import { isPlaceholderUsername, realDisplayName } from "@/lib/auth/placeholder";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { clearRecoveryGrant, hasRecoveryGrant } from "@/lib/auth/recovery-grant";
+import { clearReplaceGrant } from "@/lib/auth/replace-grant";
+import { accountStatusFor } from "@/lib/data/account-status";
 import { SESSION_ONLY_COOKIE } from "@/lib/supabase/session-cookie";
 import {
   assignableRoles,
@@ -169,6 +171,17 @@ export async function getSignInSessionId(): Promise<string | null> {
 const getAuthUser = cache(async () => {
   const state = await getAuthState();
   if (!state || needsTwoFactor(state.aal, state.hasAuthenticator)) return null;
+  /*
+    Suspended (or deleted) from the Users board. Suspending ends every session,
+    but Supabase Auth itself knows nothing of it, so a suspended member could
+    still mint a token straight from Supabase and use it as a cookie. Refusing
+    them here covers every action that only asks getSessionUserId() or
+    getDiscordIdentity() — orders, likes, notifications — not just getSession.
+    An unreadable status is not treated as suspended: getSession already fails
+    closed on a missing profile, and this must not sign everyone out on a blip.
+  */
+  const status = await accountStatusFor(state.user.id);
+  if (status === "suspended" || status === "deleted") return null;
   return state.user;
 });
 
@@ -289,6 +302,16 @@ export async function getSessionUserId(): Promise<string | null> {
   return (await getAuthUser())?.id ?? null;
 }
 
+/**
+ * For actions that read supabase.auth.getUser() themselves: true only when
+ * getSession would count this visitor as signed in too — code entered, email
+ * confirmed, profile active. A suspended account keeps its Supabase cookie, so
+ * a valid getUser() alone is not enough.
+ */
+export async function hasActiveSession(): Promise<boolean> {
+  return (await getSession()) !== null;
+}
+
 /** Discord identity of the signed-in user, when they authenticated with Discord. */
 export async function getDiscordIdentity(): Promise<DiscordIdentity | null> {
   const user = await getAuthUser();
@@ -383,4 +406,5 @@ export async function destroySession(): Promise<void> {
   store.delete(SESSION_COOKIE);
   store.delete(SESSION_ONLY_COOKIE);
   await clearRecoveryGrant();
+  await clearReplaceGrant();
 }

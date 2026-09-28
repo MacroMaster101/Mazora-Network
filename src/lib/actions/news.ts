@@ -23,6 +23,7 @@ import {
 } from "@/lib/news/image-store";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
+import { isSitePath } from "@/lib/net/safe-url";
 
 /** True when a link already points at our own storage, so no copy is needed. */
 function isOwnStorageUrl(url: string): boolean {
@@ -97,7 +98,8 @@ function parsePublishedAt(value: FormDataEntryValue | null): Date | undefined {
 function cleanAvatarUrl(value: FormDataEntryValue | null): string | null {
   const raw = clean(value, 1000);
   if (!raw) return null;
-  if (raw.startsWith("/")) return raw;
+  // A site path only: "//host" would be another site's image.
+  if (raw.startsWith("/")) return isSitePath(raw) ? raw : null;
   try {
     const url = new URL(raw);
     return url.protocol === "https:" ? url.toString() : null;

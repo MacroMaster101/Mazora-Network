@@ -1,14 +1,14 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { Check, Copy, KeyRound, Loader2, Lock, RotateCw, ShieldCheck } from "lucide-react";
+import { Check, Copy, KeyRound, LifeBuoy, Loader2, Lock, RotateCw, ShieldCheck, Smartphone } from "lucide-react";
 import {
   confirmTwoFactorSetupAction,
   startTwoFactorEnrollmentAction,
   type TwoFactorEnrollment,
   type TwoFactorResult,
 } from "@/lib/actions/two-factor";
-import { Modal } from "@/components/ui";
+import { Input, Modal } from "@/components/ui";
 import { OtpInput } from "@/components/auth/auth-forms";
 import { RecoveryCodesView } from "./recovery-codes-view";
 
@@ -39,14 +39,25 @@ export function TwoFactorSetupScreen({
   const [keyCopied, setKeyCopied] = useState(false);
   const [state, action, pending] = useActionState(confirmTwoFactorSetupAction, initial);
   const started = useRef(false);
+  // Replacing: the current authenticator's code (or a recovery code) comes first.
+  const [confirming, setConfirming] = useState(false);
+  const [useRecovery, setUseRecovery] = useState(false);
 
-  async function start() {
-    setEnrollment(null);
+  async function start(confirmation?: FormData) {
+    if (!confirmation) setEnrollment(null);
     try {
-      setEnrollment(await startTwoFactorEnrollmentAction());
+      setEnrollment(await startTwoFactorEnrollmentAction(confirmation));
     } catch {
       setEnrollment({ ok: false, message: "Two-step verification could not be set up. Please try again." });
     }
+  }
+
+  async function submitConfirmation(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (confirming) return;
+    setConfirming(true);
+    await start(new FormData(event.currentTarget));
+    setConfirming(false);
   }
 
   // Once per open. The ref survives React's development double-invoke, which
@@ -91,12 +102,13 @@ export function TwoFactorSetupScreen({
     ...(replacing ? [] : [{ title: "Save your recovery codes", body: "Your way back in if you ever lose your phone." }]),
   ];
   const activeStep = step === "codes" ? 3 : enrollment?.ok ? 1 : 0;
+  const needsConfirm = Boolean(enrollment?.needsConfirm);
   const intro =
     step === "codes"
       ? "Two-step verification is on. If you ever lose your phone, one of these codes signs you in. Each works once, and this is the only time they are shown."
       : replacing
         ? "Link your new phone. Your current authenticator keeps working until the new one is confirmed."
-        : "After your password, signing in will also ask for a code from an app on your phone — so a leaked password alone can never get into your account."
+        : "After your password, signing in will also ask for a code from an app on your phone — so a leaked password alone can never get into your account. Had it on before? Delete the old Mazora entry from your app first; this QR code replaces it."
   const codeError = state.errors?.code;
   const keyGroups = enrollment?.secret?.match(/.{1,4}/g)?.join(" ") ?? "";
 
@@ -209,12 +221,60 @@ export function TwoFactorSetupScreen({
                   <Loader2 size={18} className="animate-spin" /> Preparing your QR code…
                 </span>
               </div>
+            ) : needsConfirm ? (
+              /* Replacing: prove it's you with the current authenticator (or a
+                 recovery code) before a new one can be linked. */
+              <form onSubmit={submitConfirmation} className="auth-form grid min-h-[18rem] content-center gap-3.5" noValidate>
+                <p className="flex items-center gap-2 text-sm font-semibold text-ink lg:text-base">
+                  <ShieldCheck size={16} className="text-accent-bright" aria-hidden="true" />
+                  {useRecovery ? "Enter a recovery code to confirm it's you" : "First, enter a code from your current app"}
+                </p>
+                <p className="-mt-1 text-xs leading-relaxed text-muted">
+                  So that only you can move two-step verification to a new phone.
+                </p>
+                {useRecovery ? (
+                  <Input
+                    key="recovery"
+                    name="recoveryCode"
+                    placeholder="XXXXX-XXXXX"
+                    aria-label="Recovery code"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    maxLength={20}
+                    aria-invalid={Boolean(enrollment.message)}
+                    className="text-center font-mono tracking-widest"
+                    autoFocus
+                  />
+                ) : (
+                  <OtpInput key="app" id="two-factor-replace-code" name="code" error={enrollment.message} />
+                )}
+                {enrollment.message ? (
+                  <p className="text-sm text-danger" role="alert">
+                    {enrollment.message}
+                  </p>
+                ) : null}
+                <button type="submit" disabled={confirming} className="btn btn-primary auth-submit disabled:opacity-70">
+                  {confirming ? <Loader2 size={17} className="animate-spin" /> : <KeyRound size={17} />} Continue
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseRecovery((value) => !value);
+                    setEnrollment({ ok: false, needsConfirm: true });
+                  }}
+                  className="inline-flex items-center gap-1.5 justify-self-start text-xs font-semibold text-accent-bright hover:underline"
+                >
+                  {useRecovery ? <Smartphone size={14} aria-hidden="true" /> : <LifeBuoy size={14} aria-hidden="true" />}
+                  {useRecovery ? "Use your current app instead" : "Lost your phone? Use a recovery code"}
+                </button>
+              </form>
             ) : !enrollment.ok ? (
               <div className="grid min-h-[18rem] content-center gap-4 text-center">
                 <p className="auth-form-message" role="alert">
                   {enrollment.message}
                 </p>
-                <button type="button" onClick={start} className="btn btn-ghost mx-auto">
+                <button type="button" onClick={() => start()} className="btn btn-ghost mx-auto">
                   <RotateCw size={16} /> Try again
                 </button>
               </div>
