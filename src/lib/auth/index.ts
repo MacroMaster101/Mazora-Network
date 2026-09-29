@@ -318,11 +318,13 @@ export async function getDiscordIdentity(): Promise<DiscordIdentity | null> {
   if (!user) return null;
   const data = { user };
 
+  // Only a real Discord identity counts. user_metadata is writable by the member
+  // (auth.updateUser), and the store trusts this id as verified — it picks who
+  // gets the order DM and ticket — so it must never be read from there.
   const identity = pickDiscordIdentity(data.user.identities);
-  const fromDiscord = Boolean(identity) || data.user.app_metadata?.provider === "discord";
-  if (!fromDiscord) return null;
+  if (!identity) return null;
 
-  const identityData: Record<string, unknown> = identity?.identity_data ?? data.user.user_metadata ?? {};
+  const identityData: Record<string, unknown> = identity.identity_data ?? {};
   const customClaims = identityData.custom_claims as Record<string, unknown> | undefined;
   // "name" arrives as "username#0" — the retired discriminator is dropped.
   const username = String(identityData.name ?? identityData.full_name ?? customClaims?.global_name ?? "")

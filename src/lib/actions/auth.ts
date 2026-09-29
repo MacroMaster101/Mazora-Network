@@ -97,6 +97,20 @@ async function linkVerifiedRegistration(
   });
 }
 
+/**
+ * Marks the browser that started a registration, so the emailed confirm link
+ * only signs in the browser that registered. Anyone can mail a victim the link
+ * to their OWN pending account; without this, one "Confirm" click signed the
+ * victim into the sender's account — the same login CSRF the magiclink type
+ * was dropped for (lib/validation/auth). Lasts as long as the link does.
+ */
+const PENDING_SIGNUP_COOKIE = "mz_pending_signup";
+
+async function markPendingSignup(userId: string): Promise<void> {
+  const store = await cookies();
+  store.set(PENDING_SIGNUP_COOKIE, userId, { ...sessionOnlyMarkerOptions(), maxAge: 24 * 60 * 60 });
+}
+
 /** Record (or clear) the "don't remember me" choice for this browser. */
 async function setSessionOnly(sessionOnly: boolean): Promise<void> {
   const store = await cookies();
@@ -296,6 +310,7 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
             // Do not send mail from a registration collision. The OTP screen's
             // explicit Resend action owns that side effect and has its own
             // stricter rate limit.
+            await markPendingSignup(availability.userId);
             return { ok: true, message: "Your pending registration was found. Enter the code to continue." };
           }
         }
@@ -353,6 +368,7 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
       return { ok: false, message: "That account could not be created. Try another username or email." };
     }
 
+    if (data.user) await markPendingSignup(data.user.id);
     if (data.session) redirect("/");
     // No redirect here: the modal is already mounted client-side, and routing
     // through /?auth=verify-email forces Next.js to re-render the whole home
@@ -483,7 +499,19 @@ export async function confirmEmailAction(_previous: AuthResult, formData: FormDa
     };
   }
 
-  if (type === "signup" || type === "email") await linkVerifiedRegistration(supabase);
+  if (type === "signup" || type === "email") {
+    await linkVerifiedRegistration(supabase);
+    // Only the browser that registered stays signed in (see PENDING_SIGNUP_COOKIE).
+    // Anywhere else — another device, or a victim sent someone else's link —
+    // the email is still confirmed, but the visitor has to log in themselves.
+    const store = await cookies();
+    const startedHere = Boolean(verified.user) && store.get(PENDING_SIGNUP_COOKIE)?.value === verified.user?.id;
+    store.delete(PENDING_SIGNUP_COOKIE);
+    if (!startedHere) {
+      await supabase.auth.signOut({ scope: "local" });
+      return { ok: true, message: "Your email is confirmed. Log in to continue." };
+    }
+  }
   // The reset link's session is the only kind finishPasswordResetAction accepts.
   if (type === "recovery" && !(await issueResetGrant(supabase, verified.session?.access_token))) {
     console.error("Password reset grant could not be issued (reset link)");

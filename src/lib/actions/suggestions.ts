@@ -15,10 +15,12 @@ import {
   canEditReply,
   canPostReply,
   canVote,
+  SUGGESTIONS_CLOSED,
   type ReplyActor,
   type ReplySubject,
   type ThreadState,
 } from "@/lib/suggestions-rules";
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { removeSuggestionImageObject, storeSuggestionImages, storeSuggestionImagesFromUrls } from "@/lib/suggestions/image-store";
 
 /**
@@ -61,6 +63,11 @@ function refreshSuggestionPages(suggestionId: string) {
   revalidatePath(`/support/suggestions/${suggestionId}`);
 }
 
+/** The Site Settings switch; deletes and moderation stay open while it is off. */
+async function boardClosed(): Promise<boolean> {
+  return !(await getSiteGeneralSettings()).suggestionsEnabled;
+}
+
 function toIsoOrNull(value: Date | null): string | null {
   return value ? value.toISOString() : null;
 }
@@ -81,6 +88,7 @@ export async function postSuggestionReplyAction(formData: FormData): Promise<Res
 
   const [session, userId] = await Promise.all([getSession(), getSessionUserId()]);
   if (!session || !userId) return { ok: false, message: "You must be signed in to reply." };
+  if (await boardClosed()) return { ok: false, message: SUGGESTIONS_CLOSED };
 
   const idCheck = suggestionIdSchema.safeParse(suggestionIdRaw);
   if (!idCheck.success) return { ok: false, message: "That suggestion no longer exists." };
@@ -227,6 +235,7 @@ export async function postSuggestionReplyAction(formData: FormData): Promise<Res
 export async function editSuggestionReplyAction(input: { replyId: string; body: string }): Promise<Result> {
   const [session, userId] = await Promise.all([getSession(), getSessionUserId()]);
   if (!session || !userId) return { ok: false, message: "You must be signed in to edit a reply." };
+  if (await boardClosed()) return { ok: false, message: SUGGESTIONS_CLOSED };
 
   const idCheck = replyIdSchema.safeParse(input?.replyId);
   if (!idCheck.success) return { ok: false, message: "That reply no longer exists." };
@@ -397,6 +406,7 @@ export async function deleteSuggestionReplyAction(input: { replyId: string }): P
 export async function toggleSuggestionVoteAction(input: { suggestionId: string }): Promise<Result> {
   const [session, userId] = await Promise.all([getSession(), getSessionUserId()]);
   if (!session || !userId) return { ok: false, message: "You must be signed in to vote." };
+  if (await boardClosed()) return { ok: false, message: SUGGESTIONS_CLOSED };
 
   const idCheck = suggestionIdSchema.safeParse(input?.suggestionId);
   if (!idCheck.success) return { ok: false, message: "That suggestion no longer exists." };
@@ -596,6 +606,7 @@ export async function voteOnSuggestionReplyAction(input: {
 }): Promise<Result & { up?: number; down?: number; mine?: VoteValue }> {
   const [session, userId] = await Promise.all([getSession(), getSessionUserId()]);
   if (!session || !userId) return { ok: false, message: "Sign in to vote." };
+  if (await boardClosed()) return { ok: false, message: SUGGESTIONS_CLOSED };
   if (!replyIdSchema.safeParse(input?.replyId).success || !isVoteValue(input.value)) {
     return { ok: false, message: "That vote could not be saved." };
   }

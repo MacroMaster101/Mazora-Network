@@ -996,6 +996,18 @@ function ShieldCheckIcon() {
 
 export function ConfirmEmailForm({ tokenHash, type }: { tokenHash: string; type: string }) {
   const [state, action, pending] = useActionState(confirmEmailAction, initial);
+  // Confirmed from a browser that did not register: the email is verified, but
+  // confirmEmailAction left it signed out, so it signs in the usual way.
+  if (state.ok) {
+    return (
+      <div className="auth-success-state">
+        <span><ShieldCheckIcon /></span>
+        <h2>Email confirmed</h2>
+        <p>{state.message}</p>
+        <Link href="/login" className="btn btn-primary auth-submit">Continue to login <ArrowRight size={16} /></Link>
+      </div>
+    );
+  }
   return (
     <form action={action} className="auth-form">
       <input type="hidden" name="token_hash" value={tokenHash} />
