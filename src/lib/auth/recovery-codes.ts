@@ -1,11 +1,35 @@
 import "server-only";
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import {
   generateRecoveryCodes,
   hashRecoveryCode,
+  hashRecoveryCodeKeyed,
   normaliseRecoveryCode,
 } from "@/lib/auth/recovery-codes-core";
+
+/**
+ * Its own secret, not one derived from the Supabase key: that key is rotated
+ * during incident response (docs/incident-response.md), and doing so must not
+ * silently void every member's recovery codes. Unset, new codes fall back to
+ * the legacy unkeyed hash, so a deploy without it still works.
+ */
+function recoveryPepper(): string | undefined {
+  return process.env.MFA_RECOVERY_PEPPER?.trim() || undefined;
+}
+
+/** The hash new codes are stored under. */
+function storedHash(userId: string, code: string): string {
+  const pepper = recoveryPepper();
+  return pepper ? hashRecoveryCodeKeyed(pepper, userId, code) : hashRecoveryCode(userId, code);
+}
+
+/** Every hash a typed code may be stored under: keyed now, legacy from before the pepper. */
+function candidateHashes(userId: string, code: string): string[] {
+  const pepper = recoveryPepper();
+  const legacy = hashRecoveryCode(userId, code);
+  return pepper ? [hashRecoveryCodeKeyed(pepper, userId, code), legacy] : [legacy];
+}
 
 /**
  * Two-step verification recovery codes (migration 073). Supabase Auth has none
@@ -21,7 +45,7 @@ export async function issueRecoveryCodes(userId: string): Promise<string[] | nul
   const db = getDb();
   if (!db) return null;
   const codes = generateRecoveryCodes();
-  const rows = codes.map((code) => ({ userId, codeHash: hashRecoveryCode(userId, normaliseRecoveryCode(code)!) }));
+  const rows = codes.map((code) => ({ userId, codeHash: storedHash(userId, normaliseRecoveryCode(code)!) }));
   try {
     await db.transaction(async (tx) => {
       await tx.delete(schema.mfaRecoveryCodes).where(eq(schema.mfaRecoveryCodes.userId, userId));
@@ -66,7 +90,7 @@ export async function consumeRecoveryCode(userId: string, input: string): Promis
       .where(
         and(
           eq(schema.mfaRecoveryCodes.userId, userId),
-          eq(schema.mfaRecoveryCodes.codeHash, hashRecoveryCode(userId, code)),
+          inArray(schema.mfaRecoveryCodes.codeHash, candidateHashes(userId, code)),
           isNull(schema.mfaRecoveryCodes.usedAt),
         ),
       )

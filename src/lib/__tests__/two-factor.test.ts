@@ -7,6 +7,7 @@ import {
   RECOVERY_CODE_COUNT,
   generateRecoveryCodes,
   hashRecoveryCode,
+  hashRecoveryCodeKeyed,
   normaliseRecoveryCode,
 } from "@/lib/auth/recovery-codes-core";
 
@@ -125,6 +126,21 @@ test("recovery code hashes are salted per account", () => {
   const code = normaliseRecoveryCode(generateRecoveryCodes(1)[0])!;
   assert.notEqual(hashRecoveryCode("user-a", code), hashRecoveryCode("user-b", code));
   assert.equal(hashRecoveryCode("user-a", code), hashRecoveryCode("user-a", code));
+});
+
+test("keyed recovery code hashes need the pepper and still fit the legacy column shape", () => {
+  const code = normaliseRecoveryCode(generateRecoveryCodes(1)[0])!;
+  const keyed = hashRecoveryCodeKeyed("example-pepper-one", "user-a", code);
+  assert.match(keyed, /^[0-9a-f]{64}$/);
+  assert.notEqual(keyed, hashRecoveryCode("user-a", code));
+  assert.notEqual(keyed, hashRecoveryCodeKeyed("example-pepper-two", "user-a", code));
+  assert.notEqual(keyed, hashRecoveryCodeKeyed("example-pepper-one", "user-b", code));
+});
+
+test("spending a recovery code still accepts codes stored before the pepper", () => {
+  const source = read("../auth/recovery-codes.ts");
+  assert.match(source, /inArray\(schema\.mfaRecoveryCodes\.codeHash, candidateHashes\(userId, code\)\)/);
+  assert.match(source, /\[hashRecoveryCodeKeyed\(pepper, userId, code\), legacy\]/);
 });
 
 test("pages send signed-out visitors through requireSession, not straight to login", () => {
