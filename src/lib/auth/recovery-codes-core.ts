@@ -1,4 +1,4 @@
-import { createHash, randomInt } from "node:crypto";
+import { createHash, createHmac, randomInt } from "node:crypto";
 
 /**
  * Pure helpers for two-step verification recovery codes, split from
@@ -31,7 +31,23 @@ export function normaliseRecoveryCode(input: string): string | null {
   return cleaned;
 }
 
-/** Salted with the account id, so the same code on two accounts never hashes alike. */
+/**
+ * Legacy, unkeyed hash. Salted with the account id, so the same code on two
+ * accounts never hashes alike, but a ~49-bit code under one SHA-256 can be
+ * brute-forced offline from a leaked table. Still accepted when a code is
+ * spent, so codes issued before the pepper existed keep working.
+ */
 export function hashRecoveryCode(userId: string, normalisedCode: string): string {
   return createHash("sha256").update(`${userId}:${normalisedCode}`, "utf8").digest("hex");
+}
+
+/**
+ * Keyed with the server-only pepper: a leaked mfa_recovery_codes table is
+ * useless without it, because every guess needs the secret too. Same account
+ * salt and the same hex shape as the legacy hash, so both fit one column.
+ */
+export function hashRecoveryCodeKeyed(pepper: string, userId: string, normalisedCode: string): string {
+  return createHmac("sha256", `mazora:mfa-recovery-code:v1:${pepper}`)
+    .update(`${userId}:${normalisedCode}`, "utf8")
+    .digest("hex");
 }

@@ -62,6 +62,11 @@ Rotating the Supabase secret key also invalidates in-progress password resets
 and recovery-code sign-in passes (they are signed with a key derived from it);
 affected members simply sign in again.
 
+`MFA_RECOVERY_PEPPER` is deliberately separate and is **not** rotated with the
+others. Change it only if it leaked together with the `mfa_recovery_codes`
+table: a new value voids every recovery code issued under the old one, so tell
+members with two-step verification to generate new codes from Settings.
+
 ### 2.4 Lost or compromised two-step verification
 - Member lost their phone but has recovery codes: they sign in with a code and
   replace the authenticator in Settings — no action needed.
