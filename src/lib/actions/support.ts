@@ -8,6 +8,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import * as schema from "@/lib/db/schema";
 import { storeSuggestionImages, storeSuggestionImagesFromUrls } from "@/lib/suggestions/image-store";
 import { attachmentCountError, filesFromFormData, imageSizeError, urlsFromFormData } from "@/lib/suggestion-image-rules";
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
+import { SUGGESTIONS_CLOSED } from "@/lib/suggestions-rules";
 
 export interface ActionResult {
   ok: boolean;
@@ -101,6 +103,7 @@ const SAVE_FAILED = "We couldn't save your submission. Please try again shortly.
 export async function submitSuggestion(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const auth = await requireUser();
   if ("ok" in auth) return auth;
+  if (!(await getSiteGeneralSettings()).suggestionsEnabled) return { ok: false, message: SUGGESTIONS_CLOSED };
   const parsed = suggestionSchema.safeParse(fields(formData));
   if (!parsed.success) return { ok: false, errors: zodErrors(parsed.error) };
 

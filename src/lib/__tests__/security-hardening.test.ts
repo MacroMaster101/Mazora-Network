@@ -143,3 +143,31 @@ test("saving a creator code that discounts nothing is rejected", () => {
     /if \(value\.appliesToAllProducts \|\| value\.productIds\.length > 0\) return;/,
   );
 });
+
+test("an emailed confirm link only signs in the browser that registered", () => {
+  const source = readFileSync(new URL("../actions/auth.ts", import.meta.url), "utf8");
+  const register = source.slice(source.indexOf("export async function registerAction"), source.indexOf("export async function oauthAction"));
+  assert.match(register, /markPendingSignup\(data\.user\.id\)/);
+  const confirm = source.slice(source.indexOf("export async function confirmEmailAction"), source.indexOf("export async function confirmEmailCodeAction"));
+  assert.match(confirm, /store\.get\(PENDING_SIGNUP_COOKIE\)\?\.value === verified\.user\?\.id/);
+  assert.ok(confirm.indexOf("signOut({ scope: \"local\" })") > confirm.indexOf("PENDING_SIGNUP_COOKIE"));
+});
+
+test("the Discord identity is never read from member-writable user_metadata", () => {
+  const source = readFileSync(new URL("../auth/index.ts", import.meta.url), "utf8");
+  const fn = source.slice(source.indexOf("export async function getDiscordIdentity"), source.indexOf("export function twoFactorPath"));
+  assert.match(fn, /if \(!identity\) return null;/);
+  assert.doesNotMatch(fn, /\.user_metadata/);
+});
+
+test("member suggestion writes honour the board's closed switch", () => {
+  const suggestions = readFileSync(new URL("../actions/suggestions.ts", import.meta.url), "utf8");
+  for (const name of ["postSuggestionReplyAction", "editSuggestionReplyAction", "toggleSuggestionVoteAction", "voteOnSuggestionReplyAction"]) {
+    const start = suggestions.indexOf(`export async function ${name}`);
+    const body = suggestions.slice(start, suggestions.indexOf("export async function", start + 1));
+    assert.match(body, /if \(await boardClosed\(\)\) return \{ ok: false, message: SUGGESTIONS_CLOSED \};/, name);
+  }
+  const support = readFileSync(new URL("../actions/support.ts", import.meta.url), "utf8");
+  const submit = support.slice(support.indexOf("export async function submitSuggestion"));
+  assert.match(submit, /suggestionsEnabled\) return \{ ok: false, message: SUGGESTIONS_CLOSED \}/);
+});

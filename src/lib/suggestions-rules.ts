@@ -1,5 +1,12 @@
 import type { Role } from "@/lib/types";
 
+/**
+ * Returned by every member write (new suggestion, reply, edit, vote) while
+ * Site Settings has the board switched off. The pages only hide the board;
+ * the actions are still reachable directly, so they check the switch too.
+ */
+export const SUGGESTIONS_CLOSED = "The suggestions board is closed right now.";
+
 /** Shown in place of a removed reply so a thread keeps its shape. */
 export const REPLY_TOMBSTONE = "This reply was removed.";
 
