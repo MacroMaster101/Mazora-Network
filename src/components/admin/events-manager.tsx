@@ -288,6 +288,23 @@ export function EventsManager({
 }
 
 /** "Spawn Build-Off!" → "spawn-build-off"; the server makes the real one unique. */
+/**
+ * A typed cover link as something safe to put in the preview <img>: an
+ * http(s) URL or a path on this site, rebuilt from the parsed URL. Anything
+ * else (javascript:, data:, a typo) gets no preview; the server action applies
+ * its own stricter rules when the form is saved.
+ */
+function previewableImageUrl(value: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(value.trim(), window.location.origin);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  return url.href;
+}
+
 /** A date as a datetime-local value in the editor's own time zone ("2026-10-10T00:00"). */
 function toLocalInput(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -618,8 +635,10 @@ function EventFormModal({
                     setImageFile(null);
                     setImageError(null);
                     if (next.trim()) {
-                      setImagePreview(next.trim());
+                      const preview = previewableImageUrl(next);
+                      setImagePreview(preview);
                       setImageRemoved(false);
+                      if (!preview) setImageError("Paste an https:// image link or a site path like /images/….");
                     } else {
                       setImagePreview(imageRemoved ? null : originalImage);
                     }
