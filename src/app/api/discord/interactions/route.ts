@@ -21,8 +21,9 @@ import {
   sendBotDirectMessage,
   verifyDiscordSignature,
 } from "@/lib/discord";
-import { claimOrderForConfirm, markOrderDecision } from "@/lib/data/orders";
+import { claimOrderDecision, claimOrderForConfirm, markOrderDecision } from "@/lib/data/orders";
 import {
+  DEFAULT_STORE_MESSAGES,
   buildConfirmedDescription,
   buildDeclinedDescription,
   getStoreMessages,
@@ -247,6 +248,20 @@ interface DecisionContext {
   creatorCode: string;
 }
 
+/** What a stale Confirm or Decline shows: the order was not touched and nobody was messaged. */
+async function reportAlreadyHandled(context: DecisionContext): Promise<void> {
+  await editOriginalMessage(
+    context.applicationId,
+    context.interactionToken,
+    withStatus(
+      context.originalEmbed,
+      `ℹ️ Already handled — this order has been actioned, so nothing was changed.`,
+      0x94a3b8,
+      "Manual store request · Already handled",
+    ),
+  );
+}
+
 /** Confirm: open the ticket, post the order in it, DM the buyer the link. */
 async function runConfirm(context: DecisionContext): Promise<void> {
   const guildId = getDiscordGuildId();
@@ -271,16 +286,7 @@ async function runConfirm(context: DecisionContext): Promise<void> {
   const ticketsConfigurable = Boolean(guildId && categoryId);
   const claimed = await claimOrderForConfirm(context.reference, context.actorName, ticketsConfigurable);
   if (!claimed) {
-    await editOriginalMessage(
-      context.applicationId,
-      context.interactionToken,
-      withStatus(
-        context.originalEmbed,
-        `ℹ️ Already handled — this order has been actioned, so nothing was changed.`,
-        0x94a3b8,
-        "Manual store request · Already handled",
-      ),
-    );
+    await reportAlreadyHandled(context);
     return;
   }
 
@@ -708,9 +714,41 @@ async function runTicketLifecycle(context: TicketLifecycleContext): Promise<void
     }),
   );
 }
-/** Reject: DM the buyer, no ticket is created. */
+/** Reject: mark the order declined, then DM the buyer. No ticket is created. */
 async function runReject(context: DecisionContext): Promise<void> {
-  const messages = await getStoreMessages();
+  /*
+    Claim the transition before the DM, the same order runConfirm works in.
+
+    The DM used to go out first and the guarded update ran afterwards with its
+    result ignored. The guard did keep a `completed` order from being dragged
+    back to `rejected`, but by then the buyer had already been told "Order
+    Declined" for something they had received. Nothing with a side effect may
+    run ahead of the claim, so a stale Decline now stops here.
+
+    Only a stale one, though. Orders are saved best-effort, so a request can sit
+    in the staff channel with no row; "nothing changed" for that order is not
+    "already handled", and there is no state a second DM could contradict. That
+    buyer is still told, as they were before the claim existed. A database
+    error is neither: claimOrderDecision throws, and the caller's catch shows
+    the error status instead of guessing.
+  */
+  const claim = await claimOrderDecision(context.reference, "rejected", context.actorName, [
+    "pending",
+    "awaiting_discord_join",
+    "confirmed",
+  ]);
+  if (claim === "already_final") {
+    await reportAlreadyHandled(context);
+    return;
+  }
+
+  // The order is already marked declined (or has no row to mark). If the saved
+  // wording cannot be loaded now, the standard wording still reaches the buyer;
+  // throwing here would leave them declined and never told.
+  const messages = await getStoreMessages().catch((error) => {
+    console.error("Store messages could not be loaded for a decline; using the defaults", error);
+    return structuredClone(DEFAULT_STORE_MESSAGES);
+  });
 
   const dmSent = await sendBotDirectMessage(context.botToken, context.customerId, {
     embeds: [
@@ -726,17 +764,6 @@ async function runReject(context: DecisionContext): Promise<void> {
       },
     ],
   }).catch(() => false);
-
-  /*
-    Same guard. Without it, pressing Decline on an old `completed` order message
-    dragged a delivered sale back to `rejected`, overwrote who handled it, and
-    DM'd the buyer "Order Declined" for something they had already received.
-  */
-  await markOrderDecision(context.reference, "rejected", context.actorName, null, [
-    "pending",
-    "awaiting_discord_join",
-    "confirmed",
-  ]);
 
   await editOriginalMessage(
     context.applicationId,

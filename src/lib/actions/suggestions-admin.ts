@@ -39,7 +39,6 @@ export async function updateSuggestionStatusAction(formData: FormData): Promise<
 
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "open");
-  const title = String(formData.get("title") ?? "Suggestion");
 
   if (!isUuid(id)) return { ok: false, message: "That suggestion no longer exists." };
 
@@ -49,19 +48,25 @@ export async function updateSuggestionStatusAction(formData: FormData): Promise<
   }
 
   try {
-    await db
+    // The title in the audit row is the stored one, read back from the row
+    // that was just updated. The form also sends a `title`, but that is
+    // whatever the caller typed, and an audit entry must describe the real
+    // suggestion rather than a label the person being audited chose.
+    const [updated] = await db
       .update(schema.suggestions)
       .set({
         status,
         updatedAt: new Date(),
       })
-      .where(eq(schema.suggestions.id, id));
+      .where(eq(schema.suggestions.id, id))
+      .returning({ title: schema.suggestions.title });
+    if (!updated) return { ok: false, message: "That suggestion no longer exists." };
 
     await db.insert(schema.auditLogs).values({
       action: "suggestions.status_update",
       targetType: "suggestion",
       targetId: id,
-      metadata: { title, status, by: session.username },
+      metadata: { title: updated.title, status, by: session.username },
     });
 
     revalidatePath("/admin/suggestions");
@@ -171,7 +176,6 @@ export async function deleteSuggestionAction(formData: FormData): Promise<Sugges
   if (!db) return { ok: false, message: "Database is not connected." };
 
   const id = String(formData.get("id") ?? "");
-  const title = String(formData.get("title") ?? "Suggestion");
 
   if (!isUuid(id)) return { ok: false, message: "That suggestion no longer exists." };
 
@@ -203,7 +207,21 @@ export async function deleteSuggestionAction(formData: FormData): Promise<Sugges
   try {
     // Delete related votes first if any
     await db.delete(schema.suggestionVotes).where(eq(schema.suggestionVotes.suggestionId, id));
-    await db.delete(schema.suggestions).where(eq(schema.suggestions.id, id));
+    // The deleted row hands back its own title: afterwards it is gone, and the
+    // `title` the form sends is caller-typed, so it must not be what the audit
+    // trail records as having been deleted.
+    const [deleted] = await db
+      .delete(schema.suggestions)
+      .where(eq(schema.suggestions.id, id))
+      .returning({ title: schema.suggestions.title });
+    // Already gone (a second click, or another moderator got there first).
+    // Still a success for the caller, whose list should drop the row, but
+    // nothing was deleted by this call, so nothing is written to the audit log.
+    if (!deleted) {
+      revalidatePath("/admin/suggestions");
+      return { ok: true, message: "That suggestion was already deleted." };
+    }
+    const title = deleted.title;
 
     await db.insert(schema.auditLogs).values({
       action: "suggestions.delete",

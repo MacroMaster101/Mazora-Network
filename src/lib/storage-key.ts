@@ -8,8 +8,8 @@
  * Callers compose keys from request data. `uploadArticleImageAction` builds
  * `custom/${id}-${Date.now()}` where `id` is `clean(formData.get("id"), 64)` —
  * trimmed and truncated, but never checked for shape, even though the column
- * it addresses is a uuid. `adminSaveGalleryAction` does the same. The upload
- * then runs with `upsert: true`.
+ * it addresses is a uuid. `adminSaveGalleryAction` does the same, and its
+ * edits ask the upload to overwrite.
  *
  * Nothing here is reachable without staff rights, and Supabase scopes every
  * operation to one bucket, so a crafted key cannot leave `news-images` or read
@@ -35,8 +35,8 @@ export const MAX_STORAGE_KEY_LENGTH = 200;
  *
  * Null rather than a fallback string on purpose: a caller that cannot produce a
  * real key should refuse the upload, not invent one. Returning `""` here would
- * put the object at the bucket root under a bare extension and, with upsert on,
- * overwrite whatever previous caller did the same.
+ * put the object at the bucket root under a bare extension, where every
+ * caller that did the same would collide on one object.
  *
  * `.` and `..` segments are dropped rather than rejected outright. The point is
  * to make the key harmless, and a request carrying one is far more likely to be

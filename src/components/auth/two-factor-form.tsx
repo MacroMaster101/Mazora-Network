@@ -23,7 +23,7 @@ function AuthenticatorCodeForm({ next }: { next: string }) {
   return (
     <form action={action} className="auth-form mt-6 grid gap-4" noValidate>
       <input type="hidden" name="next" value={next} />
-      <OtpInput id="two-factor-code" name="code" error={codeError} />
+      <OtpInput id="two-factor-code" name="code" error={codeError} autoSubmit />
       {codeError ? (
         <p id="two-factor-code-error" className="text-sm text-danger" role="alert">
           {codeError}

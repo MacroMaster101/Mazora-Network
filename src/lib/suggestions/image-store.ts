@@ -1,7 +1,7 @@
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { NEWS_IMAGE_BUCKET, rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
-import { MAX_IMAGES_PER_POST } from "@/lib/suggestion-image-rules";
+import { MAX_IMAGE_BYTES, MAX_IMAGES_PER_POST } from "@/lib/suggestion-image-rules";
 
 /**
  * Storage for images attached to suggestions and replies.
@@ -38,6 +38,9 @@ export async function storeSuggestionImages(
 
   for (const [index, file] of accepted.entries()) {
     try {
+      // Size-check BEFORE buffering: storeImageBytes enforces the same ceiling,
+      // but only once the whole file is already in memory.
+      if (file.size > MAX_IMAGE_BYTES) continue;
       const bytes = new Uint8Array(await file.arrayBuffer());
       const keyBase = `suggestions/${target.kind}-${target.id}-${index}-${Date.now()}`;
       const result = await storeImageBytes(bytes, keyBase);

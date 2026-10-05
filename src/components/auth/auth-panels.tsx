@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { MailCheck } from "lucide-react";
+import { useActionState, useState } from "react";
+import { ArrowRight, KeyRound, Loader2, MailCheck } from "lucide-react";
+import { confirmEmailAction, type AuthResult } from "@/lib/actions/auth";
 import { otpTypes } from "@/lib/validation/auth";
 import { AuthCard } from "./auth-card";
 import { AuthFlowLink } from "./auth-dialog-provider";
@@ -10,6 +11,9 @@ import { ConfirmEmailForm, ForgotPasswordFlow, LoginForm, PasswordResetForm, Reg
 const loginErrors: Record<string, string> = {
   oauth_failed: "Social login could not be completed. Please try again.",
   session_expired: "Your sign-in session expired. Please start again.",
+  // Set by auth/callback when the account's status could not be read; the
+  // wording matches loginAction's message for the same case.
+  auth_unavailable: "Authentication is temporarily unavailable. Please try again.",
 };
 
 export function LoginPanel({ next, error }: { next?: string; error?: string }) {
@@ -96,10 +100,48 @@ export function ConfirmEmailPanel({ tokenHash, type }: { tokenHash?: string; typ
     );
   }
 
+  // A reset link shares this page with the sign-up link, but must never read as
+  // "confirm your email": someone sent a stranger's reset link would otherwise
+  // be asked to confirm an address, which sounds harmless.
+  if (type === "recovery") {
+    return (
+      <AuthCard kicker="Account recovery" title="Reset your password." subtitle="Continue to choose a new password for your account.">
+        <ResetLinkForm tokenHash={tokenHash!} />
+      </AuthCard>
+    );
+  }
+
   return (
     <AuthCard kicker="Final checkpoint" title="Confirm your email." subtitle="Click below to finish verifying your account.">
       <ConfirmEmailForm tokenHash={tokenHash!} type={type!} />
     </AuthCard>
+  );
+}
+
+const resetLinkInitial: AuthResult = { ok: false };
+
+/**
+ * The reset link's own button. Success redirects to /reset-password, so the
+ * only thing left to show is why a link was refused: opened in a browser that
+ * did not ask for the reset, the answer is to request a new one from here
+ * (the link below). The emailed code is no help there: it can only be typed
+ * after asking for a reset, and asking again replaces it.
+ */
+function ResetLinkForm({ tokenHash }: { tokenHash: string }) {
+  const [state, action, pending] = useActionState(confirmEmailAction, resetLinkInitial);
+  return (
+    <form action={action} className="auth-form">
+      <input type="hidden" name="token_hash" value={tokenHash} />
+      <input type="hidden" name="type" value="recovery" />
+      {state.message ? <p className="auth-form-message" role="alert">{state.message}</p> : null}
+      <button type="submit" disabled={pending} className="btn btn-primary auth-submit disabled:opacity-70">
+        {pending ? <Loader2 size={17} className="animate-spin" /> : <KeyRound size={17} />} Reset my password
+        <ArrowRight size={16} className="ml-auto" />
+      </button>
+      <p className="auth-switch-copy">
+        Link not working? <AuthFlowLink view="forgot-password" href="/forgot-password">Request a new reset</AuthFlowLink>
+      </p>
+    </form>
   );
 }
 

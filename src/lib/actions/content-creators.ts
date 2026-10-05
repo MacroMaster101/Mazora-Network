@@ -7,8 +7,7 @@ import { eq } from "drizzle-orm";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageModule, CONTENT_CREATORS_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
-import { rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
-import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
+import { isOwnPublicImageUrl, rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
 import { SOCIAL_PLATFORM_KEYS, isValidSocialUrl, type SocialPlatform } from "@/lib/creator-socials";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
 import { resolveYouTubeProfileImage } from "@/lib/youtube-profile";
@@ -75,7 +74,10 @@ async function resolveCreatorImage(
     return { url: stored?.url ?? youtubeAvatar };
   }
   if (rawLink.startsWith("/images/") && !rawLink.includes("..")) return { url: rawLink };
-  if (isSupabaseStorageObjectUrl(rawLink, process.env.NEXT_PUBLIC_SUPABASE_URL)) return { url: rawLink };
+  // Kept as-is only when it is already in our public image bucket. Any other
+  // link on the storage origin (another bucket, a signed route) is re-hosted
+  // below like a link to anyone else's site.
+  if (isOwnPublicImageUrl(rawLink)) return { url: rawLink };
 
   const stored = await rehostImageFromUrl(rawLink, keyBase);
   if (!stored) {

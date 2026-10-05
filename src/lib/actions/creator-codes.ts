@@ -4,6 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { and, eq, ne } from "drizzle-orm";
 import { getProducts } from "@/lib/data/content";
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
+import { STORE_PAUSED } from "@/lib/store-order-rules";
 import { normaliseCode } from "@/lib/data/creator-codes";
 import { MAX_PERCENT_OFF } from "@/lib/store-discount";
 import { throttleAuthAction } from "@/lib/rate-limit";
@@ -49,6 +51,11 @@ export async function previewCreatorCode(
   if (!raw || raw.length > 40) {
     return { ok: false, message: "Enter a discount code." };
   }
+
+  // Same switch submitStoreRequest re-checks: a paused store takes no orders,
+  // so it does not quote discounts for them either. Read before the throttle
+  // so a paused store does not spend a caller's attempts.
+  if (!(await getSiteGeneralSettings()).storeEnabled) return { ok: false, message: STORE_PAUSED };
 
   const throttled = await throttleAuthAction("creator-code", {
     limit: 20,

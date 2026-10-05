@@ -74,78 +74,6 @@ async function enrichPatchAuthors(
   });
 }
 
-/** Fallback patch updates imported from Discord #PATCH-UPDATE channel */
-const DISCORD_PATCH_UPDATES: PatchUpdate[] = [
-  {
-    id: "patch-1-15",
-    version: "Patch Update 1.15",
-    targetMode: "Survival - 1.21.11",
-    date: "2026-07-26T20:49:00Z",
-    author: "Mazora Team",
-    authorRole: "Owner",
-    changes: [
-      "Clearlag added with optimizations",
-      "Playtime tracker added /playtime",
-      "You can now sell wheat",
-    ],
-    discordChannel: "#PATCH-UPDATE",
-  },
-  {
-    id: "patch-1-14",
-    version: "Patch Update 1.14",
-    targetMode: "Survival - 1.21.11",
-    date: "2026-07-22T02:34:00Z",
-    author: "Mazora Team",
-    authorRole: "Owner",
-    changes: ["Orders System Added"],
-    discordChannel: "#PATCH-UPDATE",
-  },
-  {
-    id: "patch-1-13",
-    version: "Patch Update 1.13",
-    targetMode: "Survival - 1.21.11",
-    date: "2026-07-14T15:15:00Z",
-    author: "Mazora Team",
-    authorRole: "Owner",
-    changes: [
-      "Teleporting cool down = 20seconds",
-      "Teleport delay = 3 seconds",
-      "/heal commad cool down = 1 hour",
-      "Delay time between chat messages = 3 seconds",
-      "New server text colors and /msg format",
-    ],
-    discordChannel: "#PATCH-UPDATE",
-  },
-  {
-    id: "patch-1-12",
-    version: "Patch Update 1.12",
-    targetMode: "Survival - 1.21.11",
-    date: "2026-07-05T12:00:00Z",
-    author: "Mazora Team",
-    authorRole: "Owner",
-    changes: [
-      "Nether World expansion & spawn safety zone",
-      "Custom Enchants balancing & bug fixes",
-      "Daily Vote Rewards doubled for top voters",
-    ],
-    discordChannel: "#PATCH-UPDATE",
-  },
-  {
-    id: "patch-1-11",
-    version: "Patch Update 1.11",
-    targetMode: "Survival - 1.21.11",
-    date: "2026-06-28T18:30:00Z",
-    author: "Mazora Team",
-    authorRole: "Owner",
-    changes: [
-      "Auction House added /ah for player trading",
-      "Bedrock crossplay protocol update to latest version",
-      "Economy balance adjustments & shop updates",
-    ],
-    discordChannel: "#PATCH-UPDATE",
-  },
-];
-
 export async function getPatchUpdates(customChannelId?: string): Promise<PatchUpdate[]> {
   const token = getDiscordBotToken();
 
@@ -155,20 +83,17 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
   // staff channels) if a future caller forwards unvalidated input — the guard
   // lives here, next to the bot-token fetch it protects, rather than relying on
   // every call site to validate first.
-  const allowedChannels = [
-    process.env.DISCORD_PATCH_CHANNEL_ID,
-    process.env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID,
-  ].filter((value): value is string => Boolean(value));
+  const patchChannelId = process.env.DISCORD_PATCH_CHANNEL_ID?.trim();
+  const announcementsChannelId = process.env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID?.trim();
+  const allowedChannels = [patchChannelId, announcementsChannelId].filter(
+    (value): value is string => Boolean(value),
+  );
   const requestedChannel =
     customChannelId && /^\d{17,20}$/.test(customChannelId) && allowedChannels.includes(customChannelId)
       ? customChannelId
       : undefined;
 
-  const channelId =
-    requestedChannel ||
-    process.env.DISCORD_PATCH_CHANNEL_ID ||
-    process.env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID ||
-    "1193207365906997379";
+  const channelId = requestedChannel || patchChannelId || announcementsChannelId || "";
 
   if (token && channelId) {
     try {
@@ -302,9 +227,12 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
         return enrichPatchAuthors(storedPatches, true);
       }
     } catch {
-      // Fallback below
+      // Nothing to show; see below.
     }
   }
 
-  return enrichPatchAuthors(DISCORD_PATCH_UPDATES, true);
+  // Neither Discord nor the news table has a note. An empty list lets the page
+  // say so. Invented sample notes used to be returned here, and the public
+  // /play page showed them to visitors as if they were releases.
+  return [];
 }

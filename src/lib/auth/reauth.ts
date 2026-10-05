@@ -55,6 +55,10 @@ export function accountHasPassword(user: {
   user_metadata?: Record<string, unknown> | null;
 } | null | undefined): boolean {
   if (!user) return false;
+  // An explicit "no": the server removed a password it could not trust
+  // (lib/auth/signup-trust), and the email identity outlives it. Only the
+  // service role can write this, and the next password set turns it back.
+  if (user.app_metadata?.has_password === false) return false;
   if ((user.identities ?? []).some((identity) => identity?.provider === "email")) return true;
   if (user.app_metadata?.has_password === true) return true;
   return user.user_metadata?.has_password === true;

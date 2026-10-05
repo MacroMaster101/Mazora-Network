@@ -8,6 +8,8 @@ import {
   normaliseRecoveryCode,
 } from "@/lib/auth/recovery-codes-core";
 
+let warnedMissingPepper = false;
+
 /**
  * Its own secret, not one derived from the Supabase key: that key is rotated
  * during incident response (docs/incident-response.md), and doing so must not
@@ -15,7 +17,17 @@ import {
  * the legacy unkeyed hash, so a deploy without it still works.
  */
 function recoveryPepper(): string | undefined {
-  return process.env.MFA_RECOVERY_PEPPER?.trim() || undefined;
+  const pepper = process.env.MFA_RECOVERY_PEPPER?.trim() || undefined;
+  // The fallback is right for local dev and for codes issued before the pepper,
+  // but in production it is a misconfiguration nobody would otherwise notice.
+  // Once per server instance so it cannot flood the logs.
+  if (!pepper && process.env.NODE_ENV === "production" && !warnedMissingPepper) {
+    warnedMissingPepper = true;
+    console.error(
+      "MFA_RECOVERY_PEPPER is not set: recovery codes are being hashed without the pepper. Set MFA_RECOVERY_PEPPER in the production environment.",
+    );
+  }
+  return pepper;
 }
 
 /** The hash new codes are stored under. */

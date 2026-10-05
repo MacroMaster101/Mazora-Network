@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import type { OverlayOptions } from "sharp";
+import { SHARP_INPUT } from "@/lib/image-limits";
 import type { SkinFormat } from "./process";
 
 /**
@@ -92,7 +93,7 @@ const BODY_PARTS: BodyPart[] = [
 ];
 
 export async function compositeBody(bytes: Buffer, format: SkinFormat): Promise<Buffer> {
-  const source = sharp(bytes);
+  const source = sharp(bytes, SHARP_INPUT);
   const layers: OverlayOptions[] = [];
 
   for (const part of BODY_PARTS) {
@@ -101,7 +102,7 @@ export async function compositeBody(bytes: Buffer, format: SkinFormat): Promise<
 
     let piece = await source.clone().extract(spec.region).png().toBuffer();
     if (spec.mirror) {
-      piece = await sharp(piece).flop().png().toBuffer();
+      piece = await sharp(piece, SHARP_INPUT).flop().png().toBuffer();
     }
 
     /*
@@ -117,7 +118,7 @@ export async function compositeBody(bytes: Buffer, format: SkinFormat): Promise<
         .extract({ ...part.overlay, width: part.region.width, height: part.region.height })
         .png()
         .toBuffer();
-      piece = await sharp(piece).composite([{ input: overlay, blend: "over" }]).png().toBuffer();
+      piece = await sharp(piece, SHARP_INPUT).composite([{ input: overlay, blend: "over" }]).png().toBuffer();
     }
 
     layers.push({ input: piece, left: part.dest.left, top: part.dest.top });
@@ -135,7 +136,9 @@ export async function compositeBody(bytes: Buffer, format: SkinFormat): Promise<
     .png()
     .toBuffer();
 
-  return sharp(composed)
+  // Intermediate buffers are sharp's own output, but every decode in this file
+  // carries the limit so there is no call to reason about as an exception.
+  return sharp(composed, SHARP_INPUT)
     .resize(BODY_WIDTH * BODY_SCALE, BODY_HEIGHT * BODY_SCALE, { kernel: "nearest" })
     .png()
     .toBuffer();

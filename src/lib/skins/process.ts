@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { SHARP_INPUT } from "@/lib/image-limits";
 
 /**
  * Real Minecraft skin dimensions. 64x64 is the modern format (post-1.8),
@@ -85,7 +86,7 @@ export function validateSkinBytes(
  * display size.
  */
 export async function cropAndCompositeHead(bytes: Buffer, format: SkinFormat): Promise<Buffer> {
-  const source = sharp(bytes);
+  const source = sharp(bytes, SHARP_INPUT);
 
   const headCrop = await source
     .clone()
@@ -98,13 +99,15 @@ export async function cropAndCompositeHead(bytes: Buffer, format: SkinFormat): P
       .clone()
       .extract({ left: 40, top: 8, width: 8, height: 8 })
       .toBuffer();
-    composed = await sharp(headCrop)
+    composed = await sharp(headCrop, SHARP_INPUT)
       .composite([{ input: overlayCrop, blend: "over" }])
       .png()
       .toBuffer();
   }
 
-  return sharp(composed)
+  // The crops above are sharp's own output, but every decode in this file
+  // carries the limit so there is no call to reason about as an exception.
+  return sharp(composed, SHARP_INPUT)
     .resize(256, 256, { kernel: "nearest" })
     .png()
     .toBuffer();

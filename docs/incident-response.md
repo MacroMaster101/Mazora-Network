@@ -32,7 +32,7 @@ you go — it becomes the incident record.
   maintenance banner; use it while you work.
 - **Pause sign-ups** — Admin → Settings → turn off *User Registration*.
 - **Take a staff account's powers away** — Admin → Users → change its rank, or
-  from a terminal: `npm run role:set -- their@email.com member`.
+  from a terminal: `npm run role:set -- their@example.com member`.
 
 ### 2.2 Sign people out
 - **One account**: Supabase → Authentication → Users → the user → *Sign out* /
@@ -71,7 +71,7 @@ members with two-step verification to generate new codes from Settings.
 - Member lost their phone but has recovery codes: they sign in with a code and
   replace the authenticator in Settings — no action needed.
 - Lost phone **and** codes: after confirming identity (e.g. from their verified
-  Discord), a Web Dev runs `npm run mfa:reset -- their@email.com`. It is logged.
+  Discord), a Web Dev runs `npm run mfa:reset -- their@example.com`. It is logged.
 
 ## 3. Investigate
 - Audit log entries around the time of the incident; the actor id and the `by`

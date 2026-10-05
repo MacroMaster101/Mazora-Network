@@ -80,11 +80,14 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
         // Mirrors accountHasPassword() in src/lib/actions/auth.ts. app_metadata is
         // where the flag is written now (only the service role can set it);
         // user_metadata is still read so accounts flagged before that change
-        // keep showing the current-password field.
+        // keep showing the current-password field. An explicit `false` there
+        // means the server removed an untrusted password (lib/auth/signup-trust)
+        // and wins over the rest, exactly as in accountHasPassword().
         hasPassword =
-          (data.user.identities?.some((i) => i.provider === "email") ?? false) ||
-          data.user.app_metadata?.has_password === true ||
-          Boolean(data.user.user_metadata?.has_password);
+          data.user.app_metadata?.has_password !== false &&
+          ((data.user.identities?.some((i) => i.provider === "email") ?? false) ||
+            data.user.app_metadata?.has_password === true ||
+            Boolean(data.user.user_metadata?.has_password));
 
         // Everything the Security card shows, from the record already fetched.
         // getSession() is only for the access token's `amr` claim, which is the

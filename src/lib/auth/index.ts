@@ -11,7 +11,7 @@ import { isPlaceholderUsername, realDisplayName } from "@/lib/auth/placeholder";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { clearRecoveryGrant, hasRecoveryGrant } from "@/lib/auth/recovery-grant";
 import { clearReplaceGrant } from "@/lib/auth/replace-grant";
-import { accountStatusFor } from "@/lib/data/account-status";
+import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { SESSION_ONLY_COOKIE } from "@/lib/supabase/session-cookie";
 import {
   assignableRoles,
@@ -177,10 +177,13 @@ const getAuthUser = cache(async () => {
     still mint a token straight from Supabase and use it as a cookie. Refusing
     them here covers every action that only asks getSessionUserId() or
     getDiscordIdentity() — orders, likes, notifications — not just getSession.
-    An unreadable status is not treated as suspended: getSession already fails
-    closed on a missing profile, and this must not sign everyone out on a blip.
+    A status that could not be read at all is refused too: otherwise a failing
+    database would quietly let a suspended member back in. accountStatusFor
+    tries a second source before it gives up, so one bad connection does not
+    sign everyone out. An account with no profile row yet (null) carries on.
   */
   const status = await accountStatusFor(state.user.id);
+  if (status === STATUS_UNREADABLE) return null;
   if (status === "suspended" || status === "deleted") return null;
   return state.user;
 });

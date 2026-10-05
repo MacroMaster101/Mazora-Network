@@ -2,6 +2,7 @@ import "server-only";
 
 import type { User } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { USERNAME_MAX_LENGTH, cleanDisplayName } from "@/lib/validation/auth";
 
 export interface UserProfile {
   username: string;
@@ -11,8 +12,10 @@ export interface UserProfile {
   account_status: "pending" | "active" | "suspended" | "deleted";
 }
 
+// Same limits as the sign-up form and the database trigger (migration 076):
+// user_metadata is whatever the caller of the auth API sent.
 function cleanUsername(value: unknown): string {
-  const cleaned = String(value ?? "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 24);
+  const cleaned = String(value ?? "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, USERNAME_MAX_LENGTH);
   return cleaned.length >= 3 ? cleaned : "player";
 }
 
@@ -35,9 +38,7 @@ export async function ensureUserProfile(user: User): Promise<UserProfile | null>
   const requested = cleanUsername(
     metadata.username ?? metadata.preferred_username ?? metadata.user_name ?? user.email?.split("@")[0],
   );
-  const displayName = String(
-    metadata.display_name ?? metadata.full_name ?? metadata.name ?? requested,
-  ).trim().slice(0, 64) || requested;
+  const displayName = cleanDisplayName([metadata.display_name, metadata.full_name, metadata.name], requested);
   const fallback = `${requested.slice(0, 15)}_${user.id.replaceAll("-", "").slice(0, 8)}`;
 
   for (const username of [requested, fallback]) {

@@ -190,22 +190,28 @@ async function minecraftProfiles(): Promise<Map<string, { username: string; skin
 
   Pages until short or empty, with a hard ceiling so a runaway loop can never
   hang an admin render.
+
+  `truncated` is true when the ceiling was hit with the last page still full,
+  so there may be accounts that were never read. Display callers can ignore it;
+  a caller that must know an account does NOT exist has to treat it as unknown.
 */
 const USER_PAGE_SIZE = 200;
 const USER_PAGE_LIMIT = 50;
 
 export async function listAllAuthUsers(
   admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
-): Promise<{ users: AuthUserRecord[]; error: string | null }> {
+): Promise<{ users: AuthUserRecord[]; error: string | null; truncated: boolean }> {
   const users: AuthUserRecord[] = [];
+  let truncated = false;
   for (let page = 1; page <= USER_PAGE_LIMIT; page += 1) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: USER_PAGE_SIZE });
-    if (error) return { users, error: error.message };
+    if (error) return { users, error: error.message, truncated: false };
     const batch = data?.users ?? [];
     users.push(...(batch as AuthUserRecord[]));
     if (batch.length < USER_PAGE_SIZE) break;
+    if (page === USER_PAGE_LIMIT) truncated = true;
   }
-  return { users, error: null };
+  return { users, error: null, truncated };
 }
 
 /** Every account, newest rank-holders included. Returns null when unconfigured. */

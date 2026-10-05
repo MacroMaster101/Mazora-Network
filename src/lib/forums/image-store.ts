@@ -3,7 +3,7 @@ import { inArray } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { NEWS_IMAGE_BUCKET, rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
-import { MAX_IMAGES_PER_POST } from "@/lib/suggestion-image-rules";
+import { MAX_IMAGE_BYTES, MAX_IMAGES_PER_POST } from "@/lib/suggestion-image-rules";
 
 /**
  * Images attached to forum posts.
@@ -29,6 +29,9 @@ export async function attachForumPostImages(
   const stored: { url: string; storageKey: string; sortOrder: number }[] = [];
   for (const [index, file] of files.slice(0, MAX_IMAGES_PER_POST).entries()) {
     try {
+      // Size-check BEFORE buffering: storeImageBytes enforces the same ceiling,
+      // but only once the whole file is already in memory.
+      if (file.size > MAX_IMAGE_BYTES) continue;
       const bytes = new Uint8Array(await file.arrayBuffer());
       const result = await storeImageBytes(bytes, `forums/post-${postId}-${index}-${Date.now()}`);
       if (result) stored.push({ url: result.url, storageKey: result.key, sortOrder: index });

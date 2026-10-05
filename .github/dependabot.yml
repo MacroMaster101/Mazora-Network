@@ -2,6 +2,8 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /
+    # main only takes pull requests from Dev, so updates are opened there.
+    target-branch: Dev
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
@@ -17,6 +19,8 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
+    # main only takes pull requests from Dev, so updates are opened there.
+    target-branch: Dev
     schedule:
       interval: monthly
     open-pull-requests-limit: 3

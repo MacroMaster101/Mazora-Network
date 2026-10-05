@@ -552,12 +552,13 @@ describe("email verification lifecycle", () => {
     assert.match(sessionSource, /profile\.account_status !== "active"/);
     assert.match(registerSource, /identity: parsed\.data\.email/);
     assert.match(registerSource, /pendingRegistrationCredentialsMatch\(parsed\.data\.email, parsed\.data\.password\)/);
-    assert.match(actionSource, /sameEmail && !owner\.user\?\.email_confirmed_at/);
-    assert.match(actionSource, /linkVerifiedRegistration\(supabase\)/);
-    assert.ok(
-      registerSource.indexOf("pendingRegistrationCredentialsMatch") < registerSource.indexOf("getUserById"),
-      "the pending password must be proved before reading the username owner's email",
-    );
+    // Resuming needs the pending account's password AND its own name; the plan
+    // decides (signup-trust.test.ts covers every case), and the browser is
+    // marked without another email being sent.
+    assert.match(registerSource, /if \(plan\.step === "resume"\) \{\s*await markPendingSignup\(plan\.userId\);/);
+    // The IGN is linked only for the browser that registered the account.
+    assert.match(actionSource, /if \(registeredHere\) \{\s*await linkVerifiedRegistration\(user, true\);/);
+    assert.equal((actionSource.match(/linkVerifiedRegistration\(user, true\)/g) ?? []).length, 1);
     assert.doesNotMatch(
       registerSource,
       /auth\.resend\(/,

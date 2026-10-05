@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getSession, hasAtLeast } from "@/lib/auth";
+import { getSession, getSessionUserId } from "@/lib/auth";
+import { canManagePlay } from "@/lib/auth/permissions";
 import { getPatchUpdates } from "@/lib/data/patches";
 
 export const dynamic = "force-dynamic";
@@ -8,10 +9,17 @@ export const revalidate = 0;
 
 /**
  * Reads recent messages from a Discord channel and renders them as patch notes.
- * Only reachable by administrators, only for a server-approved channel, and
- * only ever called from the Play page editor in the admin panel.
+ * Only reachable by staff who may edit the Play page, only for a
+ * server-approved channel, and only ever called from the Play page editor in
+ * the admin panel.
  *
- * The role check is not optional. `channelId` is caller-supplied and is handed
+ * The check is the Play module permission, the same one /admin/play and
+ * savePlayConfigAction use. It used to be a fixed "administrator or above",
+ * which disagreed with the editor both ways: staff granted Play could open the
+ * editor but its sync button always failed, and an administrator the owner had
+ * removed from Play could still call this directly.
+ *
+ * The permission check is not optional. `channelId` is caller-supplied and is handed
  * to the Discord API using the *bot* token, so an unauthenticated caller could
  * otherwise read any channel the bot can see — order tickets, closed-ticket
  * transcripts and staff channels included. `getPatchUpdates` also drops its
@@ -20,7 +28,8 @@ export const revalidate = 0;
  */
 export async function GET(request: Request) {
   const session = await getSession();
-  if (!session || !hasAtLeast(session.role, "administrator")) {
+  const userId = session ? await getSessionUserId() : null;
+  if (!session || !(await canManagePlay(session, userId))) {
     return NextResponse.json(
       { ok: false, error: "unauthorized" },
       { status: 401, headers: { "Cache-Control": "no-store" } },
@@ -41,7 +50,24 @@ export async function GET(request: Request) {
       .map((value) => value?.trim())
       .filter((value): value is string => Boolean(value)),
   );
-  if (!requested || !approvedChannelIds.has(requested)) {
+  // No channelId means "use the configured one". It is resolved here and passed
+  // explicitly, because getPatchUpdates() only skips its patch-keyword filter
+  // for an explicit channel: this sync must import every message from the
+  // channel, as it did when the editor always sent an id. The resolved id is
+  // one of the allowlisted env channels, so the allowlist still holds. With
+  // neither set there is nothing to read.
+  const configuredChannelId =
+    process.env.DISCORD_PATCH_CHANNEL_ID?.trim() ||
+    process.env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID?.trim() ||
+    "";
+  const channelId = requested || configuredChannelId;
+  if (!channelId) {
+    return NextResponse.json(
+      { ok: false, error: "no_channel_configured" },
+      { status: 404, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  if (requested && !approvedChannelIds.has(requested)) {
     return NextResponse.json(
       { ok: false, error: "channel_not_approved" },
       { status: 403, headers: { "Cache-Control": "no-store" } },
@@ -49,7 +75,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const patches = await getPatchUpdates(requested);
+    const patches = await getPatchUpdates(channelId);
     revalidatePath("/play");
     revalidatePath("/admin/play");
     revalidatePath("/admin/pages");

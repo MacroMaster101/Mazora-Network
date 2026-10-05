@@ -12,7 +12,7 @@ import { redeemRecoveryCode, removeAllFactors, removeFactor } from "@/lib/auth/t
 import { clearRecoveryGrant, issueRecoveryGrant } from "@/lib/auth/recovery-grant";
 import { clearReplaceGrant, hasReplaceGrant, issueReplaceGrant } from "@/lib/auth/replace-grant";
 import { confirmSecondStep as confirmSecondStepFor } from "@/lib/auth/reauth";
-import { accountStatusFor } from "@/lib/data/account-status";
+import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { SUSPENDED_PATH } from "@/lib/auth/login-identifier";
 
 /**
@@ -157,8 +157,20 @@ export async function startTwoFactorEnrollmentAction(formData?: FormData): Promi
     only lets an aal2 session add a factor while a verified one exists, and a
     recovery-code sign-in is not aal2. The old authenticator is what was lost,
     so it is removed first and the new one set up in its place.
+
+    A setup abandoned at the QR code therefore leaves two-step verification
+    off. The removal is written to the audit log at this point, not only when
+    the new authenticator is confirmed, so that case is visible afterwards.
   */
   if (error?.code === "insufficient_aal" && actor.recovered && (await removeAllFactors(actor.user.id))) {
+    await recordAudit({
+      action: "auth.two_factor_removed_for_replacement",
+      actorId: actor.user.id,
+      by: actor.username,
+      targetType: "user",
+      targetId: actor.user.id,
+      metadata: { reason: "recovery-sign-in", removed: factors.totp.length },
+    });
     ({ data, error } = await enroll());
   }
   if (error || !data) {
@@ -240,11 +252,17 @@ export async function confirmTwoFactorSetupAction(_previous: TwoFactorResult, fo
  * the second step have both passed — loginAction and auth/callback leave it to
  * this step when the account has an authenticator, so a leaked password alone
  * learns nothing. The session is ended, then /account-suspended says why.
+ *
+ * A status that could not be read is refused as well: nothing says the account
+ * is not suspended, so the sign-in does not finish on a guess. The session is
+ * ended the same way and the login page shows the "temporarily unavailable"
+ * words loginAction uses (auth/callback sends the same code).
  */
 async function refuseIfSuspended(pending: NonNullable<Awaited<ReturnType<typeof pendingSignIn>>>) {
-  if ((await accountStatusFor(pending.user.id)) !== "suspended") return;
+  const status = await accountStatusFor(pending.user.id);
+  if (status !== "suspended" && status !== STATUS_UNREADABLE) return;
   await pending.supabase.auth.signOut({ scope: "local" });
-  redirect(SUSPENDED_PATH);
+  redirect(status === "suspended" ? SUSPENDED_PATH : "/login?error=auth_unavailable");
 }
 
 /** Sign-in step 2: the code from the authenticator app. Success completes the sign-in. */

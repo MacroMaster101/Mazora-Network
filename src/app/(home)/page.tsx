@@ -146,7 +146,7 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
                     </span>
                   </p>
                   <span className="telemetry mt-1 block text-xs text-white/45 transition-colors group-hover:text-violet-200">
-                    {discord.live ? `${withCommas(discord.members)} members` : "discord.gg/ZPrzyGpMyt"}
+                    {discord.live ? `${withCommas(discord.members)} members` : (generalSettings.discord || site.discord).replace(/^https?:\/\//, "")}
                   </span>
                 </div>
               </a>

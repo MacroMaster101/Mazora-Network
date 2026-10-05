@@ -10,6 +10,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET, ensureAvatarBucket } from "@/lib/storage/avatar-bucket";
 import { selectAvatarFiles } from "@/lib/storage/avatar-bucket-files";
 import { ignAvailability } from "@/lib/minecraft/link";
+import { SHARP_INPUT } from "@/lib/image-limits";
 import type { AccountActionResult } from "@/lib/actions/account";
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
@@ -36,7 +37,9 @@ type AvatarMime = "image/jpeg" | "image/png" | "image/webp";
  */
 async function sanitizeAvatar(bytes: Uint8Array): Promise<Buffer | null> {
   try {
-    return await sharp(bytes)
+    // SHARP_INPUT caps the decoded pixel count: a 2 MB file can still declare a
+    // bitmap far too large to decode safely.
+    return await sharp(bytes, SHARP_INPUT)
       .rotate()
       .resize(MAX_AVATAR_DIMENSION, MAX_AVATAR_DIMENSION, {
         fit: "inside",

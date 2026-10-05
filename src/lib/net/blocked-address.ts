@@ -36,6 +36,10 @@ export function isBlockedAddress(ip: string): boolean {
     // IPv4 address in the last 32 bits, so that address decides.
     if (zeroPrefix && w5 === 0) return w6 === 0 && w7 <= 1 ? true : isBlockedAddress(embedded);
     if (zeroPrefix && w5 === 0xffff) return isBlockedAddress(embedded);
+    // ::ffff:0:0:0/96 is the IPv4-translated form used by stateless IP/ICMP
+    // translation (::ffff:0:127.0.0.1 or ::ffff:0:7f00:1). A translator hands
+    // it on to the embedded IPv4 address, so that address decides here too.
+    if (w0 === 0 && w1 === 0 && w2 === 0 && w3 === 0 && w4 === 0xffff && w5 === 0) return isBlockedAddress(embedded);
     // NAT64 (64:ff9b::/96) translates to the embedded IPv4 address; the local-use
     // NAT64 range (64:ff9b:1::/48) is internal by definition.
     if (w0 === 0x64 && w1 === 0xff9b && w2 === 0 && w3 === 0 && w4 === 0 && w5 === 0) return isBlockedAddress(embedded);
