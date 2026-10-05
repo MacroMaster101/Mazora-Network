@@ -81,7 +81,7 @@ const callSites = [
 ];
 
 for (const path of callSites) {
-  test(`${path.replace("../", "")} imports the limits and has no unlimited decode of upload bytes`, () => {
+  test(`${path.slice("../".length)} imports the limits and has no unlimited decode of upload bytes`, () => {
     const source = read(path);
     assert.match(source, /from "(@\/lib\/image-limits|(\.\.?\/)+image-limits)"/);
 
@@ -104,7 +104,7 @@ for (const path of callSites) {
   canvas, which decodes nothing.
 */
 for (const path of ["../skins/process.ts", "../skins/body.ts"]) {
-  test(`${path.replace("../", "")} passes the limit to every sharp( call that opens a buffer`, () => {
+  test(`${path.slice("../".length)} passes the limit to every sharp( call that opens a buffer`, () => {
     const source = read(path);
     const calls = source.match(/sharp\([^\n]*/g) ?? [];
     assert.ok(calls.length >= 3, `expected several sharp( calls, found ${calls.length}`);

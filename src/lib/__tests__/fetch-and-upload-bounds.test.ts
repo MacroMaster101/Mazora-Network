@@ -24,7 +24,7 @@ test("the shared upload ceiling matches the one the image store enforces", () =>
 });
 
 for (const path of ["../suggestions/image-store.ts", "../forums/image-store.ts", "../actions/gallery.ts"]) {
-  test(`${path.replace("../", "")} checks a file's size before reading it into memory`, () => {
+  test(`${path.slice("../".length)} checks a file's size before reading it into memory`, () => {
     const source = read(path);
     assert.match(source, /import \{[^}]*\bMAX_IMAGE_BYTES\b[^}]*\} from "@\/lib\/suggestion-image-rules";/);
 
