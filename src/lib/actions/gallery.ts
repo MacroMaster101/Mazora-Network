@@ -8,9 +8,9 @@ import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageGallery } from "@/lib/auth/permissions";
 import { recordAudit } from "@/lib/audit-log";
 import { getDb, schema } from "@/lib/db/client";
-import { rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
+import { isOwnPublicImageUrl, rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
 import { throttleAuthAction } from "@/lib/rate-limit";
-import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
+import { MAX_IMAGE_BYTES } from "@/lib/suggestion-image-rules";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
 
 export interface GalleryActionResult {
@@ -42,15 +42,10 @@ function refresh() {
   revalidatePath("/admin/gallery");
 }
 
-/** True when a link already points at our own storage, so no copy is needed. */
-function isOwnStorageUrl(url: string): boolean {
-  return isSupabaseStorageObjectUrl(url, process.env.NEXT_PUBLIC_SUPABASE_URL);
-}
-
 /**
  * Resolve the final stored image URL for a gallery entry.
  * - File uploads are stored directly.
- * - URLs already on our storage are kept as-is.
+ * - URLs already in our public image bucket are kept as-is.
  * - External URLs (Google thumbnails, Discord CDN, Imgur, etc.) are
  *   fetched server-side and re-hosted in Supabase storage so they never expire.
  * Returns the permanent URL, or null with an error message.
@@ -58,6 +53,9 @@ function isOwnStorageUrl(url: string): boolean {
 async function resolveGalleryImage(
   formData: FormData,
   keyBase: string,
+  // Only an edit of an existing artwork reuses its key (the artwork id), so
+  // only that may replace the object already stored there.
+  overwrite = false,
 ): Promise<{ url: string | null; error?: string }> {
   const file = formData.get("imageFile");
   const rawLink = cleanAndUnwrapImageUrl(clean(formData.get("imageUrl"), 5000000));
@@ -66,19 +64,19 @@ async function resolveGalleryImage(
   if (file instanceof File && file.size > 0) {
     // Reject oversized files BEFORE buffering: storeImageBytes enforces the
     // same 8 MB ceiling, but only after the whole body is already in memory.
-    if (file.size > 8 * 1024 * 1024) {
+    if (file.size > MAX_IMAGE_BYTES) {
       return { url: null, error: "Please use a JPEG, PNG, WebP or GIF under 8 MB." };
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const stored = await storeImageBytes(bytes, `gallery/${keyBase}`);
+    const stored = await storeImageBytes(bytes, `gallery/${keyBase}`, { overwrite });
     if (!stored) return { url: null, error: "Please use a JPEG, PNG, WebP or GIF under 8 MB." };
     return { url: stored.url };
   }
 
   // 2. URL link
   if (rawLink) {
-    // Already on our storage — use as-is
-    if (isOwnStorageUrl(rawLink)) return { url: rawLink };
+    // Already in our public image bucket — use as-is
+    if (isOwnPublicImageUrl(rawLink)) return { url: rawLink };
 
     // Data URI — decode and store it. `\w` does not match "+", so a
     // "data:image/svg+xml;base64," payload never matched and used to be stored
@@ -89,7 +87,7 @@ async function resolveGalleryImage(
       if (match) {
         try {
           const bytes = Uint8Array.from(atob(match[2]), (c) => c.charCodeAt(0));
-          const stored = await storeImageBytes(bytes, `gallery/${keyBase}`);
+          const stored = await storeImageBytes(bytes, `gallery/${keyBase}`, { overwrite });
           if (stored) return { url: stored.url };
         } catch {
           /* malformed base64 — fall through to the error below */
@@ -99,7 +97,7 @@ async function resolveGalleryImage(
     }
 
     // External URL — download & re-host so it never expires
-    const hosted = await rehostImageFromUrl(rawLink, `gallery/${keyBase}`);
+    const hosted = await rehostImageFromUrl(rawLink, `gallery/${keyBase}`, { overwrite });
     if (hosted) return { url: hosted.url };
 
     // Re-hosting failed. Previously the raw link was stored anyway, which meant
@@ -308,7 +306,7 @@ export async function adminSaveGalleryAction(formData: FormData): Promise<Galler
   if (!galleryStatusSchema.safeParse(status).success) return { ok: false, message: "Unknown artwork status." };
   if (!title) return { ok: false, message: "Please provide a title." };
 
-  const { url: imageUrl, error } = await resolveGalleryImage(formData, id || `admin-${randomUUID()}`);
+  const { url: imageUrl, error } = await resolveGalleryImage(formData, id || `admin-${randomUUID()}`, Boolean(id));
   if (!imageUrl) return { ok: false, message: error || "Please provide an image URL." };
 
   if (id) {

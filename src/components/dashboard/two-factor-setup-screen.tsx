@@ -247,7 +247,7 @@ export function TwoFactorSetupScreen({
                     autoFocus
                   />
                 ) : (
-                  <OtpInput key="app" id="two-factor-replace-code" name="code" error={enrollment.message} />
+                  <OtpInput key="app" id="two-factor-replace-code" name="code" error={enrollment.message} autoSubmit />
                 )}
                 {enrollment.message ? (
                   <p className="text-sm text-danger" role="alert">
@@ -315,7 +315,7 @@ export function TwoFactorSetupScreen({
                 <form action={action} className="auth-form mt-4 grid gap-3 sm:mt-5 sm:gap-3.5 lg:mt-6 lg:gap-4 [@media(max-height:760px)]:mt-3 [@media(max-height:760px)]:gap-2.5" noValidate>
                   <input type="hidden" name="factorId" value={enrollment.factorId} />
                   <p className="text-sm font-semibold text-ink lg:text-base">Enter the six-digit code from the app</p>
-                  <OtpInput id="two-factor-setup-code" name="code" error={codeError} />
+                  <OtpInput id="two-factor-setup-code" name="code" error={codeError} autoSubmit />
                   {codeError ? (
                     <p id="two-factor-setup-code-error" className="text-sm text-danger" role="alert">
                       {codeError}

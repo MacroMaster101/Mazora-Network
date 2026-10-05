@@ -10,6 +10,7 @@ import { ensureRoleCatalog } from "@/lib/data/roles";
 import { safeNext } from "@/lib/safe-redirect";
 import { SUSPENDED_PATH } from "@/lib/auth/login-identifier";
 import { resolvePublicOrigin } from "@/lib/site";
+import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 
 /**
  * The origin used to build post-login redirects. In production this is the
@@ -51,6 +52,18 @@ export async function GET(request: NextRequest) {
       const { data } = await supabase.auth.getUser();
       if (data.user) {
         const profile = await ensureUserProfile(data.user);
+        // The status could not be read at all, so nothing says this account is
+        // not suspended (a failed profile read above is null too, which the
+        // check below would wave through). Same answer as loginAction: end the
+        // new session and say sign-in is unavailable. It is not about this
+        // account, so it does not wait for a two-step code.
+        if ((await accountStatusFor(data.user.id)) === STATUS_UNREADABLE) {
+          await supabase.auth.signOut({ scope: "local" });
+          const unavailable = new URL("/login", origin);
+          unavailable.searchParams.set("error", "auth_unavailable");
+          if (next !== "/") unavailable.searchParams.set("next", next);
+          return NextResponse.redirect(unavailable);
+        }
         // Suspended from the Users board: end this new session at once and say
         // why, instead of landing on a page that quietly treats them as signed out.
         // With two-step verification on it waits for the code (/two-factor checks it).

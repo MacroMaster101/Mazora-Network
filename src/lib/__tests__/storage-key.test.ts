@@ -19,7 +19,8 @@ test("the keys this codebase actually builds pass through unchanged", () => {
 
 test("a traversal segment is dropped rather than escaping the prefix", () => {
   // The reason this exists: `id` arrives from a form as free text and is
-  // interpolated straight into the key, and the upload uses upsert.
+  // interpolated straight into the key. The upload refuses a taken key unless
+  // its caller asks to overwrite, and this keeps the key inside its own prefix.
   assert.equal(safeStorageKey("custom/../../evil-1"), "custom/evil-1");
   assert.equal(safeStorageKey("../../../etc/passwd"), "etc/passwd");
   assert.equal(safeStorageKey("custom/../gallery/x"), "custom/gallery/x");
@@ -69,8 +70,8 @@ test("no segment of the result is ever a traversal segment", () => {
 });
 
 test("a key that sanitises away to nothing is refused, not silently rewritten", () => {
-  // Returning "" would upload to the bucket root under a bare extension and
-  // upsert over whatever was already there.
+  // Returning "" would upload to the bucket root under a bare extension, where
+  // every caller that did the same would collide on one object.
   for (const junk of ["", "   ", "/", "..", "../..", "🔐", "///"]) {
     assert.equal(safeStorageKey(junk), null, `expected null for ${JSON.stringify(junk)}`);
   }

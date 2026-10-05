@@ -417,7 +417,7 @@ export const DEFAULT_PLAY_CONFIG: PlayPageConfig = {
   bedrockIp: "bedrock.mazora.us",
   bedrockPort: "19135",
   supportedVersion: "Leaf 1.21.11",
-  discordChannelId: "1193207365906997379",
+  discordChannelId: "",
   heroTitle: "Joining takes about a minute.",
   heroLead: "Copy the address, add the server, and you're in. Here's exactly how on both editions.",
   statusOverride: "live",

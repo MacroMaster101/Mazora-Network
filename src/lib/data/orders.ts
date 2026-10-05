@@ -230,54 +230,105 @@ export async function markOrderDecision(
   const db = getDb();
   if (!db || !reference) return false;
   try {
-    const rows = await db
-      .update(schema.orders)
-      .set({
-        status,
-        handledBy,
-        handledAt: new Date(),
-        ...(ticketChannelId ? { ticketChannelId } : {}),
-      })
-      .where(
-        from && from.length > 0
-          ? and(eq(schema.orders.reference, reference), inArray(schema.orders.status, from))
-          : eq(schema.orders.reference, reference),
-      )
-      .returning({ id: schema.orders.id, reference: schema.orders.reference });
-
-    /*
-      A completed order gets its invoice automatically.
-
-      Completion is the point the sale is real, and staff should not have to
-      remember a second step to produce the document. Issued here rather than in
-      the Discord route because this is the one place an order reaches
-      `completed`, so a sale can never end up without an invoice depending on
-      which path closed it.
-
-      Best-effort on purpose: `onConflictDoNothing` leaves an invoice staff
-      already issued by hand alone, and a failure here is logged without
-      reversing the decision. Losing the auto-generated document is recoverable
-      from the Orders admin; losing the completion is not.
-    */
-    if (status === "completed" && rows[0]) {
-      const order = rows[0];
-      try {
-        await db
-          .insert(schema.orderInvoices)
-          .values({
-            orderId: order.id,
-            invoiceNo: order.reference ?? order.id,
-            issuedBy: handledBy,
-          })
-          .onConflictDoNothing({ target: schema.orderInvoices.orderId });
-      } catch (error) {
-        console.error("Failed to auto-issue invoice for completed order:", error);
-      }
-    }
-
-    return rows.length > 0;
+    return await writeOrderDecision(db, reference, status, handledBy, ticketChannelId, from);
   } catch (error) {
     console.error("Failed to record order decision:", error);
     return false;
   }
+}
+
+/**
+ * What happened to a guarded decision:
+ *  - "moved": the order was in one of the `from` statuses and now has the new one;
+ *  - "already_final": the order exists but had left those statuses, so nothing changed;
+ *  - "no_record": there is no row for that reference, or no database at all.
+ */
+export type OrderDecisionOutcome = "moved" | "already_final" | "no_record";
+
+/**
+ * markOrderDecision for a caller that has to tell its `false` cases apart.
+ *
+ * Orders are saved best-effort (see submitStoreRequest), so a request can be in
+ * the staff channel with no row behind it. "Nothing changed" then means two
+ * opposite things: a stale button on an order someone already closed, where the
+ * buyer must not be messaged again, or an order that was never saved, where
+ * there is no state to protect and the buyer still has to be told. A boolean
+ * cannot say which, and reporting both as "already handled" left the second
+ * kind of buyer with no answer.
+ *
+ * A database error is thrown rather than folded into either answer: the caller
+ * cannot know whether the order was already closed, so it must not guess.
+ */
+export async function claimOrderDecision(
+  reference: string,
+  status: OrderStatus,
+  handledBy: string,
+  from: OrderStatus[],
+): Promise<OrderDecisionOutcome> {
+  const db = getDb();
+  if (!db || !reference) return "no_record";
+  if (await writeOrderDecision(db, reference, status, handledBy, null, from)) return "moved";
+  const [existing] = await db
+    .select({ id: schema.orders.id })
+    .from(schema.orders)
+    .where(eq(schema.orders.reference, reference))
+    .limit(1);
+  return existing ? "already_final" : "no_record";
+}
+
+/** The write behind both functions above. Throws on a database error; the callers decide what that means. */
+async function writeOrderDecision(
+  db: NonNullable<ReturnType<typeof getDb>>,
+  reference: string,
+  status: OrderStatus,
+  handledBy: string,
+  ticketChannelId?: string | null,
+  from?: OrderStatus[],
+): Promise<boolean> {
+  const rows = await db
+    .update(schema.orders)
+    .set({
+      status,
+      handledBy,
+      handledAt: new Date(),
+      ...(ticketChannelId ? { ticketChannelId } : {}),
+    })
+    .where(
+      from && from.length > 0
+        ? and(eq(schema.orders.reference, reference), inArray(schema.orders.status, from))
+        : eq(schema.orders.reference, reference),
+    )
+    .returning({ id: schema.orders.id, reference: schema.orders.reference });
+
+  /*
+    A completed order gets its invoice automatically.
+
+    Completion is the point the sale is real, and staff should not have to
+    remember a second step to produce the document. Issued here rather than in
+    the Discord route because this is the one place an order reaches
+    `completed`, so a sale can never end up without an invoice depending on
+    which path closed it.
+
+    Best-effort on purpose: `onConflictDoNothing` leaves an invoice staff
+    already issued by hand alone, and a failure here is logged without
+    reversing the decision. Losing the auto-generated document is recoverable
+    from the Orders admin; losing the completion is not.
+  */
+  if (status === "completed" && rows[0]) {
+    const order = rows[0];
+    try {
+      await db
+        .insert(schema.orderInvoices)
+        .values({
+          orderId: order.id,
+          invoiceNo: order.reference ?? order.id,
+          issuedBy: handledBy,
+        })
+        .onConflictDoNothing({ target: schema.orderInvoices.orderId });
+    } catch (error) {
+      console.error("Failed to auto-issue invoice for completed order:", error);
+    }
+  }
+
+  return rows.length > 0;
 }

@@ -266,9 +266,12 @@ export function renderStaffNotice(input: StaffNoticeInput): Record<string, unkno
     1000 characters first, so this only fires if that gate is ever bypassed.
   */
   const support = input.supportUrl ?? site.discordSupportTickets;
+  // The ticket link is empty when none is configured; say so rather than end on a bare colon.
   const replyNote =
     `\n\n— — —\n🤖 This message was sent by an automated bot, which **cannot read replies**. ` +
-    `To respond, open a ticket and a staff member will get back to you:\n${support}`;
+    (support
+      ? `To respond, open a ticket and a staff member will get back to you:\n${support}`
+      : `To respond, open a ticket in the Mazora Network Discord and a staff member will get back to you.`);
 
   const body = `${opening}\n\n**Reason:**\n${reason}`.slice(0, MAX_DESCRIPTION - replyNote.length);
   const description = `${body}${replyNote}`;

@@ -42,44 +42,51 @@ import { saveFaqsAction } from "@/lib/actions/faqs";
 import { savePlayConfigAction } from "@/lib/actions/play-config";
 import { Input, Textarea, useToast } from "@/components/ui";
 
+/*
+  Shown only when no patch notes were passed in. Invented sample text, the same
+  wording as the first three SAMPLE_PATCH_UPDATES in lib/data/patches.ts. It is
+  copied rather than imported because that module is server-only, and it must
+  stay made up: this file is public, so nothing from a real announcement
+  belongs here.
+*/
 const FALLBACK_PATCHES: PatchUpdate[] = [
   {
-    id: "patch-1-15",
-    version: "Patch Update 1.15",
+    id: "sample-patch-5",
+    version: "Sample Update 5",
     targetMode: "Survival - 1.21.11",
-    date: "2026-07-26T20:49:00Z",
+    date: "2026-05-01T12:00:00Z",
     author: "Mazora Team",
     authorRole: "Owner",
     changes: [
-      "Clearlag added with optimizations",
-      "Playtime tracker added /playtime",
-      "You can now sell wheat",
+      "Example: general performance improvements",
+      "Example: a new quality-of-life command",
+      "Example: a small shop adjustment",
     ],
     discordChannel: "#PATCH-UPDATE",
   },
   {
-    id: "patch-1-14",
-    version: "Patch Update 1.14",
+    id: "sample-patch-4",
+    version: "Sample Update 4",
     targetMode: "Survival - 1.21.11",
-    date: "2026-07-22T02:34:00Z",
+    date: "2026-04-01T12:00:00Z",
     author: "Mazora Team",
     authorRole: "Owner",
-    changes: ["Orders System Added"],
+    changes: ["Example: a new feature"],
     discordChannel: "#PATCH-UPDATE",
   },
   {
-    id: "patch-1-13",
-    version: "Patch Update 1.13",
+    id: "sample-patch-3",
+    version: "Sample Update 3",
     targetMode: "Survival - 1.21.11",
-    date: "2026-07-14T15:15:00Z",
+    date: "2026-03-01T12:00:00Z",
     author: "Mazora Team",
     authorRole: "Owner",
     changes: [
-      "Teleporting cool down = 20seconds",
-      "Teleport delay = 3 seconds",
-      "/heal commad cool down = 1 hour",
-      "Delay time between chat messages = 3 seconds",
-      "New server text colors and /msg format",
+      "Example: a cooldown change",
+      "Example: a delay change",
+      "Example: a command limit",
+      "Example: a chat setting",
+      "Example: a formatting update",
     ],
     discordChannel: "#PATCH-UPDATE",
   },
@@ -179,7 +186,7 @@ export function PlayPageEditor({
 
   // Syncing & Channel Switch State
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<{ message: string; ok: boolean } | null>(null);
 
   // Live Server Stats Sync state
   const [isSyncingStats, setIsSyncingStats] = useState(false);
@@ -329,27 +336,37 @@ export function PlayPageEditor({
 
   // Switch & Sync Discord Channel
   const handleSwitchAndSyncDiscord = async (targetChannelId?: string) => {
+    // The default is empty (no id is shipped in the repo). An empty id is sent
+    // as no channelId at all, so the server uses its configured patch channel.
     const channelToUse = targetChannelId || config.discordChannelId;
     setIsSyncing(true);
     setSyncStatus(null);
     try {
-      const res = await fetch(`/api/discord/patches?channelId=${encodeURIComponent(channelToUse)}`);
+      const res = await fetch(
+        channelToUse ? `/api/discord/patches?channelId=${encodeURIComponent(channelToUse)}` : "/api/discord/patches",
+      );
       const data = await res.json();
 
-      if (data.ok && Array.isArray(data.patches) && data.patches.length > 0) {
+      if (data.error === "no_channel_configured") {
+        setSyncStatus({ message: "No Discord channel is configured for patch notes.", ok: false });
+        toast("No Discord channel is configured for patch notes.", "info");
+      } else if (data.ok && Array.isArray(data.patches) && data.patches.length > 0) {
         setPatches(data.patches);
-        setConfig((current) => ({ ...current, discordChannelId: channelToUse }));
-        const savedWithChannel = { ...savedConfig, discordChannelId: channelToUse };
-        const saveResult = await savePlayConfigAction(savedWithChannel);
-        if (saveResult.ok) setSavedConfig(savedWithChannel);
-        setSyncStatus(`Successfully loaded ${data.patches.length} patch updates from channel ${channelToUse}!`);
-        toast(`Switched to Discord channel ${channelToUse} (${data.patches.length} patches)!`, "success");
+        if (channelToUse) {
+          setConfig((current) => ({ ...current, discordChannelId: channelToUse }));
+          const savedWithChannel = { ...savedConfig, discordChannelId: channelToUse };
+          const saveResult = await savePlayConfigAction(savedWithChannel);
+          if (saveResult.ok) setSavedConfig(savedWithChannel);
+        }
+        const source = channelToUse ? `channel ${channelToUse}` : "the configured channel";
+        setSyncStatus({ message: `Successfully loaded ${data.patches.length} patch updates from ${source}!`, ok: true });
+        toast(`Loaded ${data.patches.length} patches from ${source}!`, "success");
       } else {
-        setSyncStatus(`Executed channel query for ID ${channelToUse}.`);
-        toast(`Queried channel ID ${channelToUse}.`, "info");
+        setSyncStatus({ message: channelToUse ? `Executed channel query for ID ${channelToUse}.` : "Executed channel query.", ok: true });
+        toast(channelToUse ? `Queried channel ID ${channelToUse}.` : "Queried the configured channel.", "info");
       }
     } catch {
-      setSyncStatus("Channel query executed.");
+      setSyncStatus({ message: "Channel query executed.", ok: true });
       toast("Executed Discord channel fetch.", "info");
     } finally {
       setIsSyncing(false);
@@ -642,8 +659,12 @@ export function PlayPageEditor({
       </div>
 
       {syncStatus && (
-        <div className="rounded-xl border border-success/40 bg-success/10 p-3 text-xs text-success font-bold flex items-center gap-2 shadow-xs">
-          <CheckCircle2 size={15} /> {syncStatus}
+        <div
+          className={`rounded-xl border p-3 text-xs font-bold flex items-center gap-2 shadow-xs ${
+            syncStatus.ok ? "border-success/40 bg-success/10 text-success" : "border-danger/40 bg-danger/10 text-danger"
+          }`}
+        >
+          {syncStatus.ok ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />} {syncStatus.message}
         </div>
       )}
 
@@ -1500,7 +1521,7 @@ export function PlayPageEditor({
                   value={patchChangesText}
                   onChange={(e) => setPatchChangesText(e.target.value)}
                   rows={5}
-                  placeholder="- Clearlag added with optimizations&#10;- Playtime tracker added /playtime&#10;- You can now sell wheat"
+                  placeholder="- Example: general performance improvements&#10;- Example: a new quality-of-life command&#10;- Example: a small shop adjustment"
                 />
               </div>
             </div>

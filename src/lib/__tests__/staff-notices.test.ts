@@ -179,12 +179,23 @@ describe("the reply note survives an over-long reason", () => {
   // that gets cut.
   test("a 5000-character reason still leaves the ticket link intact", () => {
     const embed = (
-      renderStaffNotice(input({ reason: "y".repeat(5000) })).embeds as Record<string, unknown>[]
+      renderStaffNotice(
+        input({ reason: "y".repeat(5000), supportUrl: "https://discord.com/channels/1/2" }),
+      ).embeds as Record<string, unknown>[]
     )[0];
     const description = String(embed.description);
     assert.ok(description.length <= 4096, "still within Discord's embed limit");
     assert.match(description, /cannot read replies/i);
     assert.match(description, /https?:\/\//, "the ticket link is still present");
+  });
+
+  test("with no ticket link configured the note still points at a ticket, without a dangling colon", () => {
+    const embed = (
+      renderStaffNotice(input({ supportUrl: "" })).embeds as Record<string, unknown>[]
+    )[0];
+    const description = String(embed.description);
+    assert.match(description, /open a ticket in the Mazora Network Discord/i);
+    assert.doesNotMatch(description, /get back to you:/);
   });
 });
 

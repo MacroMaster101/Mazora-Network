@@ -164,6 +164,30 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+/*
+  Static images skip middleware so they do not pay for a nonce, a policy and a
+  session check they have no use for. The skip is tied to where those files
+  really are, not to how a path ends:
+
+    - `images/`  everything under public/images, the only folder in public/
+                 that holds images;
+    - one path segment ending in an image extension, which covers /icon.png
+                 and any image later dropped into the root of public/.
+
+  It used to be "any path ending in an image extension, at any depth". A page
+  route does not stop being a page because its last segment looks like a file:
+  /players/Steve_42.png reached the profile route with no Content-Security-
+  Policy header and without the launch gate above. Nested paths now always run
+  through here.
+
+  What is still skipped, knowingly: a missing file such as /nothing.png or
+  /images/nothing.png. Its not-found page is sent without the policy, because
+  the matcher is decided before anything knows whether the file exists.
+
+  An image added to public/ outside images/ and outside the root would run
+  through middleware (and be marked uncacheable for signed-in visitors), so a
+  test keeps public/ to that layout.
+*/
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|images/|[^/]+\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

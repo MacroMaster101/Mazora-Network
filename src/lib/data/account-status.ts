@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { and, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 /**
  * Account suspension.
@@ -18,20 +19,52 @@ import { getDb, schema } from "@/lib/db/client";
 
 export type AccountStatus = "pending" | "active" | "suspended" | "deleted";
 
-/** The account's status, or null when it cannot be read. Memoised per request (it runs on every signed-in request). */
-export const accountStatusFor = cache(async (userId: string): Promise<AccountStatus | null> => {
+/**
+ * What a status read can come back with. `null` means the read worked and the
+ * account has no profile row yet (a brand-new account, before its profile
+ * exists). "unreadable" means the read itself failed, so nothing is known:
+ * callers must not treat that as "not suspended".
+ */
+export type AccountStatusRead = AccountStatus | "unreadable" | null;
+
+export const STATUS_UNREADABLE = "unreadable" as const;
+
+/**
+ * The account's status. Memoised per request (it runs on every signed-in
+ * request), so one request never gets two different answers.
+ *
+ * Read from the app's own database connection first. When that is not
+ * configured, or the query fails, the service-role client is asked instead, so
+ * one failing connection does not sign everyone out. Only when neither can
+ * answer is the result "unreadable".
+ */
+export const accountStatusFor = cache(async (userId: string): Promise<AccountStatusRead> => {
   const db = getDb();
-  if (!db) return null;
+  if (db) {
+    try {
+      const [row] = await db
+        .select({ status: schema.profiles.accountStatus })
+        .from(schema.profiles)
+        .where(eq(schema.profiles.userId, userId))
+        .limit(1);
+      return (row?.status as AccountStatus | undefined) ?? null;
+    } catch (error) {
+      console.error("Account status read failed", error);
+    }
+  }
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return STATUS_UNREADABLE;
   try {
-    const [row] = await db
-      .select({ status: schema.profiles.accountStatus })
-      .from(schema.profiles)
-      .where(eq(schema.profiles.userId, userId))
-      .limit(1);
-    return (row?.status as AccountStatus | undefined) ?? null;
+    const { data, error } = await admin.from("profiles").select("account_status").eq("user_id", userId).maybeSingle();
+    if (error) {
+      console.error("Account status fallback read failed", { code: error.code, message: error.message });
+      return STATUS_UNREADABLE;
+    }
+    return (data?.account_status as AccountStatus | undefined) ?? null;
   } catch (error) {
-    console.error("Account status read failed", error);
-    return null;
+    console.error("Account status fallback read failed", error);
+    return STATUS_UNREADABLE;
   }
 });
 

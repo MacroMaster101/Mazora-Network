@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
-import { canManageStore } from "@/lib/auth/permissions";
+import { canManageOrders } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
 import { isValidSocialUrl } from "@/lib/creator-socials";
 import {
@@ -17,10 +17,17 @@ export interface InvoiceActionResult {
   errors?: Record<string, string>;
 }
 
-async function storeEditor() {
+/*
+  Orders, not Store. Both actions are only offered on /admin/orders, and that
+  page and the invoice sheet under it require the Orders permission. Gating on
+  Store meant staff granted Orders alone saw buttons that always refused,
+  while staff granted Store alone could issue invoices from a screen they
+  cannot open.
+*/
+async function ordersEditor() {
   const session = await getSession();
   const userId = session ? await getSessionUserId() : null;
-  return session && (await canManageStore(session, userId)) ? session : null;
+  return session && (await canManageOrders(session, userId)) ? session : null;
 }
 
 /**
@@ -101,7 +108,7 @@ export async function createStandaloneInvoiceAction(
   _previous: InvoiceActionResult,
   formData: FormData,
 ): Promise<InvoiceActionResult> {
-  const session = await storeEditor();
+  const session = await ordersEditor();
   if (!session) return { ok: false, message: "You do not have permission to issue invoices." };
 
   let items: unknown = [];
@@ -209,8 +216,8 @@ export async function saveInvoiceDetailsAction(
   _previous: InvoiceActionResult,
   formData: FormData,
 ): Promise<InvoiceActionResult> {
-  const session = await storeEditor();
-  if (!session) return { ok: false, message: "You do not have permission to manage Store settings." };
+  const session = await ordersEditor();
+  if (!session) return { ok: false, message: "You do not have permission to edit invoice details." };
 
   const parsed = detailsSchema.safeParse({
     businessName: formData.get("businessName"),

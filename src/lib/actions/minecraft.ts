@@ -11,6 +11,7 @@ import { AVATAR_BUCKET, ensureAvatarBucket } from "@/lib/storage/avatar-bucket";
 import { removeStoredSkinFiles } from "@/lib/storage/skin-files";
 import { SKIN_MAX_BYTES, cropAndCompositeHead, validateSkinBytes } from "@/lib/skins/process";
 import { IGN_PATTERN, ignAvailability, linkMinecraftIgn } from "@/lib/minecraft/link";
+import { SHARP_INPUT } from "@/lib/image-limits";
 
 /**
  * Setting the Minecraft in-game name on an account.
@@ -182,19 +183,34 @@ export async function uploadMinecraftSkinAction(
     return { ok: false, message: "Skin storage is temporarily unavailable." };
   }
 
-  const headBuffer = await cropAndCompositeHead(Buffer.from(bytes), validated.format);
+  const skinUnprocessable: SkinUploadActionState = {
+    ok: false,
+    message: "That skin file could not be processed. Try downloading it again.",
+  };
+
+  // `validateSkinBytes` only reads the PNG header, so the pixel data can still
+  // be corrupt or oversized; sharp throws on either, and that must end the
+  // upload rather than escape the action.
+  let headBuffer: Buffer;
+  try {
+    headBuffer = await cropAndCompositeHead(Buffer.from(bytes), validated.format);
+  } catch {
+    return skinUnprocessable;
+  }
 
   // Re-encode the raw skin to a clean PNG before storing. `validateSkinBytes`
   // above already proved the dimensions and signature, so a lossless sharp
   // round-trip preserves every pixel while discarding any metadata or bytes
   // appended after the image data — the raw skin's Supabase URL is public and
-  // directly fetchable, so what is stored is what could be served. Falls back
-  // to the validated original if sharp cannot round-trip it.
-  const rawBytes = await sharp(bytes)
-    .png()
-    .toBuffer()
-    .then((buffer) => new Uint8Array(buffer))
-    .catch(() => bytes);
+  // directly fetchable, so what is stored is what could be served. If sharp
+  // cannot round-trip it the upload is refused: storing the original would
+  // keep exactly the appended bytes this step exists to remove.
+  let rawBytes: Uint8Array;
+  try {
+    rawBytes = new Uint8Array(await sharp(bytes, SHARP_INPUT).png().toBuffer());
+  } catch {
+    return skinUnprocessable;
+  }
 
   const timestamp = Date.now();
   const rawPath = `${user.id}/skin-raw-${timestamp}.png`;

@@ -6,6 +6,7 @@ import type { Role } from "@/lib/types";
 import { canGrantRank, canManageRank, getSession, getSessionUserId, isRoleKey, isStaff, roleKeys, roleLabel } from "@/lib/auth";
 import { normalizeRoleKey, roleDef } from "@/lib/auth/role-catalog-core";
 import { canAssignRoles } from "@/lib/auth/permissions";
+import { isPendingInvite } from "@/lib/auth/pending-invite";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getDb, schema } from "@/lib/db/client";
 
@@ -81,6 +82,17 @@ export async function changeUserRole(input: {
   }
   const wasStaff = isStaff(currentRole);
   const becomesStaff = isStaff(newRole);
+  // An unconfirmed self-registration may belong to whoever typed that address
+  // into the sign-up form, with their own password: staff rank would pass to
+  // them once the real owner confirms the email. A staff-created pending invite
+  // is the one unconfirmed account that is safe, and demotions or moves between
+  // non-staff roles never grant anything, so only a staff target is refused.
+  if (becomesStaff && !target.user.email_confirmed_at && !isPendingInvite(target.user)) {
+    return {
+      ok: false,
+      message: "This account has not confirmed its email yet. Ask them to confirm it before giving it a staff rank.",
+    };
+  }
   // Only a role that shows on Our Team defaults its holders to public; a staff
   // role hidden from the team (Web Dev, or a custom one) defaults them hidden.
   const newShowsOnTeam = roleDef(newRole)?.showOnTeam ?? false;

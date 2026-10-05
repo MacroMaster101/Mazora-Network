@@ -7,6 +7,15 @@ import { z } from "zod";
  * /auth/callback, and magic links and email changes are never sent. Accepting
  * a magiclink here let anyone mail a victim a link to their OWN account's
  * token, and one "Confirm" click signed the victim into it.
+ *
+ * "email" stays because the Confirm signup template may link with it, but the
+ * auth server treats that type as a magic link whenever the account is already
+ * confirmed, and then it also accepts a password-reset token. So a reset link
+ * edited to say type=email verifies on a long-standing account. The action
+ * must therefore never handle an "email" verification as a new sign-up unless
+ * it is the one that confirmed the account: it checks who holds the token
+ * before spending it, and the confirmation time and invite date afterwards
+ * (firstSignupConfirmation in lib/auth/signup-trust-core).
  */
 export const otpTypes = ["signup", "email", "recovery"] as const;
 export type OtpType = (typeof otpTypes)[number];
@@ -33,6 +42,14 @@ const newPassword = z
   .regex(/[0-9]/, "Add at least one number.")
   .regex(/[^a-zA-Z0-9]/, "Add at least one symbol.");
 
+const DISPLAY_NAME_MIN_LENGTH = 2;
+const DISPLAY_NAME_MAX_LENGTH = 64;
+/** The character classes a display name may not contain, as the inside of a bracket expression. */
+const DISPLAY_NAME_REFUSED = String.raw`\p{Cc}\p{Cf}\p{Zl}\p{Zp}`;
+
+/** Longest username the sign-up form accepts (a Minecraft name). */
+export const USERNAME_MAX_LENGTH = 16;
+
 /**
  * Display name: freeform and NON-unique — two members may share one, since the
  * unique identity is the @username, not this. Trimmed, 2–64 characters, and
@@ -45,12 +62,30 @@ const newPassword = z
 export const displayName = z
   .string({ required_error: "Enter a display name." })
   .trim()
-  .min(2, "Display name must be at least 2 characters.")
-  .max(64, "Display name must be 64 characters or fewer.")
+  .min(DISPLAY_NAME_MIN_LENGTH, "Display name must be at least 2 characters.")
+  .max(DISPLAY_NAME_MAX_LENGTH, "Display name must be 64 characters or fewer.")
   .regex(
-    /^[^\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+$/u,
+    new RegExp(`^[^${DISPLAY_NAME_REFUSED}]+$`, "u"),
     "Remove control or invisible characters from your display name.",
   );
+
+/**
+ * A display name for a profile the form never saw: one built from sign-up
+ * metadata, which a direct caller of the auth API controls. Nobody is there to
+ * read an error, so the characters the form refuses are removed instead, the
+ * result is trimmed, and a candidate left shorter than the form's minimum is
+ * skipped for the next one. Same order and limits as derive_display_name in
+ * the database (migration 076), which this mirrors.
+ */
+export function cleanDisplayName(candidates: readonly unknown[], fallback: string): string {
+  const refused = new RegExp(`[${DISPLAY_NAME_REFUSED}]`, "gu");
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const cleaned = [...candidate.replace(refused, "").trim()];
+    if (cleaned.length >= DISPLAY_NAME_MIN_LENGTH) return cleaned.slice(0, DISPLAY_NAME_MAX_LENGTH).join("");
+  }
+  return fallback;
+}
 
 /**
  * What may be typed into the sign-in field: an email address or a username.
@@ -85,7 +120,7 @@ export const registerSchema = z
       .string({ required_error: "Enter your Minecraft username." })
       .trim()
       .min(3, "Use at least 3 characters.")
-      .max(16, "Minecraft usernames can be at most 16 characters.")
+      .max(USERNAME_MAX_LENGTH, "Minecraft usernames can be at most 16 characters.")
       .regex(/^[a-zA-Z0-9_]+$/, "Use only letters, numbers, and underscores."),
     email,
     password: newPassword,

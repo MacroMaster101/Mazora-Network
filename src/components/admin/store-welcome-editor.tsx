@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState, useTransition, type ChangeEvent } from "react";
+import { useState, useTransition } from "react";
 import Image from "next/image";
-import { Heart, Layout, Save, Sparkles, Upload, CheckCircle2 } from "lucide-react";
+import { Heart, Layout, Save, Sparkles } from "lucide-react";
 import type { StoreWelcomeBannerConfig } from "@/lib/types";
 import type { StoreSettingsActionResult } from "@/lib/actions/store-settings";
 import { Input, Textarea, useToast } from "@/components/ui";
@@ -31,9 +31,7 @@ export function StoreWelcomeEditor({
   // What is published: "Show Banner" saves on its own on top of this, so
   // flipping it never publishes half-edited copy or an unsaved image.
   const [savedBanner, setSavedBanner] = useState(banner);
-  const [uploadName, setUploadName] = useState<string | null>(null);
   const [busy, start] = useTransition();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   /** The switch saves the moment it is flipped; a failed save flips it back. */
@@ -60,25 +58,6 @@ export function StoreWelcomeEditor({
     });
   }
 
-  function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast("Image must be smaller than 5MB.", "error");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result;
-      if (typeof result === "string") {
-        setImageUrl(result);
-        setUploadName(file.name);
-        toast(`Uploaded "${file.name}"! Click Save to apply.`, "success");
-      }
-    };
-    reader.readAsDataURL(file);
-  }
-
   return (
     <form
       action={(formData) =>
@@ -99,7 +78,7 @@ export function StoreWelcomeEditor({
           </p>
           <h2 className="mt-2 font-display text-xl font-black tracking-tight">Welcome Banner Manager</h2>
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted">
-            Edit the top Welcome card shown on Store Home, update description copy, upload custom photos, select Mazora theme artwork presets, or toggle visibility.
+            Edit the top Welcome card shown on Store Home, update description copy, link custom artwork, select Mazora theme artwork presets, or toggle visibility.
           </p>
         </div>
         <label className="flex items-center gap-3 rounded-xl border border-line bg-card/70 px-4 py-2.5 cursor-pointer hover:border-line-strong">
@@ -183,45 +162,23 @@ export function StoreWelcomeEditor({
 
         <div className="flex flex-col gap-5">
           <div className="rounded-2xl border border-line bg-card/40 p-4">
-            <label className="block text-xs font-bold uppercase tracking-wider text-muted">Photo Upload & Artwork URL</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-muted">Artwork URL</label>
 
-            <div className="mt-2.5 flex flex-wrap gap-2">
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="store-welcome-photo-input"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="btn btn-secondary btn-sm gap-2"
-              >
-                <Upload size={14} /> Upload Photo from Computer
-              </button>
-              {uploadName && (
-                <span className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 font-medium py-1">
-                  <CheckCircle2 size={13} /> {uploadName}
-                </span>
-              )}
-            </div>
-
+            {/* No upload from the computer here: a chosen file could only become
+                a data: URL, and the save accepts a site path or an https link of
+                at most 500 characters, so it never saved. */}
             <div className="mt-3">
               <Input
                 name="imageUrl"
                 value={imageUrl}
-                onChange={(e) => {
-                  setImageUrl(e.target.value);
-                  setUploadName(null);
-                }}
-                placeholder="/images/store/... or base64 / http URL"
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="/images/store/... or https://example.com/banner.webp"
                 className="w-full"
                 required
               />
               <p className="mt-1 text-xs text-muted">
-                Enter an image URL, path, or upload a photo directly using the button above.
+                Enter a site image path such as /images/store/… or an https:// link, up to 500 characters. To use a
+                file from your computer, host it first and paste its link.
               </p>
             </div>
           </div>
@@ -237,10 +194,7 @@ export function StoreWelcomeEditor({
                   <button
                     key={preset.url}
                     type="button"
-                    onClick={() => {
-                      setImageUrl(preset.url);
-                      setUploadName(null);
-                    }}
+                    onClick={() => setImageUrl(preset.url)}
                     className={`group relative overflow-hidden rounded-xl border p-2.5 text-left transition-all ${
                       isSelected
                         ? "border-violet-400 bg-violet-500/15 ring-2 ring-violet-500/30"

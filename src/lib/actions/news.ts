@@ -586,7 +586,10 @@ export async function restoreDiscordImageAction(formData: FormData): Promise<New
         const message = await fetchChannelMessage(token, channelId, article.messageId);
         const attachment = message?.attachments?.[0]?.url;
         if (attachment) {
-          const hosted = await rehostImageFromUrl(attachment, key);
+          // The message-id key is stable. Nothing was found at it above, but a
+          // second restore running at the same moment may get there first, and
+          // that must land on the same object rather than fail.
+          const hosted = await rehostImageFromUrl(attachment, key, { overwrite: true });
           url = hosted?.url ?? null;
         }
       }

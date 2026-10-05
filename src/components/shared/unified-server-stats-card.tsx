@@ -703,6 +703,8 @@ export function UnifiedServerStatsCard({
 
         {/* Paginated Patches List */}
         <div className="space-y-4">
+          {/* Nothing from Discord or the news table: say so rather than show placeholder notes. */}
+          {patches.length === 0 && <p className="text-sm text-muted">No updates posted yet.</p>}
           {visiblePatches.map((patch) => {
             const dateStr = formatPatchDate(patch.date);
             const previewChanges = patch.changes.slice(0, 3);

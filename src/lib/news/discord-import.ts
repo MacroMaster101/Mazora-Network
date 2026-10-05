@@ -266,12 +266,15 @@ export async function importDiscordAnnouncements(): Promise<ImportResult> {
       // Discord attachment links are signed and expire within about a day, so
       // the artwork is copied into our own bucket under a key derived from the
       // message id. That URL is permanent and lets staff restore the original
-      // later even if they replace or remove the article's image.
+      // later even if they replace or remove the article's image. The key is
+      // the same every time this message is imported, so it has to be allowed
+      // to replace the copy from an earlier run instead of failing on it.
       let storedImage: string | null = null;
       if (mapped.featuredImage) {
         const hosted = await rehostImageFromUrl(
           mapped.featuredImage,
           discordOriginalKey(mapped.discordMessageId),
+          { overwrite: true },
         );
         storedImage = hosted?.url ?? null;
       }

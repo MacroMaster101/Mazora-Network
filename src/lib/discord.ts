@@ -166,7 +166,7 @@ export async function listGuildRoles(token: string, guildId: string): Promise<Gu
 
 /** Public invite shown to buyers who have not joined the server yet. */
 export function getDiscordInviteUrl(): string {
-  return process.env.NEXT_PUBLIC_DISCORD_INVITE_URL?.trim() || "https://discord.gg/ZPrzyGpMyt";
+  return process.env.NEXT_PUBLIC_DISCORD_INVITE_URL?.trim() || "https://discord.com";
 }
 
 /** Deep link to a channel, used to send buyers straight into their order ticket. */

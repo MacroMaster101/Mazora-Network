@@ -76,9 +76,12 @@ export function DiscordTicketGuide({
                 <li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent text-xs font-black text-white">3</span><span>Open the ticket channel, click <strong className="text-ink">Create ticket</strong>, and send the details listed here.</span></li>
               </ol>
 
-              <a href={site.discordSupportTickets} target="_blank" rel="noreferrer" className="btn btn-primary w-full">
-                <MessageSquarePlus size={17} /> Open ticket channel <ExternalLink size={15} />
-              </a>
+              {/* Empty when no ticket link is configured: hide the button rather than render href="". */}
+              {site.discordSupportTickets ? (
+                <a href={site.discordSupportTickets} target="_blank" rel="noreferrer" className="btn btn-primary w-full">
+                  <MessageSquarePlus size={17} /> Open ticket channel <ExternalLink size={15} />
+                </a>
+              ) : null}
 
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                 <a href="https://discord.com/register" target="_blank" rel="noreferrer" className="btn btn-ghost justify-center text-center">

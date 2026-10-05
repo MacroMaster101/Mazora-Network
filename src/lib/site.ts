@@ -59,14 +59,16 @@ export const site = {
   version: "1.21.11",
   region: "Asia Pacific",
   launchDate: "2023-10-01",
-  discord: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt",
-  discordSupportTickets:
-    process.env.NEXT_PUBLIC_DISCORD_SUPPORT_TICKETS_URL ??
-    "https://discord.com/channels/805453071261237286/1311727859672547478",
+  // The real invite and ticket channel come from env or Admin → Settings. This is a
+  // public repo, so the fallbacks are deliberately neutral: the invite falls back
+  // to Discord's own home page, and the ticket link to "" (callers hide it). A blank
+  // env value (as .env.example ships) counts as unset, hence `||` rather than `??`.
+  discord: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL?.trim() || "https://discord.com",
+  discordSupportTickets: process.env.NEXT_PUBLIC_DISCORD_SUPPORT_TICKETS_URL?.trim() || "",
   url: resolvePublicOrigin(),
   socials: [
-    { label: "Discord", href: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/ZPrzyGpMyt", icon: "Discord" },
-    { label: "TikTok", href: "https://www.tiktok.com/@mazoramc?_r=1&_t=ZS-98Q2DRMhZZa", icon: "TikTok" },
+    { label: "Discord", href: process.env.NEXT_PUBLIC_DISCORD_INVITE_URL?.trim() || "https://discord.com", icon: "Discord" },
+    { label: "TikTok", href: "https://www.tiktok.com/@mazoramc", icon: "TikTok" },
   ],
 } as const;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "@/components/ui/app-link";
 import type { ZodTypeAny } from "zod";
@@ -206,12 +206,31 @@ function AuthMessage({ message }: { message?: string }) {
   return message ? <p className="auth-form-message" role="alert">{message}</p> : null;
 }
 
-export function OtpInput({ id, name, error }: { id: string; name: string; error?: string }) {
+/**
+ * `autoSubmit` sends the form as soon as the sixth digit is in, the way most
+ * sign-in screens do. Leave it off where the code confirms something that
+ * cannot be undone, so that still takes a deliberate button press.
+ */
+export function OtpInput({ id, name, error, autoSubmit = false }: { id: string; name: string; error?: string; autoSubmit?: boolean }) {
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  // The code already sent, so a re-render never sends the same one twice.
+  const submitted = useRef("");
+
+  useEffect(() => {
+    if (!autoSubmit) return;
+    if (value.length < 6) {
+      submitted.current = "";
+      return;
+    }
+    if (submitted.current === value) return;
+    submitted.current = value;
+    root.current?.closest("form")?.requestSubmit();
+  }, [autoSubmit, value]);
 
   return (
-    <div className="auth-otp" data-focused={focused || undefined} data-invalid={Boolean(error) || undefined}>
+    <div ref={root} className="auth-otp" data-focused={focused || undefined} data-invalid={Boolean(error) || undefined}>
       <Input
         id={id}
         name={name}
@@ -222,6 +241,14 @@ export function OtpInput({ id, name, error }: { id: string; name: string; error?
         required
         value={value}
         onChange={(event) => setValue(event.target.value.replace(/\D/g, "").slice(0, 6))}
+        onKeyDown={(event) => {
+          // After a refused code the boxes are still full: the next digit
+          // starts a new code instead of being swallowed by maxLength.
+          if (!autoSubmit || value.length < 6 || submitted.current !== value) return;
+          if (!/^[0-9]$/.test(event.key) || event.ctrlKey || event.metaKey || event.altKey) return;
+          event.preventDefault();
+          setValue(event.key);
+        }}
         onPaste={(event) => {
           const digits = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
           if (!digits) return;
@@ -691,13 +718,20 @@ export function VerifyEmailCodeForm({ email }: { email: string }) {
     return () => clearTimeout(id);
   }, [cooldown]);
 
+  // The code was right and the email is confirmed, but this browser is not the
+  // one that registered the account, so the action kept no session and removed
+  // the password: the next step is choosing one, not logging in. The code is
+  // spent, so the boxes and the resend row would only invite another try that
+  // cannot work.
+  if (state.ok && state.message) return <UnprovenConfirmation message={state.message} />;
+
   return (
     <>
       <form action={action} className="auth-form" noValidate>
         <input type="hidden" name="email" value={email} />
         <CodeDestination email={email} purpose="Verification code sent to" />
         <FormRow label="6-digit code" htmlFor="confirm-token" error={tokenError}>
-          <OtpInput id="confirm-token" name="token" error={tokenError} />
+          <OtpInput id="confirm-token" name="token" error={tokenError} autoSubmit />
         </FormRow>
         <AuthMessage message={state.message} />
         <button type="submit" disabled={pending} className="btn btn-primary auth-submit disabled:opacity-70">
@@ -797,7 +831,7 @@ function VerifyResetCodeForm({ email, onVerified }: { email: string; onVerified:
         <RecoveryProgress step={2} />
         <CodeDestination email={email} purpose="Recovery code sent to" />
         <FormRow label="6-digit code" htmlFor="reset-token" error={tokenError}>
-          <OtpInput id="reset-token" name="token" error={tokenError} />
+          <OtpInput id="reset-token" name="token" error={tokenError} autoSubmit />
         </FormRow>
         <AuthMessage message={state.message} />
         <button type="submit" disabled={pending} className="btn btn-primary auth-submit disabled:opacity-70">
@@ -994,20 +1028,34 @@ function ShieldCheckIcon() {
   return <BadgeCheck size={25} />;
 }
 
+/**
+ * A sign-up confirmation that came back `ok` with a message instead of
+ * redirecting: the email is confirmed, but the account has no password (see
+ * settleSignupConfirmation in lib/actions/auth). The way on is "Forgot
+ * password", so that is the button; logging in is only for someone who has
+ * already been through it.
+ */
+function UnprovenConfirmation({ message }: { message: string }) {
+  return (
+    <div className="auth-success-state">
+      <span><ShieldCheckIcon /></span>
+      <h2>Email confirmed</h2>
+      <p>{message}</p>
+      <AuthFlowLink view="forgot-password" href="/forgot-password" className="btn btn-primary auth-submit">
+        Choose your password <ArrowRight size={16} />
+      </AuthFlowLink>
+      <p className="auth-switch-copy">
+        Already chose one? <AuthFlowLink view="login" href="/login">Log in</AuthFlowLink>
+      </p>
+    </div>
+  );
+}
+
 export function ConfirmEmailForm({ tokenHash, type }: { tokenHash: string; type: string }) {
   const [state, action, pending] = useActionState(confirmEmailAction, initial);
-  // Confirmed from a browser that did not register: the email is verified, but
-  // confirmEmailAction left it signed out, so it signs in the usual way.
-  if (state.ok) {
-    return (
-      <div className="auth-success-state">
-        <span><ShieldCheckIcon /></span>
-        <h2>Email confirmed</h2>
-        <p>{state.message}</p>
-        <Link href="/login" className="btn btn-primary auth-submit">Continue to login <ArrowRight size={16} /></Link>
-      </div>
-    );
-  }
+  // Confirmed with the marker of another account in this browser: the email is
+  // verified, but confirmEmailAction kept no session and removed the password.
+  if (state.ok && state.message) return <UnprovenConfirmation message={state.message} />;
   return (
     <form action={action} className="auth-form">
       <input type="hidden" name="token_hash" value={tokenHash} />

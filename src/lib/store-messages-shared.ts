@@ -206,7 +206,7 @@ export function buildConfirmedDescription(
     parts.total ? `**Total:** ${parts.total}` : null,
     parts.creatorCode ? `**Discount code:** ${parts.creatorCode}` : null,
     PAYMENT_NOTICE,
-    `\n— — —\n${renderStoreText(template.disclaimer, tokens)}\n${supportUrl}`,
+    `\n— — —\n${renderStoreText(template.disclaimer, tokens)}${supportUrl ? `\n${supportUrl}` : ""}`,
   ].filter((line): line is string => line !== null);
 
   return lines.join("\n");
@@ -223,7 +223,7 @@ export function buildDeclinedDescription(
   return [
     renderStoreText(template.opening, tokens),
     renderStoreText(template.closing, tokens),
-    `\n— — —\n${renderStoreText(template.disclaimer, tokens)}\n${supportUrl}`,
+    `\n— — —\n${renderStoreText(template.disclaimer, tokens)}${supportUrl ? `\n${supportUrl}` : ""}`,
   ]
     .filter(Boolean)
     .join("\n");

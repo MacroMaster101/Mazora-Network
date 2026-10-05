@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Product } from "@/lib/types";
+import { MAX_QUANTITY_PER_PRODUCT } from "@/lib/store-order-rules";
 
 export interface CartItem {
   slug: string;
@@ -34,6 +35,15 @@ interface CartCtx {
 const Ctx = createContext<CartCtx | null>(null);
 const KEY = "mz_cart";
 
+/**
+ * The order action refuses more than this many of one product, so the cart
+ * never holds more: a quantity the server would turn away at the last step is
+ * stopped here, where the shopper can still see why the number stopped rising.
+ */
+function capQty(qty: number): number {
+  return Math.min(qty, MAX_QUANTITY_PER_PRODUCT);
+}
+
 export function useCart(): CartCtx {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error("useCart must be used within CartProvider");
@@ -49,7 +59,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) setItems(JSON.parse(raw));
+      // A cart saved before the cap existed may hold more than the server takes.
+      if (raw) setItems((JSON.parse(raw) as CartItem[]).map((item) => ({ ...item, qty: capQty(item.qty) })));
     } catch {
       /* Ignore malformed or unavailable local storage. */
     }
@@ -67,7 +78,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (found) {
         return prev.map((item) =>
           item.slug === product.slug
-            ? { ...item, category: product.category, qty: item.qty + 1 }
+            ? { ...item, category: product.category, qty: capQty(item.qty + 1) }
             : item,
         );
       }
@@ -89,7 +100,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) =>
       qty <= 0
         ? prev.filter((item) => item.slug !== slug)
-        : prev.map((item) => (item.slug === slug ? { ...item, qty: Math.min(qty, 20) } : item)),
+        : prev.map((item) => (item.slug === slug ? { ...item, qty: capQty(qty) } : item)),
     );
   }, []);
 

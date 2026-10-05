@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { randomUUID } from "node:crypto";
 import { SESSION_ONLY_COOKIE, sessionOnlyMarkerOptions } from "@/lib/supabase/session-cookie";
 import { createClient } from "@supabase/supabase-js";
 import type { Role } from "@/lib/types";
@@ -17,7 +18,7 @@ import { ignAvailability, linkMinecraftIgn } from "@/lib/minecraft/link";
 import { dispatchSignInNotifications } from "@/lib/notifications-auto";
 import { throttleAuthAction } from "@/lib/rate-limit";
 import { SIGN_IN_FAILED, SUSPENDED_PATH, UNRESOLVED_IDENTIFIER, looksLikeEmail } from "@/lib/auth/login-identifier";
-import { accountStatusFor } from "@/lib/data/account-status";
+import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { accountHasPassword, passwordMatchesCurrent } from "@/lib/auth/reauth";
 import { getDb } from "@/lib/db/client";
 import { sql } from "drizzle-orm";
@@ -34,6 +35,37 @@ import {
 } from "@/lib/validation/auth";
 import { isPasswordBreached, PWNED_PASSWORD_MESSAGE } from "@/lib/auth/pwned-password";
 import { clearResetGrant, hasResetGrant, issueResetGrant } from "@/lib/auth/reset-grant";
+import {
+  clearResetRequestMarker,
+  hasResetRequestMarker,
+  markResetRequested,
+  resetRequestedHereFor,
+} from "@/lib/auth/reset-request";
+import {
+  endLocalSession,
+  findAccountByConfirmationToken,
+  findAccountByEmail,
+  findAccountByRecoveryToken,
+  recordPasswordSet,
+  removeAccountPassword,
+  replacePendingSignup,
+  resetUnprovenNames,
+} from "@/lib/auth/signup-trust";
+import {
+  SIGNUP_LINK_ELSEWHERE,
+  UNPROVEN_SIGNUP_MESSAGE,
+  UNPROVEN_SIGNUP_UNSECURED,
+  classifyPasswordProbe,
+  confirmedBeforeVerifying,
+  emailStanding,
+  firstSignupConfirmation,
+  planRegistration,
+  resetConfirmedTheEmail,
+  resetMayResetNames,
+  signupLinkStanding,
+  signupProvenHere,
+  type PasswordProbe,
+} from "@/lib/auth/signup-trust-core";
 import { classifyPasswordUpdateError, normaliseReauthCode } from "@/lib/auth/password-reauth";
 import { redeemRecoveryCode } from "@/lib/auth/two-factor-recovery";
 import type { User } from "@supabase/supabase-js";
@@ -73,42 +105,184 @@ function safeNext(value: string | undefined, fallback = "/"): string {
   return normalized.startsWith("/") && !normalized.startsWith("//") ? normalized : fallback;
 }
 
-async function linkVerifiedRegistration(
-  supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>,
-): Promise<void> {
-  const { data } = await supabase.auth.getUser();
+/**
+ * Takes the user verifyOtp just returned rather than asking the auth server
+ * again: an unproven confirmation ends the new session before this runs.
+ *
+ * `linkIgn` is false when nothing shows the registration details are this
+ * visitor's (the confirming browser is not the one that registered the
+ * account): the IGN in the metadata may be someone else's choice, and a
+ * Minecraft link decides where purchases go.
+ */
+async function linkVerifiedRegistration(user: User | null, linkIgn: boolean): Promise<void> {
   const admin = getSupabaseAdmin();
-  if (!data.user) return;
+  if (!user) return;
 
   // The account is verified from here on, so the fixed default templates fire
   // whether or not an IGN link follows. Best-effort — it never blocks signup.
-  await dispatchSignInNotifications(data.user.id);
+  await dispatchSignInNotifications(user.id);
 
-  if (!admin) return;
+  if (!admin || !linkIgn) return;
 
-  const username = String(data.user.user_metadata?.username ?? "").trim();
+  const username = String(user.user_metadata?.username ?? "").trim();
   if (!username) return;
 
-  const availability = await ignAvailability(admin, username, data.user.id);
+  const availability = await ignAvailability(admin, username, user.id);
   if (!availability.available) return;
 
-  await linkMinecraftIgn(admin, data.user.id, username).catch((error) => {
+  await linkMinecraftIgn(admin, user.id, username).catch((error) => {
     console.error("Verified registration IGN link failed:", error);
   });
 }
 
 /**
- * Marks the browser that started a registration, so the emailed confirm link
- * only signs in the browser that registered. Anyone can mail a victim the link
- * to their OWN pending account; without this, one "Confirm" click signed the
- * victim into the sender's account — the same login CSRF the magiclink type
- * was dropped for (lib/validation/auth). Lasts as long as the link does.
+ * Marks the browser whose registration produced an account, holding that
+ * account's id. It decides two things at confirmation (lib/auth/signup-trust):
+ *
+ * - whose password the account keeps. Anyone can register a stranger's address
+ *   with a password of their own; only a confirmation from the browser that
+ *   created that exact account keeps the password on it.
+ * - who is signed in. Anyone can mail a victim the link to their OWN pending
+ *   account; without this, one "Confirm" click signed the victim into the
+ *   sender's account — the same login CSRF the magiclink type was dropped for
+ *   (lib/validation/auth).
+ *
+ * Lasts as long as the link does.
  */
 const PENDING_SIGNUP_COOKIE = "mz_pending_signup";
+
+/**
+ * One answer for a reset link opened where no matching reset was asked for.
+ * Never says whose account it was. It does not point at the emailed code: a
+ * code can only be typed after asking for a reset, and asking again replaces it.
+ */
+const RESET_LINK_ELSEWHERE =
+  "This reset link only works in the browser that asked for it. To continue here, request a new reset from this device.";
+
+/** Registration stopped part-way for a reason that is not about the address. Nothing was created. */
+const REGISTRATION_UNFINISHED =
+  "We couldn't finish creating that account right now. Please try again in a few minutes.";
+
+const USERNAME_TAKEN = "That Minecraft username is already taken. Please choose another.";
+
+/** One answer for an emailed link that cannot be used, whatever the reason. */
+const LINK_INVALID = "This link is invalid or has expired. Request a new one from the login page.";
 
 async function markPendingSignup(userId: string): Promise<void> {
   const store = await cookies();
   store.set(PENDING_SIGNUP_COOKIE, userId, { ...sessionOnlyMarkerOptions(), maxAge: 24 * 60 * 60 });
+}
+
+/**
+ * Call right after a sign-up verification succeeds and BEFORE
+ * settleSignupConfirmation. True when the verification is not what confirmed
+ * the account: it was confirmed long before, or it is a staff invitation.
+ *
+ * That happens because the auth server's `email` link type also accepts a
+ * password-reset token, so a reset link edited to say `type=email` verifies on
+ * an old account (lib/validation/auth). Settling that as a new sign-up would
+ * remove the owner's password and names, so nothing on the account is touched:
+ * this browser's session is ended and the caller answers as for a bad link.
+ * It applies even when the marker names this very account, so the branch
+ * never yields a session for an account it did not just confirm. The marker is
+ * left for the visitor's own registration, if they have one.
+ */
+async function notAFirstSignupConfirmation(
+  supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>,
+  user: User | null,
+  confirmedBefore: boolean | null,
+): Promise<boolean> {
+  const first = firstSignupConfirmation({
+    confirmedBefore,
+    emailConfirmedAt: user?.email_confirmed_at,
+    invitedAt: user?.invited_at,
+    nowMs: Date.now(),
+  });
+  if (first) return false;
+  console.error("A sign-up verification landed on an account it did not just confirm; nothing was changed");
+  await endLocalSession(supabase);
+  return true;
+}
+
+/**
+ * Call right after a sign-up confirmation succeeds, with the user verifyOtp
+ * returned, once notAFirstSignupConfirmation has let it through. Null when
+ * this browser registered the account: its password and
+ * names are this visitor's, and they stay signed in.
+ *
+ * Otherwise the email is confirmed but nothing shows the password is the
+ * owner's, so it is removed, the names typed at registration go back to the
+ * placeholders, no Minecraft name is linked and no session is kept. The owner
+ * chooses a password through "Forgot password", which needs the inbox.
+ *
+ * Fails closed: if the password could not be removed the visitor is still
+ * signed out, and is told so as an error rather than a success.
+ */
+async function settleSignupConfirmation(
+  supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>,
+  user: User | null,
+): Promise<AuthResult | null> {
+  const store = await cookies();
+  const registeredHere = signupProvenHere(store.get(PENDING_SIGNUP_COOKIE)?.value, user?.id);
+  store.delete(PENDING_SIGNUP_COOKIE);
+  if (registeredHere) {
+    await linkVerifiedRegistration(user, true);
+    return null;
+  }
+
+  // The password first: it is what lets a stranger in.
+  const removal = user ? await removeAccountPassword(user.id) : "failed";
+  if (user) await resetUnprovenNames(user.id);
+  await endLocalSession(supabase);
+  if (removal === "failed") {
+    console.error("An unproven sign-up was confirmed but its password could not be removed");
+    return { ok: false, message: UNPROVEN_SIGNUP_UNSECURED };
+  }
+  await linkVerifiedRegistration(user, false);
+  return { ok: true, message: UNPROVEN_SIGNUP_MESSAGE };
+}
+
+/**
+ * Call right after a password-reset verification, before the reset grant.
+ *
+ * A reset code or link also confirms the email of an account that never was
+ * confirmed, and that account's password is whatever its first registrant
+ * typed. When this verification is what confirmed the email, the password is
+ * removed at once rather than left working until the new one is chosen (or for
+ * good, if the visitor stops here). The recovery session is kept, so the
+ * visitor goes straight on to choose a password.
+ *
+ * Returns what to show when the reset cannot go on; null when it can.
+ */
+async function distrustPasswordAfterFirstConfirmation(
+  supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>,
+  user: User | null,
+  confirmedBefore: boolean | null,
+): Promise<AuthResult | null> {
+  const firstConfirmation = resetConfirmedTheEmail({
+    confirmedBefore,
+    emailConfirmedAt: user?.email_confirmed_at,
+    nowMs: Date.now(),
+  });
+  if (!firstConfirmation) return null;
+
+  const removal = user ? await removeAccountPassword(user.id) : "failed";
+  if (user && removal === "removed") {
+    // The names are kept for the browser that registered this account, and
+    // whenever only the clock says this was a first confirmation: an account
+    // confirmed minutes ago by its owner looks the same, and its names are theirs.
+    const store = await cookies();
+    if (signupProvenHere(store.get(PENDING_SIGNUP_COOKIE)?.value, user.id)) store.delete(PENDING_SIGNUP_COOKIE);
+    else if (resetMayResetNames(confirmedBefore)) await resetUnprovenNames(user.id);
+    return null;
+  }
+  // "replaced" ended the recovery session along with every other one, and
+  // "failed" left the old password in place. Either way this reset stops here.
+  // The email is confirmed now, so the next request is an ordinary reset and
+  // ends with a password the visitor chose.
+  if (removal === "failed") console.error("A reset confirmed an email but the old password could not be removed");
+  await endLocalSession(supabase);
+  return { ok: false, message: "We couldn't start the reset. Request a new code and try again." };
 }
 
 /** Record (or clear) the "don't remember me" choice for this browser. */
@@ -129,13 +303,26 @@ const usernameFromIdentifier = (identifier: string) =>
  *
  * The isolated client cannot persist the probe session or alter the browser's
  * real cookie-bound session.
+ *
+ * Three answers, not two: a rate limit, a network failure or a server error
+ * says nothing about the password, and must never be read as "wrong" (which
+ * deletes the pending account) or as "opens" (which trusts it).
  */
-async function pendingRegistrationCredentialsMatch(email: string, password: string): Promise<boolean> {
+async function pendingRegistrationCredentialsMatch(email: string, password: string): Promise<PasswordProbe> {
   const config = getSupabaseConfig();
-  if (!config) return false;
+  if (!config) return "unknown";
   const probe = createClient(config.url, config.key, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { error } = await probe.auth.signInWithPassword({ email, password });
-  return isUnconfirmedEmailError(error);
+  try {
+    const { error } = await probe.auth.signInWithPassword({ email, password });
+    const answer = classifyPasswordProbe(error);
+    if (answer === "unknown") {
+      console.error("Pending-registration password probe was inconclusive:", { status: error?.status, code: error?.code });
+    }
+    return answer;
+  } catch {
+    console.error("Pending-registration password probe could not reach the auth server");
+    return "unknown";
+  }
 }
 
 /**
@@ -209,6 +396,15 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
     });
     if (error) {
       if (isUnconfirmedEmailError(error)) {
+        // The auth server only says "not confirmed" once the password has
+        // matched, so this browser has just proved it knows the pending
+        // account's password: the same thing the marker stands for after a
+        // registration. Without it, a confirmation link opened here (after
+        // "resend", on a device that did not register) would be refused.
+        const pending = await findAccountByEmail(loginEmail);
+        if (pending.status === "found" && emailStanding(pending.account) === "pending") {
+          await markPendingSignup(pending.account.id);
+        }
         return {
           ok: false,
           message: "Verify your email before logging in — check your inbox for the confirmation link.",
@@ -222,14 +418,25 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
       return { ok: false, message: SIGN_IN_FAILED };
     }
 
+    // Read once: both checks below must be about the same answer.
+    const status = signedIn.user ? await accountStatusFor(signedIn.user.id) : null;
+
+    // The status could not be read at all, so nothing says this account is not
+    // suspended. Refuse the sign-in rather than guess; it is not about this
+    // account, so saying so reveals nothing.
+    if (status === STATUS_UNREADABLE) {
+      await endLocalSession(supabase);
+      return { ok: false, message: "Authentication is temporarily unavailable. Please try again." };
+    }
+
     // Suspended from the Users board. Shown only once the password has matched,
     // so it tells someone guessing at accounts nothing; the new session is
     // ended straight away, then /account-suspended explains how to appeal.
     // With two-step verification on it waits for the code too (the /two-factor
     // actions check it), so a leaked password alone learns nothing either.
     const hasAuthenticator = signedIn.user?.factors?.some((factor) => factor.status === "verified") ?? false;
-    if (signedIn.user && !hasAuthenticator && (await accountStatusFor(signedIn.user.id)) === "suspended") {
-      await supabase.auth.signOut({ scope: "local" });
+    if (status === "suspended" && !hasAuthenticator) {
+      await endLocalSession(supabase);
       redirect(SUSPENDED_PATH);
     }
 
@@ -289,35 +496,64 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
     if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
     const admin = getSupabaseAdmin();
 
+    /*
+      What already exists for this address is asked first, before anything is
+      sent. The auth server leaves an existing unconfirmed account untouched on
+      a second sign-up, so its password stays the FIRST registrant's: someone
+      could register a stranger's address, wait for the owner to register and
+      confirm it, then log in with the password they chose. A pending account
+      whose password is not the one just typed is therefore deleted and the
+      address registered afresh (lib/auth/signup-trust), which gives this
+      visitor's password, a new account id and a confirmation email that works.
+
+      Fail closed: with no answer, nothing is created.
+    */
+    const lookup = await findAccountByEmail(parsed.data.email);
+    if (lookup.status === "unreadable") return { ok: false, message: REGISTRATION_UNFINISHED };
+
     // Reject a taken username up front so the person consciously picks a unique
     // handle, rather than the signup trigger silently suffixing it after the
     // fact (`unique_username` in the migrations). The IGN is checked against
     // both namespaces it will occupy — the site handle and the Minecraft link.
-    if (admin) {
-      const availability = await ignAvailability(admin, parsed.data.username);
-      if (!availability.available) {
-        // auth.users and profiles exist before the signup OTP is confirmed.
-        // Never compare the submitted email with the username owner until the
-        // caller has proved the pending account's password; otherwise this
-        // branch becomes an email-to-public-username enumeration oracle.
-        if (
-          availability.userId &&
-          (await pendingRegistrationCredentialsMatch(parsed.data.email, parsed.data.password))
-        ) {
-          const { data: owner } = await admin.auth.admin.getUserById(availability.userId);
-          const sameEmail = owner.user?.email?.toLowerCase() === parsed.data.email.toLowerCase();
-          if (sameEmail && !owner.user?.email_confirmed_at) {
-            // Do not send mail from a registration collision. The OTP screen's
-            // explicit Resend action owns that side effect and has its own
-            // stricter rate limit.
-            await markPendingSignup(availability.userId);
-            return { ok: true, message: "Your pending registration was found. Enter the code to continue." };
-          }
-        }
-        return {
-          ok: false,
-          errors: { username: "That Minecraft username is already taken. Please choose another." },
-        };
+    const availability = admin ? await ignAvailability(admin, parsed.data.username) : ({ available: true } as const);
+
+    const plan = await planRegistration({
+      existing: lookup.status === "found" ? lookup.account : null,
+      username: availability,
+      passwordOpens: () => pendingRegistrationCredentialsMatch(parsed.data.email, parsed.data.password),
+    });
+
+    if (plan.step === "refuse-username") return { ok: false, errors: { username: USERNAME_TAKEN } };
+
+    // The typed password could not be tried against the pending account (the
+    // auth server was rate limiting, unreachable or failing). Nothing is
+    // deleted, created or emailed on a guess; trying again later settles it.
+    if (plan.step === "unfinished") return { ok: false, message: REGISTRATION_UNFINISHED };
+
+    // A staff invite holds this address. It is accepted through its own link,
+    // and a sign-up here would overwrite that link's token, so nothing is sent
+    // or changed. The answer is the one a confirmed address gets.
+    if (plan.step === "neutral") {
+      await markPendingSignup(randomUUID());
+      return { ok: true };
+    }
+
+    // The same person again, same password and name. Do not send mail from a
+    // registration collision: the OTP screen's explicit Resend action owns
+    // that side effect and has its own stricter rate limit.
+    if (plan.step === "resume") {
+      await markPendingSignup(plan.userId);
+      return { ok: true, message: "Your pending registration was found. Enter the code to continue." };
+    }
+
+    if (plan.step === "replace") {
+      if (!admin || !(await replacePendingSignup(admin, plan.userId, parsed.data.email))) {
+        return { ok: false, message: REGISTRATION_UNFINISHED };
+      }
+      // The deleted account's own claim on the name is gone. Anyone else's is
+      // still a conflict.
+      if (!(await ignAvailability(admin, parsed.data.username)).available) {
+        return { ok: false, errors: { username: USERNAME_TAKEN } };
       }
     }
 
@@ -356,16 +592,43 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
 
     // Supabase returns an obfuscated user with no identities for duplicate
     // signups. Never create public/profile data for that placeholder. The OTP
-    // screen remains intentionally neutral so this cannot enumerate emails.
+    // screen remains intentionally neutral so this cannot enumerate emails;
+    // the marker is set to an id that belongs to nobody for the same reason,
+    // so its presence does not tell a new address from a confirmed one.
     if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      await markPendingSignup(randomUUID());
       return { ok: true };
     }
 
     // Keep account creation complete even on projects where the database
     // signup trigger has not been applied yet.
     if (data.user && admin && !(await ensureUserProfile(data.user))) {
-      await admin.auth.admin.deleteUser(data.user.id);
+      // Not a bare delete: the auth server can answer a sign-up with an
+      // account that already existed (someone's pending registration, or an
+      // invite created a moment ago), and only a never-confirmed, never-used
+      // self sign-up for this address may go.
+      await replacePendingSignup(admin, data.user.id, parsed.data.email);
       return { ok: false, message: "That account could not be created. Try another username or email." };
+    }
+
+    /*
+      Last check before this browser is marked as the registrant, because the
+      marker is what lets a confirmation keep the password: does the password
+      just typed open the account the auth server answered with? For a new
+      account it always does. It does not when someone registered the address
+      between the lookup above and the sign-up, so the sign-up landed on THEIR
+      pending account. No clocks are compared. A probe with no clear answer
+      (rate limited, unreachable) is not proof either way and also stops here;
+      trying again resumes or replaces the account.
+    */
+    if (
+      data.user &&
+      !data.session &&
+      (await pendingRegistrationCredentialsMatch(parsed.data.email, parsed.data.password)) !== "opens"
+    ) {
+      // Fail closed: no marker, so a confirmation from this browser cannot
+      // keep a password that may be someone else's. Nothing is deleted here.
+      return { ok: false, message: REGISTRATION_UNFINISHED };
     }
 
     if (data.user) await markPendingSignup(data.user.id);
@@ -491,31 +754,75 @@ export async function confirmEmailAction(_previous: AuthResult, formData: FormDa
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
-  const { data: verified, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-  if (error) {
-    return {
-      ok: false,
-      message: "This link is invalid or has expired. Request a new one from the login page.",
-    };
+  // A reset link only works in the browser that asked for the reset (see
+  // lib/auth/reset-request). Checked before the token is spent, so a click
+  // anywhere else leaves the real owner's link usable.
+  if (type === "recovery" && !(await hasResetRequestMarker())) {
+    return { ok: false, message: RESET_LINK_ELSEWHERE };
   }
 
-  if (type === "signup" || type === "email") {
-    await linkVerifiedRegistration(supabase);
-    // Only the browser that registered stays signed in (see PENDING_SIGNUP_COOKIE).
-    // Anywhere else — another device, or a victim sent someone else's link —
-    // the email is still confirmed, but the visitor has to log in themselves.
-    const store = await cookies();
-    const startedHere = Boolean(verified.user) && store.get(PENDING_SIGNUP_COOKIE)?.value === verified.user?.id;
-    store.delete(PENDING_SIGNUP_COOKIE);
-    if (!startedHere) {
-      await supabase.auth.signOut({ scope: "local" });
-      return { ok: true, message: "Your email is confirmed. Log in to continue." };
-    }
+  // A sign-up link is only any use in a browser that registered: anywhere
+  // else the confirmation could keep neither the password nor a session.
+  // Refused before the token is spent, so the link still works where it
+  // belongs, and someone who never registered confirms nothing by clicking.
+  const signupLink = type === "signup" || type === "email";
+  if (signupLink && !(await cookies()).get(PENDING_SIGNUP_COOKIE)?.value) {
+    return { ok: false, message: SIGNUP_LINK_ELSEWHERE };
   }
-  // The reset link's session is the only kind finishPasswordResetAction accepts.
-  if (type === "recovery" && !(await issueResetGrant(supabase, verified.session?.access_token))) {
-    console.error("Password reset grant could not be issued (reset link)");
-    return { ok: false, message: "Authentication is temporarily unavailable. Please try again." };
+
+  // Who holds the token is asked before it is spent. For a sign-up link it
+  // must be exactly one account that was never confirmed and is not a staff
+  // invitation; the `email` type would otherwise also verify a reset token on
+  // a long-standing account (lib/validation/auth). With no database there is
+  // no answer, and the check after verifying decides alone.
+  const signupBefore = signupLink ? await findAccountByConfirmationToken(tokenHash) : null;
+  if (signupBefore && signupLinkStanding(signupBefore) === "refuse") {
+    return { ok: false, message: LINK_INVALID };
+  }
+  // For a reset link the same question tells an account this link is about to
+  // confirm from one its owner confirmed minutes ago.
+  const recoveryBefore = type === "recovery" ? await findAccountByRecoveryToken(tokenHash) : null;
+
+  const { data: verified, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+  if (error) return { ok: false, message: LINK_INVALID };
+
+  if (signupLink) {
+    // First, this must be the verification that confirmed the account. Not
+    // taken on trust from the lookup above, which may have had no answer.
+    const confirmedBefore = signupBefore ? confirmedBeforeVerifying(signupBefore, verified.user?.id) : null;
+    if (await notAFirstSignupConfirmation(supabase, verified.user, confirmedBefore)) {
+      return { ok: false, message: LINK_INVALID };
+    }
+    // The marker was there; now that the account is known, it must be for this
+    // account. One for another account (an earlier registration of the same
+    // address, since replaced, or a link someone else sent) proves nothing.
+    const unproven = await settleSignupConfirmation(supabase, verified.user);
+    if (unproven) return unproven;
+  }
+
+  if (type === "recovery") {
+    // The marker was there; now that the account is known, it must have been
+    // signed for this account. A link to someone else's account, opened by a
+    // visitor who had asked for their own reset, stops here: no session kept,
+    // no reset grant. The message is the same as for a missing marker and says
+    // nothing about the account. The marker stays, for the visitor's own link.
+    if (!(await resetRequestedHereFor(verified.user?.email))) {
+      await endLocalSession(supabase);
+      return { ok: false, message: RESET_LINK_ELSEWHERE };
+    }
+    await clearResetRequestMarker();
+    // Whether this link is what confirmed the email comes from the lookup made
+    // before it was spent. Only when that had no answer for this account does
+    // the confirmation time decide, and then the names are left alone.
+    const confirmedBefore = recoveryBefore ? confirmedBeforeVerifying(recoveryBefore, verified.user?.id) : null;
+    const stopped = await distrustPasswordAfterFirstConfirmation(supabase, verified.user, confirmedBefore);
+    if (stopped) return stopped;
+    // The reset link's session is the only kind finishPasswordResetAction accepts.
+    if (!(await issueResetGrant(supabase, verified.session?.access_token))) {
+      console.error("Password reset grant could not be issued (reset link)");
+      await endLocalSession(supabase);
+      return { ok: false, message: "Authentication is temporarily unavailable. Please try again." };
+    }
   }
 
   redirect(type === "recovery" ? "/reset-password" : "/");
@@ -552,14 +859,33 @@ export async function confirmEmailCodeAction(_previous: AuthResult, formData: Fo
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
-  const { error } = await supabase.auth.verifyOtp({
+  // Read before the code is spent, as the reset code does: afterwards an
+  // account this code confirmed and one confirmed earlier look alike. A code
+  // is only ever for a pending self sign-up, so anything else is answered like
+  // a wrong code and its token (a staff invite's, say) is left unspent.
+  const before = await findAccountByEmail(parsed.data.email);
+  if (before.status === "found" && emailStanding(before.account) !== "pending") {
+    return { ok: false, errors: { token: "That code is incorrect or has expired." } };
+  }
+
+  const { data: verified, error } = await supabase.auth.verifyOtp({
     email: parsed.data.email,
     token: parsed.data.token,
     type: "signup",
   });
   if (error) return { ok: false, errors: { token: "That code is incorrect or has expired." } };
 
-  await linkVerifiedRegistration(supabase);
+  // A failed read above leaves it to the confirmation time and the invite date.
+  if (await notAFirstSignupConfirmation(supabase, verified.user, confirmedBeforeVerifying(before, verified.user?.id))) {
+    return { ok: false, errors: { token: "That code is incorrect or has expired." } };
+  }
+
+  // Same rule as the emailed link: only the browser that registered this
+  // account keeps its password and a session. There is no check before the
+  // code is spent, since typing it already takes the address and the code,
+  // but a browser with no marker is unproven all the same.
+  const unproven = await settleSignupConfirmation(supabase, verified.user);
+  if (unproven) return unproven;
 
   // Verified — a session now exists, so the new member lands signed in.
   redirect("/");
@@ -611,6 +937,10 @@ export async function requestPasswordResetAction(_previous: AuthResult, formData
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
+    // Marks this browser as the one that asked, for the emailed link (see
+    // lib/auth/reset-request). Before the request and whatever its outcome, so
+    // the cookie is the same for an address with no account.
+    await markResetRequested(parsed.data.email);
     // The email carries a 6-digit {{ .Token }} as the primary reset path
     // (verified via verifyResetCodeAction below), plus a fallback link built
     // from {{ .TokenHash }} pointing at /confirm-email — not .ConfirmationURL,
@@ -650,12 +980,24 @@ export async function verifyResetCodeAction(_previous: AuthResult, formData: For
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
 
+  // Whether the email is confirmed is read BEFORE the code is spent, because
+  // verifying a reset code also confirms an unconfirmed account and afterwards
+  // the two look alike. A failed read leaves it to the confirmation time.
+  const before = await findAccountByEmail(parsed.data.email);
+
   const { data: verified, error } = await supabase.auth.verifyOtp({
     email: parsed.data.email,
     token: parsed.data.token,
     type: "recovery",
   });
   if (error) return { ok: false, errors: { token: "That code is incorrect or has expired." } };
+
+  const confirmedBefore =
+    before.status === "found" && before.account.id === verified.user?.id
+      ? emailStanding(before.account) === "confirmed"
+      : null;
+  const stopped = await distrustPasswordAfterFirstConfirmation(supabase, verified.user, confirmedBefore);
+  if (stopped) return stopped;
 
   // Marks this session as a recovery session; step 3 requires it.
   if (!(await issueResetGrant(supabase, verified.session?.access_token))) {
@@ -699,10 +1041,6 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
       return { ok: false, message: "Your reset session expired. Request a new code and try again." };
     }
 
-    if (await passwordMatchesCurrent(email, parsed.data.password)) {
-      return { ok: false, errors: { password: "New password must be different from your current password." } };
-    }
-
     // With two-step verification on, the emailed code alone must not be enough
     // to replace the password — someone in the member's inbox could otherwise
     // reset their way past it. It also takes the authenticator code (or a
@@ -718,10 +1056,25 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
     // Suspended from the Users board: no new password. Checked only after every
     // other proof (the emailed code and any two-step code) has passed, then the
     // reset session is ended and /account-suspended explains how to appeal.
-    if ((await accountStatusFor(userData.user.id)) === "suspended") {
+    const status = await accountStatusFor(userData.user.id);
+    if (status === "suspended") {
       await clearResetGrant();
-      await supabase.auth.signOut({ scope: "local" });
+      await endLocalSession(supabase);
       redirect(SUSPENDED_PATH);
+    }
+    // Unreadable is not "not suspended". The reset session is kept, so the
+    // member can simply try again once the status can be read.
+    if (status === STATUS_UNREADABLE) {
+      return { ok: false, message: "Authentication is temporarily unavailable. Please try again." };
+    }
+
+    // Only now, after every proof above. Run earlier, this told whoever held
+    // just the emailed code whether a guessed password was the current one —
+    // on a two-step account, the one thing the inbox alone must not reveal.
+    // An account with no password (one removed as untrusted when this reset
+    // confirmed the email) has nothing for the new one to differ from.
+    if (accountHasPassword(userData.user) && (await passwordMatchesCurrent(email, parsed.data.password))) {
+      return { ok: false, errors: { password: "New password must be different from your current password." } };
     }
 
     /*
@@ -788,13 +1141,22 @@ async function passResetTwoFactor(
 async function markHasPassword(userId: string | undefined) {
   if (!userId) return;
   const admin = getSupabaseAdmin();
-  if (!admin) return;
-  const { data } = await admin.auth.admin.getUserById(userId);
-  // Spread the existing app_metadata: role lives here too, and replacing the
-  // object wholesale would strip it.
-  await admin.auth.admin.updateUserById(userId, {
-    app_metadata: { ...(data?.user?.app_metadata ?? {}), has_password: true },
-  });
+  if (admin) {
+    const { data } = await admin.auth.admin.getUserById(userId);
+    // Spread the existing app_metadata: role lives here too, and replacing the
+    // object wholesale would strip it.
+    const { error } = await admin.auth.admin.updateUserById(userId, {
+      app_metadata: { ...(data?.user?.app_metadata ?? {}), has_password: true },
+    });
+    if (!error) return;
+    console.error("Could not record the new password through the admin API:", error.message);
+  }
+  // The flag may be an explicit `false`, left when an untrusted password was
+  // removed (lib/auth/signup-trust). Left that way it would skip the
+  // current-password check on an account that has a password again, so there
+  // is a second way to write it.
+  const recorded = await recordPasswordSet(userId);
+  if (!recorded) console.error("The new password could not be recorded on the account by either route");
 }
 
 export async function updatePasswordAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {

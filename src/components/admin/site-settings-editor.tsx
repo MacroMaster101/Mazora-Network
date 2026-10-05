@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   Save,
   RefreshCw,
@@ -10,7 +10,6 @@ import {
   Check,
   Share2,
   Image as ImageIcon,
-  Upload,
   Link as LinkIcon,
   Sparkles,
   ExternalLink,
@@ -249,10 +248,9 @@ export function SiteSettingsEditor({
   const [savingSection, setSavingSection] = useState<SectionKey | null>(null);
   const [savingToggle, setSavingToggle] = useState(false);
   const [, startTransition] = useTransition();
-  const [imageTab, setImageTab] = useState<"presets" | "custom" | "upload">("presets");
+  const [imageTab, setImageTab] = useState<"presets" | "custom">("presets");
   const [previewPlatform, setPreviewPlatform] = useState<"discord" | "twitter" | "whatsapp" | "facebook" | "google">("discord");
   const [customInputUrl, setCustomInputUrl] = useState("");
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const isDirty = (section: SectionKey) =>
     SECTIONS[section].some((key) => formState[key] !== saved[key]);
@@ -320,31 +318,6 @@ export function SiteSettingsEditor({
       onReset={() => resetSection(section)}
     />
   );
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast("Please select a valid image file.", "error");
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast("Image size should be under 2MB.", "error");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      if (dataUrl) {
-        setFormState((prev) => ({ ...prev, ogImageUrl: dataUrl }));
-        toast("Custom image loaded into preview.", "success");
-      }
-    };
-    reader.readAsDataURL(file);
-  };
 
   const activeOgImage = formState.ogImageUrl || "/images/og-default.webp";
   const shareTitle = `${formState.name || "Mazora Network"} — ${formState.tagline || "Build · Survive · Compete · Create"}`;
@@ -499,29 +472,7 @@ export function SiteSettingsEditor({
                   <LinkIcon size={13} />
                   Image URL
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setImageTab("upload")}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition-all",
-                    imageTab === "upload"
-                      ? "bg-accent text-white shadow-sm"
-                      : "text-muted hover:text-ink"
-                  )}
-                >
-                  <Upload size={13} />
-                  Upload
-                </button>
               </div>
-
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
 
               {/* Tab 1: Presets */}
               {imageTab === "presets" && (
@@ -584,47 +535,13 @@ export function SiteSettingsEditor({
                       Apply
                     </button>
                   </div>
+                  {/* No upload from the computer here: a chosen file could only
+                      become a data: URL, and the save accepts a site path or an
+                      https link of at most 500 characters, so it never saved. */}
                   <p className="text-[11px] text-muted">
-                    Paste any direct image link (.png, .jpg, .webp). Must be a publicly accessible HTTPS URL.
+                    Paste a direct https:// image link (.png, .jpg, .webp) or a site path such as /images/…
+                    To use a file from your computer, host it first and paste its link.
                   </p>
-                </div>
-              )}
-
-              {/* Tab 3: Upload */}
-              {imageTab === "upload" && (
-                <div className="space-y-3">
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-accent/40 hover:border-accent bg-accent/[0.03] hover:bg-accent/[0.08] rounded-2xl cursor-pointer transition-all text-center group select-none"
-                  >
-                    <div className="h-10 w-10 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-accent-bright mb-2 group-hover:scale-110 transition-transform">
-                      <Upload size={18} />
-                    </div>
-                    <span className="text-xs font-bold text-ink group-hover:text-accent-bright transition-colors">
-                      Click to choose an image from your computer
-                    </span>
-                    <span className="text-[10px] text-muted mt-1 font-medium">
-                      PNG, JPG, or WebP up to 2MB (1200×630 recommended)
-                    </span>
-                  </div>
-                  {formState.ogImageUrl && formState.ogImageUrl.startsWith("data:") && (
-                    <div className="flex items-center justify-between p-2.5 rounded-xl border border-line bg-surface">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <ImageIcon size={14} className="text-accent-bright shrink-0" />
-                        <span className="text-xs text-ink truncate font-medium">Custom uploaded image active in preview</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormState((p) => ({ ...p, ogImageUrl: "/images/og-default.webp" }));
-                          toast("Reset to default banner.", "info");
-                        }}
-                        className="text-[11px] font-bold text-rose-700 dark:text-rose-400 hover:underline shrink-0 ml-2"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -843,7 +760,7 @@ export function SiteSettingsEditor({
               name="discord"
               value={formState.discord}
               onChange={(e) => setFormState((p) => ({ ...p, discord: e.target.value }))}
-              placeholder="e.g. https://discord.gg/ZPrzyGpMyt"
+              placeholder="e.g. https://discord.gg/your-invite"
             />
           </FormRow>
 

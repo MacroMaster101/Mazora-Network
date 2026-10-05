@@ -14,7 +14,7 @@ import {
   roleLabel,
 } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { usernameForUser } from "@/lib/data/accounts";
+import { listAllAuthUsers, usernameForUser } from "@/lib/data/accounts";
 import { cleanupAccountOwnedData } from "@/lib/data/account-deletion";
 import { endAllSessions, setAccountSuspended } from "@/lib/data/account-status";
 import { recordAudit } from "@/lib/audit-log";
@@ -23,6 +23,7 @@ import { canAssignRoles, canManageMinecraft } from "@/lib/auth/permissions";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { normalizeRoleKey, roleDef } from "@/lib/auth/role-catalog-core";
 import { site } from "@/lib/site";
+import { isPendingInvite } from "@/lib/auth/pending-invite";
 
 /**
  * User administration: invite, re-send, withdraw, suspend, delete.
@@ -65,19 +66,6 @@ async function requireOwner() {
   const session = await getSession();
   if (!session || !hasAtLeast(session.role, "owner")) return null;
   return session;
-}
-
-/** True when the account was invited and the link has never been used. */
-function isPendingInvite(user: {
-  invited_at?: string | null;
-  last_sign_in_at?: string | null;
-  email_confirmed_at?: string | null;
-}) {
-  return (
-    Boolean(user.invited_at) &&
-    !user.last_sign_in_at &&
-    !user.email_confirmed_at
-  );
 }
 
 function inviteRedirect() {
@@ -129,6 +117,61 @@ export async function inviteUserAction(
   const admin = getSupabaseAdmin();
   if (!admin)
     return { ok: false, message: "Server is not configured for invitations." };
+
+  // Someone can register the invitee's address themselves (unconfirmed, with
+  // their own password) before staff invite it. Accepting the invite on that
+  // account would hand its owner the invited rank, so an existing account that
+  // is not a staff-created pending invite is refused here. The lookup failing
+  // refuses too, and so does a list cut short at the page ceiling: carrying on
+  // without knowing is exactly the case this guards.
+  const {
+    users: existingUsers,
+    error: lookupError,
+    truncated: lookupTruncated,
+  } = await listAllAuthUsers(admin);
+  if (lookupError || lookupTruncated) {
+    console.error("User invite lookup incomplete", lookupError ?? "account list truncated");
+    return {
+      ok: false,
+      message: "Could not check whether that email already has an account. Try again.",
+    };
+  }
+  const invitedEmail = email.trim().toLowerCase();
+  const existing = existingUsers.find(
+    (user) => user.email?.trim().toLowerCase() === invitedEmail,
+  );
+  if (existing && !isPendingInvite(existing)) {
+    // An unconfirmed account may belong to whoever typed that address into the
+    // sign-up form, with their own password. Promoting it would hand them the
+    // rank once the real owner clicks the confirmation email, so it must be
+    // deleted and re-invited rather than promoted.
+    if (!existing.email_confirmed_at) {
+      return {
+        ok: false,
+        message:
+          "An unconfirmed sign-up already exists for that email. Delete it from the Users list, then send the invite again.",
+      };
+    }
+    return {
+      ok: false,
+      message:
+        "An account already exists for that email. Change its rank from the Users list instead.",
+    };
+  }
+  // Inviting an address that already holds a pending invite sends it again and
+  // re-stamps its rank below. That changes someone else's invitation, so it
+  // obeys the same ceiling as resending or withdrawing one, judged on the rank
+  // the invite holds NOW: an Owner must not turn a Web Dev's Owner-rank invite
+  // into one of their own choosing.
+  if (existing) {
+    const currentRole = (normalizeRoleKey(existing.app_metadata?.role) as Role) ?? "member";
+    if (!canManageRank(session.role, currentRole)) {
+      return {
+        ok: false,
+        message: "That email already has a pending invitation at or above your rank. You cannot change it.",
+      };
+    }
+  }
 
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     redirectTo: inviteRedirect(),

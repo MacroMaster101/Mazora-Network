@@ -17,6 +17,7 @@ import {
   STORE_ROADMAP_KEY,
   STORE_WELCOME_BANNER_KEY,
 } from "@/lib/data/store-settings";
+import { isSafeLink } from "@/lib/net/safe-url";
 
 export interface StoreSettingsActionResult {
   ok: boolean;
@@ -81,7 +82,15 @@ const welcomeBannerSchema = z.object({
   paragraph1: z.string().trim().min(10, "Add paragraph 1 content.").max(2000),
   paragraph2: z.string().trim().min(10, "Add paragraph 2 content.").max(2000),
   supportNote: z.string().trim().min(10, "Add support note content.").max(1500),
-  imageUrl: z.string().trim().min(1, "Enter an image URL.").max(500),
+  // Rendered as the banner's image src on the public store, so it is held to
+  // a path on this site ("/images/store/…", what the presets use) or an https
+  // link. A length cap alone also let through http:, data: and "//other.host".
+  imageUrl: z
+    .string()
+    .trim()
+    .min(1, "Enter an image URL.")
+    .max(500, "Image URL must be under 500 characters.")
+    .refine(isSafeLink, "Use a site image path such as /images/store/… or an https:// link."),
   enabled: z.boolean(),
 });
 

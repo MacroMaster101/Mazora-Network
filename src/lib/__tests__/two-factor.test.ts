@@ -163,6 +163,43 @@ test("password reset on a two-step account also needs the second factor", () => 
   assert.match(read("../actions/two-factor.ts"), /await redeemRecoveryCode\(pending\.user, input, "sign-in"\)/);
 });
 
+test("a reset never says whether a guessed password is the current one before the second step", () => {
+  const src = read("../actions/auth.ts");
+  const start = src.indexOf("export async function finishPasswordResetAction");
+  const reset = src.slice(start, src.indexOf("\n}\n", start));
+  const same = reset.indexOf("passwordMatchesCurrent(email, parsed.data.password)");
+  assert.ok(same > 0, "the new password must still differ from the current one");
+  assert.equal((reset.match(/passwordMatchesCurrent\(/g) ?? []).length, 1, "and that is the only place the current password is tested");
+  // Inbox access alone gets as far as the two-step check and no further.
+  assert.ok(same > reset.indexOf("await passResetTwoFactor(supabase, userData.user, formData)"), "after the two-step check");
+  assert.ok(same > reset.indexOf("await hasResetGrant(supabase)"), "after the reset grant");
+  assert.ok(same > reset.indexOf('=== "suspended"'), "after the suspension check");
+  assert.ok(same < reset.indexOf("supabase.auth.updateUser("), "before the password changes");
+  assert.ok(same < reset.indexOf("admin.auth.admin.updateUserById("), "on the service-role path too");
+});
+
+test("replacing after a recovery sign-in removes the lost authenticator through the auth API and logs it", () => {
+  const src = read("../actions/two-factor.ts");
+  const start = src.slice(src.indexOf("export async function startTwoFactorEnrollmentAction"), src.indexOf("export async function confirmTwoFactorSetupAction"));
+  // Only a recovery sign-in the auth server refused, and only when the removal worked.
+  const removal = start.indexOf('if (error?.code === "insufficient_aal" && actor.recovered && (await removeAllFactors(actor.user.id))) {');
+  assert.ok(removal > 0);
+  assert.equal((start.match(/removeAllFactors\(/g) ?? []).length, 1);
+
+  // The removal is in the audit log straight away, so a setup abandoned at the
+  // QR code (two-step left off) can be seen later. No name or address in it.
+  const branch = start.slice(removal, start.indexOf("if (error || !data)"));
+  const audit = branch.indexOf('action: "auth.two_factor_removed_for_replacement"');
+  assert.ok(audit > 0 && audit < branch.indexOf("({ data, error } = await enroll());"), "logged before the new enrolment is attempted");
+  assert.match(branch, /metadata: \{ reason: "recovery-sign-in", removed: factors\.totp\.length \}/);
+  assert.doesNotMatch(branch, /metadata:\s*\{[\s\S]*?\b(email|username):/);
+
+  // Factor rows belong to the auth server: nothing here edits them in the database.
+  const helper = read("../auth/two-factor-recovery.ts");
+  assert.doesNotMatch(helper, /mfa_factors|getDb|drizzle-orm/);
+  assert.doesNotMatch(src, /mfa_factors|enrollBesideVerifiedFactors/);
+});
+
 test("a recovery code works the industry-standard way: spent, but two-step stays on", () => {
   const helper = read("../auth/two-factor-recovery.ts");
   const redeem = helper.slice(helper.indexOf("export async function redeemRecoveryCode"), helper.indexOf("export async function removeFactor"));

@@ -17,7 +17,14 @@ import {
   isGuildMember,
   sendBotChannelMessage,
 } from "@/lib/discord";
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { throttleAuthAction } from "@/lib/rate-limit";
+import {
+  escapeDiscordMarkdown as escapeMarkdown,
+  MAX_QUANTITY_PER_PRODUCT,
+  mergeCartLines,
+  STORE_PAUSED,
+} from "@/lib/store-order-rules";
 import { usd } from "@/lib/utils";
 
 export interface StoreRequestResult {
@@ -43,16 +50,11 @@ const itemsSchema = z
   .array(
     z.object({
       slug: z.string().min(1).max(100),
-      qty: z.number().int().min(1).max(20),
+      qty: z.number().int().min(1).max(MAX_QUANTITY_PER_PRODUCT),
     }),
   )
   .min(1, "Your cart is empty.")
   .max(20, "Your cart contains too many different products.");
-
-/** Neutralises Discord markdown so player-supplied text cannot restyle the embed. */
-function escapeMarkdown(value: string): string {
-  return value.replace(/[\\*_~`|>]/g, (match) => `\\${match}`);
-}
 
 function fieldErrors(error: z.ZodError): Record<string, string> {
   const errors: Record<string, string> = {};
@@ -80,6 +82,11 @@ export async function submitStoreRequest(
   _previous: StoreRequestResult,
   formData: FormData,
 ): Promise<StoreRequestResult> {
+  // The Site Settings switch. The store page only shows a "paused" notice; the
+  // action is a public endpoint, so the switch has to be re-read here or a
+  // cart left open in another tab (or a crafted request) still places orders.
+  if (!(await getSiteGeneralSettings()).storeEnabled) return { ok: false, message: STORE_PAUSED };
+
   const contact = contactSchema.safeParse({
     minecraftUsername: formData.get("minecraftUsername"),
     notes: formData.get("notes") || undefined,
@@ -138,6 +145,15 @@ export async function submitStoreRequest(
   if (!submittedItems.success) {
     return { ok: false, message: submittedItems.error.issues[0]?.message ?? "Your cart is invalid." };
   }
+  // One line per product from here on. The schema caps each entry, not each
+  // product, so the same slug repeated would otherwise stack past the ceiling.
+  const cartLines = mergeCartLines(submittedItems.data);
+  if (!cartLines) {
+    return {
+      ok: false,
+      message: `You can order at most ${MAX_QUANTITY_PER_PRODUCT} of one product. Lower the quantity and try again.`,
+    };
+  }
 
   const botConfig = getDiscordBotConfig();
   const webhookUrl = getWebhookUrl();
@@ -150,7 +166,7 @@ export async function submitStoreRequest(
   const productBySlug = new Map(products.map((product) => [product.slug, product]));
   const orderItems = [];
 
-  for (const submitted of submittedItems.data) {
+  for (const submitted of cartLines) {
     const product = productBySlug.get(submitted.slug);
     if (!product) return { ok: false, message: "One of the products in your cart is no longer available." };
     const modeSlug = product.gameModeSlug ?? "survival-smp";

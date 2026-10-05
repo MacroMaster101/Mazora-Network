@@ -2,6 +2,7 @@ import { Bell, Gift, LifeBuoy, MessagesSquare, Users2, Swords } from "lucide-rea
 import { site } from "@/lib/site";
 import { publicPageMetadata } from "@/lib/seo";
 import { getDiscordStats } from "@/lib/data/discord";
+import { getDiscordGuildId } from "@/lib/discord";
 import { withCommas } from "@/lib/utils";
 import { FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";
 import { DiscordIcon } from "@/components/shared/icon";
@@ -24,6 +25,9 @@ const benefits = [
 
 export default async function DiscordPage() {
   const [discord, copy] = await Promise.all([getDiscordStats(), getPageContent("discord")]);
+  // The widget needs the server id, which lives in the server env rather than in
+  // the repo. Without a valid one the slot is simply left out.
+  const guildId = getDiscordGuildId();
   const eyebrow = discord.live
     ? `${withCommas(discord.members)} members · ${withCommas(discord.online)} online`
     : copy.fallbackEyebrow;
@@ -45,7 +49,7 @@ export default async function DiscordPage() {
       <section className="section shell">
         <Reveal className="glass relative overflow-hidden p-8 text-center sm:p-14">
           <div className="pointer-events-none absolute inset-0 opacity-70 [background:radial-gradient(40rem_20rem_at_50%_0%,rgba(88,101,242,0.18),transparent_60%)]" />
-          <div className="relative grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_350px]">
+          <div className={`relative grid items-center gap-10 ${guildId ? "lg:grid-cols-[minmax(0,1fr)_350px]" : ""}`}>
             <div className="flex flex-col items-center">
               <div className="group relative grid h-20 w-20 place-items-center">
                 <span aria-hidden className="absolute inset-0 rounded-[1.375rem] bg-[#5865F2] opacity-40 blur-xl transition-opacity duration-500 group-hover:opacity-70" />
@@ -59,17 +63,19 @@ export default async function DiscordPage() {
                 <DiscordIcon size={16} /> <span data-page-field="joinCta">{copy.joinCta}</span>
               </a>
             </div>
-            <div className="mx-auto w-full max-w-[350px] overflow-hidden rounded-2xl border border-line bg-[#202225] shadow-2xl">
-              <iframe
-                title="Mazora Network Discord server"
-                src="https://discord.com/widget?id=805453071261237286&theme=dark"
-                width="350"
-                height="500"
-                frameBorder="0"
-                sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
-                className="block h-[500px] w-full"
-              />
-            </div>
+            {guildId ? (
+              <div className="mx-auto w-full max-w-[350px] overflow-hidden rounded-2xl border border-line bg-[#202225] shadow-2xl">
+                <iframe
+                  title="Mazora Network Discord server"
+                  src={`https://discord.com/widget?id=${guildId}&theme=dark`}
+                  width="350"
+                  height="500"
+                  frameBorder="0"
+                  sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+                  className="block h-[500px] w-full"
+                />
+              </div>
+            ) : null}
           </div>
         </Reveal>
 

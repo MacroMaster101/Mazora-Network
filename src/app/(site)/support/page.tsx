@@ -8,6 +8,7 @@ import { FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";
 import { DiscordIcon } from "@/components/shared/icon";
 import { SupportCardIcon } from "@/components/shared/support-card-icon";
 import { useSupportSettings } from "@/components/shared/support-settings-provider";
+import { site } from "@/lib/site";
 
 const categories = [
   { id: "all", label: "All Topics" }, { id: "Support", label: "Help & Tickets" },
@@ -49,7 +50,7 @@ export default function SupportPage() {
         </Link></Reveal>;
       })}</div> : <div className="rounded-2xl border border-slate-200 bg-white/95 px-8 py-16 text-center dark:border-purple-900/50 dark:bg-[#0c0618]/95"><p className="text-lg font-extrabold text-slate-900 dark:text-white">No matching help topics found</p><button onClick={() => { setQuery(""); setActiveCategory("all"); }} className="mt-5 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-bold text-white">Reset Filters</button></div>}
 
-      <Reveal className="mt-16"><div className="rounded-2xl border border-slate-300/80 bg-white/85 p-6 shadow-sm dark:border-purple-900/50 dark:bg-[#0c0618]/85 md:p-8"><div className="flex flex-col gap-3 border-b border-slate-100 pb-6 dark:border-purple-900/40 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">{main.faqTitle}</h2><p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{main.faqSubtitle}</p></div><a href="https://discord.gg/ZPrzyGpMyt" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-extrabold text-purple-700 hover:underline dark:text-purple-400"><DiscordIcon size={16} /> Need instant help? Join Discord</a></div><Accordion className="mt-6" items={main.faqs.map((faq) => ({ q: faq.question, a: faq.answer }))} /></div></Reveal>
+      <Reveal className="mt-16"><div className="rounded-2xl border border-slate-300/80 bg-white/85 p-6 shadow-sm dark:border-purple-900/50 dark:bg-[#0c0618]/85 md:p-8"><div className="flex flex-col gap-3 border-b border-slate-100 pb-6 dark:border-purple-900/40 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">{main.faqTitle}</h2><p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{main.faqSubtitle}</p></div><a href={site.discord} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-extrabold text-purple-700 hover:underline dark:text-purple-400"><DiscordIcon size={16} /> Need instant help? Join Discord</a></div><Accordion className="mt-6" items={main.faqs.map((faq) => ({ q: faq.question, a: faq.answer }))} /></div></Reveal>
     </section>
   </>;
 }

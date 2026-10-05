@@ -7,6 +7,8 @@ import type { LookupAddress } from "node:dns";
 import sharp from "sharp";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { safeStorageKey } from "@/lib/storage-key";
+import { isPublicBucketObjectUrl } from "@/lib/storage-url";
+import { SHARP_ANIMATED_INPUT, SHARP_INPUT } from "@/lib/image-limits";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
 import { isBlockedAddress, isBlockedIpLiteralHost } from "@/lib/net/blocked-address";
 
@@ -23,7 +25,27 @@ import { isBlockedAddress, isBlockedIpLiteralHost } from "@/lib/net/blocked-addr
 
 export const NEWS_IMAGE_BUCKET = "news-images";
 
+/**
+ * True when a link already points at an image in our public image bucket, so no
+ * copy is needed. Only the public path of the bucket every upload lands in is
+ * kept as it is; any other storage link is treated like a link to somebody
+ * else's site and re-hosted or refused. Shared by every action that offers
+ * "keep this link", so they cannot drift apart again.
+ */
+export function isOwnPublicImageUrl(url: string): boolean {
+  return isPublicBucketObjectUrl(url, process.env.NEXT_PUBLIC_SUPABASE_URL, NEWS_IMAGE_BUCKET);
+}
+
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+
+/*
+  Wall-clock budget for one remote image: every redirect hop, the headers and
+  the whole body together. The 15 s socket timeout in `requestImage` only fires
+  when a connection goes quiet, so a host that sends one byte every few seconds
+  never trips it and could hold a request (and the function running it) open
+  for as long as it liked.
+*/
+const REMOTE_FETCH_DEADLINE_MS = 20_000;
 
 /*
   Host policy for remote image fetches.
@@ -144,6 +166,10 @@ export interface StoredImage {
  * only. The format is preserved — including animation for GIF and animated
  * WebP — so a re-hosted banner still animates.
  *
+ * The decode is capped at a pixel limit (higher for animated formats, where it
+ * is summed over frames), so a small file that expands to an enormous bitmap is
+ * rejected before it can exhaust memory.
+ *
  * If the decoder cannot process the file, reject it. A matching magic header
  * alone does not prove that the remaining bytes are a valid image, and storing
  * the original would preserve appended payloads and metadata this step exists
@@ -154,21 +180,41 @@ async function sanitizeImageBytes(bytes: Uint8Array, mime: ImageMime): Promise<U
     switch (mime) {
       case "image/jpeg":
         // rotate() bakes in EXIF orientation before that metadata is dropped.
-        return new Uint8Array(await sharp(bytes).rotate().jpeg({ quality: 85 }).toBuffer());
+        return new Uint8Array(await sharp(bytes, SHARP_INPUT).rotate().jpeg({ quality: 85 }).toBuffer());
       case "image/png":
-        return new Uint8Array(await sharp(bytes).png().toBuffer());
+        return new Uint8Array(await sharp(bytes, SHARP_INPUT).png().toBuffer());
       case "image/webp":
-        return new Uint8Array(await sharp(bytes, { animated: true }).webp().toBuffer());
+        return new Uint8Array(await sharp(bytes, SHARP_ANIMATED_INPUT).webp().toBuffer());
       case "image/gif":
-        return new Uint8Array(await sharp(bytes, { animated: true }).gif().toBuffer());
+        return new Uint8Array(await sharp(bytes, SHARP_ANIMATED_INPUT).gif().toBuffer());
     }
   } catch {
     return null;
   }
 }
 
+export interface StoreImageOptions {
+  /**
+   * Replace an object already stored at this key. Off unless asked for: almost
+   * every caller builds a key that is unique per upload (a timestamp or a fresh
+   * uuid), so finding something already there means a collision, and the
+   * shared bucket should refuse it rather than swap one image for another.
+   *
+   * The callers that reuse a key on purpose say so themselves: an announcement
+   * original (`discordOriginalKey`, the message id, so importing the same
+   * announcement again lands on the same object instead of failing) and an edit
+   * of an existing gallery artwork. Nothing is inferred from the key, so no
+   * prefix built from request data can switch overwriting on.
+   */
+  overwrite?: boolean;
+}
+
 /** Persist raw bytes under a stable key. Returns null if the bytes are not a real image. */
-export async function storeImageBytes(bytes: Uint8Array, keyBase: string): Promise<StoredImage | null> {
+export async function storeImageBytes(
+  bytes: Uint8Array,
+  keyBase: string,
+  options: StoreImageOptions = {},
+): Promise<StoredImage | null> {
   if (bytes.byteLength === 0 || bytes.byteLength > MAX_IMAGE_BYTES) return null;
   const mime = detectedMime(bytes);
   if (!mime) return null;
@@ -178,8 +224,8 @@ export async function storeImageBytes(bytes: Uint8Array, keyBase: string): Promi
     import all end at this one line — and callers compose the key from request
     data. `uploadArticleImageAction` builds `custom/${id}-${Date.now()}` from
     `clean(formData.get("id"), 64)`: trimmed and length-capped, never checked
-    for shape, though the column it names is a uuid. The upload below runs with
-    upsert on, so an unexpected key overwrites whatever is already at it.
+    for shape, though the column it names is a uuid. Where the upload below is
+    allowed to overwrite, an unexpected key replaces whatever is already at it.
 
     Normalising here rather than validating at each call site: this is the only
     place a key becomes an object, so it is the only place that cannot be
@@ -194,10 +240,12 @@ export async function storeImageBytes(bytes: Uint8Array, keyBase: string): Promi
   const clean = await sanitizeImageBytes(bytes, mime);
   if (!clean) return null;
   const key = `${safeBase}.${MIME_EXTENSIONS[mime]}`;
+  // Only when the caller asked. Unset means refuse a key that is already taken.
+  const overwrite = options.overwrite === true;
   const { error } = await admin.storage.from(NEWS_IMAGE_BUCKET).upload(key, clean, {
     contentType: mime,
     cacheControl: "31536000",
-    upsert: true,
+    upsert: overwrite,
   });
   if (error) return null;
 
@@ -247,8 +295,53 @@ function secureLookup(
   });
 }
 
+interface FetchDeadline {
+  readonly expired: boolean;
+  /** Put a request under the deadline; one started too late is destroyed at once. */
+  track(request: http.ClientRequest): void;
+  /** Stop the clock and close whatever is still open. */
+  finish(): void;
+}
+
+/**
+ * One clock for a whole remote fetch. When it runs out, every request made
+ * under it is destroyed: one still waiting for headers fails with an error, and
+ * one part-way through its body closes its stream, which `readLimitedStream`
+ * already turns into null.
+ *
+ * `finish` destroys them as well. By then the body has either been read in full
+ * or given up on, and a redirect or error response left to drain would
+ * otherwise outlive the deadline for as long as its host kept sending bytes.
+ */
+function startFetchDeadline(ms: number): FetchDeadline {
+  const requests = new Set<http.ClientRequest>();
+  let expired = false;
+  const closeAll = () => {
+    for (const request of requests) request.destroy();
+    requests.clear();
+  };
+  const timer = setTimeout(() => {
+    expired = true;
+    closeAll();
+  }, ms);
+  return {
+    get expired() {
+      return expired;
+    },
+    track(request) {
+      if (expired) request.destroy();
+      else requests.add(request);
+    },
+    finish() {
+      clearTimeout(timer);
+      closeAll();
+    },
+  };
+}
+
 /** One GET, connecting only through secureLookup. Resolves null on any error. */
-function requestImage(url: URL): Promise<http.IncomingMessage | null> {
+function requestImage(url: URL, deadline: FetchDeadline): Promise<http.IncomingMessage | null> {
+  if (deadline.expired) return Promise.resolve(null);
   const transport = url.protocol === "https:" ? https : http;
   return new Promise((resolve) => {
     const req = transport.request(
@@ -268,8 +361,11 @@ function requestImage(url: URL): Promise<http.IncomingMessage | null> {
       },
       (res) => resolve(res),
     );
+    // Idle timeout only: it restarts with every byte. The overall limit is the
+    // deadline, which covers this request from here to the end of its body.
     req.setTimeout(15_000, () => req.destroy());
     req.on("error", () => resolve(null));
+    deadline.track(req);
     req.end();
   });
 }
@@ -284,8 +380,28 @@ function requestImage(url: URL): Promise<http.IncomingMessage | null> {
  *
  * Redirects are followed by hand, and every hop reconnects through secureLookup
  * so a public host cannot bounce the request to 169.254.169.254 or localhost.
+ *
+ * The whole download, redirects included, runs against one deadline, so a host
+ * that answers slowly on purpose costs a bounded amount of time.
  */
-export async function rehostImageFromUrl(url: string, keyBase: string): Promise<StoredImage | null> {
+export async function rehostImageFromUrl(
+  url: string,
+  keyBase: string,
+  options: StoreImageOptions = {},
+): Promise<StoredImage | null> {
+  const deadline = startFetchDeadline(REMOTE_FETCH_DEADLINE_MS);
+  let bytes: Uint8Array | null;
+  try {
+    bytes = await downloadImage(url, deadline);
+  } finally {
+    deadline.finish();
+  }
+  if (!bytes) return null;
+  return storeImageBytes(bytes, keyBase, options);
+}
+
+/** The guarded fetch behind rehostImageFromUrl: the image bytes, or null. */
+async function downloadImage(url: string, deadline: FetchDeadline): Promise<Uint8Array | null> {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -312,7 +428,7 @@ export async function rehostImageFromUrl(url: string, keyBase: string): Promise<
     // check IP literals here, on the first request and on every redirect hop.
     if (isBlockedIpLiteralHost(current.hostname)) return null;
 
-    response = await requestImage(current);
+    response = await requestImage(current, deadline);
     if (!response) return null;
 
     const status = response.statusCode ?? 0;
@@ -346,11 +462,15 @@ export async function rehostImageFromUrl(url: string, keyBase: string): Promise<
   }
 
   const bytes = await readLimitedStream(response);
-  if (!bytes) return null;
-  return storeImageBytes(bytes, keyBase);
+  // A body cut short by the deadline is not a complete image, whatever arrived.
+  if (!bytes || deadline.expired) return null;
+  return bytes;
 }
 
-/** Stable object key for an announcement's original artwork. */
+/**
+ * Stable object key for an announcement's original artwork. The key is reused
+ * on purpose, so its callers store with `{ overwrite: true }`.
+ */
 export function discordOriginalKey(discordMessageId: string): string {
   return `discord/${discordMessageId}`;
 }

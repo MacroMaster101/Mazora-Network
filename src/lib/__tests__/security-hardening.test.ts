@@ -149,8 +149,15 @@ test("an emailed confirm link only signs in the browser that registered", () => 
   const register = source.slice(source.indexOf("export async function registerAction"), source.indexOf("export async function oauthAction"));
   assert.match(register, /markPendingSignup\(data\.user\.id\)/);
   const confirm = source.slice(source.indexOf("export async function confirmEmailAction"), source.indexOf("export async function confirmEmailCodeAction"));
-  assert.match(confirm, /store\.get\(PENDING_SIGNUP_COOKIE\)\?\.value === verified\.user\?\.id/);
-  assert.ok(confirm.indexOf("signOut({ scope: \"local\" })") > confirm.indexOf("PENDING_SIGNUP_COOKIE"));
+  // No marker at all: refused before the link is spent. A marker for another
+  // account: settled as unproven, which keeps no session (signup-trust.test.ts).
+  const verify = confirm.indexOf("supabase.auth.verifyOtp(");
+  const absent = confirm.indexOf("if (signupLink && !(await cookies()).get(PENDING_SIGNUP_COOKIE)?.value) {");
+  assert.ok(absent > 0 && absent < verify);
+  assert.ok(confirm.indexOf("await settleSignupConfirmation(supabase, verified.user)") > verify);
+  const settle = source.slice(source.indexOf("async function settleSignupConfirmation"), source.indexOf("async function distrustPasswordAfterFirstConfirmation"));
+  assert.match(settle, /signupProvenHere\(store\.get\(PENDING_SIGNUP_COOKIE\)\?\.value, user\?\.id\)/);
+  assert.ok(settle.indexOf("await endLocalSession(supabase);") > settle.indexOf("PENDING_SIGNUP_COOKIE"));
 });
 
 test("the Discord identity is never read from member-writable user_metadata", () => {

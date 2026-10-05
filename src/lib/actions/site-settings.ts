@@ -11,7 +11,7 @@ import {
   SITE_GENERAL_SETTINGS_KEY,
 } from "@/lib/data/site-settings";
 import { updatePlayPageConfig } from "@/lib/data/play-page-config";
-import { isHttpsUrl } from "@/lib/net/safe-url";
+import { isHttpsUrl, isSafeLink } from "@/lib/net/safe-url";
 
 export interface SiteSettingsActionResult {
   ok: boolean;
@@ -42,7 +42,16 @@ const siteSettingsSchema = z.object({
   // the {...current, ...parsed.data} merge left the old value in place, and the
   // toggle silently reverted on every save while reporting success.
   liveMapEnabled: z.boolean(),
-  ogImageUrl: z.string().trim().max(500, "Image URL must be under 500 characters.").optional().default("/images/og-default.webp"),
+  // Goes into every page's og:image tag, so it is held to a path on this site
+  // (the presets are "/images/…") or an https link. Blank never reaches this
+  // schema: the action swaps it for the default banner first.
+  ogImageUrl: z
+    .string()
+    .trim()
+    .max(500, "Image URL must be under 500 characters.")
+    .refine(isSafeLink, "Use a site image path such as /images/… or an https:// link.")
+    .optional()
+    .default("/images/og-default.webp"),
 });
 
 function zodErrors(err: z.ZodError): Record<string, string> {
