@@ -26,10 +26,38 @@ export function FloatingDiscountAlert({ alerts, alert }: FloatingDiscountAlertPr
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [, startTransition] = useTransition();
+  const [footerLift, setFooterLift] = useState(0);
 
   const activeAlerts = alerts && alerts.length > 0 ? alerts : alert ? [alert] : [];
   const safeIndex = activeAlerts.length > 0 ? currentIndex % activeAlerts.length : 0;
   const currentAlert = activeAlerts[safeIndex];
+
+  /*
+    The alert is fixed over the bottom-right corner, which at the very end of a
+    page is where the footer's legal links sit. While that row is on screen, lift
+    the alert by however much of the row has scrolled into view, so it rides just
+    above the links and settles back down as the reader scrolls up.
+  */
+  useEffect(() => {
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const legal = document.querySelector(".site-footer-legal");
+      const overlap = legal ? window.innerHeight - legal.getBoundingClientRect().top : 0;
+      setFooterLift(overlap > 0 ? Math.round(overlap) : 0);
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(measure);
+    };
+    measure();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [pathname]);
 
   // Listen to cookie consent: only show discount alert once user has accepted or declined cookies
   useEffect(() => {
@@ -154,6 +182,8 @@ export function FloatingDiscountAlert({ alerts, alert }: FloatingDiscountAlertPr
     return (
       <aside
         aria-label="Active discount promotion"
+        // Follows the scroll directly; animating the lift would trail behind it.
+        style={{ marginBottom: footerLift, transitionProperty: "opacity, transform" }}
         className={`fixed z-[85] transition-all duration-500 ease-out ${cornerClass} ${
           mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
         }`}
@@ -191,6 +221,7 @@ export function FloatingDiscountAlert({ alerts, alert }: FloatingDiscountAlertPr
     <>
       <aside
         aria-label="Discount promotion alert"
+        style={{ marginBottom: footerLift, transitionProperty: "opacity, transform" }}
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onFocusCapture={() => setIsPaused(true)}
