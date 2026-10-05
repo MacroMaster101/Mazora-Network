@@ -12,7 +12,6 @@ import { and, asc, desc, eq, getTableColumns, isNull, lte, ne, or, sql } from "d
 import type {
   Accent,
   EventItem,
-  EventStatus,
   GalleryImage,
   GameMode,
   NewsArticle,
@@ -23,6 +22,8 @@ import type {
 } from "@/lib/types";
 import { normalizeRoleKey, roleLabel } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
+import { getRegistrationCounts } from "@/lib/data/event-registrations";
+import { effectiveEventStatus, isKnownEventStatus } from "@/lib/events/status";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 /* ------------------------------------------------------------------ *
@@ -616,6 +617,29 @@ async function loadRelatedArticles(slug: string, category: string): Promise<News
   }
 }
 
+function toEventItem(r: typeof schema.events.$inferSelect, joined: number): EventItem {
+  const startISO = r.startAt instanceof Date ? r.startAt.toISOString() : String(r.startAt);
+  return {
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    description: r.description ?? "",
+    icon: "trophy",
+    accent: "violet" as Accent,
+    imageUrl: r.imageUrl,
+    startISO,
+    endISO: r.endAt ? (r.endAt instanceof Date ? r.endAt.toISOString() : String(r.endAt)) : startISO,
+    status: effectiveEventStatus(r),
+    mode: r.gameMode || "Survival SMP",
+    prize: Array.isArray(r.rewards) && r.rewards[0] ? String(r.rewards[0]) : "Exclusive Rewards",
+    joined,
+    maxParticipants: r.maxParticipants ?? 100,
+    requirements: ["Linked Minecraft account"],
+    rewards: Array.isArray(r.rewards) ? (r.rewards as string[]) : [],
+    rules: ["Fair play rules apply", "No unauthorized modifications"],
+  };
+}
+
 export async function getEvents(): Promise<EventItem[]> {
   const db = getDb();
   if (!db) return [];
@@ -624,30 +648,10 @@ export async function getEvents(): Promise<EventItem[]> {
       .select()
       .from(schema.events)
       .orderBy(asc(schema.events.startAt));
-
-    return rows.map((r) => ({
-      slug: r.slug,
-      title: r.title,
-      description: r.description ?? "",
-      icon: "trophy",
-      accent: "violet" as Accent,
-      startISO: r.startAt instanceof Date ? r.startAt.toISOString() : String(r.startAt),
-      endISO: r.endAt
-        ? r.endAt instanceof Date
-          ? r.endAt.toISOString()
-          : String(r.endAt)
-        : r.startAt instanceof Date
-        ? r.startAt.toISOString()
-        : String(r.startAt),
-      status: (r.status as EventStatus) || "upcoming",
-      mode: r.gameMode || "Survival SMP",
-      prize: Array.isArray(r.rewards) && r.rewards[0] ? String(r.rewards[0]) : "Exclusive Rewards",
-      joined: 0,
-      maxParticipants: r.maxParticipants ?? 100,
-      requirements: ["Linked Minecraft account"],
-      rewards: Array.isArray(r.rewards) ? (r.rewards as string[]) : [],
-      rules: ["Fair play rules apply", "No unauthorized modifications"],
-    }));
+    // Only statuses the admin form writes are published (see isKnownEventStatus).
+    const published = rows.filter((r) => isKnownEventStatus(r.status));
+    const joined = await getRegistrationCounts(published.map((r) => r.id));
+    return published.map((r) => toEventItem(r, joined.get(r.id) ?? 0));
   } catch (error) {
     console.error("Failed to load events:", error);
     return [];
@@ -663,30 +667,9 @@ export async function getEvent(slug: string): Promise<EventItem | null> {
       .from(schema.events)
       .where(eq(schema.events.slug, slug))
       .limit(1);
-    if (!r) return null;
-    return {
-      slug: r.slug,
-      title: r.title,
-      description: r.description ?? "",
-      icon: "trophy",
-      accent: "violet" as Accent,
-      startISO: r.startAt instanceof Date ? r.startAt.toISOString() : String(r.startAt),
-      endISO: r.endAt
-        ? r.endAt instanceof Date
-          ? r.endAt.toISOString()
-          : String(r.endAt)
-        : r.startAt instanceof Date
-        ? r.startAt.toISOString()
-        : String(r.startAt),
-      status: (r.status as EventStatus) || "upcoming",
-      mode: r.gameMode || "Survival SMP",
-      prize: Array.isArray(r.rewards) && r.rewards[0] ? String(r.rewards[0]) : "Exclusive Rewards",
-      joined: 0,
-      maxParticipants: r.maxParticipants ?? 100,
-      requirements: ["Linked Minecraft account"],
-      rewards: Array.isArray(r.rewards) ? (r.rewards as string[]) : [],
-      rules: ["Fair play rules apply", "No unauthorized modifications"],
-    };
+    if (!r || !isKnownEventStatus(r.status)) return null;
+    const joined = await getRegistrationCounts([r.id]);
+    return toEventItem(r, joined.get(r.id) ?? 0);
   } catch {
     return null;
   }

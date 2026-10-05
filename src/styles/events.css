@@ -1,0 +1,529 @@
+/* ---------------------------------------------------------------------------
+   Events pages (/events and /events/[slug]). Imported by those routes only.
+
+   The cover is a night scene in BOTH themes: the artwork (or the generated
+   fallback) sits under a dark scrim and every colour inside it is fixed, so
+   the title and tags keep their contrast in daylight too. Its class contains
+   "card" on purpose: world-themes.css treats *card* elements as surfaces, so
+   the daylight on-scenery halo and token overrides leave it alone.
+   --------------------------------------------------------------------------- */
+
+.event-cover-card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: flex-end;
+  min-height: clamp(19rem, 36vw, 27rem);
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: var(--radius-lg, 20px);
+  background: #0e0919;
+  box-shadow: 0 34px 80px -46px rgb(8 4 18 / 0.85);
+  color: #fff;
+}
+
+.event-cover-art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+/* Scrim: heavy along the bottom and left where the text sits, clear at the top right. */
+.event-cover-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgb(9 5 18 / 0.96) 0%, rgb(9 5 18 / 0.72) 38%, rgb(9 5 18 / 0.12) 78%),
+    linear-gradient(to right, rgb(9 5 18 / 0.55), transparent 65%);
+}
+
+.event-cover-fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(70% 110% at 82% 18%, rgb(139 92 246 / 0.5), transparent 62%),
+    radial-gradient(55% 80% at 8% 105%, rgb(192 38 211 / 0.2), transparent 60%),
+    linear-gradient(160deg, #1d1235, #0b0716 70%);
+}
+
+/* A faint block grid, the one nod to the game's world in the generated art. */
+.event-cover-fallback::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(to left, #000 15%, transparent 75%);
+}
+
+.event-cover-mark {
+  position: absolute;
+  top: 50%;
+  right: 6%;
+  width: clamp(7rem, 18vw, 13rem);
+  height: auto;
+  color: rgb(196 157 255 / 0.22);
+  transform: translateY(-58%) rotate(-8deg);
+}
+
+.event-cover-body {
+  position: relative;
+  width: 100%;
+  max-width: 56rem;
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+}
+
+.event-cover-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.event-cover-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 999px;
+  background: rgb(8 4 18 / 0.5);
+  padding: 0.3rem 0.8rem;
+  color: rgb(255 255 255 / 0.9);
+  font-size: 0.78rem;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+
+.event-cover-tag[data-tone="upcoming"] { border-color: rgb(167 139 250 / 0.55); background: rgb(76 29 149 / 0.45); color: #ede9fe; }
+.event-cover-tag[data-tone="live"] { border-color: rgb(248 113 113 / 0.55); background: rgb(127 29 29 / 0.5); color: #fee2e2; }
+.event-cover-tag[data-tone="completed"],
+.event-cover-tag[data-tone="cancelled"] { color: rgb(255 255 255 / 0.72); }
+
+.event-cover-live-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #f87171;
+  box-shadow: 0 0 0 0 rgb(248 113 113 / 0.6);
+  animation: event-live-pulse 1.8s ease-out infinite;
+}
+
+@keyframes event-live-pulse {
+  70% { box-shadow: 0 0 0 0.45rem rgb(248 113 113 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(248 113 113 / 0); }
+}
+
+.event-cover-card .event-cover-title {
+  margin-top: 1rem;
+  color: #fff;
+  font-size: clamp(2.2rem, 5.6vw, 4.1rem);
+  font-weight: 800;
+  line-height: 0.98;
+  text-wrap: balance;
+  text-shadow: 0 2px 28px rgb(0 0 0 / 0.45);
+}
+
+.event-cover-card .event-cover-lead {
+  margin-top: 0.9rem;
+  max-width: 60ch;
+  color: rgb(237 233 254 / 0.84);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.event-cover-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.5rem;
+  margin-top: 1.25rem;
+  color: rgb(237 233 254 / 0.8);
+  font-size: 0.9rem;
+}
+
+.event-cover-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.event-cover-meta svg { color: #c4b5fd; }
+
+.event-cover-art.no-scrim::after { display: none; }
+
+/* On cards the generated art has no text over it, so its trophy sits centred and smaller. */
+.event-cover-art.no-scrim .event-cover-mark {
+  right: 50%;
+  width: clamp(3.5rem, 26%, 6.5rem);
+  color: rgb(196 157 255 / 0.4);
+  transform: translate(50%, -50%) rotate(-8deg);
+}
+
+/* ---------------------------------------------------------------------------
+   /events board: a lead card and two-up rows (live and upcoming), then past
+   events. Each card is a single link; the art side is always dark, the copy
+   side is a normal .panel surface so it follows the theme.
+   --------------------------------------------------------------------------- */
+.event-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* The filter sits on the scenery, so it is a solid card in both themes (its
+   class contains "card" so the daylight on-art rules leave it alone). */
+.event-filter-card {
+  display: inline-flex;
+  gap: 0.25rem;
+  border: 1px solid rgb(var(--line-strong));
+  border-radius: 999px;
+  background: rgb(var(--card));
+  padding: 0.3rem;
+  box-shadow: 0 14px 34px -20px rgb(8 4 18 / 0.6);
+}
+
+.event-filter-card button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  color: rgb(var(--muted));
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.event-filter-card button:hover { background: rgb(var(--ink) / 0.06); color: rgb(var(--ink)); }
+
+.event-filter-card button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--accent) / 0.4);
+}
+
+/* violet-600 behind white text holds 5.7:1 in both themes (see .btn-primary). */
+.event-filter-card button[aria-pressed="true"] { background: #7c3aed; color: #fff; }
+
+.event-filter-count {
+  min-width: 1.4rem;
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.08);
+  padding: 0.05rem 0.4rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.event-filter-card button[aria-pressed="true"] .event-filter-count { background: rgb(255 255 255 / 0.22); }
+
+.event-lead-card,
+.event-row-card {
+  display: grid;
+  overflow: hidden;
+  padding: 0;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.event-lead-card:hover,
+.event-row-card:hover,
+.event-lead-card:focus-visible,
+.event-row-card:focus-visible {
+  border-color: rgb(var(--accent) / 0.6);
+  box-shadow: 0 24px 60px -34px rgb(var(--accent) / 0.55);
+  outline: none;
+}
+
+.event-lead-card:focus-visible,
+.event-row-card:focus-visible { box-shadow: 0 0 0 3px rgb(var(--accent) / 0.4); }
+
+.event-lead-art,
+.event-row-art {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #0e0919;
+}
+
+.event-lead-art { aspect-ratio: 16 / 9; }
+.event-row-art { aspect-ratio: 16 / 9; }
+
+.event-cover-image { transition: transform 600ms ease; }
+.event-lead-card:hover .event-cover-image,
+.event-row-card:hover .event-cover-image { transform: scale(1.03); }
+
+.event-art-badge {
+  position: absolute;
+  top: 0.9rem;
+  left: 0.9rem;
+  z-index: 1;
+}
+
+/* Countdown over a card's art. The art is dark in both themes, so these use
+   fixed light-on-glass colours rather than theme tokens. The boxes are not
+   .panel: daylight forces every panel light with !important. */
+.event-art-countdown {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.event-art-countdown-label {
+  border-radius: 999px;
+  background: rgb(8 4 18 / 0.55);
+  padding: 0.25rem 0.7rem;
+  color: rgb(237 233 254 / 0.9);
+  font-size: 0.75rem;
+  font-weight: 700;
+  backdrop-filter: blur(6px);
+}
+
+.event-art-countdown-box {
+  min-width: 3.6rem;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 12px;
+  background: rgb(8 4 18 / 0.6);
+  padding: 0.5rem 0.75rem;
+  color: #fff;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
+.event-art-countdown-box > div:last-child { color: rgb(237 233 254 / 0.7); }
+
+.event-art-timer {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 999px;
+  background: rgb(8 4 18 / 0.62);
+  padding: 0.25rem 0.7rem;
+  color: rgb(237 233 254 / 0.85);
+  font-size: 0.72rem;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+
+.event-art-timer .telemetry {
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.event-lead-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: clamp(1.4rem, 3vw, 2.25rem);
+}
+
+.event-lead-title {
+  color: rgb(var(--ink));
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  font-weight: 800;
+  line-height: 1.04;
+  text-wrap: balance;
+  transition: color 150ms ease;
+}
+
+.event-row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.25rem 1.4rem;
+}
+
+.event-row-title {
+  color: rgb(var(--ink));
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.15;
+  transition: color 150ms ease;
+}
+
+.event-lead-card:hover .event-lead-title,
+.event-row-card:hover .event-row-title { color: rgb(var(--accent-bright)); }
+
+.event-card-cta {
+  display: inline-flex;
+  color: rgb(var(--accent-bright));
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.event-lead-card:hover .event-card-cta { text-decoration: underline; text-underline-offset: 4px; }
+
+@media (min-width: 520px) {
+  .event-row-card { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); }
+  .event-row-art { aspect-ratio: auto; min-height: 13.5rem; }
+}
+
+@media (min-width: 900px) {
+  .event-lead-card { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+  .event-lead-art { aspect-ratio: auto; min-height: 24rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-cover-image { transition: none; }
+  .event-lead-card:hover .event-cover-image,
+  .event-row-card:hover .event-cover-image { transform: none; }
+}
+
+/* Home page "View all events" pill, matching the news band's "View all news".
+   The class contains "cta" so the daylight on-scenery rules treat it as a button. */
+.home-events-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  background: #7c3aed;
+  padding: 0.75rem 1.5rem;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 800;
+  box-shadow: 0 12px 26px -10px rgb(124 58 237 / 0.6);
+  transition: background-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+}
+
+.home-events-cta:hover {
+  background: #6d28d9;
+  box-shadow: 0 16px 32px -10px rgb(124 58 237 / 0.75);
+  transform: scale(1.05);
+}
+
+.home-events-cta:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--accent) / 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-events-cta:hover { transform: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Player slots: a Minecraft inventory. Square-ish cells with a small radius
+   (deliberately tighter than the 14px panels around them) and an inset bevel,
+   in theme tokens so they sit right on light and dark cards.
+   --------------------------------------------------------------------------- */
+.event-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.4rem, 1fr));
+  gap: 0.5rem;
+}
+
+.event-slot {
+  display: flex;
+  height: 5.6rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid rgb(var(--line-strong));
+  border-radius: 6px;
+  background: rgb(var(--ink) / 0.05);
+  box-shadow:
+    inset 0 2px 0 rgb(0 0 0 / 0.1),
+    inset 0 -2px 0 rgb(255 255 255 / 0.05);
+  padding: 0.55rem 0.4rem;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+a.event-slot:hover,
+a.event-slot:focus-visible {
+  border-color: rgb(var(--accent));
+  background: rgb(var(--accent) / 0.1);
+  outline: none;
+}
+
+a.event-slot:focus-visible { box-shadow: 0 0 0 3px rgb(var(--accent) / 0.35); }
+
+.event-slot.is-you {
+  border-color: rgb(var(--accent));
+  background: rgb(var(--accent) / 0.12);
+}
+
+.event-slot.is-empty {
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0.75;
+}
+
+.event-slot-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgb(var(--ink));
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-slot.is-you .event-slot-name { color: rgb(var(--accent-bright)); }
+
+/* Paging through the slots, a chest page at a time. */
+.event-page-button {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid rgb(var(--line-strong));
+  border-radius: 10px;
+  background: rgb(var(--ink) / 0.04);
+  color: rgb(var(--ink));
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.event-page-button:hover:not(:disabled) {
+  border-color: rgb(var(--accent));
+  background: rgb(var(--accent) / 0.1);
+}
+
+.event-page-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--accent) / 0.35);
+}
+
+.event-page-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.event-page-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.2);
+  transition: width 200ms ease, background-color 200ms ease;
+}
+
+.event-page-dot.is-current {
+  width: 1.1rem;
+  background: rgb(var(--accent));
+}
+
+/* The sign-up box follows the reader down the page on wide screens. */
+@media (min-width: 1024px) {
+  .event-register-sticky {
+    position: sticky;
+    top: 6.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-cover-live-dot { animation: none; }
+}

@@ -1,20 +1,28 @@
 import type { Metadata } from "next";
 import Link from "@/components/ui/app-link";
 import { notFound } from "next/navigation";
-import { Check, Gift, Trophy, Users } from "lucide-react";
+import { CalendarDays, Check, Gamepad2, Gift, Trophy, Users } from "lucide-react";
 import { getEvent } from "@/lib/data/content";
+import { getPageContent } from "@/lib/data/page-content";
+import { getEventRegistrants, getViewerRegistration } from "@/lib/data/event-registrations";
+import { getSession, getSessionUserId } from "@/lib/auth";
 import { publicPageMetadata } from "@/lib/seo";
-import { fmtDate } from "@/lib/utils";
-import { BackLink, Countdown, Icon, MinecraftAvatar, Reveal } from "@/components/shared";
-import { accentStyles } from "@/components/shared/accent";
-import { cn } from "@/lib/utils";
+import { isRouteLaunchGated } from "@/lib/launch";
+import { BackLink, MinecraftAvatar } from "@/components/shared";
+import { EventCoverMedia } from "@/components/events/event-cover-media";
+import { LocalTime } from "@/components/events/local-time";
+import { PlayerSlots } from "@/components/events/player-slots";
+import { RegistrationCard } from "@/components/events/registration-card";
+import { EVENT_STATUS_LABEL } from "@/components/events/status";
+import "@/styles/events.css";
 
 /**
  * Per-request rendering. While prerendered this route returned HTTP 500
  * (DYNAMIC_SERVER_USAGE) for every slug: getEvents() is still empty, so
  * generateStaticParams produced no params and the on-demand render collided
  * with the cookie-reading layout above it. Rendering per request makes unknown
- * slugs a clean 404.
+ * slugs a clean 404. It also keeps the player list and the viewer's own
+ * registration current.
  */
 export const dynamic = "force-dynamic";
 
@@ -31,72 +39,66 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   });
 }
 
-const statusTone = {
-  live: "border-danger/50 text-danger bg-danger/10",
-  upcoming: "border-accent/50 text-accent-bright bg-accent/10",
-  completed: "border-line-strong text-muted bg-ink/5",
-};
-
 export default async function EventDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const event = await getEvent(slug);
   if (!event) notFound();
-  const accent = accentStyles[event.accent];
+
+  // A suspended account has no session, so it is treated as signed out here too.
+  const [session, userId] = await Promise.all([getSession(), getSessionUserId()]);
+  const viewerId = session && userId ? userId : null;
+  const [registrants, viewer, copy] = await Promise.all([
+    getEventRegistrants(event.id),
+    getViewerRegistration(event.id, viewerId),
+    getPageContent("events"),
+  ]);
+  const open = event.status === "upcoming" || event.status === "live";
 
   return (
     <>
-      <section className="page-detail-hero">
-        <div className="shell relative py-14 sm:py-20">
-          <BackLink href="/events" label="All events" className="mb-6" />
-          <div className="flex flex-wrap items-center gap-3">
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold uppercase", statusTone[event.status])}>
-              {event.status === "live" && <span className="dot animate-pulse" />}
-              {event.status}
-            </span>
-            <span className="chip">{event.mode}</span>
-          </div>
-          <div className="mt-4 flex items-center gap-4">
-            <span className={`grid h-14 w-14 place-items-center rounded-2xl border border-line-strong bg-black/30 ${accent.text}`}>
-              <Icon name={event.icon} size={28} />
-            </span>
-            <h1 className="text-4xl font-extrabold sm:text-5xl">{event.title}</h1>
-          </div>
-          <p className="mt-5 max-w-2xl text-pretty text-lg text-muted">{event.description}</p>
-          <div className="mt-6 flex flex-wrap items-center gap-4">
-            <span className="telemetry text-muted">{fmtDate(event.startISO)}</span>
-            {event.status === "upcoming" && <Countdown to={event.startISO} big />}
+      <section className="shell pt-8 sm:pt-12">
+        <BackLink href="/events" label="All events" className="mb-5" />
+        <div className="event-cover-card">
+          <EventCoverMedia imageUrl={event.imageUrl} sizes="(min-width: 1280px) 1400px, 100vw" priority />
+          <div className="event-cover-body">
+            <div className="event-cover-tags">
+              <span className="event-cover-tag" data-tone={event.status}>
+                {event.status === "live" && <span className="event-cover-live-dot" />}
+                {EVENT_STATUS_LABEL[event.status]}
+              </span>
+              <span className="event-cover-tag">
+                <Gamepad2 size={14} /> {event.mode}
+              </span>
+            </div>
+            <h1 className="event-cover-title">{event.title}</h1>
+            {event.description && <p className="event-cover-lead">{event.description}</p>}
+            <div className="event-cover-meta">
+              <span>
+                <CalendarDays size={16} /> <LocalTime iso={event.startISO} />
+              </span>
+              <span>
+                <Users size={16} /> {event.joined} of {event.maxParticipants} players
+              </span>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="section shell grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          {event.requirements.length > 0 && (
-            <Reveal className="panel p-6">
-              <h2 className="font-display text-xl font-bold">Entry requirements</h2>
-              <ul className="mt-4 space-y-2">
-                {event.requirements.map((r) => (
-                  <li key={r} className="flex items-start gap-2.5 text-sm text-muted">
-                    <Check size={17} className="mt-0.5 shrink-0 text-accent-bright" /> {r}
-                  </li>
-                ))}
-              </ul>
-            </Reveal>
-          )}
-          <Reveal className="panel p-6">
-            <h2 className="font-display text-xl font-bold">Rules</h2>
-            <ul className="mt-4 space-y-2">
-              {event.rules.map((r) => (
-                <li key={r} className="flex items-start gap-2.5 text-sm text-muted">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /> {r}
-                </li>
-              ))}
-            </ul>
-          </Reveal>
+      <section className="shell grid items-start gap-6 pb-20 pt-6 lg:grid-cols-[minmax(0,1fr)_23rem]">
+        <div className="space-y-6">
+          <PlayerSlots
+            registrants={registrants}
+            maxParticipants={event.maxParticipants}
+            viewerName={viewer.registered ? viewer.minecraftUsername : null}
+            open={open}
+            profilesOpen={!isRouteLaunchGated("/players/profile")}
+            title={copy.playersTitle}
+            emptyMessage={copy.playersEmpty}
+          />
 
-          {event.winners && (
-            <Reveal className="panel p-6">
-              <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+          {event.winners && event.winners.length > 0 && (
+            <section className="panel p-6" aria-labelledby="event-winners">
+              <h2 id="event-winners" className="flex items-center gap-2 font-display text-xl font-bold">
                 <Trophy size={20} className="text-gold" /> Winners
               </h2>
               <div className="mt-4 space-y-3">
@@ -113,47 +115,61 @@ export default async function EventDetail({ params }: { params: Promise<{ slug: 
                   </div>
                 ))}
               </div>
-            </Reveal>
+            </section>
           )}
+
+          <section className="panel grid gap-6 p-6 sm:grid-cols-2" aria-label="How to take part">
+            {event.requirements.length > 0 && (
+              <div>
+                <h2 className="font-display text-lg font-bold">{copy.requirementsTitle}</h2>
+                <ul className="mt-3 space-y-2">
+                  {event.requirements.map((r) => (
+                    <li key={r} className="flex items-start gap-2.5 text-sm text-muted">
+                      <Check size={17} className="mt-0.5 shrink-0 text-accent-bright" /> {r}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div>
+              <h2 className="font-display text-lg font-bold">{copy.rulesTitle}</h2>
+              <ul className="mt-3 space-y-2">
+                {event.rules.map((r) => (
+                  <li key={r} className="flex items-start gap-2.5 text-sm text-muted">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /> {r}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
         </div>
 
-        <Reveal delay={0.05} className="space-y-6">
-          <div className="glass p-6">
-            <div className="flex items-center gap-2 text-gold">
-              <Gift size={18} />
-              <h2 className="font-display text-lg font-bold">Rewards</h2>
-            </div>
-            <ul className="mt-3 space-y-2 text-sm text-muted">
-              {event.rewards.map((r) => (
-                <li key={r} className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" /> {r}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="panel p-6">
-            <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-2 text-sm text-muted">
-                <Users size={16} /> Registered
-              </span>
-              <span className="telemetry font-semibold">
-                {event.joined}/{event.maxParticipants}
-              </span>
-            </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-ink/5">
-              <div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, (event.joined / event.maxParticipants) * 100)}%` }} />
-            </div>
-            {event.status === "upcoming" ? (
-              <Link href="/dashboard/events" className="btn btn-primary mt-5 w-full">
-                Register to compete
-              </Link>
-            ) : (
-              <p className="mt-5 text-center text-xs text-muted">
-                {event.status === "live" ? "This event is live now." : "This event has ended."}
-              </p>
-            )}
-          </div>
-        </Reveal>
+        <aside className="event-register-sticky space-y-6">
+          <RegistrationCard
+            eventId={event.id}
+            slug={event.slug}
+            status={event.status}
+            startISO={event.startISO}
+            endISO={event.endISO}
+            joined={event.joined}
+            maxParticipants={event.maxParticipants}
+            viewer={viewer}
+          />
+          {event.rewards.length > 0 && (
+            <section className="panel p-6" aria-labelledby="event-rewards">
+              <h2 id="event-rewards" className="flex items-center gap-2 font-display text-lg font-bold">
+                <Gift size={18} className="text-gold" /> {copy.rewardsTitle}
+              </h2>
+              <ul className="mt-3 space-y-2 text-sm text-muted">
+                {event.rewards.map((r) => (
+                  <li key={r} className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" /> {r}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </aside>
       </section>
     </>
   );

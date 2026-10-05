@@ -44,7 +44,7 @@ export const PAGE_CONTENT_DEFINITIONS: Record<EditablePageId, PageContentDefinit
     label: "Home",
     path: "/",
     eyebrow: "Main landing page",
-    description: "Edit the homepage hero controls, news band, world map copy, and final network introduction.",
+    description: "Edit the homepage hero controls, news band, events band, world map copy, and final network introduction.",
     permissionKey: PLAY_PERMISSION_KEY,
     panels: [
       {
@@ -70,6 +70,18 @@ export const PAGE_CONTENT_DEFINITIONS: Record<EditablePageId, PageContentDefinit
           field("newsEmptyTitle", "Empty state title"),
           field("newsEmptyMessage", "Empty state description", { type: "textarea" }),
           field("newsEmptyCta", "Empty state button"),
+        ],
+      },
+      {
+        id: "events",
+        title: "Events",
+        description: "Shown under the news while an event is live or coming up; hidden when nothing is scheduled.",
+        fields: [
+          field("eventsEyebrow", "Eyebrow"),
+          field("eventsTitle", "Section title", { help: "Used when the next event has not started yet." }),
+          field("eventsLiveTitle", "Section title while live", { help: "Used when an event is happening right now." }),
+          field("eventsLead", "Description", { type: "textarea" }),
+          field("eventsCta", "All events button"),
         ],
       },
       {
@@ -104,6 +116,9 @@ export const PAGE_CONTENT_DEFINITIONS: Record<EditablePageId, PageContentDefinit
       primaryCta: "Enter the world", copyIpCta: "Copy IP", discordCta: "Discord",
       newsEyebrow: "From the network", newsTitle: "Latest news & updates.", newsEmptyTitle: "No articles published yet",
       newsEmptyMessage: "Updates, patch notes and announcements from the team will show up here.", newsEmptyCta: "Join the Discord",
+      eventsEyebrow: "Events", eventsTitle: "Join the next event.", eventsLiveTitle: "Happening right now.",
+      eventsLead: "Tournaments, build battles and community nights. Anyone can look; sign in to claim a spot.",
+      eventsCta: "View all events",
       mapEyebrow: "Explore Mazora", mapTitle: "See the world from above.", mapToolbarTitle: "Mazora live world map",
       mapLiveMessage: "Live terrain and player activity from across the network.",
       mapOfflineMessage: "The map reconnects automatically once the server is back online.", mapPendingMessage: "The map portal is being prepared for launch.",
@@ -128,13 +143,48 @@ export const PAGE_CONTENT_DEFINITIONS: Record<EditablePageId, PageContentDefinit
   },
   events: {
     id: "events", label: "Events", path: "/events", eyebrow: "Events landing page", managerPath: "/admin/events", managerLabel: "Manage events",
-    description: "Edit the events hero and the no-events state while keeping event management separate.",
+    description: "Edit the events hero, event board, event page labels and the no-events state while keeping event management separate.",
     permissionKey: EVENTS_PERMISSION_KEY,
     panels: [
       { id: "hero", title: "Hero", description: "The introduction above the event directory.", fields: [field("heroEyebrow", "Eyebrow"), field("heroTitle", "Title"), field("heroLead", "Description", { type: "textarea" })] },
+      {
+        id: "board",
+        title: "Event board",
+        description: "Headings, filter messages and card buttons on the events list.",
+        fields: [
+          field("currentTitle", "Live and upcoming heading"),
+          field("pastTitle", "Past events heading"),
+          field("noCurrentMessage", "Nothing scheduled message", { type: "textarea" }),
+          field("noLiveMessage", "Nothing live message", { type: "textarea" }),
+          field("noUpcomingMessage", "Nothing upcoming message", { type: "textarea" }),
+          field("leadCta", "Upcoming card button"),
+          field("liveCta", "Live card button"),
+          field("pastMoreCta", "Show more past events button"),
+        ],
+      },
+      {
+        id: "detail",
+        title: "Event page",
+        description: "Section headings on every event's own page (open an event to see them).",
+        fields: [
+          field("playersTitle", "Players heading"),
+          field("playersEmpty", "No players yet message", { type: "textarea" }),
+          field("requirementsTitle", "Requirements heading"),
+          field("rulesTitle", "Rules heading"),
+          field("rewardsTitle", "Rewards heading"),
+        ],
+      },
       { id: "empty", title: "Empty state", description: "Shown when the schedule is empty.", fields: [field("emptyTitle", "Title"), field("emptyMessage", "Description", { type: "textarea" }), field("emptyCta", "Button label")] },
     ],
-    defaults: { heroEyebrow: "Competitions & community", heroTitle: "There's always something happening.", heroLead: "Tournaments, build competitions, and spontaneous community nights. Show up and win something.", emptyTitle: "No events scheduled", emptyMessage: "Tournaments, build competitions and community nights will be listed here once the team schedules them.", emptyCta: "Join the Discord" },
+    defaults: {
+      currentTitle: "Live and upcoming", pastTitle: "Past events",
+      noCurrentMessage: "No events are scheduled right now. New ones are announced on Discord first.",
+      noLiveMessage: "Nothing is live right now. Check the upcoming events.",
+      noUpcomingMessage: "No upcoming events yet.",
+      leadCta: "View event and register", liveCta: "Join the event", pastMoreCta: "Show more past events",
+      playersTitle: "Players", playersEmpty: "No one has registered yet. Be the first to claim a slot.",
+      requirementsTitle: "Before you join", rulesTitle: "Rules", rewardsTitle: "Rewards",
+      heroEyebrow: "Competitions & community", heroTitle: "There's always something happening.", heroLead: "Tournaments, build competitions, and spontaneous community nights. Show up and win something.", emptyTitle: "No events scheduled", emptyMessage: "Tournaments, build competitions and community nights will be listed here once the team schedules them.", emptyCta: "Join the Discord" },
   },
   "game-modes": {
     id: "game-modes", label: "Game Modes", path: "/game-modes", eyebrow: "World directory page", managerPath: "/admin/game-modes", managerLabel: "Manage game modes",

@@ -1,28 +1,46 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
-import { Plus, Calendar, Clock, Trophy, Users, Edit, Trash2, Search, X } from "lucide-react";
-import { useToast } from "@/components/ui";
+import { useRef, useState, useTransition, useMemo } from "react";
+import { Plus, Calendar, Clock, Trophy, Users, Edit, Trash2, Search, X, ImagePlus, Upload, Link as LinkIcon } from "lucide-react";
+import { Modal, useToast } from "@/components/ui";
 import { fmtDate, cn } from "@/lib/utils";
 import { saveEventAction, deleteEventAction } from "@/lib/actions/events-admin";
+import { effectiveEventStatus } from "@/lib/events/status";
 
 export interface AdminEventData {
   id?: string;
   slug: string;
   title: string;
   description: string;
+  imageUrl?: string | null;
   gameMode: string;
+  /** The stored override: "upcoming" means automatic (see effectiveEventStatus). */
   status: "upcoming" | "live" | "completed" | "cancelled";
+  /** What the event is right now, from the override and its start/end times. */
+  liveStatus?: "upcoming" | "live" | "completed" | "cancelled";
   startAt: string;
   endAt?: string;
   maxParticipants: number;
   rewards: string[];
+  /** Players signed up so far (shown on the board; not edited in the form). */
+  registered?: number;
+}
+
+/** An enabled store product that can be added to an event's rewards. */
+export interface RewardStoreItem {
+  name: string;
+  category: string;
 }
 
 export function EventsManager({
   initialEvents,
+  gameModes,
+  storeItems,
 }: {
   initialEvents: AdminEventData[];
+  /** Game mode names from /admin/game-modes, offered in the form's dropdown. */
+  gameModes: string[];
+  storeItems: RewardStoreItem[];
 }) {
   const { toast } = useToast();
   const [events, setEvents] = useState<AdminEventData[]>(initialEvents);
@@ -34,7 +52,7 @@ export function EventsManager({
 
   const filteredEvents = useMemo(() => {
     return events.filter((ev) => {
-      if (statusFilter !== "all" && ev.status !== statusFilter) return false;
+      if (statusFilter !== "all" && (ev.liveStatus ?? ev.status) !== statusFilter) return false;
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
@@ -46,9 +64,9 @@ export function EventsManager({
     });
   }, [events, searchQuery, statusFilter]);
 
-  const upcomingCount = events.filter((e) => e.status === "upcoming").length;
-  const liveCount = events.filter((e) => e.status === "live").length;
-  const completedCount = events.filter((e) => e.status === "completed").length;
+  const upcomingCount = events.filter((e) => (e.liveStatus ?? e.status) === "upcoming").length;
+  const liveCount = events.filter((e) => (e.liveStatus ?? e.status) === "live").length;
+  const completedCount = events.filter((e) => (e.liveStatus ?? e.status) === "completed").length;
 
   const handleOpenCreate = () => {
     setEditingEvent(null);
@@ -166,18 +184,26 @@ export function EventsManager({
               key={ev.id || ev.slug}
               className="panel panel-hover p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition"
             >
+              {ev.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={ev.imageUrl}
+                  alt=""
+                  className="h-20 w-full shrink-0 rounded-xl border border-line object-cover md:w-32"
+                />
+              )}
               <div className="space-y-1.5 min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
                       "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                      ev.status === "live" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30",
-                      ev.status === "upcoming" && "bg-accent/15 text-accent-bright border border-accent/30",
-                      ev.status === "completed" && "bg-ink/10 text-muted border border-line",
-                      ev.status === "cancelled" && "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30",
+                      (ev.liveStatus ?? ev.status) === "live" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30",
+                      (ev.liveStatus ?? ev.status) === "upcoming" && "bg-accent/15 text-accent-bright border border-accent/30",
+                      (ev.liveStatus ?? ev.status) === "completed" && "bg-ink/10 text-muted border border-line",
+                      (ev.liveStatus ?? ev.status) === "cancelled" && "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30",
                     )}
                   >
-                    {ev.status}
+                    {ev.liveStatus ?? ev.status}
                   </span>
                   <span className="text-xs font-semibold text-muted bg-ink/5 px-2.5 py-0.5 rounded-md border border-line">
                     {ev.gameMode}
@@ -203,7 +229,7 @@ export function EventsManager({
                   )}
                   <span className="flex items-center gap-1.5">
                     <Users size={13} className="text-muted" />
-                    Max: {ev.maxParticipants} players
+                    {ev.registered ?? 0}/{ev.maxParticipants} registered
                   </span>
                   {ev.rewards && ev.rewards.length > 0 && (
                     <span className="flex items-center gap-1.5 text-accent-bright font-medium">
@@ -242,6 +268,8 @@ export function EventsManager({
       {modalOpen && (
         <EventFormModal
           event={editingEvent}
+          gameModes={gameModes}
+          storeItems={storeItems}
           onClose={() => setModalOpen(false)}
           onSaved={(saved) => {
             setEvents((prev) => {
@@ -259,12 +287,31 @@ export function EventsManager({
   );
 }
 
+/** "Spawn Build-Off!" → "spawn-build-off"; the server makes the real one unique. */
+/** A date as a datetime-local value in the editor's own time zone ("2026-10-10T00:00"). */
+function toLocalInput(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function previewSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function EventFormModal({
   event,
+  gameModes,
+  storeItems,
   onClose,
   onSaved,
 }: {
   event: AdminEventData | null;
+  gameModes: string[];
+  storeItems: RewardStoreItem[];
   onClose: () => void;
   onSaved: (ev: AdminEventData) => void;
 }) {
@@ -272,29 +319,65 @@ function EventFormModal({
   const [isSubmitting, startSubmitting] = useTransition();
 
   const [title, setTitle] = useState(event?.title ?? "");
-  const [slug, setSlug] = useState(event?.slug ?? "");
   const [description, setDescription] = useState(event?.description ?? "");
-  const [gameMode, setGameMode] = useState(event?.gameMode ?? "Survival SMP");
+  const [gameMode, setGameMode] = useState(event?.gameMode ?? gameModes[0] ?? "");
+  // Keep an event's current mode selectable even if that mode was renamed or deleted since.
+  const modeOptions = gameMode && !gameModes.includes(gameMode) ? [gameMode, ...gameModes] : gameModes;
+  const slug = event ? event.slug : previewSlug(title);
   const [status, setStatus] = useState<AdminEventData["status"]>(event?.status ?? "upcoming");
   const [startAt, setStartAt] = useState(
-    event?.startAt ? new Date(event.startAt).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+    toLocalInput(event?.startAt ? new Date(event.startAt) : new Date()),
   );
   const [endAt, setEndAt] = useState(
-    event?.endAt ? new Date(event.endAt).toISOString().slice(0, 16) : "",
+    event?.endAt ? toLocalInput(new Date(event.endAt)) : "",
   );
   const [maxParticipants, setMaxParticipants] = useState(event?.maxParticipants ?? 100);
   const [rewards, setRewards] = useState(event?.rewards ? event.rewards.join("\n") : "");
 
-  const handleTitleChange = (val: string) => {
-    setTitle(val);
-    if (!event) {
-      setSlug(
-        val
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-+|-+$/g, ""),
-      );
+  const rewardLines = rewards.split("\n").map((r) => r.trim()).filter(Boolean);
+  const storeCategories = Array.from(new Set(storeItems.map((item) => item.category)));
+  const addStoreReward = (name: string) => {
+    if (!name || rewardLines.includes(name)) return;
+    setRewards([...rewardLines, name].join("\n"));
+  };
+
+  // The link field only holds a new link; the saved cover shows in the preview
+  // and is kept unless replaced or removed.
+  const originalImage = event?.imageUrl ?? null;
+  const [imageLink, setImageLink] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(originalImage);
+  const [imageRemoved, setImageRemoved] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const imageInput = useRef<HTMLInputElement>(null);
+
+  const pickFile = (file: File | undefined) => {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+      setImageError("Use a JPEG, PNG, WebP or GIF image.");
+      return;
     }
+    if (file.size > 8 * 1024 * 1024) {
+      setImageError("Cover image must be under 8 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(typeof reader.result === "string" ? reader.result : null);
+    reader.readAsDataURL(file);
+    setImageFile(file);
+    setImageLink("");
+    setImageRemoved(false);
+    setImageError(null);
+  };
+
+  const clearImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setImageLink("");
+    setImageRemoved(true);
+    setImageError(null);
+    if (imageInput.current) imageInput.current.value = "";
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -304,29 +387,37 @@ function EventFormModal({
       const fd = new FormData();
       if (event?.id) fd.set("id", event.id);
       fd.set("title", title);
-      fd.set("slug", slug);
       fd.set("description", description);
       fd.set("gameMode", gameMode);
       fd.set("status", status);
-      fd.set("startAt", startAt);
-      if (endAt) fd.set("endAt", endAt);
+      // Sent as an exact instant: a bare "2026-10-10T00:00" would be read in the
+      // server's time zone, shifting the event whenever that differs from the editor's.
+      fd.set("startAt", new Date(startAt).toISOString());
+      if (endAt) fd.set("endAt", new Date(endAt).toISOString());
       fd.set("maxParticipants", String(maxParticipants));
       fd.set("rewards", rewards);
+      if (imageFile) fd.set("imageFile", imageFile);
+      else if (imageLink.trim()) fd.set("imageUrl", imageLink.trim());
+      else if (imageRemoved) fd.set("removeImage", "on");
 
       const res = await saveEventAction(null, fd);
       toast(res.message, res.ok ? "success" : "error");
+      setImageError(res.errors?.imageUrl ?? null);
 
       if (res.ok) {
         onSaved({
-          id: event?.id,
+          id: event?.id ?? res.id,
           title,
-          slug,
+          slug: res.slug ?? slug,
           description,
+          imageUrl: res.imageUrl ?? null,
           gameMode,
           status,
+          liveStatus: effectiveEventStatus({ status, startAt: new Date(startAt), endAt: endAt ? new Date(endAt) : null }),
           startAt: new Date(startAt).toISOString(),
           endAt: endAt ? new Date(endAt).toISOString() : undefined,
           maxParticipants,
+          registered: event?.registered ?? 0,
           rewards: rewards.split("\n").map((r) => r.trim()).filter(Boolean),
         });
       }
@@ -334,23 +425,16 @@ function EventFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-up">
-      <div className="panel w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-2xl border-line-strong">
-        <div className="flex items-center justify-between border-b border-line pb-3">
+    <Modal open onClose={onClose} label={event ? "Edit event" : "Create event"}>
+      <form onSubmit={handleSubmit} className="panel flex max-h-[90vh] flex-col overflow-hidden border-line-strong">
+        <div className="shrink-0 border-b border-line px-6 py-4 pr-16">
           <h2 className="font-display text-lg font-bold text-ink flex items-center gap-2">
             <Trophy className="text-accent-bright" size={20} />
             {event ? "Edit Event" : "Create New Event"}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg text-muted hover:text-ink hover:bg-ink/5 transition"
-          >
-            <X size={18} />
-          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2 space-y-1">
               <label className="text-xs font-bold uppercase tracking-wider text-muted">Event Title</label>
@@ -358,48 +442,57 @@ function EventFormModal({
                 type="text"
                 required
                 value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
+                onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. End Dragon Slayer Championship"
                 className="w-full px-3.5 py-2 text-xs rounded-xl border border-line bg-card text-ink focus:outline-none focus:border-accent"
               />
+              <p className="text-[11px] text-muted">
+                Page link: <span className="font-mono text-ink/80">/events/{slug || "…"}</span>
+                {event ? " (kept when the title changes, so shared links keep working)" : " (made from the title)"}
+              </p>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted">URL Slug</label>
-              <input
-                type="text"
-                required
-                value={slug}
-                onChange={(e) => setSlug(e.target.value.toLowerCase())}
-                placeholder="e.g. end-dragon-championship"
-                className="w-full px-3.5 py-2 text-xs rounded-xl border border-line bg-card text-ink focus:outline-none focus:border-accent"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted">Game Mode</label>
-              <input
-                type="text"
+            <div className="sm:col-span-2 space-y-1">
+              <label htmlFor="event-game-mode" className="text-xs font-bold uppercase tracking-wider text-muted">Game Mode</label>
+              <select
+                id="event-game-mode"
                 required
                 value={gameMode}
                 onChange={(e) => setGameMode(e.target.value)}
-                placeholder="e.g. Survival SMP, Skyblock"
                 className="w-full px-3.5 py-2 text-xs rounded-xl border border-line bg-card text-ink focus:outline-none focus:border-accent"
-              />
+              >
+                {modeOptions.length === 0 && <option value="">No game modes yet: add one in Game Modes</option>}
+                {modeOptions.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {mode}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted">Status</label>
+              <label htmlFor="event-status" className="text-xs font-bold uppercase tracking-wider text-muted">Status</label>
               <select
+                id="event-status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as AdminEventData["status"])}
+                aria-describedby="event-status-hint"
                 className="w-full px-3.5 py-2 text-xs rounded-xl border border-line bg-card text-ink focus:outline-none focus:border-accent"
               >
-                <option value="upcoming">Upcoming</option>
-                <option value="live">Live Now</option>
-                <option value="completed">Completed</option>
+                <option value="upcoming">Automatic</option>
+                <option value="live">Start now</option>
+                <option value="completed">End now</option>
                 <option value="cancelled">Cancelled</option>
               </select>
+              <p id="event-status-hint" className="text-[11px] text-muted">
+                {status === "upcoming"
+                  ? "Goes live at the start time and completes at the end time."
+                  : status === "live"
+                    ? "Live straight away, then completes at the end time."
+                    : status === "completed"
+                      ? "Shown as completed now, whatever the times say."
+                      : "Hidden from the events list; registration closes."}
+              </p>
             </div>
 
             <div className="space-y-1">
@@ -435,10 +528,118 @@ function EventFormModal({
               />
             </div>
 
+            <div className="sm:col-span-2 space-y-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted">Cover Image</span>
+                <span className="text-[11px] text-muted">Wide images work best · 1200×450</span>
+              </div>
+              <div className="relative">
+                <input
+                  ref={imageInput}
+                  id="event-image-file"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="peer sr-only"
+                  onChange={(e) => {
+                    pickFile(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+                {/* The whole area is the picker: click it or drop an image on it. */}
+                <label
+                  htmlFor="event-image-file"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragging(true);
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragging(false);
+                    pickFile(e.dataTransfer.files?.[0]);
+                  }}
+                  className={cn(
+                    "group relative flex aspect-[8/3] w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed text-center transition",
+                    "peer-focus-visible:ring-2 peer-focus-visible:ring-accent",
+                    dragging
+                      ? "border-accent bg-accent/10"
+                      : imagePreview
+                        ? "border-transparent"
+                        : "border-line bg-ink/[0.02] hover:border-accent/50 hover:bg-accent/[0.04]",
+                  )}
+                >
+                  {imagePreview ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imagePreview}
+                        alt="Cover image preview"
+                        className="absolute inset-0 h-full w-full object-cover"
+                        onError={() => setImageError("That image could not be loaded. Check the link.")}
+                      />
+                      <span className="absolute inset-0 grid place-items-center bg-black/55 opacity-0 transition group-hover:opacity-100">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-black/60 px-3.5 py-1.5 text-xs font-semibold text-white">
+                          <Upload size={14} /> Click or drop to replace
+                        </span>
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="mb-2 grid h-11 w-11 place-items-center rounded-full bg-accent/10 text-accent-bright transition-transform group-hover:scale-110">
+                        <ImagePlus size={20} />
+                      </span>
+                      <span className="text-sm font-semibold text-ink">
+                        {dragging ? "Drop image here" : "Click to upload a cover image"}
+                      </span>
+                      <span className="mt-0.5 text-[11px] text-muted">or drag and drop · JPEG, PNG, WebP or GIF · max 8 MB</span>
+                    </>
+                  )}
+                </label>
+                {imagePreview && (
+                  <button
+                    type="button"
+                    onClick={clearImage}
+                    title="Remove cover image"
+                    aria-label="Remove cover image"
+                    className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/65 text-white transition hover:bg-red-600"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <LinkIcon size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  value={imageLink}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setImageLink(next);
+                    setImageFile(null);
+                    setImageError(null);
+                    if (next.trim()) {
+                      setImagePreview(next.trim());
+                      setImageRemoved(false);
+                    } else {
+                      setImagePreview(imageRemoved ? null : originalImage);
+                    }
+                  }}
+                  placeholder="Or paste an image link instead"
+                  aria-label="Cover image link"
+                  aria-invalid={Boolean(imageError)}
+                  className={cn(
+                    "w-full pl-8 pr-3.5 py-2 text-xs rounded-xl border border-line bg-card text-ink placeholder:text-muted/70 focus:outline-none focus:border-accent",
+                    imageError && "border-red-500 ring-1 ring-red-500/30",
+                  )}
+                />
+              </div>
+              {imageError && <p className="text-xs text-red-500">{imageError}</p>}
+            </div>
+
             <div className="sm:col-span-2 space-y-1">
               <label className="text-xs font-bold uppercase tracking-wider text-muted">Description</label>
               <textarea
-                rows={3}
+                rows={4}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Details, objectives, and schedule for players…"
@@ -447,11 +648,35 @@ function EventFormModal({
             </div>
 
             <div className="sm:col-span-2 space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted">
-                Rewards / Prizes (One per line)
-              </label>
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <label htmlFor="event-rewards" className="text-xs font-bold uppercase tracking-wider text-muted">
+                  Rewards / Prizes (One per line)
+                </label>
+                {storeItems.length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => addStoreReward(e.target.value)}
+                    aria-label="Add a store item as a reward"
+                    className="max-w-full px-3 py-1.5 text-xs rounded-lg border border-line bg-card text-ink focus:outline-none focus:border-accent"
+                  >
+                    <option value="">+ Add a store item…</option>
+                    {storeCategories.map((category) => (
+                      <optgroup key={category} label={category}>
+                        {storeItems
+                          .filter((item) => item.category === category)
+                          .map((item, i) => (
+                            <option key={`${item.name}-${i}`} value={item.name} disabled={rewardLines.includes(item.name)}>
+                              {item.name}
+                            </option>
+                          ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                )}
+              </div>
               <textarea
-                rows={2}
+                id="event-rewards"
+                rows={4}
                 value={rewards}
                 onChange={(e) => setRewards(e.target.value)}
                 placeholder={"$50 Store Voucher\n1x Champion Tag\n50,000 In-Game Coins"}
@@ -459,21 +684,21 @@ function EventFormModal({
               />
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center justify-end gap-2 border-t border-line pt-4">
-            <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="btn btn-primary btn-sm flex items-center gap-1.5"
-            >
-              {isSubmitting ? "Saving…" : event ? "Save Changes" : "Publish Event"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-line px-6 py-4">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting || !gameMode}
+            className="btn btn-primary btn-sm flex items-center gap-1.5"
+          >
+            {isSubmitting ? "Saving…" : event ? "Save Changes" : "Publish Event"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
