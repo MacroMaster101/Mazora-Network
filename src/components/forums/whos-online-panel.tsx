@@ -19,7 +19,7 @@ export function WhosOnlinePanel({ members }: { members: OnlineMember[] }) {
       ) : (
         <SeeMoreList {...ONLINE_LIST} noun={["member", "members"]}>
           {members.map((member) => (
-            <OnlineMemberRow key={member.userId} member={member} showRank={member.role !== "member"} />
+            <OnlineMemberRow key={member.username} member={member} showRank={member.role !== "member"} />
           ))}
         </SeeMoreList>
       )}

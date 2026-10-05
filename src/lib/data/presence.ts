@@ -21,8 +21,12 @@ import {
   type PresenceShown,
 } from "@/lib/presence-rules";
 
+/**
+ * One row of the public online roster (/forums panels and /api/presence/online).
+ * Deliberately no account id: the roster is public, the panels only need what
+ * they show, and usernames are unique (they key the list).
+ */
 export interface OnlineMember {
-  userId: string;
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
@@ -243,7 +247,6 @@ export async function getOnlineMembers(): Promise<OnlineMember[]> {
       const storedRole = normalizeRoleKey(row.role);
       const role = isRoleKey(storedRole) ? storedRole : "member";
       members.push({
-        userId: String(row.userId),
         username: String(row.username),
         displayName: typeof row.displayName === "string" ? row.displayName : null,
         avatarUrl:

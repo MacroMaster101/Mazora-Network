@@ -158,6 +158,14 @@ describe("presence storage", () => {
     assert.match(body, /if \(status !== "offline"\) shown\.set/);
   });
 
+  test("the public online roster carries no account ids", () => {
+    const start = presence.indexOf("export interface OnlineMember");
+    const shape = presence.slice(start, presence.indexOf("}", start));
+    assert.doesNotMatch(shape, /userId/, "OnlineMember is served publicly by /api/presence/online");
+    const build = presence.slice(presence.indexOf("members.push({"), presence.indexOf("return members;"));
+    assert.doesNotMatch(build, /userId:/);
+  });
+
   test("realtime pings go on a private channel browsers can read but never write", () => {
     const announce = readFileSync(new URL("../presence/announce.ts", import.meta.url), "utf8");
     const policy = readFileSync(new URL("../../../supabase/migrations/053_realtime_presence_channel.sql", import.meta.url), "utf8");
