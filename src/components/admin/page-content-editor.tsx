@@ -2,7 +2,7 @@
 
 import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import Link from "@/components/ui/app-link";
-import { ExternalLink, Monitor, RotateCcw, Save } from "lucide-react";
+import { ExternalLink, Loader2, Monitor, RotateCcw, Save } from "lucide-react";
 import { BackLink } from "@/components/shared";
 import { savePageContentAction } from "@/lib/actions/page-content";
 import type { PageContentDefinition, PageContentPanel } from "@/lib/page-content";
@@ -169,13 +169,24 @@ export function PageContentEditor({ definition, initialContent }: { definition: 
             <span className="flex items-center gap-2 text-xs font-extrabold text-ink"><Monitor size={15} className="text-accent-bright" /> Live page preview</span>
             <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400"><i className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Updates as you type</span>
           </div>
-          <iframe
-            ref={previewRef}
-            src={`${definition.path}${definition.path.includes("?") ? "&" : "?"}adminPreview=1`}
-            title={`${definition.label} live page preview`}
-            onLoad={() => setPreviewReady(true)}
-            className="h-[420px] w-full bg-black/20 sm:h-[560px] lg:h-[70vh] lg:min-h-[580px]"
-          />
+          <div className="relative">
+            <iframe
+              ref={previewRef}
+              src={`${definition.path}${definition.path.includes("?") ? "&" : "?"}adminPreview=1`}
+              title={`${definition.label} live page preview`}
+              onLoad={() => setPreviewReady(true)}
+              className="h-[420px] w-full bg-black/20 sm:h-[560px] lg:h-[70vh] lg:min-h-[580px]"
+            />
+            {/* An iframe paints white until its page arrives, which on a cold
+                load read as a broken, empty preview. */}
+            {!previewReady && (
+              <div className="absolute inset-0 grid place-items-center bg-[#0b0814]" role="status">
+                <span className="flex items-center gap-2.5 text-xs font-semibold text-white/70">
+                  <Loader2 size={16} className="animate-spin text-accent-bright" /> Loading preview…
+                </span>
+              </div>
+            )}
+          </div>
           <div className="border-t border-line px-4 py-2 text-[10px] leading-4 text-muted">Showing the actual public page. Focus a panel to jump to its matching section; save only the section you are ready to publish.</div>
         </aside>
       </div>

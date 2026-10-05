@@ -12,8 +12,22 @@ function parts(target: number) {
   return { d, h, m, s, done: diff === 0 };
 }
 
-/** Live countdown to an ISO time. Compact by default; `big` for detail pages. */
-export function Countdown({ to, className, big = false }: { to: string; className?: string; big?: boolean }) {
+/**
+ * Live countdown to an ISO time. Compact by default; `big` for detail pages.
+ * `boxClassName` replaces the `.panel` look of the big boxes, for places such as
+ * dark artwork where a theme surface would be the wrong colour.
+ */
+export function Countdown({
+  to,
+  className,
+  big = false,
+  boxClassName,
+}: {
+  to: string;
+  className?: string;
+  big?: boolean;
+  boxClassName?: string;
+}) {
   const target = new Date(to).getTime();
   const [t, setT] = useState<ReturnType<typeof parts> | null>(null);
 
@@ -41,9 +55,9 @@ export function Countdown({ to, className, big = false }: { to: string; classNam
     return (
       <div className={cn("flex gap-2", className)}>
         {units.map(([val, label]) => (
-          <div key={label} className="panel min-w-[3.75rem] px-3 py-2 text-center">
-            <div className="telemetry text-2xl font-bold text-ink">{String(val).padStart(2, "0")}</div>
-            <div className="text-[10px] uppercase tracking-widest text-muted">{label}</div>
+          <div key={label} className={boxClassName ?? "panel min-w-[3.75rem] px-3 py-2 text-center"}>
+            <div className={cn("telemetry text-2xl font-bold", !boxClassName && "text-ink")}>{String(val).padStart(2, "0")}</div>
+            <div className={cn("text-[10px] uppercase tracking-widest", !boxClassName && "text-muted")}>{label}</div>
           </div>
         ))}
       </div>

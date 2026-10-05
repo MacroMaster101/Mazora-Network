@@ -22,7 +22,7 @@ export function OnlineStaffPanel({ staff }: { staff: OnlineStaffMember[] }) {
       ) : (
         <SeeMoreList {...ONLINE_LIST} noun={["staff member", "staff members"]}>
           {staff.map((member) => (
-            <OnlineMemberRow key={member.userId} member={member} showRank />
+            <OnlineMemberRow key={member.username} member={member} showRank />
           ))}
         </SeeMoreList>
       )}

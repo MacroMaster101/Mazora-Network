@@ -8,6 +8,10 @@ test("live notification feeds are not hidden by the dashboard launch gate", () =
   assert.ok(getLaunchGate("/dashboard/tickets"));
 });
 
+test("event registrations are not hidden by the dashboard launch gate", () => {
+  assert.equal(getLaunchGate("/dashboard/events"), undefined);
+});
+
 test("the released suggestions feature is not hidden by launch mode", () => {
   assert.equal(getLaunchGate("/support/suggestions"), undefined);
   assert.equal(getLaunchGate("/support/suggestions/new"), undefined);

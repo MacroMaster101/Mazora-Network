@@ -181,14 +181,17 @@ export interface NewsArticle {
   featuredImage?: string;
 }
 
-export type EventStatus = "upcoming" | "live" | "completed";
+export type EventStatus = "upcoming" | "live" | "completed" | "cancelled";
 
 export interface EventItem {
+  id: string;
   slug: string;
   title: string;
   description: string;
   icon: string;
   accent: Accent;
+  /** Cover image set by staff in /admin/events; the card falls back to CoverArt without one. */
+  imageUrl?: string | null;
   startISO: string;
   endISO: string;
   status: EventStatus;

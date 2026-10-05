@@ -95,8 +95,16 @@ const map: Record<string, React.ComponentType<{ size?: number; className?: strin
   TikTokIcon,
 };
 
+/** "trophy" / "gamepad-2" → "Trophy" / "Gamepad2", so stored kebab-case names resolve too. */
+function pascalName(name: string): string {
+  return name
+    .split(/[-_\s]+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("");
+}
+
 /** Renders a stored icon by name or fallback icon. */
 export function Icon({ name, size = 20, className }: { name: string; size?: number; className?: string }) {
-  const Cmp = map[name] ?? HelpCircle;
+  const Cmp = map[name] ?? map[pascalName(name)] ?? HelpCircle;
   return <Cmp size={size} className={className} />;
 }

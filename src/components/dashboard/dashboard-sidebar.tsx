@@ -5,6 +5,7 @@ import Link from "@/components/ui/app-link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  CalendarDays,
   LayoutDashboard,
   Receipt,
   Settings,
@@ -21,6 +22,7 @@ import { cn } from "@/lib/utils";
 const items = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Purchases", href: "/dashboard/purchases", icon: Receipt },
+  { label: "Events", href: "/dashboard/events", icon: CalendarDays },
   { label: "Notifications", href: "/dashboard/notifications", icon: Bell },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];

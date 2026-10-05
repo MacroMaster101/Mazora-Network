@@ -48,6 +48,8 @@ const dashboardExclusions = new Set([
   // Store orders are recorded and their status is kept current from Discord,
   // so purchase history shows real data rather than a placeholder.
   "/dashboard/purchases",
+  // Event sign-ups are stored (migration 077) and listed from real rows.
+  "/dashboard/events",
 ]);
 
 export function getLaunchGate(pathname: string): LaunchGate | undefined {

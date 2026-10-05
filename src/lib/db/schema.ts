@@ -160,6 +160,21 @@ export const events = pgTable(
   (t) => ({ slugIdx: uniqueIndex("events_slug_idx").on(t.slug) }),
 );
 
+/** A member's sign-up for an event (migration 077). */
+export const eventRegistrations = pgTable(
+  "event_registrations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventId: uuid("event_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    eventUserIdx: uniqueIndex("event_registrations_event_user_unique").on(t.eventId, t.userId),
+    userIdx: index("event_registrations_user_idx").on(t.userId),
+  }),
+);
+
 export const gameModes = pgTable(
   "game_modes",
   {

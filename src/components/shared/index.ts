@@ -12,6 +12,7 @@ export { RoleBadge } from "./role-badge";
 export { Countdown } from "./countdown";
 export { CoverArt } from "./cover-art";
 export { ArticleArt } from "./article-art";
+export { EventArt } from "./event-art";
 export { GameModeCard } from "./game-mode-card";
 export { NewsCard } from "./news-card";
 export { EventCard } from "./event-card";

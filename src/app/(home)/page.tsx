@@ -10,7 +10,8 @@ import { SectionHeader } from "@/components/shared/section-header";
 import { DiscordIcon } from "@/components/shared/icon";
 import { NewsBoard } from "@/components/shared/news-board";
 import { LiveWorldMap } from "@/components/shared/live-world-map";
-import { getNews } from "@/lib/data/content";
+import { getEvents, getNews } from "@/lib/data/content";
+import { LeadEvent, RowEvent } from "@/components/events/events-board";
 import { getDiscordStats } from "@/lib/data/discord";
 import { getServerStatus } from "@/lib/data/status";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
@@ -22,6 +23,7 @@ import { getPreviewNews } from "@/lib/news/preview-fixtures";
 import { jsonLdGraph, organizationSchema, websiteSchema } from "@/lib/seo";
 import { getPublicContentCreators } from "@/lib/data/content-creators";
 import { CreatorShowcase } from "@/components/shared/creator-showcase";
+import "@/styles/events.css";
 
 
 /**
@@ -40,14 +42,21 @@ export const metadata: Metadata = {
 };
 
 async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean; previewEmpty: boolean }) {
-  const [status, discord, publishedNews, generalSettings, copy, featuredCreators] = await Promise.all([
+  const [status, discord, publishedNews, generalSettings, copy, featuredCreators, events, eventsCopy] = await Promise.all([
     getServerStatus(),
     getDiscordStats(),
     getNews(),
     getSiteGeneralSettings(),
     getPageContent("home"),
     getPublicContentCreators({ featuredOnly: true }),
+    getEvents(),
+    getPageContent("events"),
   ]);
+  // What's on: live events first, then the next to start (events arrive soonest first).
+  const featuredEvents = [
+    ...events.filter((e) => e.status === "live"),
+    ...events.filter((e) => e.status === "upcoming"),
+  ].slice(0, 3);
   const news = previewEmpty ? [] : previewNews ? getPreviewNews() : publishedNews;
   const configuredMapUrl = process.env.NEXT_PUBLIC_SERVER_MAP_URL?.trim();
   let mapUrl: string | null = null;
@@ -201,6 +210,39 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
             )}
           </Reveal>
         </section>
+
+        {featuredEvents.length > 0 && (
+          <section className="home-section shell py-10 sm:py-14" aria-label="Events">
+            <Reveal className="home-section-heading">
+              <SectionHeader
+                eyebrow={copy.eventsEyebrow}
+                title={featuredEvents[0].status === "live" ? copy.eventsLiveTitle : copy.eventsTitle}
+                copy={copy.eventsLead}
+                fieldIds={{
+                  eyebrow: "eventsEyebrow",
+                  title: featuredEvents[0].status === "live" ? "eventsLiveTitle" : "eventsTitle",
+                  copy: "eventsLead",
+                }}
+              />
+            </Reveal>
+            <Reveal className="mt-8 space-y-5">
+              <LeadEvent event={featuredEvents[0]} copy={{ leadCta: eventsCopy.leadCta, liveCta: eventsCopy.liveCta }} />
+              {featuredEvents.length > 1 && (
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {featuredEvents.slice(1).map((event) => (
+                    <RowEvent key={event.id} event={event} />
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-center pt-4">
+                <Link href="/events" className="home-events-cta group">
+                  <span data-page-field="eventsCta">{copy.eventsCta}</span>
+                  <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                </Link>
+              </div>
+            </Reveal>
+          </section>
+        )}
 
         <section className="home-map-section shell pb-10 pt-8 sm:pb-14 sm:pt-12" aria-labelledby="world-map-title">
           <Reveal className="home-section-heading">

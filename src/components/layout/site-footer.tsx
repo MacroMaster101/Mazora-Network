@@ -75,7 +75,7 @@ export async function SiteFooter() {
       </div>
 
       <div>
-        <div className="shell flex flex-col items-center gap-3 py-6 text-center text-sm text-muted sm:flex-row sm:justify-between sm:text-left">
+        <div className="site-footer-legal shell flex flex-col items-center gap-3 py-6 text-center text-sm text-muted sm:flex-row sm:justify-between sm:text-left">
           <span>
             © {year} {site.name}
           </span>
