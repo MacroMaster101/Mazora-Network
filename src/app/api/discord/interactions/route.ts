@@ -28,7 +28,7 @@ import {
   buildDeclinedDescription,
   getStoreMessages,
 } from "@/lib/data/store-messages";
-import { rateLimitShared } from "@/lib/rate-limit";
+import { claimOnce } from "@/lib/rate-limit";
 import {
   handleStaffNoticeAutocomplete,
   handleStaffNoticeCommand,
@@ -850,19 +850,15 @@ export async function POST(request: Request) {
     endpoint idempotent. Ten minutes comfortably outsurvives the five-minute
     signature window.
 
-    Without Upstash configured this degrades to a per-instance window, so a
-    replay landing on a different lambda can still get through — a partial
-    control, and the order-status claim in runConfirm remains the backstop.
+    A stable SET NX key holds from first receipt across clock boundaries and
+    across workers. Missing production configuration or a store outage refuses
+    the operation instead of silently weakening deduplication.
   */
-  if ((interaction.type === 2 || interaction.type === 3) && interaction.id) {
-    const first = await rateLimitShared(`discord-interaction:${interaction.id}`, {
-      limit: 1,
-      windowMs: 10 * 60_000,
-      // A replay guard that silently becomes per-instance during a Redis
-      // outage does not guard serverless instances from one another.
-      failureMode: "closed",
-    });
-    if (!first.ok) {
+  if (interaction.type === 2 || interaction.type === 3) {
+    if (!interaction.id || !/^\d{17,20}$/.test(interaction.id)) return json({ error: "invalid interaction id" }, 400);
+    const first = await claimOnce(`discord-interaction:${interaction.id}`, 10 * 60_000);
+    if (first === "unavailable") return json({ error: "interaction security unavailable" }, 503);
+    if (first === "duplicate") {
       // Type 6 (DEFERRED_UPDATE_MESSAGE) only makes sense as a reply to a
       // component click — a slash command has no message to leave alone, so it
       // gets a real ephemeral reply (type 4) instead.

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { hasActiveSession } from "@/lib/auth";
+import { getSignInSessionId, hasActiveSession } from "@/lib/auth";
+import { consumeAccountDeletionCode, sendAccountDeletionCode } from "@/lib/auth/account-deletion-proof";
 import { accountHasPassword, confirmSecondStep, passwordMatchesCurrent } from "@/lib/auth/reauth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -141,14 +142,26 @@ export async function disconnectMinecraftAction(
   return { ok: true, message: "Minecraft has been disconnected." };
 }
 
-/**
- * Deletes the authenticated user.
- *
- * Not quite "and all user-owned records", which is what this used to claim:
- * migration 020 deliberately retains order history so sales stay reconcilable.
- * What that retention must not do is keep naming the person, so the identifying
- * columns are scrubbed here before the auth user goes.
- */
+/** Sends a session-bound deletion code to a passwordless user's confirmed email. */
+export async function requestAccountDeletionCodeAction(_previous: AccountActionResult): Promise<AccountActionResult> {
+  const auth = await authenticatedUser();
+  if (!auth) return { ok: false, message: "Your session has expired. Sign in again." };
+  if (accountHasPassword(auth.user) || auth.user.factors?.some((factor) => factor.status === "verified")) {
+    return { ok: false, message: "Confirm with your password or authenticator code instead." };
+  }
+  if (!auth.user.email || !auth.user.email_confirmed_at) return { ok: false, message: "A confirmed email address is required to delete your account." };
+  const throttled = await throttleAuthAction("account-delete-send", { limit: 3, windowMs: 15 * 60_000, identity: auth.user.id });
+  if (throttled) return { ok: false, message: throttled };
+  const sent = await sendAccountDeletionCode(
+    { userId: auth.user.id, sessionId: (await getSignInSessionId()) ?? "" },
+    auth.user.email,
+  );
+  return sent
+    ? { ok: true, message: "A confirmation code has been sent to your account email address." }
+    : { ok: false, message: "The confirmation code could not be sent. Try again later." };
+}
+
+/** Deletes the authenticated user after fresh proof, anonymizing retained order history first. */
 export async function deleteAccountAction(
   _previous: AccountActionResult,
   formData: FormData,
@@ -175,8 +188,8 @@ export async function deleteAccountAction(
     unlocked computer or a copied cookie could otherwise erase the account. The
     same proof as changing the password — the current password when there is
     one — plus, with two-step verification on, a code from the app or a
-    recovery code. An account made through Google or Discord with neither has
-    nothing more to prove than the typed username.
+    recovery code. An account with neither proves control of its confirmed
+    email with a single-use code bound to this exact session.
   */
   // Checked before any proof is taken, so a recovery code is never spent on a
   // deletion that could not go ahead anyway.
@@ -196,6 +209,15 @@ export async function deleteAccountAction(
   if (auth.user.factors?.some((factor) => factor.status === "verified")) {
     const stepError = await confirmSecondStep(auth.supabase, auth.user, formData, "account-deletion");
     if (stepError) return { ok: false, errors: { code: stepError } };
+  }
+  if (!accountHasPassword(auth.user) && !auth.user.factors?.some((factor) => factor.status === "verified")) {
+    const throttled = await throttleAuthAction("account-delete", { limit: 5, windowMs: 15 * 60_000, identity: auth.user.id });
+    if (throttled) return { ok: false, message: throttled };
+    const verified = auth.user.email_confirmed_at && (await consumeAccountDeletionCode(
+      { userId: auth.user.id, sessionId: (await getSignInSessionId()) ?? "" },
+      String(formData.get("emailCode") ?? ""),
+    ));
+    if (!verified) return { ok: false, errors: { emailCode: "Send a confirmation code, then enter it here. Codes expire after 10 minutes and can be used once." } };
   }
 
   /*

@@ -168,7 +168,8 @@ type ToggleKey =
   | "storeEnabled"
   | "suggestionsEnabled"
   | "votingEnabled"
-  | "liveMapEnabled";
+  | "liveMapEnabled"
+  | "passkeysEnabled";
 
 function pick(settings: SiteGeneralSettings, section: SectionKey): Partial<SiteGeneralSettings> {
   return Object.fromEntries(SECTIONS[section].map((key) => [key, settings[key]])) as Partial<SiteGeneralSettings>;
@@ -837,6 +838,14 @@ export function SiteSettingsEditor({
             desc="Embed the Dynmap live map on the homepage. Disable if the map server isn't ready."
             checked={formState.liveMapEnabled}
             onChange={(val) => saveToggle("liveMapEnabled", val, "Live World Map")}
+            disabled={savingToggle || savingSection !== null}
+          />
+          <FeatureToggleCard
+            name="passkeysEnabled"
+            label="Passkey Sign-in"
+            desc="Let members add passkeys (Face ID, fingerprint, device PIN) and sign in with them. Turn on only after Supabase Auth > Passkeys is enabled for mazora.us."
+            checked={formState.passkeysEnabled}
+            onChange={(val) => saveToggle("passkeysEnabled", val, "Passkey Sign-in")}
             disabled={savingToggle || savingSection !== null}
           />
         </div>

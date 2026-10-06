@@ -17,13 +17,15 @@
  * Pure so the derivation can be tested without a session.
  */
 
-export type SignInMethod = "password" | "google" | "discord" | "magic-link" | "unknown";
+export type SignInMethod = "password" | "passkey" | "google" | "discord" | "magic-link" | "unknown";
 
 /** Human label for the method a session was established with. */
 export function methodLabel(method: SignInMethod): string {
   switch (method) {
     case "password":
       return "Email and password";
+    case "passkey":
+      return "Passkey";
     case "google":
       return "Google";
     case "discord":
@@ -52,6 +54,9 @@ export function currentSignInMethod(
   const methods = (amr ?? []).map((entry) => entry?.method).filter(Boolean) as string[];
 
   if (methods.includes("password")) return "password";
+  // Supabase records a passkey sign-in as "passkey"; "webauthn" is accepted too
+  // in case the name changes while the feature is in beta.
+  if (methods.includes("passkey") || methods.includes("webauthn")) return "passkey";
   if (methods.includes("otp") || methods.includes("magiclink")) return "magic-link";
 
   if (methods.includes("oauth") || !methods.length) {

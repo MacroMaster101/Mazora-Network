@@ -91,7 +91,8 @@ test("critical distributed limits fail closed when the configured store is unava
     "utf8",
   );
   assert.match(limiter, /failureMode:\s*"closed"/);
-  assert.match(interactions, /failureMode:\s*"closed"/);
+  assert.match(interactions, /claimOnce\(`discord-interaction:/);
+  assert.match(interactions, /first === "unavailable"/);
 });
 
 /*

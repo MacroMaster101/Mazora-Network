@@ -26,6 +26,8 @@ type AuthDialogContextValue = {
   close: () => void;
   /** The Java address from Site Settings, shown in the dialog. */
   javaIp: string;
+  /** Whether Site Settings turns on passkey sign-in. */
+  passkeySignIn: boolean;
 };
 
 const AuthDialogContext = createContext<AuthDialogContextValue | null>(null);
@@ -79,11 +81,19 @@ function AuthDialogUrlSync({ onOpen }: { onOpen: (state: NonNullable<DialogState
   return null;
 }
 
-export function AuthDialogProvider({ children, javaIp }: { children: ReactNode; javaIp: string }) {
+export function AuthDialogProvider({
+  children,
+  javaIp,
+  passkeySignIn,
+}: {
+  children: ReactNode;
+  javaIp: string;
+  passkeySignIn: boolean;
+}) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const value = useMemo<AuthDialogContextValue>(
-    () => ({ dialog, open: (view, next) => setDialog({ view, next }), close: () => setDialog(null), javaIp }),
-    [dialog, javaIp],
+    () => ({ dialog, open: (view, next) => setDialog({ view, next }), close: () => setDialog(null), javaIp, passkeySignIn }),
+    [dialog, javaIp, passkeySignIn],
   );
 
   useEffect(() => {
@@ -197,4 +207,9 @@ export function AuthFlowLink({ view, href, className, children }: { view: AuthDi
 /** The Java address from Site Settings, for UI inside the auth dialog. */
 export function useServerJavaIp(): string | null {
   return useContext(AuthDialogContext)?.javaIp ?? null;
+}
+
+/** Whether Site Settings offers passkey sign-in (false outside the provider). */
+export function usePasskeySignInOffered(): boolean {
+  return useContext(AuthDialogContext)?.passkeySignIn ?? false;
 }

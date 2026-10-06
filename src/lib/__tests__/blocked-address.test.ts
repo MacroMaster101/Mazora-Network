@@ -142,7 +142,7 @@ test("uploads to the shared bucket do not overwrite unless the caller asks", () 
 
   // The other caller that reuses a key says so; a new submission never does.
   const gallery = readFileSync(new URL("../actions/gallery.ts", import.meta.url), "utf8");
-  assert.match(gallery, /resolveGalleryImage\(formData, id \|\| `admin-\$\{randomUUID\(\)\}`, Boolean\(id\)\)/);
-  assert.match(gallery, /resolveGalleryImage\(formData, `submit-\$\{randomUUID\(\)\}`\)/);
-  assert.match(gallery, /overwrite = false,/);
+  assert.match(gallery, /resolveGalleryImage\(formData, id \|\| `admin-\$\{randomUUID\(\)\}`, \{ overwrite: Boolean\(id\) \}\)/);
+  assert.match(gallery, /resolveGalleryImage\(formData, `submit-\$\{randomUUID\(\)\}`, \{ copyOwnImages: true \}\)/);
+  assert.match(gallery, /const overwrite = options\.overwrite === true;/);
 });

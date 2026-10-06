@@ -8,7 +8,7 @@ import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageGallery } from "@/lib/auth/permissions";
 import { recordAudit } from "@/lib/audit-log";
 import { getDb, schema } from "@/lib/db/client";
-import { isOwnPublicImageUrl, rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
+import { copyOwnPublicImage, isOwnPublicImageUrl, rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
 import { throttleAuthAction } from "@/lib/rate-limit";
 import { MAX_IMAGE_BYTES } from "@/lib/suggestion-image-rules";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
@@ -45,7 +45,8 @@ function refresh() {
 /**
  * Resolve the final stored image URL for a gallery entry.
  * - File uploads are stored directly.
- * - URLs already in our public image bucket are kept as-is.
+ * - URLs already in our public image bucket are kept as-is for staff, and
+ *   copied for members (see below).
  * - External URLs (Google thumbnails, Discord CDN, Imgur, etc.) are
  *   fetched server-side and re-hosted in Supabase storage so they never expire.
  * Returns the permanent URL, or null with an error message.
@@ -53,10 +54,17 @@ function refresh() {
 async function resolveGalleryImage(
   formData: FormData,
   keyBase: string,
-  // Only an edit of an existing artwork reuses its key (the artwork id), so
-  // only that may replace the object already stored there.
-  overwrite = false,
+  options: {
+    // Only an edit of an existing artwork reuses its key (the artwork id), so
+    // only that may replace the object already stored there.
+    overwrite?: boolean;
+    // Member submissions never reuse one of our own image URLs: the row would
+    // point at another member's file, and deleting the submitter's account
+    // removes the files its rows point at.
+    copyOwnImages?: boolean;
+  } = {},
 ): Promise<{ url: string | null; error?: string }> {
+  const overwrite = options.overwrite === true;
   const file = formData.get("imageFile");
   const rawLink = cleanAndUnwrapImageUrl(clean(formData.get("imageUrl"), 5000000));
 
@@ -75,8 +83,14 @@ async function resolveGalleryImage(
 
   // 2. URL link
   if (rawLink) {
-    // Already in our public image bucket — use as-is
-    if (isOwnPublicImageUrl(rawLink)) return { url: rawLink };
+    // Already in our public image bucket: staff reuse it, members get a copy.
+    if (isOwnPublicImageUrl(rawLink)) {
+      if (!options.copyOwnImages) return { url: rawLink };
+      const copied = await copyOwnPublicImage(rawLink, `gallery/${keyBase}`);
+      return copied
+        ? { url: copied.url }
+        : { url: null, error: "That image could not be used. Upload the file instead." };
+    }
 
     // Data URI — decode and store it. `\w` does not match "+", so a
     // "data:image/svg+xml;base64," payload never matched and used to be stored
@@ -141,7 +155,7 @@ export async function submitGalleryAction(formData: FormData): Promise<GalleryAc
 
   if (!title) return { ok: false, message: "Please provide a title for your artwork." };
 
-  const { url: imageUrl, error } = await resolveGalleryImage(formData, `submit-${randomUUID()}`);
+  const { url: imageUrl, error } = await resolveGalleryImage(formData, `submit-${randomUUID()}`, { copyOwnImages: true });
   if (!imageUrl) return { ok: false, message: error || "Please provide a valid image URL." };
 
   const initialStatus = "pending";
@@ -306,7 +320,7 @@ export async function adminSaveGalleryAction(formData: FormData): Promise<Galler
   if (!galleryStatusSchema.safeParse(status).success) return { ok: false, message: "Unknown artwork status." };
   if (!title) return { ok: false, message: "Please provide a title." };
 
-  const { url: imageUrl, error } = await resolveGalleryImage(formData, id || `admin-${randomUUID()}`, Boolean(id));
+  const { url: imageUrl, error } = await resolveGalleryImage(formData, id || `admin-${randomUUID()}`, { overwrite: Boolean(id) });
   if (!imageUrl) return { ok: false, message: error || "Please provide an image URL." };
 
   if (id) {

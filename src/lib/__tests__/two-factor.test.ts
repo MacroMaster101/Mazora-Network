@@ -208,7 +208,8 @@ test("a recovery code works the industry-standard way: spent, but two-step stays
   assert.match(redeem, /consumeRecoveryCode\(user\.id, input\)/);
   // The sign-in then carries a recovery pass the gate accepts.
   assert.match(read("../actions/two-factor.ts"), /issueRecoveryGrant\(\{ userId: pending\.user\.id, sessionId \}\)/);
-  assert.match(read("../auth/index.ts"), /const aal: "aal1" \| "aal2" = recovered \? "aal2" : token\.aal;/);
+  // A recovery pass (or a verified passkey, see passkeys.test) counts as the second step.
+  assert.match(read("../auth/index.ts"), /const aal: "aal1" \| "aal2" = recovered \|\| passkeyVerified \? "aal2" : token\.aal;/);
 });
 
 test("a recovery pass is bound to one session and cannot pass as a reset grant", () => {

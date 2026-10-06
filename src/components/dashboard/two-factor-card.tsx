@@ -76,7 +76,16 @@ function ComingSoon() {
  * Settings → Two-step verification. Optional, for every account: an
  * authenticator app today, with passkeys and text messages to follow.
  */
-export function TwoFactorCard({ overview, staff = false }: { overview: TwoFactorOverview; staff?: boolean }) {
+export function TwoFactorCard({
+  overview,
+  staff = false,
+  passkeysLive = false,
+}: {
+  overview: TwoFactorOverview;
+  staff?: boolean;
+  /** Passkeys have their own card once switched on (a verified passkey sign-in covers this step too). */
+  passkeysLive?: boolean;
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const [setup, setSetup] = useState<"setup" | "replace" | null>(null);
@@ -217,12 +226,30 @@ export function TwoFactorCard({ overview, staff = false }: { overview: TwoFactor
               </button>
             }
           />
+          {/* Once live, passkeys are managed in their own card below (they
+              replace the password, not this step); this row points there. */}
           <Row
             icon={<Fingerprint size={18} aria-hidden="true" />}
             title="Passkeys"
-            detail="Sign in with your fingerprint, face or device PIN."
-            action={<ComingSoon />}
-            muted
+            detail={
+              passkeysLive
+                ? "Sign in with your fingerprint, face or device PIN instead of your password."
+                : "Sign in with your fingerprint, face or device PIN."
+            }
+            action={
+              passkeysLive ? (
+                <button
+                  type="button"
+                  className={actionButton}
+                  onClick={() => document.getElementById("passkeys")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                >
+                  Manage
+                </button>
+              ) : (
+                <ComingSoon />
+              )
+            }
+            muted={!passkeysLive}
           />
           <Row
             icon={<MessageSquareText size={18} aria-hidden="true" />}

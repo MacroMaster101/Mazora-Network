@@ -10,6 +10,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { buildWelcomeEmail } from "@/lib/email/welcome-email";
 import { sendEmail } from "@/lib/email/send";
 import { resolvePublicOrigin } from "@/lib/site";
+import { scheduleSecurityAlerts } from "@/lib/security-alerts";
 
 /**
  * Automatic delivery of the two fixed default templates.
@@ -27,13 +28,15 @@ import { resolvePublicOrigin } from "@/lib/site";
 const SESSION_DEDUP_MS = 60 * 60_000;
 
 /**
- * Sends the welcome notification the first time it is needed for an account.
+ * Sends the welcome notification (and email) once per account, on sign-in.
  *
- * Deduplicated on the `welcome` category, which only this dispatch produces —
- * the admin composer's audience categories are announcement/system/event/
- * security, and fixed templates cannot be dispatched by hand. That also makes
- * this safe to call on every login: accounts created before this existed pick
- * their welcome up once, and never again.
+ * The account itself records it: profiles.welcomed_at (migration 078), claimed
+ * with one conditional update, so only the first sign-in ever wins and two
+ * sign-ins at the same moment cannot both send it. It used to check for an
+ * existing welcome notification instead, but notifications are not permanent
+ * (the reaper deletes read ones after 30 days, and members delete their own),
+ * so the next sign-in after that welcomed the account again, email included.
+ * Safe to call on every login.
  */
 export async function dispatchWelcomeNotification(userId: string): Promise<void> {
   const db = getDb();
@@ -42,17 +45,12 @@ export async function dispatchWelcomeNotification(userId: string): Promise<void>
     const template = await getNotificationTemplate(WELCOME_TEMPLATE_ID);
     if (!template || !template.enabled) return;
 
-    const [existing] = await db
-      .select({ id: schema.notifications.id })
-      .from(schema.notifications)
-      .where(
-        and(
-          eq(schema.notifications.userId, userId),
-          eq(schema.notifications.category, "welcome"),
-        ),
-      )
-      .limit(1);
-    if (existing) return;
+    const claimed = await db
+      .update(schema.profiles)
+      .set({ welcomedAt: new Date() })
+      .where(and(eq(schema.profiles.userId, userId), isNull(schema.profiles.welcomedAt)))
+      .returning({ id: schema.profiles.id });
+    if (claimed.length === 0) return;
 
     await db.insert(schema.notifications).values({
       userId,
@@ -63,8 +61,7 @@ export async function dispatchWelcomeNotification(userId: string): Promise<void>
       href: "/dashboard",
     });
 
-    // Only after the row lands, so the insert is the lock for the email too:
-    // whatever else re-runs this, an account is welcomed exactly once.
+    // The claim above is the lock for the email too: an account is welcomed exactly once.
     await sendWelcomeEmail(userId);
   } catch (error) {
     console.error("Welcome notification dispatch failed", error);
@@ -218,6 +215,11 @@ export async function dispatchSessionVerificationNotification(userId: string): P
  * Both fixed defaults for one successful sign-in. The welcome dispatch is
  * a no-op once the account already has one, so this is the single call every
  * auth entry point needs.
+ *
+ * Also sends any queued "sign-in method added" alerts (src/lib/security-alerts.ts),
+ * so a passkey or app added outside the site is reported before it is used here.
+ * They go out after the response, which also keeps their "security" notice from
+ * landing first and suppressing the session notice's one-hour dedup.
  */
 export async function dispatchSignInNotifications(userId: string | null | undefined): Promise<void> {
   if (!userId) return;
@@ -225,6 +227,7 @@ export async function dispatchSignInNotifications(userId: string | null | undefi
     dispatchWelcomeNotification(userId),
     dispatchSessionVerificationNotification(userId),
   ]);
+  scheduleSecurityAlerts(userId);
 }
 
 /** Unread count for a user — used by server components that render the bell. */

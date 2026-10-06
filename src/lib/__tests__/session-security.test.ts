@@ -33,6 +33,12 @@ test("a magic link is not reported as a password", () => {
   assert.equal(currentSignInMethod([{ method: "magiclink" }], "email"), "magic-link");
 });
 
+test("a passkey sign-in is reported as a passkey, not as the account's provider", () => {
+  assert.equal(currentSignInMethod([{ method: "passkey" }], "discord"), "passkey");
+  assert.equal(currentSignInMethod([{ method: "webauthn" }], "email"), "passkey");
+  assert.equal(methodLabel("passkey"), "Passkey");
+});
+
 test("a missing amr falls back to the provider rather than guessing", () => {
   assert.equal(currentSignInMethod([], "discord"), "discord");
   assert.equal(currentSignInMethod(null, "email"), "password");

@@ -194,7 +194,8 @@ export default function PrivacyPage() {
                   removed we strip the identifying details from those records — the Discord and
                   Minecraft names attached to the order, and anything you wrote in the request — leaving
                   the reference, the amounts and the items. Actions taken by staff on an account are also
-                  recorded in an internal audit log.
+                  recorded in an internal audit log; when staff delete an account, that log keeps its
+                  username (not its email address) as a record of the deletion.
                 </p>
               </article>
 

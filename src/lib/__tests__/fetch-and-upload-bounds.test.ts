@@ -56,8 +56,10 @@ test("the gallery and creator editors keep a link as-is only when it is in the p
   // Anything else falls through to the re-host, and a failed re-host is refused.
   const gallery = read("../actions/gallery.ts");
   const resolve = gallery.slice(gallery.indexOf("async function resolveGalleryImage("));
-  assert.ok(resolve.indexOf("if (isOwnPublicImageUrl(rawLink)) return { url: rawLink };") > 0);
-  assert.ok(resolve.indexOf("if (isOwnPublicImageUrl(rawLink)) return { url: rawLink };") < resolve.indexOf("await rehostImageFromUrl(rawLink"));
+  const own = resolve.indexOf("if (isOwnPublicImageUrl(rawLink)) {");
+  assert.ok(own > 0 && own < resolve.indexOf("await rehostImageFromUrl(rawLink"));
+  // Staff keep the link; member submissions get their own copy of the file.
+  assert.match(resolve, /if \(!options\.copyOwnImages\) return \{ url: rawLink \};\s*const copied = await copyOwnPublicImage\(rawLink, `gallery\/\$\{keyBase\}`\);/);
   assert.match(resolve, /That image link could not be downloaded\./);
 
   const creators = read("../actions/content-creators.ts");

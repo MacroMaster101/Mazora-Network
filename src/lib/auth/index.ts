@@ -10,6 +10,7 @@ import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
 import { isPlaceholderUsername, realDisplayName } from "@/lib/auth/placeholder";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { clearRecoveryGrant, hasRecoveryGrant } from "@/lib/auth/recovery-grant";
+import { clearPasskeySignInGrant, hasPasskeySignInGrant } from "@/lib/auth/passkey-signin-grant";
 import { clearReplaceGrant } from "@/lib/auth/replace-grant";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { SESSION_ONLY_COOKIE } from "@/lib/supabase/session-cookie";
@@ -41,6 +42,8 @@ export interface Session {
   role: Role;
   /** This sign-in used a recovery code instead of the authenticator app. */
   recoveredSignIn?: boolean;
+  /** This sign-in used a passkey that verified the member, standing in for the authenticator code. */
+  passkeySignIn?: boolean;
   /** The account has two-step verification turned on. */
   twoFactorEnabled?: boolean;
 }
@@ -150,9 +153,24 @@ const getAuthState = cache(async () => {
     token.aal !== "aal2" &&
     (await hasRecoveryGrant({ userId: data.user.id, sessionId: token.sessionId }));
 
-  // `aal` is the level this sign-in counts as: aal2 by code, or by recovery pass.
-  const aal: "aal1" | "aal2" = recovered ? "aal2" : token.aal;
-  return { user: data.user, aal, hasAuthenticator, recovered, sessionId: token.sessionId };
+  /*
+    A passkey sign-in in which the device verified the member (fingerprint,
+    face or PIN) is two factors in one step, so it passes two-step verification
+    as GitHub and Google do. Supabase still calls it aal1, so the sign-in action
+    leaves a signed pass for exactly this session (lib/auth/passkey-signin-grant),
+    honoured only on a token that says it was a passkey sign-in. Unlike the
+    recovery pass it grants nothing else.
+  */
+  const passkeyVerified =
+    hasAuthenticator &&
+    token.aal !== "aal2" &&
+    !recovered &&
+    token.amr.includes("passkey") &&
+    (await hasPasskeySignInGrant({ userId: data.user.id, sessionId: token.sessionId }));
+
+  // `aal` is the level this sign-in counts as: aal2 by code, by recovery pass, or by verified passkey.
+  const aal: "aal1" | "aal2" = recovered || passkeyVerified ? "aal2" : token.aal;
+  return { user: data.user, aal, hasAuthenticator, recovered, passkeyVerified, sessionId: token.sessionId };
 });
 
 /** The Supabase session id of the current sign-in, for binding session-scoped passes. */
@@ -205,17 +223,28 @@ export async function getTwoFactorPendingUser() {
   return state && needsTwoFactor(state.aal, state.hasAuthenticator) ? state.user : null;
 }
 
-function accessTokenClaims(token: string | undefined): { aal: "aal1" | "aal2"; sessionId: string } {
+function accessTokenClaims(token: string | undefined): { aal: "aal1" | "aal2"; sessionId: string; amr: string[] } {
   const payload = token?.split(".")[1];
-  if (!payload) return { aal: "aal1", sessionId: "" };
+  if (!payload) return { aal: "aal1", sessionId: "", amr: [] };
   try {
-    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { aal?: unknown; session_id?: unknown };
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      aal?: unknown;
+      session_id?: unknown;
+      amr?: unknown;
+    };
+    // How this session was established ("password", "oauth", "passkey", "totp"...).
+    const amr = Array.isArray(claims.amr)
+      ? claims.amr
+          .map((entry) => (entry && typeof entry === "object" ? (entry as { method?: unknown }).method : null))
+          .filter((method): method is string => typeof method === "string")
+      : [];
     return {
       aal: claims.aal === "aal2" ? "aal2" : "aal1",
       sessionId: typeof claims.session_id === "string" ? claims.session_id : "",
+      amr,
     };
   } catch {
-    return { aal: "aal1", sessionId: "" };
+    return { aal: "aal1", sessionId: "", amr: [] };
   }
 }
 
@@ -283,6 +312,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
       ) ?? undefined,
       role: safeRole(data.user.app_metadata?.role),
       ...(state.recovered ? { recoveredSignIn: true } : {}),
+      ...(state.passkeyVerified ? { passkeySignIn: true } : {}),
       twoFactorEnabled: state.hasAuthenticator,
     };
   }
@@ -411,5 +441,6 @@ export async function destroySession(): Promise<void> {
   store.delete(SESSION_COOKIE);
   store.delete(SESSION_ONLY_COOKIE);
   await clearRecoveryGrant();
+  await clearPasskeySignInGrant();
   await clearReplaceGrant();
 }

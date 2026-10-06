@@ -555,14 +555,15 @@ export async function deleteUserAction(
     return { ok: false, message: "The account could not be deleted." };
   }
 
-  // Keep proof that an authorized deletion occurred without retaining the
-  // deleted person's email, username, auth id, or other identifying data. This
-  // is deliberately written only after Supabase confirms the deletion.
+  // Proof that an authorized deletion occurred, and of whom: the username, so
+  // staff can tell later which account it was (the owner's decision). Nothing
+  // else is kept: no email, no auth id. Written only after Supabase confirms
+  // the deletion.
   await db.insert(schema.auditLogs).values({
     action: "user.delete",
     targetType: "user",
     targetId: null,
-    metadata: { deletedRole: targetRole, by: session.username },
+    metadata: { username: targetName, deletedRole: targetRole, by: session.username },
   });
 
   revalidatePath("/admin/users");
