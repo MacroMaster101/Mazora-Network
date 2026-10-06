@@ -1,10 +1,59 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollText, Search } from "lucide-react";
+import Link from "@/components/ui/app-link";
 import type { AuditEntry } from "@/lib/data/audit";
 import { Input } from "@/components/ui";
 import { cn, fmtDate } from "@/lib/utils";
+
+/**
+ * When it happened, in the viewer's own time zone ("Oct 5, 2026, 9:35 PM").
+ * The server cannot know that zone, so it renders the date and the browser
+ * fills in the local date and time after hydration.
+ */
+function When({ iso }: { iso: string }) {
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    setText(
+      new Date(iso).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    );
+  }, [iso]);
+  return (
+    <time dateTime={iso} className="telemetry whitespace-nowrap text-xs text-muted" suppressHydrationWarning>
+      {text ?? fmtDate(iso)}
+    </time>
+  );
+}
+
+/** The readable subject: linked when it can still be opened, its id on hover. */
+function Subject({ entry }: { entry: AuditEntry }) {
+  const hint = entry.target ? `ID: ${entry.target}` : undefined;
+  return (
+    <span className="block min-w-0 break-words">
+      {entry.href ? (
+        <Link
+          href={entry.href}
+          title={hint}
+          className="font-semibold text-ink underline-offset-2 hover:text-accent-bright hover:underline"
+        >
+          {entry.summary}
+        </Link>
+      ) : (
+        <span className="font-semibold" title={hint}>
+          {entry.summary}
+        </span>
+      )}
+      {entry.subjectType && <span className="mt-0.5 block text-[11px] text-muted">{entry.subjectType}</span>}
+    </span>
+  );
+}
 
 /**
  * Audit trail viewer.
@@ -51,7 +100,9 @@ export function AuditBrowser({ entries }: { entries: AuditEntry[] }) {
       return (
         entry.action.toLowerCase().includes(needle) ||
         (entry.actor ?? "").toLowerCase().includes(needle) ||
-        entry.summary.toLowerCase().includes(needle)
+        entry.summary.toLowerCase().includes(needle) ||
+        (entry.subjectType ?? "").toLowerCase().includes(needle) ||
+        (entry.target ?? "").toLowerCase().includes(needle)
       );
     });
   }, [entries, category, query]);
@@ -68,7 +119,7 @@ export function AuditBrowser({ entries }: { entries: AuditEntry[] }) {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search action, actor or subject"
+            placeholder="Search action, staff member, subject or ID"
             aria-label="Search audit log"
             className="pl-10"
           />
@@ -146,14 +197,12 @@ export function AuditBrowser({ entries }: { entries: AuditEntry[] }) {
                   >
                     {entry.action}
                   </span>
-                  <span className="telemetry text-[11px] text-muted">{fmtDate(entry.createdAt)}</span>
+                  <When iso={entry.createdAt} />
                 </div>
 
-                {entry.summary ? (
-                  <p className="break-words text-sm font-semibold">{entry.summary}</p>
-                ) : (
-                  <p className="telemetry break-words text-xs text-muted">{entry.target ?? "—"}</p>
-                )}
+                <div className="text-sm">
+                  <Subject entry={entry} />
+                </div>
 
                 {entry.actor && <p className="text-xs text-muted">by {entry.actor}</p>}
               </article>
@@ -187,15 +236,11 @@ export function AuditBrowser({ entries }: { entries: AuditEntry[] }) {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {entry.summary ? (
-                      <span className="font-semibold">{entry.summary}</span>
-                    ) : (
-                      <span className="telemetry text-xs text-muted">{entry.target ?? "—"}</span>
-                    )}
+                    <Subject entry={entry} />
                   </td>
                   <td className="px-4 py-3 text-muted">{entry.actor ?? "—"}</td>
                   <td className="px-4 py-3 text-right">
-                    <span className="telemetry text-xs text-muted">{fmtDate(entry.createdAt)}</span>
+                    <When iso={entry.createdAt} />
                   </td>
                 </tr>
               ))}

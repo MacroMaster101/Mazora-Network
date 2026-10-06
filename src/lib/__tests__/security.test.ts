@@ -461,13 +461,18 @@ describe("permission-aware admin mutations", () => {
 });
 
 describe("account deletion privacy", () => {
-  test("admin deletion runs shared cleanup and does not retain deleted-user identifiers in its audit entry", () => {
+  test("admin deletion runs shared cleanup and keeps only the username in its audit entry", () => {
     const source = readFileSync(new URL("../actions/user-admin.ts", import.meta.url), "utf8");
     const deletion = source.slice(source.indexOf("export async function deleteUserAction"), source.indexOf("export async function adminReleaseMinecraftUsernameAction"));
 
     assert.match(deletion, /cleanupAccountOwnedData\(userId\)/);
     assert.match(deletion, /targetId:\s*null/);
-    assert.doesNotMatch(deletion, /metadata:\s*\{[\s\S]*?\b(email|username):/);
+    // The owner chose to keep the username so staff can tell which account was
+    // deleted (the Privacy Policy says so). The email and the auth id are not kept.
+    const audit = deletion.slice(deletion.indexOf('action: "user.delete"'));
+    const metadata = audit.slice(audit.indexOf("metadata:"), audit.indexOf("});"));
+    assert.match(metadata, /\busername: targetName\b/);
+    assert.doesNotMatch(metadata, /\bemail\b|\buserId\b|\bid:/);
   });
 
   test("the database migration enforces complete account deletion and anonymized retention", () => {

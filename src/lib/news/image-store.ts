@@ -36,6 +36,39 @@ export function isOwnPublicImageUrl(url: string): boolean {
   return isPublicBucketObjectUrl(url, process.env.NEXT_PUBLIC_SUPABASE_URL, NEWS_IMAGE_BUCKET);
 }
 
+/** The object key inside the public image bucket a URL points at, or null. */
+export function ownPublicImageKey(url: string): string | null {
+  if (!isOwnPublicImageUrl(url)) return null;
+  try {
+    const marker = `/storage/v1/object/public/${NEWS_IMAGE_BUCKET}/`;
+    const key = decodeURIComponent(new URL(url).pathname.slice(marker.length));
+    const segments = key.split("/");
+    if (segments.some((segment) => !segment || segment === "." || segment === "..")) return null;
+    return key;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Store a fresh copy of an image already in the public bucket, under a new key.
+ *
+ * For member submissions that link to one of our own images: keeping that URL
+ * would make the new row point at somebody else's file, and the file would be
+ * removed with the submitter's account (lib/data/account-deletion.ts). A copy
+ * belongs to the new row alone. It goes through storeImageBytes, so it is
+ * checked and re-encoded like any upload.
+ */
+export async function copyOwnPublicImage(url: string, keyBase: string): Promise<StoredImage | null> {
+  const key = ownPublicImageKey(url);
+  if (!key) return null;
+  const admin = getSupabaseAdmin();
+  if (!admin) return null;
+  const { data, error } = await admin.storage.from(NEWS_IMAGE_BUCKET).download(key);
+  if (error || !data || data.size === 0 || data.size > MAX_IMAGE_BYTES) return null;
+  return storeImageBytes(new Uint8Array(await data.arrayBuffer()), keyBase);
+}
+
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
 /*

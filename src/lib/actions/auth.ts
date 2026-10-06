@@ -1236,12 +1236,14 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
     });
 
     /*
-      A sign-in that used a recovery code passed two-step verification, but
-      Supabase still sees an aal1 session and refuses a password change on an
-      account with a verified factor. The current password was checked above,
-      so the service role makes the change.
+      A sign-in that used a recovery code, or a passkey that verified the
+      member, passed two-step verification, but Supabase still sees an aal1
+      session and refuses a password change on an account with a verified
+      factor. The current password was checked above, so the service role makes
+      the change.
     */
-    if (error?.code === "insufficient_aal" && (await getSession())?.recoveredSignIn) {
+    const passedSecondStep = await getSession();
+    if (error?.code === "insufficient_aal" && (passedSecondStep?.recoveredSignIn || passedSecondStep?.passkeySignIn)) {
       const admin = getSupabaseAdmin();
       if (admin && userData?.user?.id) {
         ({ error } = await admin.auth.admin.updateUserById(userData.user.id, { password: parsed.data.password }));

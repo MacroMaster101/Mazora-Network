@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { anonymiseOrdersForUser } from "@/lib/data/orders";
 import { NEWS_IMAGE_BUCKET } from "@/lib/news/image-store";
@@ -89,11 +89,25 @@ export async function cleanupAccountOwnedData(userId: string): Promise<AccountCl
       }
     }
 
+    /*
+      Only files no other artwork uses. A row says who submitted it, not who
+      owns the file it points at: a member could once submit the URL of another
+      member's (or staff's) image, and removing "their" files would then delete
+      that one. New submissions get their own copy (submitGalleryAction), and
+      this keeps rows written before that from taking a shared file with them.
+    */
+    const otherRows = await db
+      .select({ imageUrl: schema.galleryImages.imageUrl, thumbnailUrl: schema.galleryImages.thumbnailUrl })
+      .from(schema.galleryImages)
+      .where(sql`${schema.galleryImages.authorId} is distinct from ${userId}::uuid`);
+    const usedElsewhere = new Set(
+      otherRows.flatMap((row) => [galleryObjectKey(row.imageUrl), galleryObjectKey(row.thumbnailUrl)]).filter(Boolean),
+    );
     const galleryPaths = Array.from(
       new Set(
         galleryRows
           .flatMap((row) => [galleryObjectKey(row.imageUrl), galleryObjectKey(row.thumbnailUrl)])
-          .filter((key): key is string => Boolean(key)),
+          .filter((key): key is string => Boolean(key) && !usedElsewhere.has(key)),
       ),
     );
     for (let index = 0; index < galleryPaths.length; index += 100) {

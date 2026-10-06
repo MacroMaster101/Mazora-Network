@@ -21,8 +21,8 @@ export interface WelcomeEmail {
   text: string;
 }
 
-/** Brand palette, matching the confirmation template. */
-const C = {
+/** Brand palette, matching the confirmation template. Shared by every app email. */
+export const C = {
   page: "#08060E",
   panel: "#0F0B18",
   card: "#171123",
@@ -42,7 +42,7 @@ const C = {
  * project did not author. An unescaped `<` there would break the markup and,
  * in a mail client that renders it, could smuggle in a link.
  */
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

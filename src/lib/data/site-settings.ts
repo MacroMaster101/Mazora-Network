@@ -27,6 +27,9 @@ export interface SiteGeneralSettings {
    *  instead of the board. A runtime switch, so opening or closing the
    *  feature does not need a code change and a redeploy. */
   suggestionsEnabled: boolean;
+  /** Passkey sign-in and the Settings > Passkeys card. Off until Supabase
+   *  Auth > Passkeys is enabled with the site's relying party (mazora.us). */
+  passkeysEnabled: boolean;
   ogImageUrl: string;
 }
 
@@ -48,6 +51,7 @@ export const DEFAULT_SITE_SETTINGS: SiteGeneralSettings = {
   votingEnabled: true,
   liveMapEnabled: false,
   suggestionsEnabled: true,
+  passkeysEnabled: false,
   ogImageUrl: "/images/og-default.webp",
 };
 
@@ -81,6 +85,8 @@ function mergeSettings(value: unknown): SiteGeneralSettings {
       stored.suggestionsEnabled === undefined
         ? DEFAULT_SITE_SETTINGS.suggestionsEnabled
         : Boolean(stored.suggestionsEnabled),
+    // Absent (every row written before this key existed) means off.
+    passkeysEnabled: stored.passkeysEnabled === true,
     ogImageUrl: typeof stored.ogImageUrl === "string" && stored.ogImageUrl.trim() ? stored.ogImageUrl.trim() : DEFAULT_SITE_SETTINGS.ogImageUrl,
   };
 }
@@ -135,8 +141,20 @@ export interface ServerAddresses {
  * several components costs one query.
  */
 export const getServerAddresses = cache(async (): Promise<ServerAddresses> => {
-  const settings = await getSiteGeneralSettings();
+  const settings = await settingsForRequest();
   return { javaIp: settings.javaIp, bedrockIp: settings.bedrockIp, bedrockPort: settings.bedrockPort };
+});
+
+/** One settings read shared by the per-request helpers above and below. */
+const settingsForRequest = cache(getSiteGeneralSettings);
+
+/**
+ * Whether the sign-in dialog offers "Sign in with a passkey". The root layout
+ * reads it so the button renders with the dialog, instead of appearing a beat
+ * later after a round trip to ask. Shares getServerAddresses' query.
+ */
+export const getPasskeySignInOffered = cache(async (): Promise<boolean> => {
+  return (await settingsForRequest()).passkeysEnabled;
 });
 
 /**

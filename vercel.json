@@ -14,6 +14,10 @@
       "schedule": "30 3 * * *"
     },
     {
+      "path": "/api/cron/security-alerts",
+      "schedule": "45 3 * * *"
+    },
+    {
       "path": "/api/cron/cleanup-audit-logs",
       "schedule": "0 4 * * 0"
     }

@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { AlertTriangle, LifeBuoy, Loader2, ShieldCheck, Smartphone, UserRoundX } from "lucide-react";
-import { deleteAccountAction, type AccountActionResult } from "@/lib/actions/account";
+import { deleteAccountAction, requestAccountDeletionCodeAction, type AccountActionResult } from "@/lib/actions/account";
 import { FormRow, Input, Modal, useToast } from "@/components/ui";
 import { OtpInput } from "@/components/auth/auth-forms";
 
@@ -33,6 +33,7 @@ export function DangerZone({
   const [confirmation, setConfirmation] = useState("");
   const [useRecovery, setUseRecovery] = useState(false);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteAccountAction, initialState);
+  const [sendState, sendAction, sendPending] = useActionState(requestAccountDeletionCodeAction, initialState);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,8 +45,12 @@ export function DangerZone({
     }
   }, [deleteState, toast]);
 
+  useEffect(() => {
+    if (sendState.message) toast(sendState.message, sendState.ok ? "success" : "error");
+  }, [sendState, toast]);
+
   const closeDialog = () => {
-    if (deletePending) return;
+    if (deletePending || sendPending) return;
     setDialog(null);
     setConfirmation("");
     setUseRecovery(false);
@@ -110,6 +115,17 @@ export function DangerZone({
                 </FormRow>
               </div>
             ) : null}
+            {!hasPassword && !twoFactor ? (
+              <div className="mt-4 grid gap-3">
+                <p className="text-sm text-muted">Confirm it is you with a code sent to your account email address. The code expires in 10 minutes.</p>
+                <button type="submit" formAction={sendAction} formNoValidate className="btn btn-ghost btn-sm justify-self-start" disabled={deletePending || sendPending}>
+                  {sendPending ? <Loader2 size={14} className="animate-spin" /> : null}
+                  {sendPending ? "Sending…" : "Send confirmation code"}
+                </button>
+                <OtpInput id="delete-email-code" name="emailCode" error={deleteState.errors?.emailCode} />
+                {deleteState.errors?.emailCode ? <p className="text-sm text-danger" role="alert">{deleteState.errors.emailCode}</p> : null}
+              </div>
+            ) : null}
             {twoFactor ? (
               /* The same step as signing in: the app's code, or a recovery code. */
               <div className="mt-4 grid gap-3">
@@ -150,13 +166,13 @@ export function DangerZone({
             ) : null}
           </div>
           <div className="mt-6 flex flex-wrap justify-end gap-2">
-            <button type="button" onClick={closeDialog} className="btn btn-ghost btn-sm" disabled={deletePending}>
+            <button type="button" onClick={closeDialog} className="btn btn-ghost btn-sm" disabled={deletePending || sendPending}>
               Cancel
             </button>
             <button
               type="submit"
               className="btn btn-ghost btn-sm border-danger/40 bg-danger/10 text-danger"
-              disabled={deletePending || confirmation.toLowerCase() !== username.toLowerCase()}
+              disabled={deletePending || sendPending || confirmation.toLowerCase() !== username.toLowerCase()}
             >
               {deletePending ? <Loader2 size={14} className="animate-spin" /> : <UserRoundX size={14} />}
               {deletePending ? "Deleting…" : "Delete my account"}

@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
+import { redisCommand, sharedStoreConfig } from "@/lib/redis";
 
 /**
  * Fixed-window rate limiting with two tiers:
@@ -18,10 +19,10 @@ import { headers } from "next/headers";
  *   those need a bound an attacker cannot multiply by fanning out across
  *   lambda instances or waiting for cold starts.
  *
- * When Redis is unconfigured or unreachable the shared tier degrades to the
- * per-instance window rather than failing the request: sign-in must not go
- * down with the rate limiter, and the in-memory window still brakes
- * single-instance abuse in the meantime.
+ * Security-sensitive callers use failureMode: "closed": an unavailable store,
+ * including missing production configuration, refuses the request. Ordinary
+ * counters retain their per-instance fallback. Local development can run
+ * without Redis; it is not a substitute for the production shared store.
  */
 
 type Window = { count: number; resetAt: number };
@@ -69,38 +70,41 @@ export function rateLimit(
   };
 }
 
-/*
-  Falling back to the per-instance window is deliberate — sign-in must not go
-  down with the rate limiter — but in production it is a materially weaker
-  control, not an equivalent one: the effective ceiling becomes limit x running
-  instances, and the Discord interaction replay guard stops being global. That
-  is invisible from the outside, so it is stated once in the logs rather than
-  left to be discovered during an incident. Once per process, not per request,
-  so it cannot itself become log spam.
-*/
 let warnedSharedStoreMissing = false;
 
 function warnSharedStoreMissing() {
   if (warnedSharedStoreMissing || process.env.NODE_ENV !== "production") return;
   warnedSharedStoreMissing = true;
   console.error(
-    "Rate limiting is running per-instance: UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are not set. " +
-      "Login, registration and password-reset limits are multiplied by the number of running instances, " +
-      "and the Discord interaction replay guard is no longer global.",
+    "Shared security store is not configured: set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. " +
+      "Security-sensitive operations are refused; ordinary counters use per-instance limits.",
   );
 }
 
-/** Upstash Redis REST credentials, when a shared store is provisioned. */
-function sharedStoreConfig(): { url: string; token: string } | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
-  if (!url || !token || !url.startsWith("https://")) return null;
-  return { url: url.replace(/\/+$/, ""), token };
+function unavailableVerdict(windowMs: number): RateLimitVerdict {
+  return { ok: false, remaining: 0, retryAfter: Math.max(1, Math.min(60, Math.ceil(windowMs / 1000))) };
+}
+
+/** Claim once for a TTL measured from receipt, without clock-aligned buckets. */
+export async function claimOnce(key: string, ttlMs: number): Promise<"claimed" | "duplicate" | "unavailable"> {
+  if (!sharedStoreConfig()) {
+    warnSharedStoreMissing();
+    if (process.env.NODE_ENV === "production") return "unavailable";
+    return rateLimit(`claim:${key}`, { limit: 1, windowMs: ttlMs }).ok ? "claimed" : "duplicate";
+  }
+  try {
+    const result = await redisCommand(["SET", `claim:${key}`, "1", "NX", "PX", ttlMs]);
+    if (result === "OK") return "claimed";
+    if (result === null) return "duplicate";
+  } catch {
+    // A store failure must never turn a security claim into a local claim.
+  }
+  return "unavailable";
 }
 
 /**
  * Fixed-window verdict backed by the shared store, falling back to the
- * in-process window when no store is configured or the call fails.
+ * in-process window only when the caller allows it (or in local development).
  *
  * Windows are aligned to wall-clock buckets (`floor(now / windowMs)`) so every
  * instance increments the same key without coordination. One round trip:
@@ -118,6 +122,7 @@ export async function rateLimitShared(
   const config = sharedStoreConfig();
   if (!config) {
     warnSharedStoreMissing();
+    if (failureMode === "closed" && process.env.NODE_ENV === "production") return unavailableVerdict(windowMs);
     return rateLimit(key, { limit, windowMs });
   }
 
@@ -132,13 +137,12 @@ export async function rateLimitShared(
         ["PEXPIRE", redisKey, String(windowMs * 2)],
       ]),
       cache: "no-store",
-      // Short deadline: a slow limiter must not stall sign-in; the fallback
-      // below still provides per-instance braking.
+      // Short deadline: refuse sensitive requests promptly during an outage.
       signal: AbortSignal.timeout(1500),
     });
     if (!res.ok) throw new Error(`rate-limit store responded ${res.status}`);
     const data = (await res.json()) as Array<{ result?: unknown; error?: string }>;
-    if (data?.[0]?.error) throw new Error(data[0].error);
+    if (data?.[0]?.error || data?.[1]?.error || data?.[1]?.result !== 1) throw new Error("rate-limit store rejected the window");
     const count = Number(data?.[0]?.result);
     if (!Number.isFinite(count) || count < 1) throw new Error("rate-limit store returned no count");
 
@@ -152,13 +156,7 @@ export async function rateLimitShared(
     // Never printed with the key's identity content — `key` holds only hashes.
     if (failureMode === "closed") {
       console.error("Shared rate limit unavailable; refusing a security-sensitive request:", error);
-      return {
-        ok: false,
-        remaining: 0,
-        // A short retry avoids claiming the whole auth window is exhausted;
-        // the next request may succeed as soon as Redis recovers.
-        retryAfter: Math.max(1, Math.min(60, Math.ceil(windowMs / 1000))),
-      };
+      return unavailableVerdict(windowMs);
     }
     console.error("Shared rate limit unavailable; using per-instance window:", error);
     return rateLimit(key, { limit, windowMs });
@@ -258,9 +256,7 @@ export async function throttleAuthAction(
     rateLimitShared(await actionClientKey(`${scope}:ip`), {
       limit: ipLimit,
       windowMs,
-      // Missing configuration retains the documented local fallback, but once
-      // a production shared store is configured an outage must not silently
-      // turn a global credential limit into one independent limit per lambda.
+      // Missing production configuration and store outages both fail closed.
       failureMode: "closed",
     }),
   ];

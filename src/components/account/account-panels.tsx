@@ -24,6 +24,9 @@ import { DashHeader, DashEmpty } from "@/components/dashboard/dash-ui";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { AccountSecurity } from "@/components/dashboard/account-security";
 import { TwoFactorCard, type TwoFactorOverview } from "@/components/dashboard/two-factor-card";
+import { PasskeysCard, type PasskeyProof } from "@/components/dashboard/passkeys-card";
+import { getMyPasskeys, type PasskeySummary } from "@/lib/data/passkeys";
+import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { remainingRecoveryCodes } from "@/lib/auth/recovery-codes";
 import { ProfileForm } from "@/components/dashboard/profile-form";
 import { ProfileAvatarEditor } from "@/components/dashboard/profile-avatar-editor";
@@ -51,6 +54,12 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+/** How adding a passkey confirms the owner: the same order confirmOwner() checks. */
+function passkeyProof(twoFactor: TwoFactorOverview | null, hasPassword: boolean): PasskeyProof {
+  if (twoFactor?.enabled) return "code";
+  return hasPassword ? "password" : "email";
+}
+
 /** Full account settings: profile, password, connected accounts, delete account. */
 export async function AccountSettings({ loginNext = "/dashboard/settings" }: { loginNext?: string } = {}) {
   const session = await requireSession(loginNext);
@@ -65,6 +74,9 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
   let twoFactor: TwoFactorOverview | null = null;
   let minecraftIdentity: { username: string; uuid: string; linkedAt: string; skinUrl: string | null } | null = null;
   const discord = await getDiscordIdentity();
+  // Settings > Passkey Sign-in; off until Supabase Auth > Passkeys is set up.
+  const passkeysEnabled = isSupabaseConfigured() && (await getSiteGeneralSettings()).passkeysEnabled;
+  const passkeys: PasskeySummary[] | null = passkeysEnabled ? await getMyPasskeys() : null;
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
     if (supabase) {
@@ -157,7 +169,15 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
           <AccountSecurity hasPassword={hasPassword} />
         </Card>
 
-        {twoFactor ? <TwoFactorCard overview={twoFactor} staff={isStaff(session.role)} /> : null}
+        {twoFactor ? <TwoFactorCard overview={twoFactor} staff={isStaff(session.role)} passkeysLive={passkeysEnabled} /> : null}
+
+        {passkeysEnabled && (
+          <div id="passkeys" className="scroll-mt-28">
+            <Card title="Passkeys">
+              <PasskeysCard passkeys={passkeys} proof={passkeyProof(twoFactor, hasPassword)} />
+            </Card>
+          </div>
+        )}
 
         <Card title="Connected accounts">
           <p className="-mt-2 text-xs text-muted">

@@ -7,6 +7,7 @@ const METHOD_TINT: Record<SignInMethod, string> = {
   google: "border-sky-400/30 bg-sky-500/10 text-sky-500",
   discord: "border-violet-400/30 bg-violet-500/10 text-violet-500",
   password: "border-line bg-ink/5 text-ink",
+  passkey: "border-emerald-400/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   "magic-link": "border-line bg-ink/5 text-ink",
   unknown: "border-line bg-ink/5 text-muted",
 };

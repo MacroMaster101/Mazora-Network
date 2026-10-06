@@ -38,6 +38,8 @@ export const profiles = pgTable(
     lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
     /** online | idle | dnd | invisible — checked in migration 051. */
     presenceStatus: text("presence_status").notNull().default("online"),
+    /** When the welcome notification and email went out; the once-only guard (migration 078). */
+    welcomedAt: timestamp("welcomed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -590,6 +592,30 @@ export const notifications = pgTable(
     userCreatedIdx: index("notifications_user_created_idx").on(t.userId, t.createdAt.desc()),
     unreadIdx: index("notifications_unread_idx").on(t.userId, t.createdAt.desc()).where(sql`${t.readAt} is null`),
     broadcastIdx: index("notifications_broadcast_idx").on(t.broadcastId).where(sql`${t.broadcastId} is not null`),
+  }),
+);
+
+/**
+ * Queued "a sign-in method was added" alerts (migration 079). Rows come from
+ * triggers on Supabase's passkey and factor tables; src/lib/security-alerts.ts
+ * claims them (sent_at) and sends the notification and email.
+ */
+export const securityAlerts = pgTable(
+  "security_alerts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    /** 'passkey', 'totp', 'webauthn' (security key) or 'phone'. */
+    kind: text("kind").notNull(),
+    /** The auth.webauthn_credentials or auth.mfa_factors row it is about. */
+    sourceId: uuid("source_id"),
+    label: text("label"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+  },
+  (t) => ({
+    pendingIdx: index("security_alerts_pending_idx").on(t.createdAt).where(sql`${t.sentAt} is null`),
+    userIdx: index("security_alerts_user_idx").on(t.userId),
   }),
 );
 

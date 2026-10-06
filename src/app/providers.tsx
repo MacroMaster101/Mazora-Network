@@ -13,11 +13,14 @@ export function Providers({
   children,
   storeRequestsConfigured,
   javaIp,
+  passkeySignIn,
 }: {
   children: ReactNode;
   storeRequestsConfigured: boolean;
   /** From Site Settings, for the sign-in dialog. */
   javaIp: string;
+  /** From Site Settings: offer "Sign in with a passkey" in the sign-in dialog. */
+  passkeySignIn: boolean;
 }) {
   return (
     /*
@@ -41,7 +44,7 @@ export function Providers({
       <Suspense fallback={null}>
         <NavigationLoader />
       </Suspense>
-      <AuthDialogProvider javaIp={javaIp}>
+      <AuthDialogProvider javaIp={javaIp} passkeySignIn={passkeySignIn}>
         <ToastProvider>
           <CartProvider>
             {children}

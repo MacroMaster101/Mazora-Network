@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getSession, getSignInSessionId, getTwoFactorPendingUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordAudit } from "@/lib/audit-log";
+import { scheduleSecurityAlerts } from "@/lib/security-alerts";
 import { throttleAuthAction } from "@/lib/rate-limit";
 import { safeNext } from "@/lib/safe-redirect";
 import { clearRecoveryCodes, issueRecoveryCodes } from "@/lib/auth/recovery-codes";
@@ -238,6 +239,8 @@ export async function confirmTwoFactorSetupAction(_previous: TwoFactorResult, fo
     targetType: "mfa_factor",
     targetId: factor.id,
   });
+  // Migration 079 queued "Authenticator app added"; send it now.
+  scheduleSecurityAlerts(actor.user.id);
 
   refreshSettings();
   return {

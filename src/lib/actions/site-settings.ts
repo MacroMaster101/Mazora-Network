@@ -42,6 +42,7 @@ const siteSettingsSchema = z.object({
   // the {...current, ...parsed.data} merge left the old value in place, and the
   // toggle silently reverted on every save while reporting success.
   liveMapEnabled: z.boolean(),
+  passkeysEnabled: z.boolean(),
   // Goes into every page's og:image tag, so it is held to a path on this site
   // (the presets are "/images/…") or an https link. Blank never reaches this
   // schema: the action swaps it for the default banner first.
@@ -98,6 +99,7 @@ export async function saveSiteGeneralSettingsAction(
     votingEnabled: formData.get("votingEnabled") === "on",
     liveMapEnabled: formData.get("liveMapEnabled") === "on",
     suggestionsEnabled: formData.get("suggestionsEnabled") === "on",
+    passkeysEnabled: formData.get("passkeysEnabled") === "on",
     ogImageUrl: String(formData.get("ogImageUrl") ?? "").trim() || "/images/og-default.webp",
   };
 

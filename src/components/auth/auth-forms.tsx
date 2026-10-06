@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "@/components/ui/app-link";
 import type { ZodTypeAny } from "zod";
@@ -13,6 +13,7 @@ import {
   Eye,
   EyeOff,
   FileText,
+  Fingerprint,
   Gamepad2,
   KeyRound,
   Loader2,
@@ -36,6 +37,9 @@ import {
   type AuthResult,
 } from "@/lib/actions/auth";
 import { FormRow, Input } from "@/components/ui/field";
+import { finishPasskeySignInAction, startPasskeySignInAction } from "@/lib/actions/passkeys";
+import { usePasskeySignInOffered } from "./auth-dialog-provider";
+import { getPasskeyCredential, passkeyErrorMessage, passkeysSupported } from "@/lib/passkeys/webauthn-json";
 import { useToast } from "@/components/ui/toast";
 import {
   authValidationErrors,
@@ -341,6 +345,68 @@ function SocialButtons({ next = "/", mode = "login" }: { next?: string; mode?: "
   );
 }
 
+/** Browser passkey support never changes while the page is open. */
+const noSubscription = () => () => {};
+
+/**
+ * "Sign in with a passkey", shown only when Settings > Passkey Sign-in is on
+ * and this browser can use passkeys. The passkey picks the account, so no
+ * email is needed; "Remember me" is read from the password form beside it.
+ */
+function PasskeySignIn({ next }: { next?: string }) {
+  // The setting arrives with the page (root layout → AuthDialogProvider), and
+  // browser support is read synchronously, so the button renders with the
+  // rest of the form instead of popping in after a round trip.
+  const offered = usePasskeySignInOffered();
+  const supported = useSyncExternalStore(noSubscription, passkeysSupported, () => false);
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState<string | undefined>();
+
+  if (!offered || !supported) return null;
+
+  const signIn = async () => {
+    setPending(true);
+    setMessage(undefined);
+    let leaving = false;
+    try {
+      const started = await startPasskeySignInAction();
+      if (!started.ok) {
+        setMessage(started.message);
+        return;
+      }
+      let credential: Record<string, unknown>;
+      try {
+        credential = await getPasskeyCredential(started.options);
+      } catch (error) {
+        setMessage(passkeyErrorMessage(error, "sign in") ?? undefined);
+        return;
+      }
+      const remember = (document.getElementById("remember") as HTMLInputElement | null)?.checked ?? false;
+      const result = await finishPasskeySignInAction({ challengeId: started.challengeId, credential, remember, next });
+      if (!result.ok) {
+        setMessage(result.message);
+        return;
+      }
+      // A full page load, so the next page (often /two-factor) renders with the new session.
+      leaving = true;
+      window.location.assign(result.redirectTo ?? "/");
+    } finally {
+      // Stay "waiting" while the next page loads, so the button cannot be pressed twice.
+      if (!leaving) setPending(false);
+    }
+  };
+
+  return (
+    <>
+      <button type="button" onClick={() => void signIn()} disabled={pending} className="auth-provider-button w-full">
+        {pending ? <Loader2 size={17} className="animate-spin" /> : <Fingerprint size={18} />}
+        <span>{pending ? "Waiting for your passkey…" : "Sign in with a passkey"}</span>
+      </button>
+      <AuthMessage message={message} />
+    </>
+  );
+}
+
 function AuthDivider() {
   return (
     <div className="auth-divider">
@@ -401,6 +467,7 @@ export function LoginForm({ next }: { next?: string }) {
   return (
     <div className="auth-form-stack">
       <SocialButtons next={next} />
+      <PasskeySignIn next={next} />
       <AuthDivider />
       <form action={action} className="auth-form auth-login-form" noValidate onSubmit={validation.onSubmit} onInput={validation.onInput}>
         {next && <input type="hidden" name="next" value={next} />}
@@ -415,7 +482,7 @@ export function LoginForm({ next }: { next?: string }) {
         <AuthMessage message={validation.message} />
         <div className="auth-form-options">
           <label className="auth-remember">
-            <input type="checkbox" name="remember" />
+            <input type="checkbox" id="remember" name="remember" />
             <span>Remember me</span>
           </label>
           <AuthFlowLink view="forgot-password" href="/forgot-password">Forgot password?</AuthFlowLink>
