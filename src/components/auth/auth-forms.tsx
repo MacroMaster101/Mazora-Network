@@ -40,6 +40,7 @@ import { FormRow, Input } from "@/components/ui/field";
 import { finishPasskeySignInAction, startPasskeySignInAction } from "@/lib/actions/passkeys";
 import { usePasskeySignInOffered } from "./auth-dialog-provider";
 import { getPasskeyCredential, passkeyErrorMessage, passkeysSupported } from "@/lib/passkeys/webauthn-json";
+import { safeNext } from "@/lib/safe-redirect";
 import { useToast } from "@/components/ui/toast";
 import {
   authValidationErrors,
@@ -388,8 +389,11 @@ function PasskeySignIn({ next }: { next?: string }) {
         return;
       }
       // A full page load, so the next page (often /two-factor) renders with the new session.
+      // The server already passed the path through safeNext; checking it again
+      // here and pinning it to this origin keeps the browser on this site even
+      // if that ever changed.
       leaving = true;
-      window.location.assign(result.redirectTo ?? "/");
+      window.location.assign(`${window.location.origin}${safeNext(result.redirectTo)}`);
     } finally {
       // Stay "waiting" while the next page loads, so the button cannot be pressed twice.
       if (!leaving) setPending(false);

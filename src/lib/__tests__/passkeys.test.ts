@@ -107,6 +107,13 @@ test("the sign-in button comes with the page, not from a request after it opens"
   assert.match(layout, /passkeySignIn=\{passkeysOffered && isSupabaseConfigured\(\)\}/);
 });
 
+test("after a passkey sign-in the browser only ever goes to a path on this site", () => {
+  const forms = readFileSync(new URL("../../components/auth/auth-forms.tsx", import.meta.url), "utf8");
+  const button = forms.slice(forms.indexOf("function PasskeySignIn("));
+  assert.match(button, /window\.location\.assign\(`\$\{window\.location\.origin\}\$\{safeNext\(result\.redirectTo\)\}`\);/);
+  assert.doesNotMatch(button, /window\.location\.assign\(result\.redirectTo/);
+});
+
 test("every passkey action is behind the Passkey Sign-in switch", () => {
   for (const name of ["startPasskeySignInAction", "finishPasskeySignInAction"]) {
     assert.match(body(name), /passkeysOn\(\)/, `${name} checks the switch`);
