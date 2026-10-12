@@ -5,11 +5,12 @@ import { hostMatches } from "@/lib/net/host-match";
  * One definition of "which image represents this Minecraft player", the way
  * avatar-source.ts owns the same question for website accounts.
  *
- * The simplification worth knowing: mc-heads already returns the default skin
- * for a name with no Mojang account, so premium and cracked players resolve to
- * the SAME url. The Mojang lookup therefore never chooses the image — it only
- * chooses the label, and whether to invite the player to upload their skin.
- * That is why a failed lookup is harmless here.
+ * The simplification worth knowing: the site's head and body routes draw the
+ * skin Mojang has and fall back to the default skin for a name with no Mojang
+ * account, so premium and cracked players resolve to the SAME url. The Mojang
+ * lookup here therefore never chooses the image — it only chooses the label,
+ * and whether to invite the player to upload their skin. That is why a failed
+ * lookup is harmless here.
  */
 
 export function mcHeadsAvatarUrl(username: string, px: number): string {
@@ -29,6 +30,14 @@ export function mcHeadsBodyUrl(username: string, px: number): string {
  */
 export function playerHeadUrl(username: string): string {
   return `/api/minecraft/skin/${encodeURIComponent(username)}/head`;
+}
+
+/**
+ * The site's own full-body image (app/api/minecraft/skin/[username]/body): the
+ * uploaded skin when there is one, else the skin Mojang has, else mc-heads.
+ */
+export function playerBodyUrl(username: string): string {
+  return `/api/minecraft/skin/${encodeURIComponent(username)}/body`;
 }
 
 /** The player name in an mc-heads.net head URL (such as a saved profile picture), or null. */
@@ -58,7 +67,6 @@ export interface ResolveSkinInput {
   mojang?: MojangResult;
 }
 
-const BODY_PX = 256;
 
 /** Only genuine uploaded storage URLs count as uploaded skins (not third-party lookups like mc-heads). */
 function isSelfUploadedSkin(value: string | null | undefined): value is string {
@@ -91,7 +99,7 @@ export function resolvePlayerSkin(input: ResolveSkinInput): PlayerSkin {
   if (isSelfUploadedSkin(input.uploadedHeadUrl) && !isSelfUploadedSkin(input.uploadedRawSkinUrl)) {
     return {
       headUrl: input.uploadedHeadUrl,
-      bodyUrl: mcHeadsBodyUrl(username, BODY_PX),
+      bodyUrl: playerBodyUrl(username),
       source: "uploaded",
     };
   }
@@ -102,7 +110,7 @@ export function resolvePlayerSkin(input: ResolveSkinInput): PlayerSkin {
       headUrl: isSelfUploadedSkin(input.uploadedHeadUrl)
         ? input.uploadedHeadUrl
         : playerHeadUrl(username),
-      bodyUrl: `/api/minecraft/skin/${encodeURIComponent(username)}/body?v=${encodeURIComponent(version)}`,
+      bodyUrl: `${playerBodyUrl(username)}?v=${encodeURIComponent(version)}`,
       source: "uploaded",
     };
   }
@@ -112,7 +120,7 @@ export function resolvePlayerSkin(input: ResolveSkinInput): PlayerSkin {
 
   return {
     headUrl: playerHeadUrl(username),
-    bodyUrl: mcHeadsBodyUrl(username, BODY_PX),
+    bodyUrl: playerBodyUrl(username),
     source,
   };
 }

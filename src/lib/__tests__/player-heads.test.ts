@@ -5,6 +5,8 @@ import * as skinProcess from "@/lib/skins/process";
 import * as readBody from "@/lib/skins/read-body";
 import * as skin from "@/lib/minecraft/skin";
 import * as mojangSkin from "@/lib/minecraft/mojang-skin";
+import * as skinBody from "@/lib/skins/body";
+import * as storageUrl from "@/lib/storage-url";
 import { mojangProfileId, mojangSkinTextureUrl } from "@/lib/minecraft/mojang-skin";
 import { loadServerModule } from "./helpers/server-module";
 
@@ -58,21 +60,25 @@ class FakeNextResponse {
   }
 }
 
-async function skinPng(): Promise<Buffer> {
-  return sharp({ create: { width: 64, height: 64, channels: 4, background: { r: 200, g: 120, b: 160, alpha: 1 } } }).png().toBuffer();
+async function skinPng(colour = { r: 200, g: 120, b: 160 }): Promise<Buffer> {
+  return sharp({ create: { width: 64, height: 64, channels: 4, background: { ...colour, alpha: 1 } } }).png().toBuffer();
 }
 
-function routeFixture(answers: { profile?: unknown; session?: unknown; skin?: Buffer | null }) {
+type Route = { GET: (request: unknown, context: { params: Promise<{ username: string }> }) => Promise<Response> };
+const RATE_LIMIT = { clientKey: () => "fake-client", rateLimit: () => ({ ok: true }), retryAfterHeaders: () => ({}) };
+
+/**
+ * The real head and body routes over the real Mojang skin module; only the
+ * network (Mojang, storage) and the request plumbing are fake.
+ */
+function routeFixture(answers: { profile?: unknown; session?: unknown; skin?: Buffer | null; uploaded?: Buffer | null }) {
   const fetched: string[] = [];
-  const route = loadServerModule<{ GET: (request: unknown, context: { params: Promise<{ username: string }> }) => Promise<Response> }>(
-    new URL("../../app/api/minecraft/skin/[username]/head/route.ts", import.meta.url),
+  const mojang = loadServerModule<typeof import("@/lib/minecraft/mojang-skin-fetch")>(
+    new URL("../minecraft/mojang-skin-fetch.ts", import.meta.url),
     {
       mocks: {
-        "next/server": { NextResponse: FakeNextResponse },
         "@/lib/skins/process": skinProcess,
         "@/lib/skins/read-body": readBody,
-        "@/lib/rate-limit": { clientKey: () => "fake-client", rateLimit: () => ({ ok: true }), retryAfterHeaders: () => ({}) },
-        "@/lib/minecraft/skin": skin,
         "@/lib/minecraft/mojang-skin": mojangSkin,
         "@/lib/data/upstream": {
           fetchWithDeadline: async (url: string) => {
@@ -90,8 +96,35 @@ function routeFixture(answers: { profile?: unknown; session?: unknown; skin?: Bu
       },
     },
   );
-  const get = (username: string) => route.GET({ headers: new Headers() }, { params: Promise.resolve({ username }) });
-  return { get, fetched };
+  const shared = {
+    "next/server": { NextResponse: FakeNextResponse },
+    "@/lib/skins/process": skinProcess,
+    "@/lib/skins/read-body": readBody,
+    "@/lib/rate-limit": RATE_LIMIT,
+    "@/lib/minecraft/skin": skin,
+    "@/lib/minecraft/mojang-skin-fetch": mojang,
+  };
+  const head = loadServerModule<Route>(new URL("../../app/api/minecraft/skin/[username]/head/route.ts", import.meta.url), { mocks: shared });
+  const uploadUrl = "https://project.example.com/storage/v1/object/public/profile-avatars/fake/skin-raw-1.png";
+  const body = loadServerModule<Route>(new URL("../../app/api/minecraft/skin/[username]/body/route.ts", import.meta.url), {
+    env: { NEXT_PUBLIC_SUPABASE_URL: "https://project.example.com" },
+    globals: {
+      fetch: async (url: string) => {
+        fetched.push(url);
+        return answers.uploaded ? new Response(new Uint8Array(answers.uploaded)) : new Response(null, { status: 404 });
+      },
+    },
+    mocks: {
+      ...shared,
+      "@/lib/skins/body": skinBody,
+      "@/lib/storage-url": storageUrl,
+      "@/lib/data/minecraft-accounts": {
+        getLinkedSkin: async () => (answers.uploaded ? { rawSkinUrl: uploadUrl, headUrl: null } : null),
+      },
+    },
+  });
+  const call = (route: Route) => (username: string) => route.GET({ headers: new Headers() }, { params: Promise.resolve({ username }) });
+  return { get: call(head), getBody: call(body), fetched };
 }
 
 test("a premium player's head is drawn from their current Mojang skin, then served from memory", async () => {
@@ -144,4 +177,40 @@ test("the avatar and gallery use the site's head route, including for saved mc-h
   const gallery = readFileSync(new URL("../../components/shared/gallery-grid.tsx", import.meta.url), "utf8");
   assert.match(gallery, /src=\{playerHeadUrl\(author\)\}/);
   assert.doesNotMatch(gallery, /mc-heads\.net\/avatar/);
+});
+
+/* ------------------------------------------------------------------ bodies */
+
+test("a premium player without an upload gets a body drawn from their Mojang skin", async () => {
+  const { getBody, fetched } = routeFixture({ profile: { id: PROFILE_ID }, session: sessionProfile(TEXTURE), skin: await skinPng() });
+  const response = await getBody("Steve_42");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "image/png");
+  const meta = await sharp(Buffer.from(await response.arrayBuffer())).metadata();
+  assert.equal(meta.height, (meta.width ?? 0) * 2, "a full body, twice as tall as wide");
+  assert.ok(fetched.some((url) => url.startsWith("https://textures.minecraft.net/")));
+});
+
+test("an uploaded skin still wins over Mojang for the body", async () => {
+  const { getBody, fetched } = routeFixture({
+    profile: { id: PROFILE_ID },
+    session: sessionProfile(TEXTURE),
+    skin: await skinPng(),
+    uploaded: await skinPng({ r: 20, g: 200, b: 40 }),
+  });
+  assert.equal((await getBody("Steve_42")).status, 200);
+  assert.equal(fetched.some((url) => url.includes("mojang.com")), false, "Mojang is not asked");
+});
+
+test("a body Mojang cannot draw goes to mc-heads for that name, and an invalid name to Steve", async () => {
+  const { getBody, fetched } = routeFixture({});
+  const unknown = await getBody("Crafty_Kim");
+  assert.equal(unknown.status, 307);
+  assert.equal(unknown.headers.get("location"), "https://mc-heads.net/body/Crafty_Kim/256");
+  assert.match(unknown.headers.get("cache-control") ?? "", /max-age=600/);
+
+  fetched.length = 0;
+  const invalid = await getBody("../admin");
+  assert.equal(invalid.headers.get("location"), "https://mc-heads.net/body/Steve/256");
+  assert.equal(fetched.length, 0);
 });

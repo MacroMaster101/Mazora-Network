@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { resolvePlayerSkin, mcHeadsAvatarName, mcHeadsAvatarUrl, mcHeadsBodyUrl, playerHeadUrl } from "@/lib/minecraft/skin";
+import { resolvePlayerSkin, mcHeadsAvatarName, mcHeadsAvatarUrl, mcHeadsBodyUrl, playerBodyUrl, playerHeadUrl } from "@/lib/minecraft/skin";
 
 describe("mc-heads URL builders", () => {
   test("encode a username exactly once", () => {
@@ -11,8 +11,10 @@ describe("mc-heads URL builders", () => {
 });
 
 describe("site head URLs", () => {
-  test("heads without an upload come from the site's own route, not mc-heads", () => {
+  test("heads and bodies without an upload come from the site's own routes, not mc-heads", () => {
     assert.equal(playerHeadUrl("Steve_42"), "/api/minecraft/skin/Steve_42/head");
+    assert.equal(playerBodyUrl("Steve_42"), "/api/minecraft/skin/Steve_42/body");
+    assert.equal(playerBodyUrl("a b/c"), "/api/minecraft/skin/a%20b%2Fc/body");
     assert.equal(playerHeadUrl("a b/c"), "/api/minecraft/skin/a%20b%2Fc/head", "encoded, so it cannot leave the route");
     for (const mojang of ["premium", "cracked", "unknown"] as const) {
       assert.equal(resolvePlayerSkin({ username: "Steve_42", mojang }).headUrl, "/api/minecraft/skin/Steve_42/head");
@@ -55,14 +57,14 @@ describe("resolvePlayerSkin", () => {
   test("a premium name is labelled as coming from Mojang", () => {
     const skin = resolvePlayerSkin({ username: "Steve_42", mojang: "premium" });
     assert.equal(skin.source, "mojang");
-    assert.equal(skin.bodyUrl, mcHeadsBodyUrl("Steve_42", 256));
+    assert.equal(skin.bodyUrl, playerBodyUrl("Steve_42"));
   });
 
   test("a name with no Mojang account is labelled as the default skin", () => {
     const skin = resolvePlayerSkin({ username: "Crafty_Kim", mojang: "cracked" });
     assert.equal(skin.source, "default");
-    // Same image either way — mc-heads serves the default skin for unknown names.
-    assert.equal(skin.bodyUrl, mcHeadsBodyUrl("Crafty_Kim", 256));
+    // Same URL either way: the body route falls back to the default skin for unknown names.
+    assert.equal(skin.bodyUrl, playerBodyUrl("Crafty_Kim"));
   });
 
   test("an absent or failed lookup degrades to unknown rather than claiming either", () => {
@@ -87,9 +89,9 @@ describe("resolvePlayerSkin", () => {
     });
     assert.equal(skin.source, "uploaded");
     assert.equal(skin.headUrl, "https://project.supabase.co/storage/v1/object/public/a/skin-head-1.png");
-    // No raw file to composite from, so the body falls back to mc-heads rather
-    // than pointing at a body route that has nothing to render.
-    assert.equal(skin.bodyUrl, mcHeadsBodyUrl("Builder_Sam", 256));
+    // No raw file to composite from, so the body route draws the Mojang skin
+    // (or the default one), with no upload version to pin.
+    assert.equal(skin.bodyUrl, playerBodyUrl("Builder_Sam"));
   });
 
   test("a re-uploaded skin's raw filename changes the body URL's version token", () => {

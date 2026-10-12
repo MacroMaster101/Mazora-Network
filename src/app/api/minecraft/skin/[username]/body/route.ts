@@ -1,15 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLinkedSkin } from "@/lib/data/minecraft-accounts";
 import { compositeBody } from "@/lib/skins/body";
-import { validateSkinBytes } from "@/lib/skins/process";
+import { validateSkinBytes, type SkinFormat } from "@/lib/skins/process";
 import { readSkinBody } from "@/lib/skins/read-body";
 import { clientKey, rateLimit, retryAfterHeaders } from "@/lib/rate-limit";
 import { mcHeadsBodyUrl } from "@/lib/minecraft/skin";
+import { fetchMojangSkin } from "@/lib/minecraft/mojang-skin-fetch";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 
 const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;
 
 /**
+ * A player's full body, drawn from their skin: the one they uploaded here, or
+ * else the one Mojang has for the name (fetchMojangSkin), the same source the
+ * head route uses. mc-heads.net is only the fallback, for names Mojang does not
+ * know or when Mojang does not answer: it caches each size separately and could
+ * show Steve for a premium player who has a skin.
+ */
+function fallbackResponse(username: string | null) {
+  // An invalid name gets the default body for good; a miss may be Mojang being
+  // slow, so it is only cached briefly.
+  return NextResponse.redirect(mcHeadsBodyUrl(username ?? "Steve", 256), {
+    status: 307,
+    headers: {
+      "Cache-Control": username
+        ? "public, max-age=600, s-maxage=600"
+        : "public, max-age=86400, stale-while-revalidate=604800",
+    },
+  });
+}
+
+/**
+ * The member's uploaded skin, when they have one that can be read.
+ *
  * `raw_skin_url` is read from the database, and handing a database-sourced URL
  * straight to fetch is a server-side request forgery vector: one bad row would
  * make our server fetch anything the row names, from inside our network. The
@@ -17,14 +40,20 @@ const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;
  * asserted here rather than assumed — the same discipline isMinecraftAvatarUrl
  * and providerAvatar apply to rendered image URLs.
  */
-/** Returns the default Steve body image redirect so Next.js Image optimizer always gets a valid image */
-function fallbackSteveResponse() {
-  return NextResponse.redirect(mcHeadsBodyUrl("Steve", 256), {
-    status: 307,
-    headers: {
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
-    },
-  });
+async function uploadedSkin(username: string): Promise<{ bytes: Buffer; format: SkinFormat } | null> {
+  const linked = await getLinkedSkin(username);
+  if (!linked?.rawSkinUrl || !isSupabaseStorageObjectUrl(linked.rawSkinUrl, process.env.NEXT_PUBLIC_SUPABASE_URL)) {
+    return null;
+  }
+
+  const upstream = await fetch(linked.rawSkinUrl, { cache: "no-store", redirect: "error" }).catch(() => null);
+  if (!upstream?.ok) return null;
+
+  const bytes = await readSkinBody(upstream);
+  if (!bytes) return null;
+
+  const valid = validateSkinBytes(bytes);
+  return valid.ok ? { bytes, format: valid.format } : null;
 }
 
 export async function GET(
@@ -41,39 +70,22 @@ export async function GET(
 
   const { username } = await params;
   if (!IGN_PATTERN.test(username)) {
-    return fallbackSteveResponse();
+    return fallbackResponse(null);
   }
 
-  const linked = await getLinkedSkin(username);
-  if (!linked?.rawSkinUrl || !isSupabaseStorageObjectUrl(linked.rawSkinUrl, process.env.NEXT_PUBLIC_SUPABASE_URL)) {
-    return fallbackSteveResponse();
-  }
-
-  const upstream = await fetch(linked.rawSkinUrl, { cache: "no-store", redirect: "error" }).catch(() => null);
-  if (!upstream?.ok) {
-    return fallbackSteveResponse();
-  }
-
-  const bytes = await readSkinBody(upstream);
-  if (!bytes) {
-    return fallbackSteveResponse();
-  }
-
-  const valid = validateSkinBytes(bytes);
-  if (!valid.ok) {
-    return fallbackSteveResponse();
-  }
+  const skin = (await uploadedSkin(username)) ?? (await fetchMojangSkin(username));
+  if (!skin) return fallbackResponse(username);
 
   try {
-    const body = await compositeBody(bytes, valid.format);
+    const body = await compositeBody(skin.bytes, skin.format);
 
     return new NextResponse(new Uint8Array(body), {
       headers: {
         "Content-Type": "image/png",
-        "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+        "Cache-Control": "public, max-age=3600, s-maxage=21600, stale-while-revalidate=86400",
       },
     });
   } catch {
-    return fallbackSteveResponse();
+    return fallbackResponse(username);
   }
 }
