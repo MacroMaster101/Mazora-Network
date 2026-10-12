@@ -20,6 +20,32 @@ export function mcHeadsBodyUrl(username: string, px: number): string {
   return `https://mc-heads.net/body/${encodeURIComponent(username)}/${px}`;
 }
 
+/**
+ * The site's own head image for a player without an uploaded skin, drawn from
+ * the skin Mojang has for the name (app/api/minecraft/skin/[username]/head).
+ * mc-heads.net caches each size separately and can show Steve for a premium
+ * player at one size and their skin at another; the route falls back to it
+ * only when Mojang has nothing to draw.
+ */
+export function playerHeadUrl(username: string): string {
+  return `/api/minecraft/skin/${encodeURIComponent(username)}/head`;
+}
+
+/** The player name in an mc-heads.net head URL (such as a saved profile picture), or null. */
+export function mcHeadsAvatarName(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (!hostMatches(url.hostname, "mc-heads.net")) return null;
+    const [, kind, name] = url.pathname.split("/");
+    if (kind !== "avatar" || !name) return null;
+    const decoded = decodeURIComponent(name);
+    return /^[A-Za-z0-9_]{3,16}$/.test(decoded) ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
 /** "unknown" means the lookup did not run or did not answer — never a claim. */
 export type MojangResult = "premium" | "cracked" | "unknown";
 
@@ -32,7 +58,6 @@ export interface ResolveSkinInput {
   mojang?: MojangResult;
 }
 
-const HEAD_PX = 96;
 const BODY_PX = 256;
 
 /** Only genuine uploaded storage URLs count as uploaded skins (not third-party lookups like mc-heads). */
@@ -76,7 +101,7 @@ export function resolvePlayerSkin(input: ResolveSkinInput): PlayerSkin {
     return {
       headUrl: isSelfUploadedSkin(input.uploadedHeadUrl)
         ? input.uploadedHeadUrl
-        : mcHeadsAvatarUrl(username, HEAD_PX),
+        : playerHeadUrl(username),
       bodyUrl: `/api/minecraft/skin/${encodeURIComponent(username)}/body?v=${encodeURIComponent(version)}`,
       source: "uploaded",
     };
@@ -86,7 +111,7 @@ export function resolvePlayerSkin(input: ResolveSkinInput): PlayerSkin {
     input.mojang === "premium" ? "mojang" : input.mojang === "cracked" ? "default" : "unknown";
 
   return {
-    headUrl: mcHeadsAvatarUrl(username, HEAD_PX),
+    headUrl: playerHeadUrl(username),
     bodyUrl: mcHeadsBodyUrl(username, BODY_PX),
     source,
   };

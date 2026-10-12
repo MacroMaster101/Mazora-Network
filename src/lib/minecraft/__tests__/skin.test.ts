@@ -1,12 +1,32 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { resolvePlayerSkin, mcHeadsAvatarUrl, mcHeadsBodyUrl } from "@/lib/minecraft/skin";
+import { resolvePlayerSkin, mcHeadsAvatarName, mcHeadsAvatarUrl, mcHeadsBodyUrl, playerHeadUrl } from "@/lib/minecraft/skin";
 
 describe("mc-heads URL builders", () => {
   test("encode a username exactly once", () => {
-    assert.equal(mcHeadsAvatarUrl("Itzz_xenon_", 96), "https://mc-heads.net/avatar/Itzz_xenon_/96");
+    assert.equal(mcHeadsAvatarUrl("Example_Player", 96), "https://mc-heads.net/avatar/Example_Player/96");
     assert.equal(mcHeadsBodyUrl("Steve_42", 256), "https://mc-heads.net/body/Steve_42/256");
+  });
+});
+
+describe("site head URLs", () => {
+  test("heads without an upload come from the site's own route, not mc-heads", () => {
+    assert.equal(playerHeadUrl("Steve_42"), "/api/minecraft/skin/Steve_42/head");
+    assert.equal(playerHeadUrl("a b/c"), "/api/minecraft/skin/a%20b%2Fc/head", "encoded, so it cannot leave the route");
+    for (const mojang of ["premium", "cracked", "unknown"] as const) {
+      assert.equal(resolvePlayerSkin({ username: "Steve_42", mojang }).headUrl, "/api/minecraft/skin/Steve_42/head");
+    }
+  });
+
+  test("a saved mc-heads picture is read back as its player name", () => {
+    assert.equal(mcHeadsAvatarName("https://mc-heads.net/avatar/Alex_Builder/256"), "Alex_Builder");
+    assert.equal(mcHeadsAvatarName("https://eu.mc-heads.net/avatar/Alex_Builder"), "Alex_Builder");
+    assert.equal(mcHeadsAvatarName("https://mc-heads.net/body/Alex_Builder/256"), null, "only heads");
+    assert.equal(mcHeadsAvatarName("https://evil-mc-heads.net/avatar/Alex_Builder/256"), null);
+    assert.equal(mcHeadsAvatarName("https://mc-heads.net/avatar/..%2F..%2Fadmin/256"), null, "only real names");
+    assert.equal(mcHeadsAvatarName("https://project.supabase.co/storage/v1/object/public/a/skin-head-1.png"), null);
+    assert.equal(mcHeadsAvatarName(null), null);
   });
 });
 
@@ -29,7 +49,7 @@ describe("resolvePlayerSkin", () => {
       uploadedRawSkinUrl: "https://project.supabase.co/storage/v1/object/public/a/skin-raw-1.png",
     });
     assert.equal(skin.source, "uploaded");
-    assert.equal(skin.headUrl, mcHeadsAvatarUrl("Builder_Sam", 96));
+    assert.equal(skin.headUrl, playerHeadUrl("Builder_Sam"));
   });
 
   test("a premium name is labelled as coming from Mojang", () => {

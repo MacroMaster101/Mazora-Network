@@ -27,6 +27,7 @@ import {
 import { coverGradient } from "./accent";
 import { fmtDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { playerHeadUrl } from "@/lib/minecraft/skin";
 import { useToast } from "@/components/ui";
 
 function GalleryCardImage({ img }: { img: GalleryImage }) {
@@ -90,7 +91,7 @@ function AuthorAvatarThumb({ author, size = 20 }: { author: string; size?: numbe
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://mc-heads.net/avatar/${author}/${size}`}
+      src={playerHeadUrl(author)}
       alt={author}
       loading="lazy"
       decoding="async"

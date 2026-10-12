@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
-import { mcHeadsAvatarUrl } from "@/lib/minecraft/skin";
+import { mcHeadsAvatarName, mcHeadsAvatarUrl, playerHeadUrl } from "@/lib/minecraft/skin";
 import { cn } from "@/lib/utils";
 import { accentFor } from "@/lib/utils";
 
@@ -12,8 +12,11 @@ import { accentFor } from "@/lib/utils";
  *
  * Source priority:
  * 1. A self-uploaded skin (`skinUrl`) takes first priority.
- * 2. If absent or invalid, looks up the Minecraft head by username on mc-heads.net.
- * 3. If that lookup fails (e.g. offline/unknown player name or missing storage file), falls back to the default Steve head.
+ * 2. Otherwise the site's own head route draws the skin Mojang has for the
+ *    name (it hands off to mc-heads.net when Mojang has none). An mc-heads URL
+ *    passed as `skinUrl`, such as a saved profile picture, goes through the
+ *    route too: mc-heads can show Steve at one size and the skin at another.
+ * 3. If that fails (e.g. missing storage file), falls back to the default Steve head.
  * 4. As a final fallback (e.g. total network failure), renders a monogram letter.
  */
 export function MinecraftAvatar({
@@ -30,23 +33,22 @@ export function MinecraftAvatar({
   className?: string;
   rounded?: string;
 }) {
-  const [triedSteve, setTriedSteve] = useState(false);
-  const [allFailed, setAllFailed] = useState(false);
+  // Which source in `sources` is showing; past the end means all of them failed.
+  const [attempt, setAttempt] = useState(0);
 
   const bg = accentFor(username);
-  const safeSkinUrl = isMinecraftAvatarUrl(skinUrl) ? skinUrl : null;
-  const primarySrc = safeSkinUrl || mcHeadsAvatarUrl(username, size * 2);
+  const mcHeadsName = mcHeadsAvatarName(skinUrl);
+  const uploadedSkinUrl = !mcHeadsName && isMinecraftAvatarUrl(skinUrl) ? skinUrl : null;
+  const headSrc = playerHeadUrl(mcHeadsName ?? username);
   const steveSrc = mcHeadsAvatarUrl("Steve", size * 2);
+  // An uploaded file can go missing from storage; the Mojang head comes next,
+  // then Steve. Steve is skipped when the player is Steve, as it always was.
+  const sources = [uploadedSkinUrl, headSrc, username.toLowerCase() === "steve" ? null : steveSrc].filter(
+    (src): src is string => Boolean(src),
+  );
+  const currentSrc = sources[attempt];
 
-  const currentSrc = triedSteve ? steveSrc : primarySrc;
-
-  const handleImageError = () => {
-    if (!triedSteve && username.toLowerCase() !== "steve") {
-      setTriedSteve(true);
-    } else {
-      setAllFailed(true);
-    }
-  };
+  const handleImageError = () => setAttempt((value) => value + 1);
 
   return (
     <span
@@ -57,7 +59,7 @@ export function MinecraftAvatar({
       <span className="user-avatar-monogram font-display text-xs font-bold" style={{ color: bg }}>
         {username.slice(0, 2).toUpperCase()}
       </span>
-      {!allFailed && (
+      {currentSrc && (
         <Image
           key={currentSrc}
           src={currentSrc}
