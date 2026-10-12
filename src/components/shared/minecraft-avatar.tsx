@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
-import { mcHeadsAvatarName, mcHeadsAvatarUrl, playerHeadUrl } from "@/lib/minecraft/skin";
+import { DEFAULT_SKIN_NAME, mcHeadsAvatarName, mcHeadsAvatarUrl, playerHeadUrl } from "@/lib/minecraft/skin";
 import { cn } from "@/lib/utils";
 import { accentFor } from "@/lib/utils";
 
@@ -40,12 +40,11 @@ export function MinecraftAvatar({
   const mcHeadsName = mcHeadsAvatarName(skinUrl);
   const uploadedSkinUrl = !mcHeadsName && isMinecraftAvatarUrl(skinUrl) ? skinUrl : null;
   const headSrc = playerHeadUrl(mcHeadsName ?? username);
-  const steveSrc = mcHeadsAvatarUrl("Steve", size * 2);
+  // Not "Steve": that account wears a custom skin (see DEFAULT_SKIN_NAME).
+  const steveSrc = mcHeadsAvatarUrl(DEFAULT_SKIN_NAME, size * 2);
   // An uploaded file can go missing from storage; the Mojang head comes next,
-  // then Steve. Steve is skipped when the player is Steve, as it always was.
-  const sources = [uploadedSkinUrl, headSrc, username.toLowerCase() === "steve" ? null : steveSrc].filter(
-    (src): src is string => Boolean(src),
-  );
+  // then the default Steve if even the site's head route cannot be reached.
+  const sources = [uploadedSkinUrl, headSrc, steveSrc].filter((src): src is string => Boolean(src));
   const currentSrc = sources[attempt];
 
   const handleImageError = () => setAttempt((value) => value + 1);

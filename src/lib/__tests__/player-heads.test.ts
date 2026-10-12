@@ -71,8 +71,26 @@ const RATE_LIMIT = { clientKey: () => "fake-client", rateLimit: () => ({ ok: tru
  * The real head and body routes over the real Mojang skin module; only the
  * network (Mojang, storage) and the request plumbing are fake.
  */
-function routeFixture(answers: { profile?: unknown; session?: unknown; skin?: Buffer | null; uploaded?: Buffer | null }) {
+const DEFAULT_TEXTURE = "https://textures.minecraft.net/texture/1a4af718455d4aab528e7a61f86fa25e6a369d1768dcb13f7df319a713eb810b";
+/** Stands in for Mojang's default Steve file, in a colour no test skin uses. */
+const DEFAULT_COLOUR = { r: 30, g: 170, b: 170 };
+
+/** The average colour of a drawn image, to tell which skin it came from. */
+async function averageColour(response: Response) {
+  const { channels } = await sharp(Buffer.from(await response.arrayBuffer())).stats();
+  return { r: Math.round(channels[0]!.mean), g: Math.round(channels[1]!.mean), b: Math.round(channels[2]!.mean) };
+}
+
+function routeFixture(answers: {
+  profile?: unknown;
+  session?: unknown;
+  skin?: Buffer | null;
+  uploaded?: Buffer | null;
+  /** Mojang's lookups do not answer at all. */
+  mojangDown?: boolean;
+}) {
   const fetched: string[] = [];
+  const defaultPng = skinPng(DEFAULT_COLOUR);
   const mojang = loadServerModule<typeof import("@/lib/minecraft/mojang-skin-fetch")>(
     new URL("../minecraft/mojang-skin-fetch.ts", import.meta.url),
     {
@@ -83,6 +101,8 @@ function routeFixture(answers: { profile?: unknown; session?: unknown; skin?: Bu
         "@/lib/data/upstream": {
           fetchWithDeadline: async (url: string) => {
             fetched.push(url);
+            if (url === DEFAULT_TEXTURE) return new Response(new Uint8Array(await defaultPng), { headers: { "content-type": "image/png" } });
+            if (answers.mojangDown) return null;
             if (url.startsWith("https://api.mojang.com/")) {
               return answers.profile === undefined ? new Response(null, { status: 404 }) : Response.json(answers.profile);
             }
@@ -142,29 +162,42 @@ test("a premium player's head is drawn from their current Mojang skin, then serv
   assert.equal(fetched.length, 3, "the second request does not ask Mojang again");
 });
 
-test("a name Mojang does not know is handed to mc-heads, as before", async () => {
-  const { get } = routeFixture({});
+test("a name with no Mojang account gets the real default Steve, not the account called Steve", async () => {
+  const { get, fetched } = routeFixture({});
   const response = await get("Crafty_Kim");
-  assert.equal(response.status, 307);
-  assert.equal(response.headers.get("location"), "https://mc-heads.net/avatar/Crafty_Kim/256");
+  assert.equal(response.status, 200);
+  assert.deepEqual(await averageColour(response), DEFAULT_COLOUR, "drawn from Mojang's default skin file");
+  assert.ok(fetched.includes(DEFAULT_TEXTURE));
 });
 
-test("a skin link to any other host is never fetched", async () => {
+test("the Steve placeholder and invalid names draw the default without any account lookup", async () => {
+  const { get, fetched } = routeFixture({ profile: { id: PROFILE_ID } });
+  for (const name of ["Steve", "steve", "../admin"]) {
+    const response = await get(name);
+    assert.equal(response.status, 200, name);
+    assert.deepEqual(await averageColour(response), DEFAULT_COLOUR, name);
+  }
+  assert.equal(fetched.some((url) => new URL(url).hostname === "api.mojang.com"), false, "no account is looked up");
+});
+
+test("only when Mojang does not answer is a head handed to mc-heads, for that name", async () => {
+  const { get } = routeFixture({ mojangDown: true });
+  const response = await get("Alex_Builder");
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get("location"), "https://mc-heads.net/avatar/Alex_Builder/256");
+  assert.match(response.headers.get("cache-control") ?? "", /max-age=600/);
+});
+
+test("a skin link to any other host is never fetched; the default is drawn instead", async () => {
   const { get, fetched } = routeFixture({
     profile: { id: PROFILE_ID },
     session: sessionProfile("https://example.com/texture/0123456789abcdef"),
     skin: await skinPng(),
   });
-  assert.equal((await get("Alex_Builder")).status, 307);
-  assert.equal(fetched.some((url) => url.includes("example.com")), false);
-});
-
-test("a name that is not a Minecraft name never reaches Mojang", async () => {
-  const { get, fetched } = routeFixture({ profile: { id: PROFILE_ID } });
-  const response = await get("../admin");
-  assert.equal(response.status, 307);
-  assert.equal(response.headers.get("location"), "https://mc-heads.net/avatar/Steve/256");
-  assert.equal(fetched.length, 0);
+  const response = await get("Alex_Builder");
+  assert.equal(response.status, 200);
+  assert.deepEqual(await averageColour(response), DEFAULT_COLOUR);
+  assert.equal(fetched.some((url) => new URL(url).hostname === "example.com"), false);
 });
 
 test("the avatar and gallery use the site's head route, including for saved mc-heads pictures", async () => {
@@ -199,18 +232,31 @@ test("an uploaded skin still wins over Mojang for the body", async () => {
     uploaded: await skinPng({ r: 20, g: 200, b: 40 }),
   });
   assert.equal((await getBody("Steve_42")).status, 200);
-  assert.equal(fetched.some((url) => url.includes("mojang.com")), false, "Mojang is not asked");
+  assert.equal(fetched.some((url) => new URL(url).hostname.endsWith(".mojang.com")), false, "Mojang is not asked");
 });
 
-test("a body Mojang cannot draw goes to mc-heads for that name, and an invalid name to Steve", async () => {
-  const { getBody, fetched } = routeFixture({});
-  const unknown = await getBody("Crafty_Kim");
-  assert.equal(unknown.status, 307);
-  assert.equal(unknown.headers.get("location"), "https://mc-heads.net/body/Crafty_Kim/256");
-  assert.match(unknown.headers.get("cache-control") ?? "", /max-age=600/);
+test("a body for a name with no skin is the real default Steve; mc-heads only when Mojang is down", async () => {
+  const { getBody } = routeFixture({});
+  for (const name of ["Crafty_Kim", "Steve", "../admin"]) {
+    const response = await getBody(name);
+    assert.equal(response.status, 200, name);
+    const colour = await averageColour(response);
+    // A body image is mostly transparent around the figure; the figure itself is the default colour.
+    assert.ok(colour.g > colour.r && colour.b > colour.r, name);
+  }
 
-  fetched.length = 0;
-  const invalid = await getBody("../admin");
-  assert.equal(invalid.headers.get("location"), "https://mc-heads.net/body/Steve/256");
-  assert.equal(fetched.length, 0);
+  const down = routeFixture({ mojangDown: true });
+  const response = await down.getBody("Crafty_Kim");
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get("location"), "https://mc-heads.net/body/Crafty_Kim/256");
+});
+
+test("client fallbacks use MHF_Steve, never the account called Steve", async () => {
+  const { readFileSync } = await import("node:fs");
+  assert.equal(skin.DEFAULT_SKIN_NAME, "MHF_Steve");
+  for (const file of ["../../components/shared/minecraft-avatar.tsx", "../../components/shared/player-panel.tsx"]) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(source, /mcHeads(Avatar|Body)Url\(DEFAULT_SKIN_NAME,/, file);
+    assert.doesNotMatch(source, /mcHeads(Avatar|Body)Url\("Steve"/, file);
+  }
 });

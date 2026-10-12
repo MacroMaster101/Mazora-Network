@@ -13,6 +13,21 @@ import { hostMatches } from "@/lib/net/host-match";
  * lookup is harmless here.
  */
 
+/**
+ * The name mc-heads should draw when a player has no skin: MHF_Steve holds
+ * Mojang's default Steve. The account actually named "Steve" wears a custom
+ * skin (a grey cat suit), so it must never be used as the stand-in.
+ */
+export const DEFAULT_SKIN_NAME = "MHF_Steve";
+
+/**
+ * "Steve" is what screens pass when they have no name yet. The head and body
+ * routes draw the default skin for it instead of looking that account up.
+ */
+export function isStevePlaceholder(username: string): boolean {
+  return username.toLowerCase() === "steve";
+}
+
 export function mcHeadsAvatarUrl(username: string, px: number): string {
   return `https://mc-heads.net/avatar/${encodeURIComponent(username)}/${px}`;
 }

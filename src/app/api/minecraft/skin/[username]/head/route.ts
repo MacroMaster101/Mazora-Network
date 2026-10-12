@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cropAndCompositeHead } from "@/lib/skins/process";
 import { clientKey, rateLimit, retryAfterHeaders } from "@/lib/rate-limit";
-import { mcHeadsAvatarUrl } from "@/lib/minecraft/skin";
-import { fetchMojangSkin } from "@/lib/minecraft/mojang-skin-fetch";
+import { DEFAULT_SKIN_NAME, isStevePlaceholder, mcHeadsAvatarUrl } from "@/lib/minecraft/skin";
+import { defaultSkin, fetchMojangSkin } from "@/lib/minecraft/mojang-skin-fetch";
 
 /**
  * A player's head, drawn here from the skin Mojang currently has for the name.
@@ -14,10 +14,12 @@ import { fetchMojangSkin } from "@/lib/minecraft/mojang-skin-fetch";
  * Mojang (fetchMojangSkin, which also keeps it in memory) and crops the face
  * and hat layer with the code that processes uploaded skins.
  *
- * Anything this cannot answer (a name with no Mojang account, a default skin,
- * Mojang slow or rate-limiting) is handed to mc-heads as before, so the worst
- * case is the old behaviour. Drawn heads are also cached at the edge for
- * signed-out visitors; middleware marks responses to signed-in ones private.
+ * A name with no Mojang account (an offline-mode player), an account on the
+ * default skin, an invalid name and the "Steve" placeholder all get Mojang's
+ * default Steve, drawn the same way. Only when Mojang cannot be reached is the
+ * request handed to mc-heads, as before. Drawn heads are also cached at the
+ * edge for signed-out visitors; middleware marks responses to signed-in ones
+ * private.
  */
 
 const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;
@@ -37,10 +39,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { username } = await params;
-  if (!IGN_PATTERN.test(username)) return fallback("Steve");
-
-  const skin = await fetchMojangSkin(username);
-  if (!skin) return fallback(username);
+  const valid = IGN_PATTERN.test(username) && !isStevePlaceholder(username);
+  const answer = valid ? await fetchMojangSkin(username) : "default";
+  const skin = answer === "default" ? await defaultSkin() : answer;
+  if (!skin) return fallback(answer === "default" || !valid ? DEFAULT_SKIN_NAME : username);
 
   try {
     return new NextResponse(new Uint8Array(await cropAndCompositeHead(skin.bytes, skin.format)), {
@@ -50,6 +52,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
   } catch {
-    return fallback(username);
+    return fallback(valid ? username : DEFAULT_SKIN_NAME);
   }
 }

@@ -4,8 +4,8 @@ import { compositeBody } from "@/lib/skins/body";
 import { validateSkinBytes, type SkinFormat } from "@/lib/skins/process";
 import { readSkinBody } from "@/lib/skins/read-body";
 import { clientKey, rateLimit, retryAfterHeaders } from "@/lib/rate-limit";
-import { mcHeadsBodyUrl } from "@/lib/minecraft/skin";
-import { fetchMojangSkin } from "@/lib/minecraft/mojang-skin-fetch";
+import { DEFAULT_SKIN_NAME, isStevePlaceholder, mcHeadsBodyUrl } from "@/lib/minecraft/skin";
+import { defaultSkin, fetchMojangSkin } from "@/lib/minecraft/mojang-skin-fetch";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 
 const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;
@@ -13,14 +13,16 @@ const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;
 /**
  * A player's full body, drawn from their skin: the one they uploaded here, or
  * else the one Mojang has for the name (fetchMojangSkin), the same source the
- * head route uses. mc-heads.net is only the fallback, for names Mojang does not
- * know or when Mojang does not answer: it caches each size separately and could
- * show Steve for a premium player who has a skin.
+ * head route uses. A name with no skin of its own (offline-mode players, the
+ * default skin, invalid names, the "Steve" placeholder) gets Mojang's default
+ * Steve, drawn the same way. mc-heads.net is only the fallback for when Mojang
+ * cannot be reached: it caches each size separately and could show Steve for a
+ * premium player who has a skin.
  */
 function fallbackResponse(username: string | null) {
-  // An invalid name gets the default body for good; a miss may be Mojang being
-  // slow, so it is only cached briefly.
-  return NextResponse.redirect(mcHeadsBodyUrl(username ?? "Steve", 256), {
+  // The default body is cached for good; a miss may be Mojang being slow, so
+  // it is only cached briefly.
+  return NextResponse.redirect(mcHeadsBodyUrl(username ?? DEFAULT_SKIN_NAME, 256), {
     status: 307,
     headers: {
       "Cache-Control": username
@@ -69,12 +71,10 @@ export async function GET(
   }
 
   const { username } = await params;
-  if (!IGN_PATTERN.test(username)) {
-    return fallbackResponse(null);
-  }
-
-  const skin = (await uploadedSkin(username)) ?? (await fetchMojangSkin(username));
-  if (!skin) return fallbackResponse(username);
+  const valid = IGN_PATTERN.test(username) && !isStevePlaceholder(username);
+  const answer = valid ? ((await uploadedSkin(username)) ?? (await fetchMojangSkin(username))) : "default";
+  const skin = answer === "default" ? await defaultSkin() : answer;
+  if (!skin) return fallbackResponse(answer === "default" || !valid ? null : username);
 
   try {
     const body = await compositeBody(skin.bytes, skin.format);
@@ -86,6 +86,6 @@ export async function GET(
       },
     });
   } catch {
-    return fallbackResponse(username);
+    return fallbackResponse(valid ? username : null);
   }
 }
