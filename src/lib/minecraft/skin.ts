@@ -55,6 +55,28 @@ export function playerBodyUrl(username: string): string {
   return `/api/minecraft/skin/${encodeURIComponent(username)}/body`;
 }
 
+/**
+ * The full skin file uploaded together with an uploaded head.
+ *
+ * A skin upload stores `skin-raw-<ts>.png` and `skin-head-<ts>.png` side by
+ * side in the member's folder of the profile-avatars bucket
+ * (actions/minecraft.ts). A member whose skin is only kept as their profile
+ * picture (no linked Minecraft account, so no raw_skin_url on record) still has
+ * that raw file, and the body must be drawn from it or it would not match the
+ * head. Only that exact shape is accepted; anything else gives null.
+ */
+export function rawSkinUrlForHead(headUrl: string | null | undefined): string | null {
+  if (!headUrl) return null;
+  try {
+    const url = new URL(headUrl);
+    if (url.protocol !== "https:" || url.search || url.hash || url.username || url.password) return null;
+    const match = /^(\/storage\/v1\/object\/public\/profile-avatars\/[0-9a-f-]{36}\/)skin-head-(\d{10,16})\.png$/i.exec(url.pathname);
+    return match ? `${url.origin}${match[1]}skin-raw-${match[2]}.png` : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The player name in an mc-heads.net head URL (such as a saved profile picture), or null. */
 export function mcHeadsAvatarName(value: string | null | undefined): string | null {
   if (!value) return null;

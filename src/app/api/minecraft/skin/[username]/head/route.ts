@@ -27,8 +27,9 @@ const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;
 function fallback(username: string) {
   return NextResponse.redirect(mcHeadsAvatarUrl(username, 256), {
     status: 307,
-    // Short: a miss is often Mojang being slow, and the next try should ask again.
-    headers: { "Cache-Control": "public, max-age=600, s-maxage=600" },
+    // Only reached when Mojang could not be asked, so never kept: a browser that
+    // held this redirect showed mc-heads (often Steve) after Mojang was back.
+    headers: { "Cache-Control": "no-store" },
   });
 }
 

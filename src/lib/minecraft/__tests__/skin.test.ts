@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { resolvePlayerSkin, mcHeadsAvatarName, mcHeadsAvatarUrl, mcHeadsBodyUrl, playerBodyUrl, playerHeadUrl } from "@/lib/minecraft/skin";
+import { resolvePlayerSkin, mcHeadsAvatarName, mcHeadsAvatarUrl, mcHeadsBodyUrl, playerBodyUrl, playerHeadUrl, rawSkinUrlForHead } from "@/lib/minecraft/skin";
 
 describe("mc-heads URL builders", () => {
   test("encode a username exactly once", () => {
@@ -106,5 +106,28 @@ describe("resolvePlayerSkin", () => {
     assert.equal(first.bodyUrl, "/api/minecraft/skin/Builder_Sam/body?v=1000");
     assert.equal(second.bodyUrl, "/api/minecraft/skin/Builder_Sam/body?v=2000");
     assert.notEqual(first.bodyUrl, second.bodyUrl);
+  });
+});
+
+describe("rawSkinUrlForHead", () => {
+  const folder = "https://project.example.com/storage/v1/object/public/profile-avatars/00000000-0000-4000-8000-000000000001";
+
+  test("finds the raw skin uploaded together with an uploaded head", () => {
+    assert.equal(rawSkinUrlForHead(`${folder}/skin-head-1700000000000.png`), `${folder}/skin-raw-1700000000000.png`);
+  });
+
+  test("accepts nothing but that exact shape", () => {
+    for (const url of [
+      `${folder}/avatar-1700000000000.webp`,
+      `${folder}/skin-head-1700000000000.png?download=1`,
+      `${folder}/../other/skin-head-1700000000000.png`,
+      "https://project.example.com/storage/v1/object/public/news-images/00000000-0000-4000-8000-000000000001/skin-head-1700000000000.png",
+      "http://project.example.com/storage/v1/object/public/profile-avatars/00000000-0000-4000-8000-000000000001/skin-head-1700000000000.png",
+      "https://mc-heads.net/avatar/Steve_42/256",
+      "not a url",
+      null,
+    ]) {
+      assert.equal(rawSkinUrlForHead(url), null, String(url));
+    }
   });
 });

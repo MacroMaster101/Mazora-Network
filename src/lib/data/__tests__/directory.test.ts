@@ -88,4 +88,18 @@ describe("buildDirectory", () => {
       ["zoe", "Adam", "Bea"],
     );
   });
+
+  test("a skin kept only as a profile picture draws its body from the raw file uploaded with it", () => {
+    const head =
+      "https://project.example.com/storage/v1/object/public/profile-avatars/00000000-0000-4000-8000-000000000001/skin-head-1700000000000.png";
+    const list = buildDirectory({
+      online: [],
+      players: [],
+      members: [],
+      accounts: [{ username: "Alex_Builder", minecraftUsername: null, role: "member", avatarUrl: head }],
+    });
+    assert.equal(list[0].skin.source, "uploaded");
+    assert.equal(list[0].skin.headUrl, head);
+    assert.equal(list[0].skin.bodyUrl, "/api/minecraft/skin/Alex_Builder/body?v=1700000000000");
+  });
 });

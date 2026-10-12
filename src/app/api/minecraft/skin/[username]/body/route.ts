@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLinkedSkin } from "@/lib/data/minecraft-accounts";
+import { getUploadedSkin } from "@/lib/data/minecraft-accounts";
 import { compositeBody } from "@/lib/skins/body";
 import { validateSkinBytes, type SkinFormat } from "@/lib/skins/process";
 import { readSkinBody } from "@/lib/skins/read-body";
@@ -20,15 +20,11 @@ const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;
  * premium player who has a skin.
  */
 function fallbackResponse(username: string | null) {
-  // The default body is cached for good; a miss may be Mojang being slow, so
-  // it is only cached briefly.
+  // Only reached when Mojang could not be asked, so never kept: a browser that
+  // held this redirect showed mc-heads (often Steve) after Mojang was back.
   return NextResponse.redirect(mcHeadsBodyUrl(username ?? DEFAULT_SKIN_NAME, 256), {
     status: 307,
-    headers: {
-      "Cache-Control": username
-        ? "public, max-age=600, s-maxage=600"
-        : "public, max-age=86400, stale-while-revalidate=604800",
-    },
+    headers: { "Cache-Control": "no-store" },
   });
 }
 
@@ -43,7 +39,7 @@ function fallbackResponse(username: string | null) {
  * and providerAvatar apply to rendered image URLs.
  */
 async function uploadedSkin(username: string): Promise<{ bytes: Buffer; format: SkinFormat } | null> {
-  const linked = await getLinkedSkin(username);
+  const linked = await getUploadedSkin(username);
   if (!linked?.rawSkinUrl || !isSupabaseStorageObjectUrl(linked.rawSkinUrl, process.env.NEXT_PUBLIC_SUPABASE_URL)) {
     return null;
   }

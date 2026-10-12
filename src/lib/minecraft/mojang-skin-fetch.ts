@@ -15,8 +15,10 @@ import { mojangProfileId, mojangSkinTextureUrl } from "@/lib/minecraft/mojang-sk
  *
  * Mojang allows a few hundred lookups per ten minutes and a directory page
  * shows dozens of players, so answers are kept in memory: a skin, or "this name
- * uses the default skin", for six hours; no answer at all for ten minutes (that
- * is usually Mojang being slow, and the next request should ask again).
+ * uses the default skin", for six hours. When Mojang does not answer (slow, or
+ * rate-limiting us) the last answer for the name is used again rather than
+ * nothing: a player who has been drawn once keeps their skin through an outage
+ * instead of dropping to mc-heads, which can show Steve for them.
  */
 
 export interface MojangSkin {
@@ -40,7 +42,7 @@ const DEFAULT_SKIN_TEXTURE =
   "https://textures.minecraft.net/texture/1a4af718455d4aab528e7a61f86fa25e6a369d1768dcb13f7df319a713eb810b";
 
 const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;
-const TIMEOUT_MS = 3_000;
+const TIMEOUT_MS = 5_000;
 const HEADERS = { "User-Agent": "MazoraNetworkWebsite/1.0" };
 const SKIN_CACHE_MS = 6 * 60 * 60_000;
 const MISS_CACHE_MS = 10 * 60_000;
@@ -69,6 +71,11 @@ export async function fetchMojangSkin(username: string): Promise<MojangSkinAnswe
   if (cached && cached.expiresAt > Date.now()) return cached.skin;
 
   const skin = await loadMojangSkin(username);
+  // No answer: keep the last one we had (asked again after the miss window).
+  if (skin === null && cached?.skin) {
+    skins.set(key, { skin: cached.skin, expiresAt: Date.now() + MISS_CACHE_MS });
+    return cached.skin;
+  }
   remember(key, skin);
   return skin;
 }

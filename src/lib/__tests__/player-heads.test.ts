@@ -8,6 +8,8 @@ import * as mojangSkin from "@/lib/minecraft/mojang-skin";
 import * as skinBody from "@/lib/skins/body";
 import * as storageUrl from "@/lib/storage-url";
 import { mojangProfileId, mojangSkinTextureUrl } from "@/lib/minecraft/mojang-skin";
+import * as drizzle from "drizzle-orm";
+import * as dbSchema from "@/lib/db/schema";
 import { loadServerModule } from "./helpers/server-module";
 
 const PROFILE_ID = "0123456789abcdef0123456789abcdef";
@@ -88,12 +90,13 @@ function routeFixture(answers: {
   uploaded?: Buffer | null;
   /** Mojang's lookups do not answer at all. */
   mojangDown?: boolean;
-}) {
+}, clock?: () => number) {
   const fetched: string[] = [];
   const defaultPng = skinPng(DEFAULT_COLOUR);
   const mojang = loadServerModule<typeof import("@/lib/minecraft/mojang-skin-fetch")>(
     new URL("../minecraft/mojang-skin-fetch.ts", import.meta.url),
     {
+      ...(clock ? { globals: { Date: { now: clock } } } : {}),
       mocks: {
         "@/lib/skins/process": skinProcess,
         "@/lib/skins/read-body": readBody,
@@ -139,12 +142,12 @@ function routeFixture(answers: {
       "@/lib/skins/body": skinBody,
       "@/lib/storage-url": storageUrl,
       "@/lib/data/minecraft-accounts": {
-        getLinkedSkin: async () => (answers.uploaded ? { rawSkinUrl: uploadUrl, headUrl: null } : null),
+        getUploadedSkin: async () => (answers.uploaded ? { rawSkinUrl: uploadUrl } : null),
       },
     },
   });
   const call = (route: Route) => (username: string) => route.GET({ headers: new Headers() }, { params: Promise.resolve({ username }) });
-  return { get: call(head), getBody: call(body), fetched };
+  return { get: call(head), getBody: call(body), fetched, answers };
 }
 
 test("a premium player's head is drawn from their current Mojang skin, then served from memory", async () => {
@@ -185,7 +188,20 @@ test("only when Mojang does not answer is a head handed to mc-heads, for that na
   const response = await get("Alex_Builder");
   assert.equal(response.status, 307);
   assert.equal(response.headers.get("location"), "https://mc-heads.net/avatar/Alex_Builder/256");
-  assert.match(response.headers.get("cache-control") ?? "", /max-age=600/);
+  assert.equal(response.headers.get("cache-control"), "no-store", "never kept: the next view asks Mojang again");
+});
+
+test("a player drawn once keeps their skin through a Mojang outage", async () => {
+  let now = 0;
+  const playerSkin = await skinPng({ r: 200, g: 120, b: 160 });
+  const { get, answers } = routeFixture({ profile: { id: PROFILE_ID }, session: sessionProfile(TEXTURE), skin: playerSkin }, () => now);
+  assert.deepEqual(await averageColour(await get("Steve_42")), { r: 200, g: 120, b: 160 });
+
+  answers.mojangDown = true;
+  now += 7 * 60 * 60_000; // past the six-hour freshness
+  const during = await get("Steve_42");
+  assert.equal(during.status, 200, "not handed to mc-heads");
+  assert.deepEqual(await averageColour(during), { r: 200, g: 120, b: 160 });
 });
 
 test("a skin link to any other host is never fetched; the default is drawn instead", async () => {
@@ -260,3 +276,35 @@ test("client fallbacks use MHF_Steve, never the account called Steve", async () 
     assert.doesNotMatch(source, /mcHeads(Avatar|Body)Url\("Steve"/, file);
   }
 });
+
+/* ----------------------------------------------------------- skin lookup */
+
+function uploadedSkinFixture(rows: { linked?: { rawSkinUrl: string | null; headUrl: string | null }; avatarUrl?: string | null }) {
+  // getLinkedSkin reads minecraft_accounts first, then getUploadedSkin reads profiles.
+  const reads = [rows.linked ? [rows.linked] : [], rows.avatarUrl === undefined ? [] : [{ avatarUrl: rows.avatarUrl }]];
+  const db = { select: () => ({ from: () => ({ where: () => ({ limit: async () => reads.shift() ?? [] }) }) }) };
+  return loadServerModule<typeof import("@/lib/data/minecraft-accounts")>(new URL("../data/minecraft-accounts.ts", import.meta.url), {
+    mocks: {
+      react: { cache: <T>(fn: T) => fn },
+      "drizzle-orm": drizzle,
+      "@/lib/db/client": { getDb: () => db, schema: dbSchema },
+      "@/lib/minecraft/skin": skin,
+    },
+  });
+}
+
+test("a body comes from the skin uploaded with the head, even with no linked Minecraft account", async () => {
+  const folder = "https://project.example.com/storage/v1/object/public/profile-avatars/00000000-0000-4000-8000-000000000001";
+  const fromProfile = uploadedSkinFixture({ avatarUrl: `${folder}/skin-head-1700000000000.png` });
+  assert.equal((await fromProfile.getUploadedSkin("Alex_Builder"))?.rawSkinUrl, `${folder}/skin-raw-1700000000000.png`);
+
+  const linked = uploadedSkinFixture({ linked: { rawSkinUrl: `${folder}/skin-raw-1.png`, headUrl: null } });
+  assert.equal((await linked.getUploadedSkin("Alex_Builder"))?.rawSkinUrl, `${folder}/skin-raw-1.png`);
+
+  const noRawOnRecord = uploadedSkinFixture({ linked: { rawSkinUrl: null, headUrl: `${folder}/skin-head-1700000000000.png` } });
+  assert.equal((await noRawOnRecord.getUploadedSkin("Alex_Builder"))?.rawSkinUrl, `${folder}/skin-raw-1700000000000.png`);
+
+  const photo = uploadedSkinFixture({ avatarUrl: `${folder}/avatar-1700000000000.webp` });
+  assert.equal(await photo.getUploadedSkin("Alex_Builder"), null, "an ordinary profile photo is not a skin");
+});
+
