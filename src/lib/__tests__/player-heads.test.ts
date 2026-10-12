@@ -170,7 +170,7 @@ test("a name with no Mojang account gets the real default Steve, not the account
   const response = await get("Crafty_Kim");
   assert.equal(response.status, 200);
   assert.deepEqual(await averageColour(response), DEFAULT_COLOUR, "drawn from Mojang's default skin file");
-  assert.ok(fetched.includes(DEFAULT_TEXTURE));
+  assert.ok(fetched.some((url) => url === DEFAULT_TEXTURE), "the default skin file itself was read");
 });
 
 test("the Steve placeholder and invalid names draw the default without any account lookup", async () => {
