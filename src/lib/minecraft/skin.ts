@@ -77,6 +77,20 @@ export function rawSkinUrlForHead(headUrl: string | null | undefined): string | 
   }
 }
 
+/**
+ * How a stored profile picture is shown. Choosing "Minecraft skin" saves an
+ * mc-heads.net head URL, and mc-heads can serve Steve for a premium player at
+ * any given size, so a saved mc-heads head is shown through the site's head
+ * route instead (same player, current Mojang skin). Uploads, Discord, Google
+ * and anything else pass through unchanged.
+ */
+export function displayAvatarUrl(url: string): string;
+export function displayAvatarUrl(url: string | null | undefined): string | null | undefined;
+export function displayAvatarUrl(url: string | null | undefined): string | null | undefined {
+  const name = mcHeadsAvatarName(url);
+  return name ? playerHeadUrl(name) : url;
+}
+
 /** The player name in an mc-heads.net head URL (such as a saved profile picture), or null. */
 export function mcHeadsAvatarName(value: string | null | undefined): string | null {
   if (!value) return null;

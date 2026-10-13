@@ -43,6 +43,7 @@ import {
 import { Input, Select, Textarea, useToast } from "@/components/ui";
 import { DEFAULT_NEWS_CATEGORY, NEWS_CATEGORIES, normalizeCategory } from "@/lib/news/categories";
 import { cleanAndUnwrapImageUrl, cn } from "@/lib/utils";
+import { displayAvatarUrl } from "@/lib/minecraft/skin";
 
 type Runner = (action: (fd: FormData) => Promise<NewsActionResult>, formData: FormData) => void;
 type ImageUploader = (id: string, file: File) => Promise<NewsActionResult>;
@@ -120,7 +121,7 @@ function PublisherAvatar({ src, name, team = false }: { src?: string | null; nam
       {src && !failed ? (
         // Publisher avatars can come from Discord or profile storage.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+        <img src={displayAvatarUrl(src)} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
       ) : team ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src="/images/mazora-icon.png" alt="" loading="lazy" decoding="async" />

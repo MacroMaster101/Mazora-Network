@@ -26,6 +26,7 @@ import {
 } from "@/lib/actions/gallery";
 import { Input, Textarea, useToast } from "@/components/ui";
 import { cleanAndUnwrapImageUrl, cn } from "@/lib/utils";
+import { displayAvatarUrl } from "@/lib/minecraft/skin";
 
 function SafeImageThumb({ src, alt, className = "" }: { src: string; alt: string; className?: string }) {
   const [error, setError] = useState(false);
@@ -62,7 +63,7 @@ function PublisherAvatar({ src, name, team = false }: { src?: string | null; nam
     <span className={cn("relative grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/20 bg-black/60 text-xs font-bold text-white shadow-inner", team && "bg-accent/20 border-accent/40 text-accent-bright")}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+        <img src={displayAvatarUrl(src)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
       ) : team ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

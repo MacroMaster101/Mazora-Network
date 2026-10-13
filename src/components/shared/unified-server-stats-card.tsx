@@ -24,6 +24,7 @@ import type { ServerStatus, PatchUpdate } from "@/lib/types";
 import type { StatusSample } from "@/lib/data/status-telemetry";
 import { Modal } from "@/components/ui/modal";
 import { RefreshButton } from "./refresh-button";
+import { displayAvatarUrl } from "@/lib/minecraft/skin";
 
 interface BarData {
   timeLabel: string;
@@ -52,7 +53,7 @@ function PatchAuthorAvatar({ name, avatarUrl, size = 22 }: { name: string; avata
     return (
       <span className="relative inline-flex items-center justify-center rounded-full bg-surface border border-line-strong/60 shrink-0 shadow-2xs overflow-hidden" style={{ width: size, height: size }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={avatarUrl} alt={name} className="h-full w-full rounded-full object-cover" />
+        <img src={displayAvatarUrl(avatarUrl)} alt={name} className="h-full w-full rounded-full object-cover" />
       </span>
     );
   }

@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Gamepad2, Loader2, Search, Trash2, Upload, Check, X } from "lucide-react";
 import { DiscordIcon } from "@/components/auth/provider-icons";
+import { displayAvatarUrl } from "@/lib/minecraft/skin";
 import {
   removeProfileAvatarAction,
   uploadProfileAvatarAction,
@@ -162,7 +163,7 @@ export function ProfileAvatarEditor({
         {shownAvatar && (
           // eslint-disable-next-line @next/next/no-img-element -- local blob previews and remote avatar sources share this element.
           <img
-            src={shownAvatar}
+            src={displayAvatarUrl(shownAvatar)}
             alt={`${displayName}'s profile photo`}
             className="profile-avatar-image"
             onError={(event) => { event.currentTarget.hidden = true; }}
