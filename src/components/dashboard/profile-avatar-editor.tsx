@@ -129,7 +129,8 @@ export function ProfileAvatarEditor({
     });
   };
 
-  const shownAvatar = previewUrl ?? avatarUrl;
+  // Only the saved picture goes through displayAvatarUrl; a local preview is shown as it is.
+  const shownAvatar = previewUrl ?? displayAvatarUrl(avatarUrl);
 
   // googleusercontent is the photo that came with the Google account, not
   // something the member uploaded — labelling it "Uploaded photo" (the old
@@ -163,7 +164,7 @@ export function ProfileAvatarEditor({
         {shownAvatar && (
           // eslint-disable-next-line @next/next/no-img-element -- local blob previews and remote avatar sources share this element.
           <img
-            src={displayAvatarUrl(shownAvatar)}
+            src={shownAvatar}
             alt={`${displayName}'s profile photo`}
             className="profile-avatar-image"
             onError={(event) => { event.currentTarget.hidden = true; }}

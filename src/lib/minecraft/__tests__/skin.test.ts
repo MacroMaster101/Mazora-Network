@@ -168,12 +168,16 @@ describe("displayAvatarUrl", () => {
       "../../../components/shared/news-author.tsx",
       "../../../components/shared/unified-server-stats-card.tsx",
       "../../../components/admin/admin-gallery-editor.tsx",
-      "../../../components/admin/news-editor.tsx",
       "../../../components/admin/play-page-editor.tsx",
-      "../../../components/dashboard/profile-avatar-editor.tsx",
     ]) {
       assert.match(readFileSync(new URL(file, import.meta.url), "utf8"), /src=\{displayAvatarUrl\(/, file);
     }
+    // Editors apply it to the saved picture only, never to text being typed.
+    const news = readFileSync(new URL("../../../components/admin/news-editor.tsx", import.meta.url), "utf8");
+    assert.match(news, /: displayAvatarUrl\(defaultPublisher\.avatarUrl\)\}/);
+    assert.doesNotMatch(news, /displayAvatarUrl\((new)?[tT]eamAvatarUrl/);
+    const profile = readFileSync(new URL("../../../components/dashboard/profile-avatar-editor.tsx", import.meta.url), "utf8");
+    assert.match(profile, /const shownAvatar = previewUrl \?\? displayAvatarUrl\(avatarUrl\);/);
   });
 });
 
