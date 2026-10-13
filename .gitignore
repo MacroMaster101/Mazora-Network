@@ -61,6 +61,9 @@ desktop.ini
 /docs/superpowers
 /.superpowers
 
+# Remotion promo-trailer project (local only: source, copied art, renders)
+/video/
+
 # Local AI assistant workspaces and scratch state
 /.codex
 /.agents
