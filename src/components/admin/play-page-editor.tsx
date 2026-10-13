@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import type { PatchUpdate, PlayPageConfig } from "@/lib/types";
 import { DEFAULT_PLAY_CONFIG } from "@/lib/types";
+import { displayAvatarUrl } from "@/lib/minecraft/skin";
 import type { FaqItem } from "@/lib/data/faqs";
 import { saveFaqsAction } from "@/lib/actions/faqs";
 
@@ -148,7 +149,7 @@ function AuthorAvatar({ name, avatarUrl, size = 22 }: { name: string; avatarUrl?
     return (
       <span className="relative inline-flex items-center justify-center rounded-full bg-surface border border-line-strong/60 shrink-0 shadow-2xs overflow-hidden" style={{ width: size, height: size }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={avatarUrl} alt={name} className="h-full w-full rounded-full object-cover" />
+        <img src={displayAvatarUrl(avatarUrl)} alt={name} className="h-full w-full rounded-full object-cover" />
       </span>
     );
   }

@@ -1,7 +1,17 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { resolvePlayerSkin, mcHeadsAvatarName, mcHeadsAvatarUrl, mcHeadsBodyUrl, playerBodyUrl, playerHeadUrl, rawSkinUrlForHead } from "@/lib/minecraft/skin";
+import { readFileSync } from "node:fs";
+import {
+  displayAvatarUrl,
+  resolvePlayerSkin,
+  mcHeadsAvatarName,
+  mcHeadsAvatarUrl,
+  mcHeadsBodyUrl,
+  playerBodyUrl,
+  playerHeadUrl,
+  rawSkinUrlForHead,
+} from "@/lib/minecraft/skin";
 
 describe("mc-heads URL builders", () => {
   test("encode a username exactly once", () => {
@@ -131,3 +141,43 @@ describe("rawSkinUrlForHead", () => {
     }
   });
 });
+
+describe("displayAvatarUrl", () => {
+  test("a saved Minecraft-skin profile picture is shown through the site's head route", () => {
+    assert.equal(displayAvatarUrl("https://mc-heads.net/avatar/Alex_Builder/256"), "/api/minecraft/skin/Alex_Builder/head");
+  });
+
+  test("every other picture is left exactly as it is", () => {
+    for (const url of [
+      "https://project.example.com/storage/v1/object/public/profile-avatars/00000000-0000-4000-8000-000000000001/avatar-1.webp",
+      "https://cdn.discordapp.com/avatars/111111111111111111/abc.png",
+      "https://lh3.googleusercontent.com/a/example",
+      "/images/mazora-icon.png",
+      "blob:https://example.com/00000000-0000-4000-8000-000000000001",
+      "https://mc-heads.net/body/Alex_Builder/256",
+    ]) {
+      assert.equal(displayAvatarUrl(url), url);
+    }
+    assert.equal(displayAvatarUrl(null), null);
+    assert.equal(displayAvatarUrl(undefined), undefined);
+  });
+
+  test("profile pictures are shown through it wherever they are rendered directly", () => {
+    for (const file of [
+      "../../../components/shared/user-avatar.tsx",
+      "../../../components/shared/news-author.tsx",
+      "../../../components/shared/unified-server-stats-card.tsx",
+      "../../../components/admin/admin-gallery-editor.tsx",
+      "../../../components/admin/play-page-editor.tsx",
+    ]) {
+      assert.match(readFileSync(new URL(file, import.meta.url), "utf8"), /src=\{displayAvatarUrl\(/, file);
+    }
+    // Editors apply it to the saved picture only, never to text being typed.
+    const news = readFileSync(new URL("../../../components/admin/news-editor.tsx", import.meta.url), "utf8");
+    assert.match(news, /: displayAvatarUrl\(defaultPublisher\.avatarUrl\)\}/);
+    assert.doesNotMatch(news, /displayAvatarUrl\((new)?[tT]eamAvatarUrl/);
+    const profile = readFileSync(new URL("../../../components/dashboard/profile-avatar-editor.tsx", import.meta.url), "utf8");
+    assert.match(profile, /const shownAvatar = previewUrl \?\? displayAvatarUrl\(avatarUrl\);/);
+  });
+});
+

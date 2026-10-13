@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Gamepad2, Loader2, Search, Trash2, Upload, Check, X } from "lucide-react";
 import { DiscordIcon } from "@/components/auth/provider-icons";
+import { displayAvatarUrl } from "@/lib/minecraft/skin";
 import {
   removeProfileAvatarAction,
   uploadProfileAvatarAction,
@@ -128,7 +129,8 @@ export function ProfileAvatarEditor({
     });
   };
 
-  const shownAvatar = previewUrl ?? avatarUrl;
+  // Only the saved picture goes through displayAvatarUrl; a local preview is shown as it is.
+  const shownAvatar = previewUrl ?? displayAvatarUrl(avatarUrl);
 
   // googleusercontent is the photo that came with the Google account, not
   // something the member uploaded — labelling it "Uploaded photo" (the old

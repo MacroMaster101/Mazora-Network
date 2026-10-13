@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { NewsArticle } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { displayAvatarUrl } from "@/lib/minecraft/skin";
 
 /**
  * Rendered size of .news-author-avatar (2.25rem).
@@ -33,7 +34,7 @@ export function NewsAuthor({
         {avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={avatar}
+            src={displayAvatarUrl(avatar)}
             alt=""
             width={AVATAR_PX}
             height={AVATAR_PX}

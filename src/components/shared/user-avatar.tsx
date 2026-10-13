@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn, accentFor } from "@/lib/utils";
+import { displayAvatarUrl } from "@/lib/minecraft/skin";
 
 /**
  * A website account's avatar — whatever that member actually chose.
@@ -61,7 +62,7 @@ export function UserAvatar({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           ref={imgRef}
-          src={avatarUrl}
+          src={displayAvatarUrl(avatarUrl)}
           alt=""
           width={size}
           height={size}

@@ -43,6 +43,7 @@ import {
 import { Input, Select, Textarea, useToast } from "@/components/ui";
 import { DEFAULT_NEWS_CATEGORY, NEWS_CATEGORIES, normalizeCategory } from "@/lib/news/categories";
 import { cleanAndUnwrapImageUrl, cn } from "@/lib/utils";
+import { displayAvatarUrl } from "@/lib/minecraft/skin";
 
 type Runner = (action: (fd: FormData) => Promise<NewsActionResult>, formData: FormData) => void;
 type ImageUploader = (id: string, file: File) => Promise<NewsActionResult>;
@@ -261,7 +262,7 @@ function ArticleRow({
             <PublisherAvatar
               src={article.publisherMode === "team"
                 ? (article.teamAvatarUrl || "/images/mazora-icon.png")
-                : (isPending ? defaultPublisher.avatarUrl : article.authorAvatarUrl)}
+                : displayAvatarUrl(isPending ? defaultPublisher.avatarUrl : article.authorAvatarUrl)}
               name={article.publisherMode === "team"
                 ? "Mazora Team"
                 : (isPending ? defaultPublisher.name : article.authorName ?? "News Publisher")}
@@ -348,7 +349,7 @@ function ArticleRow({
               </div>
               <div className="news-publisher-preview">
                 <PublisherAvatar
-                  src={publisherMode === "team" ? (teamAvatarUrl || "/images/mazora-icon.png") : defaultPublisher.avatarUrl}
+                  src={publisherMode === "team" ? (teamAvatarUrl || "/images/mazora-icon.png") : displayAvatarUrl(defaultPublisher.avatarUrl)}
                   name={publisherMode === "team" ? "Mazora Team" : defaultPublisher.name}
                   team={publisherMode === "team"}
                 />
@@ -938,7 +939,7 @@ export function NewsEditor({
                     </div>
                     <div className="news-publisher-preview">
                       <PublisherAvatar
-                        src={newPublisherMode === "team" ? (newTeamAvatarUrl || "/images/mazora-icon.png") : defaultPublisher.avatarUrl}
+                        src={newPublisherMode === "team" ? (newTeamAvatarUrl || "/images/mazora-icon.png") : displayAvatarUrl(defaultPublisher.avatarUrl)}
                         name={newPublisherMode === "team" ? "Mazora Team" : defaultPublisher.name}
                         team={newPublisherMode === "team"}
                       />
