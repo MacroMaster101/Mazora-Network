@@ -1,4 +1,4 @@
-import { resolvePlayerSkin } from "@/lib/minecraft/skin";
+import { rawSkinUrlForHead, resolvePlayerSkin } from "@/lib/minecraft/skin";
 import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
 import type { DirectoryPlayer, OnlinePlayer, Player, Role } from "@/lib/types";
 import type { LinkedAccount } from "@/lib/data/minecraft-accounts";
@@ -119,7 +119,8 @@ export function buildDirectory({ online, players, members, accounts = [] }: Buil
       skin: resolvePlayerSkin({
         username: entry.username,
         uploadedHeadUrl: skinUrl,
-        uploadedRawSkinUrl: entry.member?.rawSkinUrl,
+        // A skin kept only as a profile picture still has its raw file beside the head.
+        uploadedRawSkinUrl: entry.member?.rawSkinUrl ?? rawSkinUrlForHead(skinUrl),
       }),
       // Role from auth's app_metadata (authoritative), falling back to "member" for linked accounts.
       role: account?.role ?? (isMember ? "member" : undefined),

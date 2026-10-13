@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import type { DirectoryPlayer, SkinSourceKind } from "@/lib/types";
-import { mcHeadsBodyUrl } from "@/lib/minecraft/skin";
+import { DEFAULT_SKIN_NAME, mcHeadsBodyUrl } from "@/lib/minecraft/skin";
 import { RankChip } from "@/components/admin/rank-chip";
 import { accentFor, cn, fmtDate, formatPlaytime, relative, usd } from "@/lib/utils";
 
@@ -51,7 +51,8 @@ export function PlayerPanel({
   const [allFailed, setAllFailed] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  const steveBodyUrl = mcHeadsBodyUrl("Steve", 256);
+  // Not "Steve": that account wears a custom skin (see DEFAULT_SKIN_NAME).
+  const steveBodyUrl = mcHeadsBodyUrl(DEFAULT_SKIN_NAME, 256);
   const primaryBodyUrl = player.skin?.bodyUrl || steveBodyUrl;
   const currentBodyUrl = triedSteve ? steveBodyUrl : primaryBodyUrl;
 

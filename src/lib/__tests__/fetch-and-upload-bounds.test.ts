@@ -97,8 +97,11 @@ test("the bucket path rule accepts our public objects and nothing beside them", 
 test("the skin body route never buffers an upstream body it has not measured", () => {
   const source = read("../../app/api/minecraft/skin/[username]/body/route.ts");
   assert.doesNotMatch(source, /await upstream\.(text|arrayBuffer|json)\(\)/);
+  assert.match(source, /const bytes = await readSkinBody\(upstream\);/);
 
-  const reader = source.slice(source.indexOf("async function readSkinBody("), source.indexOf("export async function GET("));
+  // Shared with the head route, which reads skins from Mojang the same way.
+  const reader = read("../skins/read-body.ts");
+  assert.match(reader, /export async function readSkinBody\(/);
   // Early exit on a declared size, then the running total decides.
   assert.match(reader, /Number\.isFinite\(declared\) && declared > SKIN_MAX_BYTES/);
   assert.match(reader, /total \+= value\.byteLength;\s*if \(total > SKIN_MAX_BYTES\) \{\s*await reader\.cancel\(\)/);
