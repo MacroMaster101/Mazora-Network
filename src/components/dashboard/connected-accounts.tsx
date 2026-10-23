@@ -23,6 +23,7 @@ import { DiscordIcon, GoogleIcon } from "@/components/auth/provider-icons";
 import { MinecraftMark } from "@/components/shared/minecraft-mark";
 import { MinecraftAvatar } from "@/components/shared/minecraft-avatar";
 import { Modal, useToast } from "@/components/ui";
+import { OwnerConfirmDialog } from "@/components/account/owner-confirm";
 import { useExampleIgn } from "@/lib/example-names";
 
 const initialAuth: AuthResult = { ok: false };
@@ -70,8 +71,13 @@ export function ConnectedAccounts({ email, hasGoogle, initialDiscord, initialMin
   const pathname = usePathname();
   const returnPath = pathname.startsWith("/admin") ? "/admin/account" : "/dashboard/settings";
 
+  // Linking a login needs "Confirm it's you" first; the server says so, then the
+  // same request is made again once it is confirmed.
+  const [confirmingOwner, setConfirmingOwner] = useState<"connect" | "switch" | null>(null);
+
   useEffect(() => {
-    if (!oauthState.ok && oauthState.message) toast(oauthState.message, "error");
+    if (oauthState.needsOwnerConfirm) setConfirmingOwner("connect");
+    else if (!oauthState.ok && oauthState.message) toast(oauthState.message, "error");
   }, [oauthState, toast]);
 
   useEffect(() => {
@@ -81,7 +87,8 @@ export function ConnectedAccounts({ email, hasGoogle, initialDiscord, initialMin
   }, [unlinkState, toast]);
 
   useEffect(() => {
-    if (!switchState.ok && switchState.message) toast(switchState.message, "error");
+    if (switchState.needsOwnerConfirm) setConfirmingOwner("switch");
+    else if (!switchState.ok && switchState.message) toast(switchState.message, "error");
   }, [switchState, toast]);
 
   useEffect(() => {
@@ -164,6 +171,18 @@ export function ConnectedAccounts({ email, hasGoogle, initialDiscord, initialMin
 
   return (
     <div className="space-y-3">
+      {confirmingOwner && (
+        <OwnerConfirmDialog
+          description="Connecting a login adds a new way to sign in, so confirm it's you first."
+          onClose={() => setConfirmingOwner(null)}
+          onConfirmed={() => {
+            const retry = confirmingOwner;
+            setConfirmingOwner(null);
+            if (retry === "connect") connectDiscord();
+            else startTransition(() => switchFormAction());
+          }}
+        />
+      )}
       <div className="connected-account-row flex items-center gap-3 rounded-xl border border-line-strong bg-ink/5 px-4 py-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line-strong bg-card">
           <GoogleIcon className="h-5 w-5" />

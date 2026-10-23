@@ -26,6 +26,7 @@ import { AccountSecurity } from "@/components/dashboard/account-security";
 import { TwoFactorCard, type TwoFactorOverview } from "@/components/dashboard/two-factor-card";
 import { PasskeysCard, type PasskeyProof } from "@/components/dashboard/passkeys-card";
 import { getMyPasskeys, type PasskeySummary } from "@/lib/data/passkeys";
+import { ownerProofKind } from "@/lib/auth/owner-proof-kind";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { remainingRecoveryCodes } from "@/lib/auth/recovery-codes";
 import { ProfileForm } from "@/components/dashboard/profile-form";
@@ -54,10 +55,9 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-/** How adding a passkey confirms the owner: the same order confirmOwner() checks. */
+/** How adding a passkey confirms the owner: the same order confirmAccountOwner() checks. */
 function passkeyProof(twoFactor: TwoFactorOverview | null, hasPassword: boolean): PasskeyProof {
-  if (twoFactor?.enabled) return "code";
-  return hasPassword ? "password" : "email";
+  return ownerProofKind({ hasAuthenticator: Boolean(twoFactor?.enabled), hasPassword });
 }
 
 /** Full account settings: profile, password, connected accounts, delete account. */

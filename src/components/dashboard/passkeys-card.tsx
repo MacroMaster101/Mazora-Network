@@ -2,24 +2,23 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Fingerprint, LifeBuoy, Loader2, Mail, Pencil, Plus, ShieldCheck, Smartphone, Trash2 } from "lucide-react";
-import { OtpInput } from "@/components/auth/auth-forms";
+import { ChevronRight, Fingerprint, Loader2, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { OwnerConfirmForm } from "@/components/account/owner-confirm";
 import { FormRow, Input, Modal, useToast } from "@/components/ui";
 import {
-  confirmPasskeyOwnerAction,
   deletePasskeyAction,
   finishPasskeyRegistrationAction,
-  passkeyConfirmationNeededAction,
   renamePasskeyAction,
-  sendPasskeyEmailCodeAction,
   startPasskeyRegistrationAction,
 } from "@/lib/actions/passkeys";
+import { ownerConfirmationStatusAction } from "@/lib/actions/owner-confirmation";
+import type { OwnerProof } from "@/lib/auth/owner-proof-kind";
 import { createPasskeyCredential, passkeyErrorMessage, passkeysSupported } from "@/lib/passkeys/webauthn-json";
 import type { PasskeySummary } from "@/lib/data/passkeys";
 import { cn, relative } from "@/lib/utils";
 
-/** How "Add a passkey" confirms it is the account owner (see confirmOwner in actions/passkeys). */
-export type PasskeyProof = "code" | "password" | "email";
+/** How "Add a passkey" confirms it is the account owner (lib/auth/owner-confirmation). */
+export type PasskeyProof = OwnerProof;
 
 const actionButton =
   "inline-flex items-center gap-1.5 rounded-lg border border-line-strong px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-accent/50 hover:text-accent-bright disabled:opacity-50";
@@ -216,9 +215,9 @@ export function PasskeysCard({ passkeys, proof }: { passkeys: PasskeySummary[] |
 
 /**
  * Two steps, like the big providers: "Confirm it's you" (skipped if done in the
- * last 15 minutes), then "Create your passkey", which opens the device prompt.
- * No name is asked for; the passkey is named after the device and can be
- * renamed from the list.
+ * last 15 minutes, for any account change), then "Create your passkey", which
+ * opens the device prompt. No name is asked for; the passkey is named after the
+ * device and can be renamed from the list.
  */
 function AddPasskeyDialog({
   proof,
@@ -231,33 +230,15 @@ function AddPasskeyDialog({
 }) {
   const [step, setStep] = useState<"loading" | "confirm" | "create">("loading");
   const [needsConfirm, setNeedsConfirm] = useState(true);
-  const [status, setStatus] = useState<"idle" | "confirming" | "device" | "saving">("idle");
+  const [status, setStatus] = useState<"idle" | "device" | "saving">("idle");
   const [error, setError] = useState<string | null>(null);
-  const [useRecovery, setUseRecovery] = useState(false);
-  // Google/Discord-only accounts: whether the emailed code is on its way.
-  const [emailSent, setEmailSent] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  const busy = status !== "idle" || sending;
-
-  const sendEmailCode = async () => {
-    setError(null);
-    setNotice(null);
-    setSending(true);
-    const result = await sendPasskeyEmailCodeAction();
-    setSending(false);
-    if (!result.ok) {
-      setError(result.message);
-      return;
-    }
-    setEmailSent(true);
-    setNotice(result.message ?? "Code sent.");
-  };
+  const busy = status !== "idle";
 
   useEffect(() => {
     let active = true;
-    void passkeyConfirmationNeededAction().then((needed) => {
+    void ownerConfirmationStatusAction().then((current) => {
       if (!active) return;
+      const needed = current?.needed ?? true;
       setNeedsConfirm(needed);
       setStep(needed ? "confirm" : "create");
     });
@@ -265,18 +246,6 @@ function AddPasskeyDialog({
       active = false;
     };
   }, []);
-
-  const confirm = async (form: HTMLFormElement) => {
-    setError(null);
-    setStatus("confirming");
-    const result = await confirmPasskeyOwnerAction(new FormData(form));
-    setStatus("idle");
-    if (!result.ok) {
-      setError(result.message);
-      return;
-    }
-    setStep("create");
-  };
 
   const create = async () => {
     setError(null);
@@ -339,107 +308,14 @@ function AddPasskeyDialog({
         )}
 
         {step === "confirm" && (
-          <form
-            className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void confirm(event.currentTarget);
+          <OwnerConfirmForm
+            proof={proof}
+            onCancel={onClose}
+            onConfirmed={() => {
+              setError(null);
+              setStep("create");
             }}
-          >
-            {proof === "code" && (
-              <div className="grid gap-3">
-                <p className="text-sm font-semibold text-ink">
-                  {useRecovery ? "Enter one of your recovery codes" : "Enter the code from your authenticator app"}
-                </p>
-                {useRecovery ? (
-                  <Input
-                    key="recovery"
-                    id="passkey-recovery"
-                    name="recoveryCode"
-                    placeholder="XXXXX-XXXXX"
-                    aria-label="Recovery code"
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                    spellCheck={false}
-                    maxLength={20}
-                    required
-                    className="text-center font-mono tracking-widest"
-                    autoFocus
-                    disabled={busy}
-                  />
-                ) : (
-                  // Sends the form on the sixth digit, like the sign-in code screen.
-                  <OtpInput key="app" id="passkey-code" name="code" error={error ?? undefined} autoSubmit />
-                )}
-                {!useRecovery && (
-                  <p className="text-xs text-muted">The 6 digits from Google Authenticator or a similar app. Not your device PIN.</p>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUseRecovery((value) => !value);
-                    setError(null);
-                  }}
-                  className="inline-flex items-center gap-1.5 justify-self-start text-xs font-semibold text-accent-bright hover:underline"
-                >
-                  {useRecovery ? <Smartphone size={14} aria-hidden="true" /> : <LifeBuoy size={14} aria-hidden="true" />}
-                  {useRecovery ? "Use your authenticator app instead" : "Lost your phone? Use a recovery code"}
-                </button>
-              </div>
-            )}
-            {proof === "password" && (
-              <FormRow label="Your current password" htmlFor="passkey-password">
-                <Input id="passkey-password" name="password" type="password" autoComplete="current-password" required autoFocus disabled={busy} />
-              </FormRow>
-            )}
-            {proof === "email" && (
-              <div className="grid gap-3">
-                <p className="text-sm text-muted">
-                  Your account signs in with Google or Discord, so there&apos;s no password to check. We&apos;ll email a
-                  6-digit code to your account email instead.
-                </p>
-                {emailSent ? (
-                  <>
-                    {notice && <p className="text-xs font-semibold text-success">{notice}</p>}
-                    <OtpInput key="email" id="passkey-email-code" name="emailCode" error={error ?? undefined} autoSubmit />
-                    <button
-                      type="button"
-                      onClick={() => void sendEmailCode()}
-                      disabled={busy}
-                      className="inline-flex items-center gap-1.5 justify-self-start text-xs font-semibold text-accent-bright hover:underline disabled:opacity-50"
-                    >
-                      <Mail size={14} aria-hidden="true" /> Send a new code
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void sendEmailCode()}
-                    disabled={busy}
-                    className="btn btn-ghost btn-sm justify-self-start"
-                  >
-                    {sending ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Mail size={15} aria-hidden="true" />}
-                    {sending ? "Sending…" : "Email me a code"}
-                  </button>
-                )}
-              </div>
-            )}
-            <p className="text-xs text-muted">You won&apos;t be asked again for 15 minutes.</p>
-            {error && (
-              <p role="alert" className="text-sm font-semibold text-danger">
-                {error}
-              </p>
-            )}
-            <div className="flex justify-end gap-2">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={onClose} disabled={busy}>
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary btn-sm" disabled={busy || (proof === "email" && !emailSent)}>
-                {status === "confirming" && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
-                {status === "confirming" ? "Checking…" : "Confirm"}
-              </button>
-            </div>
-          </form>
+          />
         )}
 
         {step === "create" && (

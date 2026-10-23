@@ -76,12 +76,12 @@ test("deletion checks the bound code before any account data is removed", () => 
 
 test("a code sent for one purpose cannot be spent on another", async () => {
   const { proof } = fixture();
-  assert.equal(await proof.sendEmailProofCode("passkey-add", subject, "alex@example.com"), true);
-  assert.equal(await proof.consumeAccountDeletionCode(subject, "123456"), false, "a passkey code does not delete the account");
-  assert.equal(await proof.consumeEmailProofCode("passkey-add", { ...subject, sessionId: "another-fake-session" }, "123456"), false);
-  assert.equal(await proof.consumeEmailProofCode("passkey-add", subject, "123456"), true);
+  assert.equal(await proof.sendEmailProofCode("account-change", subject, "alex@example.com"), true);
+  assert.equal(await proof.consumeAccountDeletionCode(subject, "123456"), false, "a confirmation code does not delete the account");
+  assert.equal(await proof.consumeEmailProofCode("account-change", { ...subject, sessionId: "another-fake-session" }, "123456"), false);
+  assert.equal(await proof.consumeEmailProofCode("account-change", subject, "123456"), true);
 
   await proof.sendAccountDeletionCode(subject, "alex@example.com");
-  assert.equal(await proof.consumeEmailProofCode("passkey-add", subject, "123457"), false, "a deletion code does not add a passkey");
+  assert.equal(await proof.consumeEmailProofCode("account-change", subject, "123457"), false, "a deletion code does not confirm a sign-in change");
   assert.equal(await proof.consumeAccountDeletionCode(subject, "123457"), true);
 });

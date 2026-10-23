@@ -20,6 +20,8 @@ import { throttleAuthAction } from "@/lib/rate-limit";
 import { SIGN_IN_FAILED, SUSPENDED_PATH, UNRESOLVED_IDENTIFIER, looksLikeEmail } from "@/lib/auth/login-identifier";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { accountHasPassword, passwordMatchesCurrent } from "@/lib/auth/reauth";
+import { hasOwnerGrant } from "@/lib/auth/owner-grant";
+import { ownerGrantSubject } from "@/lib/auth/owner-confirmation";
 import { getDb } from "@/lib/db/client";
 import { sql } from "drizzle-orm";
 import {
@@ -80,7 +82,11 @@ export interface AuthResult {
   needsCode?: boolean;
   /** Set by finishPasswordResetAction when the account also needs its two-step code. */
   needsTwoFactor?: boolean;
+  /** Linking a login or setting a first password: "Confirm it's you" (actions/owner-confirmation) first. */
+  needsOwnerConfirm?: boolean;
 }
+
+const CONFIRM_OWNER = "Confirm it's you first.";
 
 /** Supabase's distinct error for "credentials correct, email not confirmed" — matched by
  * code first (current API) with a message fallback (older client versions). */
@@ -706,6 +712,12 @@ export async function oauthAction(_previous: AuthResult, formData: FormData): Pr
       };
     }
 
+    // A linked login is a lasting way in that survives a password change and
+    // signing other devices out, so a live session alone can't add one.
+    if (!(await hasOwnerGrant(await ownerGrantSubject(existingUser.user.id)))) {
+      return { ok: false, needsOwnerConfirm: true, message: CONFIRM_OWNER };
+    }
+
     const { data, error } = await supabase.auth.linkIdentity({ provider, options: oauthOptions });
     if (error || !data.url) {
       const reason = error?.message?.toLowerCase() ?? "";
@@ -1196,9 +1208,10 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       attacker's own session survived the takeover. finishPasswordResetAction
       already signs out after a change; this one did not.
 
-      Only applies once a password exists: someone who signed up through Google
-      or Discord has nothing to prove yet, and demanding it would leave them
-      unable to ever set one.
+      Someone who signed up through Google or Discord has no password to prove
+      yet, but setting the first one still adds a way in and signs every other
+      device out. So they confirm it's them the way a passkey is added: the
+      authenticator code, or a code emailed to the account (owner pass).
     */
     const hasPassword = accountHasPassword(userData?.user);
     if (hasPassword) {
@@ -1209,6 +1222,8 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       if (!(await passwordMatchesCurrent(email, currentPassword))) {
         return { ok: false, errors: { currentPassword: "That is not your current password." } };
       }
+    } else if (!userData?.user || !(await hasOwnerGrant(await ownerGrantSubject(userData.user.id)))) {
+      return { ok: false, needsOwnerConfirm: true, message: CONFIRM_OWNER };
     }
 
     if (await passwordMatchesCurrent(email, parsed.data.password)) {
@@ -1311,6 +1326,12 @@ export async function switchDiscordAction(_previous: AuthResult): Promise<AuthRe
   const remaining = (data.user.identities?.length ?? 0) - 1;
   if (remaining < 1) {
     return { ok: false, message: "Add Google or a password before switching your only sign-in method." };
+  }
+
+  // Switching links a new Discord login, so it needs the owner pass, as
+  // oauthAction's linking does. Checked before the current one is unlinked.
+  if (!(await hasOwnerGrant(await ownerGrantSubject(data.user.id)))) {
+    return { ok: false, needsOwnerConfirm: true, message: CONFIRM_OWNER };
   }
 
   const { error: unlinkError } = await supabase.auth.unlinkIdentity(discordIdentity);

@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/two-factor";
 import { Input, Modal } from "@/components/ui";
 import { OtpInput } from "@/components/auth/auth-forms";
+import { OwnerConfirmPanel } from "@/components/account/owner-confirm";
 import { RecoveryCodesView } from "./recovery-codes-view";
 
 type Mode = "setup" | "replace";
@@ -220,6 +221,16 @@ export function TwoFactorSetupScreen({
                 <span className="inline-flex items-center gap-2 text-sm">
                   <Loader2 size={18} className="animate-spin" /> Preparing your QR code…
                 </span>
+              </div>
+            ) : enrollment.needsOwnerConfirm ? (
+              /* Turning it on: confirm it's the owner before a QR code is made,
+                 so a copied session can't lock the owner out with its own app. */
+              <div className="grid min-h-[18rem] content-center">
+                <OwnerConfirmPanel
+                  description="So that only you can turn on two-step verification for this account."
+                  onConfirmed={() => void start()}
+                  onCancel={onClose}
+                />
               </div>
             ) : needsConfirm ? (
               /* Replacing: prove it's you with the current authenticator (or a
