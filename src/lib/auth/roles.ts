@@ -29,6 +29,18 @@ export function isRoleKey(value: unknown): value is Role {
 /** The highest rung (Web Dev). Holders of it have no one above them to appeal to. */
 export const TOP_ROLE: Role = "web_dev";
 
+/** The rank kept off public pages: the site's developers, not community staff. */
+export const INTERNAL_ROLE: Role = "web_dev";
+
+/**
+ * The rank the public sees. Web Dev reads as Member on every public surface:
+ * the player list, rank chips on forum and suggestion posts, the online
+ * roster and bylines. The team page leaves its holders out altogether.
+ */
+export function publicRole(role: Role): Role {
+  return role === INTERNAL_ROLE ? "member" : role;
+}
+
 /**
  * Whether `actor` may change or remove an account currently holding `target`.
  * Everyone may act strictly below their own rank; the top rank may also act on

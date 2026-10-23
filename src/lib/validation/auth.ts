@@ -21,7 +21,7 @@ export const otpTypes = ["signup", "email", "recovery"] as const;
 export type OtpType = (typeof otpTypes)[number];
 
 const email = z
-  .string({ required_error: "Enter your email address." })
+  .string({ error: "Enter your email address." })
   .trim()
   .min(1, "Enter your email address.")
   .max(254, "Email address is too long.")
@@ -29,12 +29,12 @@ const email = z
   .transform((value) => value.toLowerCase());
 
 const password = z
-  .string({ required_error: "Enter your password." })
+  .string({ error: "Enter your password." })
   .min(1, "Enter your password.")
   .max(128, "Password must be 128 characters or fewer.");
 
 const newPassword = z
-  .string({ required_error: "Create a password." })
+  .string({ error: "Create a password." })
   .min(8, "Use at least 8 characters.")
   .max(128, "Password must be 128 characters or fewer.")
   .regex(/[a-z]/, "Add at least one lowercase letter.")
@@ -60,7 +60,7 @@ export const USERNAME_MAX_LENGTH = 16;
  * registration and the profile editor so their limits cannot drift apart.
  */
 export const displayName = z
-  .string({ required_error: "Enter a display name." })
+  .string({ error: "Enter a display name." })
   .trim()
   .min(DISPLAY_NAME_MIN_LENGTH, "Display name must be at least 2 characters.")
   .max(DISPLAY_NAME_MAX_LENGTH, "Display name must be 64 characters or fewer.")
@@ -102,7 +102,7 @@ export function cleanDisplayName(candidates: readonly unknown[], fallback: strin
  * there is no ambiguity to resolve.
  */
 const loginIdentifier = z
-  .string({ required_error: "Enter your username or email." })
+  .string({ error: "Enter your username or email." })
   .trim()
   .min(1, "Enter your username or email.")
   .max(254, "That is too long.");
@@ -117,7 +117,7 @@ export const registerSchema = z
   .object({
     displayName,
     username: z
-      .string({ required_error: "Enter your Minecraft username." })
+      .string({ error: "Enter your Minecraft username." })
       .trim()
       .min(3, "Use at least 3 characters.")
       .max(USERNAME_MAX_LENGTH, "Minecraft usernames can be at most 16 characters.")
@@ -125,11 +125,11 @@ export const registerSchema = z
     email,
     password: newPassword,
     confirm: z
-      .string({ required_error: "Confirm your password." })
+      .string({ error: "Confirm your password." })
       .min(1, "Confirm your password.")
       .max(128, "Password must be 128 characters or fewer."),
     terms: z.literal("on", {
-      errorMap: () => ({ message: "Accept the community rules and terms to continue." }),
+      error: "Accept the community rules and terms to continue.",
     }),
   })
   .refine((data) => data.password === data.confirm, {
@@ -142,7 +142,7 @@ export const resetRequestSchema = z.object({ email });
 export const resetCodeSchema = z.object({
   email,
   token: z
-    .string({ required_error: "Enter the 6-digit code." })
+    .string({ error: "Enter the 6-digit code." })
     .trim()
     .regex(/^\d{6}$/, "Enter the 6-digit code from your email."),
 });
@@ -151,7 +151,7 @@ export const newPasswordSchema = z
   .object({
     password: newPassword,
     confirm: z
-      .string({ required_error: "Confirm your new password." })
+      .string({ error: "Confirm your new password." })
       .min(1, "Confirm your new password.")
       .max(128, "Password must be 128 characters or fewer."),
   })

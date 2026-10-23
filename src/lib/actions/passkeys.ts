@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { getSession, getSessionUserId, getSignInSessionId, isTwoFactorPending, landingPathFor, twoFactorPath } from "@/lib/auth";
-import { hasPasskeyGrant, issuePasskeyGrant } from "@/lib/auth/passkey-grant";
+import { getSession, getSessionUserId, isTwoFactorPending, landingPathFor, twoFactorPath } from "@/lib/auth";
+import { hasOwnerGrant } from "@/lib/auth/owner-grant";
+import { ownerGrantSubject } from "@/lib/auth/owner-confirmation";
 import { issuePasskeySignInGrant } from "@/lib/auth/passkey-signin-grant";
 import { assertionUserVerified } from "@/lib/passkeys/user-verified";
 import { passkeyAssertionSchema } from "@/lib/passkeys/assertion-schema";
@@ -19,9 +20,7 @@ import { scheduleSecurityAlerts } from "@/lib/security-alerts";
 import { throttleAuthAction } from "@/lib/rate-limit";
 import { safeNext } from "@/lib/safe-redirect";
 import { SESSION_ONLY_COOKIE, sessionOnlyMarkerOptions } from "@/lib/supabase/session-cookie";
-import { accountHasPassword, confirmSecondStep, passwordMatchesCurrent } from "@/lib/auth/reauth";
 import { recordAudit } from "@/lib/audit-log";
-import { consumeEmailProofCode, sendEmailProofCode } from "@/lib/auth/account-deletion-proof";
 
 /**
  * Passkeys (Supabase Auth, WebAuthn), driven from the server.
@@ -205,101 +204,14 @@ async function signedIn() {
   return { supabase, user: data.user, username: session.username };
 }
 
-/** The confirmation grant is bound to this user and this sign-in's session. */
-async function grantSubject(actor: NonNullable<Awaited<ReturnType<typeof signedIn>>>) {
-  return { userId: actor.user.id, sessionId: (await getSignInSessionId()) ?? "" };
-}
-
 /**
- * Adding a passkey adds a way into the account, so it needs the owner again,
- * right now, like the other changes in lib/auth/reauth.ts: the authenticator
- * code (or a recovery code) when two-step verification is on, otherwise the
- * current password. An account with neither (Google or Discord only) proves
- * its inbox instead: a single-use code emailed to it, bound to this session
- * (sendPasskeyEmailCodeAction).
- *
- * It used to accept "signed in within the last 15 minutes" for those accounts,
- * read from the account's last_sign_in_at. That is account-wide: the owner
- * signing in on their phone made an old session on another computer pass too.
- * Returns an error message, or null when the check is passed.
+ * Adding a passkey adds a way into the account, so it needs the owner pass
+ * (lib/auth/owner-grant): "Confirm it's you" from the last 15 minutes, issued by
+ * confirmAccountOwnerAction in actions/owner-confirmation, the same check that
+ * guards linking a login, setting a first password and turning on two-step.
  */
-async function confirmOwner(actor: NonNullable<Awaited<ReturnType<typeof signedIn>>>, formData: FormData): Promise<string | null> {
-  const { data: factors, error } = await actor.supabase.auth.mfa.listFactors();
-  if (error) return UNAVAILABLE;
-  if (factors.totp.length > 0) {
-    return confirmSecondStep(actor.supabase, actor.user, formData, "two-step-settings");
-  }
-
-  if (accountHasPassword(actor.user)) {
-    const password = String(formData.get("password") ?? "");
-    if (!password) return "Enter your current password.";
-    const throttled = await throttleAuthAction("reauth-password", { limit: 5, windowMs: 15 * 60_000, identity: actor.user.id });
-    if (throttled) return throttled;
-    if (!actor.user.email || !(await passwordMatchesCurrent(actor.user.email, password))) return "That password is incorrect.";
-    return null;
-  }
-
-  const emailCode = String(formData.get("emailCode") ?? "");
-  if (!emailCode) return "Enter the code we emailed you.";
-  const throttled = await throttleAuthAction("passkey-email-code", { limit: 5, windowMs: 15 * 60_000, identity: actor.user.id });
-  if (throttled) return throttled;
-  if (!(await consumeEmailProofCode("passkey-add", await grantSubject(actor), emailCode))) {
-    return "That code is wrong or has expired. Send a new one.";
-  }
-  return null;
-}
-
-/**
- * For accounts with no password and no authenticator: email a code that
- * confirms it's the owner adding a passkey (see confirmOwner). It goes only to
- * the account's own confirmed address and works only in this session.
- */
-export async function sendPasskeyEmailCodeAction(): Promise<PasskeyResult> {
-  const actor = await signedIn();
-  if (!actor) return { ok: false, message: "Your session has expired. Sign in again." };
-
-  const { data: factors, error } = await actor.supabase.auth.mfa.listFactors();
-  if (error) return { ok: false, message: UNAVAILABLE };
-  if (factors.totp.length > 0 || accountHasPassword(actor.user)) {
-    return { ok: false, message: "Confirm with your password or authenticator code instead." };
-  }
-  if (!actor.user.email || !actor.user.email_confirmed_at) {
-    return { ok: false, message: "A confirmed email address is needed to add a passkey." };
-  }
-
-  const throttled = await throttleAuthAction("passkey-email-send", { limit: 3, windowMs: 15 * 60_000, identity: actor.user.id });
-  if (throttled) return { ok: false, message: throttled };
-
-  const sent = await sendEmailProofCode("passkey-add", await grantSubject(actor), actor.user.email);
-  return sent
-    ? { ok: true, message: "We sent a 6-digit code to your account email. It expires in 10 minutes." }
-    : { ok: false, message: "The code couldn't be sent. Try again later." };
-}
-
-/** Whether "Add a passkey" must ask "Confirm it's you" first (no grant from the last 15 minutes). */
-export async function passkeyConfirmationNeededAction(): Promise<boolean> {
-  const actor = await signedIn();
-  if (!actor) return true;
-  return !(await hasPasskeyGrant(await grantSubject(actor)));
-}
-
-/**
- * Adding, step 1: "Confirm it's you" (see confirmOwner). On success a grant
- * holds for 15 minutes, like GitHub's sudo mode, so the next passkey added in
- * that time goes straight to the device prompt.
- */
-export async function confirmPasskeyOwnerAction(formData: FormData): Promise<PasskeyResult> {
-  const actor = await signedIn();
-  if (!actor) return { ok: false, message: "Your session has expired. Sign in again." };
-
-  const throttled = await throttleAuthAction("passkey-add", { limit: 10, windowMs: 15 * 60_000, identity: actor.user.id });
-  if (throttled) return { ok: false, message: throttled };
-
-  const proofError = await confirmOwner(actor, formData);
-  if (proofError) return { ok: false, message: proofError };
-
-  if (!(await issuePasskeyGrant(await grantSubject(actor)))) return { ok: false, message: UNAVAILABLE };
-  return { ok: true };
+async function ownerConfirmed(actor: NonNullable<Awaited<ReturnType<typeof signedIn>>>): Promise<boolean> {
+  return hasOwnerGrant(await ownerGrantSubject(actor.user.id));
 }
 
 /** Adding, step 2: with a fresh confirmation, get a challenge for the device prompt. */
@@ -310,7 +222,7 @@ export async function startPasskeyRegistrationAction(): Promise<PasskeyChallenge
   const throttled = await throttleAuthAction("passkey-add", { limit: 10, windowMs: 15 * 60_000, identity: actor.user.id });
   if (throttled) return { ok: false, message: throttled };
 
-  if (!(await hasPasskeyGrant(await grantSubject(actor)))) {
+  if (!(await ownerConfirmed(actor))) {
     return { ok: false, message: CONFIRM_FIRST };
   }
 
@@ -344,7 +256,7 @@ export async function finishPasskeyRegistrationAction(input: {
   const name = passkeyNameSchema.safeParse(input?.name ?? "");
   if (!challengeId.success || !credential.success) return { ok: false, message: "The passkey couldn't be saved. Try again." };
   // The grant is checked again here: a challenge alone must not be enough.
-  if (!(await hasPasskeyGrant(await grantSubject(actor)))) return { ok: false, message: CONFIRM_FIRST };
+  if (!(await ownerConfirmed(actor))) return { ok: false, message: CONFIRM_FIRST };
 
   const { data, error } = await actor.supabase.auth.passkey.verifyRegistration({
     challengeId: challengeId.data,

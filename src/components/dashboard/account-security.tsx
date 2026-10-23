@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, Loader2, LockKeyhole, MailCheck, RotateCw, ShieldCheck } from "lucide-react";
 import { updatePasswordAction, type AuthResult } from "@/lib/actions/auth";
+import { OwnerConfirmDialog } from "@/components/account/owner-confirm";
 import { FormRow, Input, useToast } from "@/components/ui";
 
 const initialAuth: AuthResult = { ok: false };
@@ -46,11 +47,18 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
   // the change succeeds or is cancelled, so the typed passwords are reused.
   const [codeRequested, setCodeRequested] = useState(false);
   const [code, setCode] = useState("");
+  const [confirmingOwner, setConfirmingOwner] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
     if (state.needsCode) setCodeRequested(true);
+    // Setting a first password: "Confirm it's you" first, then the same form is sent again.
+    if (state.needsOwnerConfirm) {
+      setConfirmingOwner(true);
+      return;
+    }
     if (state.ok && state.message) {
       toast(state.message, "success");
       setIsOpen(false);
@@ -90,171 +98,185 @@ export function AccountSecurity({ hasPassword }: AccountSecurityProps) {
     (!codeRequested || code.replace(/\s+/g, "").length >= 6);
 
   return (
-    <form
-      action={formAction}
-      className="space-y-3 rounded-xl border border-line-strong bg-ink/5 p-4"
-    >
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <LockKeyhole size={15} className="text-accent-bright" />
-        {hasPassword ? "Change password" : "Set a password"}
-      </div>
-      <p className="text-xs text-muted">
-        {hasPassword
-          ? "Confirm your current password, then choose a new one."
-          : "Set a password so you can also sign in with your email address."}
-      </p>
+    <>
+      {/* Outside the form: its own form must not submit this one. */}
+      {confirmingOwner && (
+        <OwnerConfirmDialog
+          description="Setting a password adds a new way to sign in, so confirm it's you first."
+          onClose={() => setConfirmingOwner(false)}
+          onConfirmed={() => {
+            setConfirmingOwner(false);
+            formRef.current?.requestSubmit();
+          }}
+        />
+      )}
+      <form
+        ref={formRef}
+        action={formAction}
+        className="space-y-3 rounded-xl border border-line-strong bg-ink/5 p-4"
+      >
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <LockKeyhole size={15} className="text-accent-bright" />
+          {hasPassword ? "Change password" : "Set a password"}
+        </div>
+        <p className="text-xs text-muted">
+          {hasPassword
+            ? "Confirm your current password, then choose a new one."
+            : "Set a password so you can also sign in with your email address."}
+        </p>
 
-      {/*
-        Only shown when a password already exists. Accounts created through
-        Google or Discord have nothing to confirm, and the action skips the
-        check for them on the same condition — asking here would leave them
-        permanently unable to set one.
-      */}
-      {hasPassword && (
-        <FormRow
-          label="Current password"
-          htmlFor="settings-current-password"
-          error={state.errors?.currentPassword}
-        >
+        {/*
+          Only shown when a password already exists. Accounts created through
+          Google or Discord have nothing to confirm, and the action skips the
+          check for them on the same condition — asking here would leave them
+          permanently unable to set one.
+        */}
+        {hasPassword && (
+          <FormRow
+            label="Current password"
+            htmlFor="settings-current-password"
+            error={state.errors?.currentPassword}
+          >
+            <div className="relative">
+              <Input
+                id="settings-current-password"
+                name="currentPassword"
+                type={showCurrent ? "text" : "password"}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Your current password"
+                autoComplete="current-password"
+                required
+                maxLength={128}
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrent((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+                aria-label={showCurrent ? "Hide current password" : "Show current password"}
+              >
+                {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </FormRow>
+        )}
+
+        <FormRow label="New password" htmlFor="settings-password" error={tooShort ? "Must be at least 8 characters" : state.errors?.password}>
           <div className="relative">
             <Input
-              id="settings-current-password"
-              name="currentPassword"
-              type={showCurrent ? "text" : "password"}
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Your current password"
-              autoComplete="current-password"
+              id="settings-password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Create a secure password"
+              autoComplete="new-password"
               required
+              minLength={8}
               maxLength={128}
+              aria-invalid={tooShort}
             />
             <button
               type="button"
-              onClick={() => setShowCurrent((v) => !v)}
+              onClick={() => setShowPassword((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
-              aria-label={showCurrent ? "Hide current password" : "Show current password"}
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
+              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>
+          {password && <PasswordStrengthMini value={password} />}
         </FormRow>
-      )}
 
-      <FormRow label="New password" htmlFor="settings-password" error={tooShort ? "Must be at least 8 characters" : state.errors?.password}>
-        <div className="relative">
-          <Input
-            id="settings-password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Create a secure password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            maxLength={128}
-            aria-invalid={tooShort}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
-            aria-label={showPassword ? "Hide password" : "Show password"}
-          >
-            {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-          </button>
-        </div>
-        {password && <PasswordStrengthMini value={password} />}
-      </FormRow>
-
-      <FormRow label="Confirm password" htmlFor="settings-confirm" error={mismatch ? "Passwords do not match" : state.errors?.confirm}>
-        <div className="relative">
-          <Input
-            id="settings-confirm"
-            name="confirm"
-            type={showConfirm ? "text" : "password"}
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Repeat your new password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            maxLength={128}
-            aria-invalid={mismatch}
-          />
-          <button
-            type="button"
-            onClick={() => setShowConfirm((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
-            aria-label={showConfirm ? "Hide password" : "Show password"}
-          >
-            {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
-          </button>
-        </div>
-      </FormRow>
-
-      {/*
-        Supabase "Secure password change": a session older than 24 hours must
-        confirm the emailed code before the password can change.
-      */}
-      {codeRequested && (
-        <FormRow label="Confirmation code" htmlFor="settings-reauth-code" error={state.errors?.nonce}>
-          <Input
-            id="settings-reauth-code"
-            name="nonce"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="6-digit code from the email"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={12}
-            required
-          />
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-            <span className="inline-flex items-center gap-1.5">
-              <MailCheck size={13} className="text-accent-bright" /> Check your email for the code.
-            </span>
+        <FormRow label="Confirm password" htmlFor="settings-confirm" error={mismatch ? "Passwords do not match" : state.errors?.confirm}>
+          <div className="relative">
+            <Input
+              id="settings-confirm"
+              name="confirm"
+              type={showConfirm ? "text" : "password"}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="Repeat your new password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              maxLength={128}
+              aria-invalid={mismatch}
+            />
             <button
-              type="submit"
-              name="resendCode"
-              value="1"
-              formNoValidate
-              disabled={pending}
-              className="inline-flex items-center gap-1 font-semibold text-accent-bright hover:underline disabled:opacity-50"
+              type="button"
+              onClick={() => setShowConfirm((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+              aria-label={showConfirm ? "Hide password" : "Show password"}
             >
-              <RotateCw size={12} /> Send a new code
+              {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>
         </FormRow>
-      )}
 
-      <div className="flex items-center gap-2">
-        <button
-          type="submit"
-          disabled={!canSubmit || pending}
-          className="btn btn-primary btn-sm disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {pending ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <ShieldCheck size={14} />
-          )}
-          {pending ? "Saving…" : codeRequested ? "Confirm and update" : hasPassword ? "Update password" : "Set password"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setIsOpen(false);
-            setPassword("");
-            setConfirm("");
-            setCodeRequested(false);
-            setCode("");
-          }}
-          className="btn btn-ghost btn-sm"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
+        {/*
+          Supabase "Secure password change": a session older than 24 hours must
+          confirm the emailed code before the password can change.
+        */}
+        {codeRequested && (
+          <FormRow label="Confirmation code" htmlFor="settings-reauth-code" error={state.errors?.nonce}>
+            <Input
+              id="settings-reauth-code"
+              name="nonce"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="6-digit code from the email"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={12}
+              required
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+              <span className="inline-flex items-center gap-1.5">
+                <MailCheck size={13} className="text-accent-bright" /> Check your email for the code.
+              </span>
+              <button
+                type="submit"
+                name="resendCode"
+                value="1"
+                formNoValidate
+                disabled={pending}
+                className="inline-flex items-center gap-1 font-semibold text-accent-bright hover:underline disabled:opacity-50"
+              >
+                <RotateCw size={12} /> Send a new code
+              </button>
+            </div>
+          </FormRow>
+        )}
+
+        <div className="flex items-center gap-2">
+          <button
+            type="submit"
+            disabled={!canSubmit || pending}
+            className="btn btn-primary btn-sm disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <ShieldCheck size={14} />
+            )}
+            {pending ? "Saving…" : codeRequested ? "Confirm and update" : hasPassword ? "Update password" : "Set password"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false);
+              setPassword("");
+              setConfirm("");
+              setCodeRequested(false);
+              setCode("");
+            }}
+            className="btn btn-ghost btn-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </>
   );
 }

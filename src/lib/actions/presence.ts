@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db/client";
-import { actionClientKey, rateLimitShared } from "@/lib/rate-limit";
+import { accountKey, rateLimitShared } from "@/lib/rate-limit";
 import { isPresenceChoice, PRESENCE_LABELS } from "@/lib/presence-rules";
 import { announcePresenceChange } from "@/lib/presence/announce";
 
@@ -20,7 +20,7 @@ export async function setPresenceStatusAction(status: string): Promise<{ ok: boo
   if (!session || !userId) return { ok: false, message: "You must be signed in to set a status." };
   if (!isPresenceChoice(status)) return { ok: false, message: "That status is not available." };
 
-  const limit = await rateLimitShared(await actionClientKey("presence-status", userId), { limit: 20, windowMs: 60_000 });
+  const limit = await rateLimitShared(accountKey("presence-status", userId), { limit: 20, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "You're changing status too fast. Wait a moment." };
 
   const db = getDb();

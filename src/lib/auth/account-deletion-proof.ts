@@ -9,13 +9,14 @@ import { sendEmail } from "@/lib/email/send";
 /**
  * Single-use email codes for accounts with no password and no authenticator
  * (Google or Discord only): the one secret such an account can still prove
- * is its inbox. Used before deleting the account, and before adding a passkey.
+ * is its inbox. Used before deleting the account, and for "Confirm it's you"
+ * before a sign-in change (lib/auth/owner-confirmation).
  *
  * Each code is bound to the user, the requesting session and its purpose, so a
  * code sent for one cannot be spent on the other, nor from another browser.
  * Only a keyed digest is stored, for ten minutes.
  */
-export type EmailProofPurpose = "account-deletion" | "passkey-add";
+export type EmailProofPurpose = "account-deletion" | "account-change";
 
 const TTL_MS = 10 * 60_000;
 // Compare and delete in one command: concurrent requests cannot spend a code twice.
@@ -27,10 +28,10 @@ const MESSAGES: Record<EmailProofPurpose, (code: string) => { subject: string; t
     text: `Your account deletion confirmation code is ${code}. It expires in 10 minutes and works only in the session that requested it. Deleting your account is permanent. If you did not request this, do not share or enter this code.`,
     html: `<p>Your account deletion confirmation code is <strong>${code}</strong>.</p><p>It expires in 10 minutes and works only in the session that requested it. Deleting your account is permanent.</p><p>If you did not request this, do not share or enter this code.</p>`,
   }),
-  "passkey-add": (code) => ({
-    subject: "Confirm adding a passkey",
-    text: `Your code to add a passkey to your Mazora account is ${code}. It expires in 10 minutes and works only in the session that requested it. A passkey lets a device sign in to your account. If you did not request this, do not share or enter this code, and sign out of devices you do not recognise.`,
-    html: `<p>Your code to add a passkey to your Mazora account is <strong>${code}</strong>.</p><p>It expires in 10 minutes and works only in the session that requested it. A passkey lets a device sign in to your account.</p><p>If you did not request this, do not share or enter this code, and sign out of devices you do not recognise.</p>`,
+  "account-change": (code) => ({
+    subject: "Confirm it's you",
+    text: `Your Mazora confirmation code is ${code}. It expires in 10 minutes and works only in the session that requested it. It is needed to add a passkey, set a password, turn on two-step verification or connect a sign-in account. If you did not request this, do not share or enter this code, and sign out of devices you do not recognise.`,
+    html: `<p>Your Mazora confirmation code is <strong>${code}</strong>.</p><p>It expires in 10 minutes and works only in the session that requested it. It is needed to add a passkey, set a password, turn on two-step verification or connect a sign-in account.</p><p>If you did not request this, do not share or enter this code, and sign out of devices you do not recognise.</p>`,
   }),
 };
 

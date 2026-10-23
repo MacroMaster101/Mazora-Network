@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PLAY_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
-import { roleLabel } from "@/lib/auth/roles";
+import { publicRole, roleLabel } from "@/lib/auth/roles";
 import { getPatchUpdates } from "@/lib/data/patches";
 import { getFaqs } from "@/lib/data/faqs";
 import { getPlayPageConfig } from "@/lib/data/play-page-config";
@@ -24,7 +24,8 @@ export default async function AdminPlayPage() {
 
   const currentUser = {
     name: session.displayName ?? session.username ?? "Mazora Team",
-    role: session ? roleLabel(session.role) : "Owner",
+    // Saved onto patch notes the public reads: the internal Web Dev rank posts as the team.
+    role: session && publicRole(session.role) === session.role ? roleLabel(session.role) : "Official Team",
     avatarUrl: session?.avatarUrl || undefined,
   };
 

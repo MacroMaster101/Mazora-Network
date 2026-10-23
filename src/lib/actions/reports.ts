@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageSuggestions } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
-import { actionClientKey, rateLimitShared } from "@/lib/rate-limit";
+import { accountKey, rateLimitShared } from "@/lib/rate-limit";
 import { canReport, REPORT_REASONS, type ReportActor, type ReportTarget } from "@/lib/report-rules";
 
 /**
@@ -138,7 +138,7 @@ export async function reportContentAction(input: {
     return { ok: false, message };
   }
 
-  const limit = await rateLimitShared(await actionClientKey("content-report", userId), { limit: 10, windowMs: 60_000 });
+  const limit = await rateLimitShared(accountKey("content-report", userId), { limit: 10, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "You're reporting too fast. Wait a moment and try again." };
 
   try {
@@ -205,7 +205,7 @@ async function setReportStatus(
   // only ever matches status = 'open' and nothing can reopen a report, so
   // each one is audited at most once regardless of how many times this is
   // called.
-  const limit = await rateLimitShared(await actionClientKey("report-resolve", userId), { limit: 20, windowMs: 60_000 });
+  const limit = await rateLimitShared(accountKey("report-resolve", userId), { limit: 20, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "Too many changes. Wait a moment and try again." };
 
   const db = getDb();

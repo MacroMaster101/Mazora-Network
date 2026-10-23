@@ -1,6 +1,6 @@
 import "server-only";
 import { eq, sql } from "drizzle-orm";
-import { isRoleKey, isStaff, normalizeRoleKey } from "@/lib/auth/roles";
+import { INTERNAL_ROLE, isRoleKey, isStaff, normalizeRoleKey } from "@/lib/auth/roles";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -9,7 +9,7 @@ type AuthUserRecord = Awaited<ReturnType<NonNullable<ReturnType<typeof getSupaba
 import { getDb, schema } from "@/lib/db/client";
 import { isMinecraftAvatarUrl, resolveAvatarUrl } from "@/lib/avatar-source";
 import { buildDiscordIdentityMap } from "@/lib/discord-identity-map";
-import { isPlaceholderUsername, realDisplayName } from "@/lib/auth/placeholder";
+import { publicUsername, realDisplayName, siteUsername } from "@/lib/auth/placeholder";
 import type { Role } from "@/lib/types";
 
 /**
@@ -84,25 +84,8 @@ interface ProfileName {
   accountStatus: string;
 }
 
-/** The one place the site's username precedence is defined. */
-export function resolveUsername(input: {
-  profileUsername?: string | null;
-  metadataUsername?: unknown;
-  email?: string | null;
-  /** The account UUID, so the trigger's `player_<uuid8>` placeholder is matched exactly. */
-  userId?: string | null;
-}): string {
-  const profile = typeof input.profileUsername === "string" ? input.profileUsername.trim() : "";
-  // A real, chosen profile username wins. The signup trigger's placeholder
-  // (player_<uuid8>) is not a choice, so it falls through to the same
-  // email/metadata derivation the control-room widget uses — without this, an
-  // OAuth account read as "player_9d6a48d4" on the Users board while reading as
-  // its email handle everywhere the profile row was not consulted.
-  if (profile && !isPlaceholderUsername(profile, input.userId)) return profile;
-  const metadata = typeof input.metadataUsername === "string" ? input.metadataUsername.trim() : "";
-  if (metadata) return metadata;
-  return input.email?.split("@")[0] ?? "player";
-}
+/** The site's username precedence, defined once in lib/auth/placeholder. */
+export const resolveUsername = siteUsername;
 
 /** Site username for one account, resolved the same way the lists resolve it. */
 export async function usernameForUser(
@@ -345,16 +328,17 @@ export async function listPublicStaffAccounts(): Promise<PublicStaffMember[] | n
     // A suspended member keeps their rank but is not shown as part of the team.
     .filter(
       (account) =>
-        account.role !== "web_dev" &&
+        account.role !== INTERNAL_ROLE &&
         !account.pendingInvite &&
         account.publicStaffVisible &&
         account.accountStatus !== "suspended",
     )
-    .map(({ userId, username, role, minecraftUsername, minecraftSkinUrl, avatarUrl }) => {
+    .map(({ userId, username, email, role, minecraftUsername, minecraftSkinUrl, avatarUrl }) => {
       const safeSkinUrl = isMinecraftAvatarUrl(minecraftSkinUrl) ? minecraftSkinUrl : null;
       return {
         userId,
-        username,
+        // Never the email handle a member without a chosen name falls back to.
+        username: publicUsername({ username, email, userId }),
         role,
         minecraftUsername,
         minecraftSkinUrl: safeSkinUrl,

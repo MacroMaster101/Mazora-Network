@@ -7,7 +7,7 @@ import { canManageModule, FORUMS_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { deletePostAction } from "@/lib/actions/forums";
 import { getDb, schema } from "@/lib/db/client";
 import { removeForumPostImages } from "@/lib/forums/image-store";
-import { actionClientKey, rateLimitShared } from "@/lib/rate-limit";
+import { accountKey, rateLimitShared } from "@/lib/rate-limit";
 import { isValidSlug, moveInOrder, slugify } from "@/lib/forums-rules";
 
 export interface ForumAdminResult {
@@ -410,7 +410,7 @@ async function closeReportsOnPost(
   }
   if (!UUID.test(reportId)) return { ok: false, message: "That report no longer exists." };
 
-  const limit = await rateLimitShared(await actionClientKey("forum-report-close", userId), { limit: 30, windowMs: 60_000 });
+  const limit = await rateLimitShared(accountKey("forum-report-close", userId), { limit: 30, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "Too many changes. Wait a moment and try again." };
 
   const db = getDb();

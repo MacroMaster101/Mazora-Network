@@ -12,6 +12,8 @@ import { clearRecoveryCodes, issueRecoveryCodes } from "@/lib/auth/recovery-code
 import { redeemRecoveryCode, removeAllFactors, removeFactor } from "@/lib/auth/two-factor-recovery";
 import { clearRecoveryGrant, issueRecoveryGrant } from "@/lib/auth/recovery-grant";
 import { clearReplaceGrant, hasReplaceGrant, issueReplaceGrant } from "@/lib/auth/replace-grant";
+import { hasOwnerGrant, issueOwnerGrant } from "@/lib/auth/owner-grant";
+import { ownerGrantSubject } from "@/lib/auth/owner-confirmation";
 import { confirmSecondStep as confirmSecondStepFor } from "@/lib/auth/reauth";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { SUSPENDED_PATH } from "@/lib/auth/login-identifier";
@@ -34,6 +36,8 @@ export interface TwoFactorEnrollment {
   message?: string;
   /** Replacing an authenticator: the current code (or a recovery code) is needed before a new QR code. */
   needsConfirm?: boolean;
+  /** Turning it on for the first time: "Confirm it's you" (actions/owner-confirmation) is needed first. */
+  needsOwnerConfirm?: boolean;
   factorId?: string;
   /** An SVG data URL of the authenticator QR code. */
   qrCode?: string;
@@ -127,6 +131,14 @@ export async function startTwoFactorEnrollmentAction(formData?: FormData): Promi
   const { data: factors, error: listError } = await actor.supabase.auth.mfa.listFactors();
   if (listError) return { ok: false, message: UNAVAILABLE };
 
+  // Turning it on adds a lock the owner then needs to get in. From a copied
+  // session cookie, an authenticator of someone else's would lock the owner
+  // out, so the owner confirms it's them first, as for adding a passkey. A
+  // recovery-code sign-in has already proved it (see the replacement below).
+  if (factors.totp.length === 0 && !actor.recovered && !(await hasOwnerGrant(await ownerGrantSubject(actor.user.id)))) {
+    return { ok: false, needsOwnerConfirm: true };
+  }
+
   if (factors.totp.length > 0 && !actor.recovered) {
     const subject = await replaceSubject(actor);
     // A pass from a moment ago still counts, so "Try again" does not ask twice.
@@ -172,6 +184,10 @@ export async function startTwoFactorEnrollmentAction(formData?: FormData): Promi
       targetId: actor.user.id,
       metadata: { reason: "recovery-sign-in", removed: factors.totp.length },
     });
+    // With no verified authenticator left, the next request no longer counts
+    // as a recovery sign-in (getAuthState), so the confirm step would ask for
+    // the owner pass. The recovery code already proved it's the owner.
+    await issueOwnerGrant(await ownerGrantSubject(actor.user.id));
     ({ data, error } = await enroll());
   }
   if (error || !data) {
@@ -211,6 +227,14 @@ export async function confirmTwoFactorSetupAction(_previous: TwoFactorResult, fo
   // Replacing: only with the pass the start step issued after the current
   // authenticator's code (see startTwoFactorEnrollmentAction). Checked before
   // the new factor is verified, so nothing changes without it.
+  // Turning it on: only with the owner pass the start step checked. Checked
+  // again here, before the new factor is verified, so it can't lapse unseen.
+  // A recovery-code sign-in replacing a lost phone has no verified factor left
+  // by now (the start step removed it), so `recovered` is false here; the start
+  // step issued the owner pass when it removed the old one.
+  if (previous.length === 0 && !actor.recovered && !(await hasOwnerGrant(await ownerGrantSubject(actor.user.id)))) {
+    return { ok: false, message: "Confirm it's you again: close this and start over." };
+  }
   if (previous.length > 0 && !actor.recovered && !(await hasReplaceGrant(await replaceSubject(actor)))) {
     return { ok: false, message: "Confirm it's you again: close this and start the switch over." };
   }

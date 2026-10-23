@@ -52,12 +52,12 @@ function isGrantable(value: string): value is Role {
 
 const inviteSchema = z.object({
   email: z
-    .string({ required_error: "Enter an email address." })
+    .string({ error: "Enter an email address." })
     .trim()
     .min(1, "Enter an email address.")
     .max(254, "That email address is too long.")
     .email("Enter a valid email address."),
-  role: z.string({ required_error: "Choose a rank." }).refine(isGrantable, {
+  role: z.string({ error: "Choose a rank." }).refine(isGrantable, {
     message: "Choose a rank.",
   }),
 });
@@ -173,9 +173,12 @@ export async function inviteUserAction(
     }
   }
 
+  // No username in the invite metadata: the signup trigger would take it as the
+  // invitee's chosen name, and the email handle is often a real name nobody
+  // chose to publish (migration 080). They get the player_<uuid8> placeholder
+  // and pick a name in Settings.
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     redirectTo: inviteRedirect(),
-    data: { username: email.split("@")[0] },
   });
 
   if (error || !data?.user) {

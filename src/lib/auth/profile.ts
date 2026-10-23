@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { User } from "@supabase/supabase-js";
+import { placeholderUsername } from "@/lib/auth/placeholder";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { USERNAME_MAX_LENGTH, cleanDisplayName } from "@/lib/validation/auth";
 
@@ -13,10 +14,12 @@ export interface UserProfile {
 }
 
 // Same limits as the sign-up form and the database trigger (migration 076):
-// user_metadata is whatever the caller of the auth API sent.
-function cleanUsername(value: unknown): string {
+// user_metadata is whatever the caller of the auth API sent. Like the trigger
+// since 080, never the email address: without a name of its own the account
+// gets its player_<uuid8> placeholder.
+function cleanUsername(value: unknown, userId: string): string {
   const cleaned = String(value ?? "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, USERNAME_MAX_LENGTH);
-  return cleaned.length >= 3 ? cleaned : "player";
+  return cleaned.length >= 3 ? cleaned : placeholderUsername(userId);
 }
 
 /**
@@ -35,9 +38,7 @@ export async function ensureUserProfile(user: User): Promise<UserProfile | null>
   if (existing.data) return existing.data as UserProfile;
 
   const metadata = user.user_metadata ?? {};
-  const requested = cleanUsername(
-    metadata.username ?? metadata.preferred_username ?? metadata.user_name ?? user.email?.split("@")[0],
-  );
+  const requested = cleanUsername(metadata.username ?? metadata.preferred_username ?? metadata.user_name, user.id);
   const displayName = cleanDisplayName([metadata.display_name, metadata.full_name, metadata.name], requested);
   const fallback = `${requested.slice(0, 15)}_${user.id.replaceAll("-", "").slice(0, 8)}`;
 

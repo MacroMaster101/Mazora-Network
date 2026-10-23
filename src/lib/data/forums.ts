@@ -4,7 +4,7 @@ import { getDb, schema } from "@/lib/db/client";
 import { DELETED_AUTHOR, POSTS_PER_PAGE, TOPICS_PER_PAGE, type ForumActor } from "@/lib/forums-rules";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageModule, FORUMS_PERMISSION_KEY } from "@/lib/auth/permissions";
-import { isRoleKey, normalizeRoleKey } from "@/lib/auth/roles";
+import { isRoleKey, normalizeRoleKey, publicRole } from "@/lib/auth/roles";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { getPresenceFor } from "@/lib/data/presence";
 import { providerAvatarsFor } from "@/lib/data/provider-avatars";
@@ -572,9 +572,9 @@ export async function getViewerActor(): Promise<ForumActor> {
   }
 }
 
-/** A stored app_metadata role as a catalogue key, or Member. normalizeRoleKey
+/** A stored app_metadata role as the rank the public sees (publicRole), or Member. normalizeRoleKey
  *  reads the legacy top-role key as web_dev until migration 055 (removable after). */
 function storedRole(value: unknown): Role {
   const role = normalizeRoleKey(value);
-  return isRoleKey(role) ? role : "member";
+  return isRoleKey(role) ? publicRole(role) : "member";
 }

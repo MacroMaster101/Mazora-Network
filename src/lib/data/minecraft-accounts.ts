@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { rawSkinUrlForHead } from "@/lib/minecraft/skin";
 
@@ -8,6 +8,10 @@ import { rawSkinUrlForHead } from "@/lib/minecraft/skin";
  * Public read side of `minecraft_accounts`. Only the fields a public directory
  * may show are selected: the IGN, the skin URLs, and when the link was made.
  * The auth user id never leaves this module.
+ *
+ * Only active accounts are listed: a suspended, deleted or unconfirmed
+ * account's Minecraft name and skin stay off the public player list, as its
+ * site account does (publicDirectoryAccounts).
  */
 export interface LinkedAccount {
   username: string;
@@ -28,7 +32,9 @@ export const listLinkedAccounts = cache(async (): Promise<LinkedAccount[]> => {
         rawSkinUrl: schema.minecraftAccounts.rawSkinUrl,
         linkedAt: schema.minecraftAccounts.linkedAt,
       })
-      .from(schema.minecraftAccounts);
+      .from(schema.minecraftAccounts)
+      .innerJoin(schema.profiles, eq(schema.profiles.userId, schema.minecraftAccounts.userId))
+      .where(eq(schema.profiles.accountStatus, "active"));
 
     return rows.map((row) => {
       let linkedAtStr: string;

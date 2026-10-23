@@ -20,7 +20,7 @@ import type {
   VoteSite,
   TopVoter,
 } from "@/lib/types";
-import { normalizeRoleKey, roleLabel } from "@/lib/auth/roles";
+import { INTERNAL_ROLE, normalizeRoleKey, publicRole, roleLabel } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 import { getRegistrationCounts } from "@/lib/data/event-registrations";
 import { effectiveEventStatus, isKnownEventStatus } from "@/lib/events/status";
@@ -360,6 +360,17 @@ export async function profilesByBylineName(
   return map;
 }
 
+/** A byline never names the internal Web Dev rank; its holders publish as "News Publisher". */
+function bylineRole(role: string): string {
+  return publicRole(role) === role ? roleLabel(role) : "News Publisher";
+}
+
+/** A stored byline label, or undefined when it names the internal rank (older snapshots did). */
+function publicRoleLabel(label: string | null): string | undefined {
+  if (!label) return undefined;
+  return label === roleLabel(INTERNAL_ROLE) ? undefined : label;
+}
+
 function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile): NewsArticle {
   const normalised = (row.content ?? "").replace(/\r\n?/g, "\n");
   const body = normalised.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
@@ -387,8 +398,8 @@ function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile): NewsArticle {
       ? "Official Newsroom"
       : (liveAuthor?.role
           ? // normalizeRoleKey: profiles.role may still hold the legacy key until migration 055 (removable after).
-          roleLabel(normalizeRoleKey(liveAuthor.role))
-          : (row.authorRole ?? row.discordAuthorRole ?? "News Publisher")),
+          bylineRole(normalizeRoleKey(liveAuthor.role))
+          : (publicRoleLabel(row.authorRole) ?? row.discordAuthorRole ?? "News Publisher")),
     authorAvatar: teamByline
       ? (row.teamAvatarUrl ?? "/images/mazora-icon.png")
       : (liveAuthor?.avatarUrl ?? row.authorAvatarUrl ?? undefined),

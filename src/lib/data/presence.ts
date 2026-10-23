@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { providerAvatarsFor } from "@/lib/data/provider-avatars";
 import { announcePresenceChange } from "@/lib/presence/announce";
-import { isRoleKey, isStaff, normalizeRoleKey } from "@/lib/auth/roles";
+import { isRoleKey, isStaff, normalizeRoleKey, publicRole } from "@/lib/auth/roles";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import type { Role } from "@/lib/types";
 import {
@@ -245,7 +245,8 @@ export async function getOnlineMembers(): Promise<OnlineMember[]> {
       if (status === "offline") continue;
       // normalizeRoleKey: legacy key read as web_dev until migration 055 (removable after).
       const storedRole = normalizeRoleKey(row.role);
-      const role = isRoleKey(storedRole) ? storedRole : "member";
+      // The roster is public (/forums, /api/presence/online): Web Dev reads as Member.
+      const role = isRoleKey(storedRole) ? publicRole(storedRole) : "member";
       members.push({
         username: String(row.username),
         displayName: typeof row.displayName === "string" ? row.displayName : null,

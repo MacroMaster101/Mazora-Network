@@ -1,5 +1,7 @@
 import { rawSkinUrlForHead, resolvePlayerSkin } from "@/lib/minecraft/skin";
 import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
+import { publicUsername } from "@/lib/auth/placeholder";
+import { publicRole } from "@/lib/auth/roles";
 import type { DirectoryPlayer, OnlinePlayer, Player, Role } from "@/lib/types";
 import type { LinkedAccount } from "@/lib/data/minecraft-accounts";
 
@@ -34,6 +36,35 @@ export interface AccountInfo {
   minecraftSkinUrl?: string | null;
   role: Role;
   avatarUrl: string | null;
+}
+
+/** What publicDirectoryAccounts reads: AccountSummary's fields, plus the ones it filters on. */
+export interface DirectoryAccountSource extends AccountInfo {
+  userId: string;
+  email: string;
+  pendingInvite: boolean;
+  accountStatus: string | null;
+}
+
+/**
+ * The accounts the public player list may show, and only what it may show of
+ * them. Anyone can create an account for any address, so an account appears
+ * only once it is active: its email confirmed (035 activates the profile then),
+ * not suspended or deleted, and not an unused invitation. Web Dev is an
+ * internal systems role, never a public rank (as on the public team page), so
+ * it reads as "member". A username that is only the email handle is replaced
+ * with the account's placeholder.
+ */
+export function publicDirectoryAccounts(accounts: DirectoryAccountSource[]): AccountInfo[] {
+  return accounts
+    .filter((account) => account.accountStatus === "active" && !account.pendingInvite)
+    .map((account) => ({
+      username: publicUsername(account),
+      minecraftUsername: account.minecraftUsername,
+      minecraftSkinUrl: account.minecraftSkinUrl ?? null,
+      role: publicRole(account.role),
+      avatarUrl: account.avatarUrl,
+    }));
 }
 
 export interface BuildDirectoryInput {

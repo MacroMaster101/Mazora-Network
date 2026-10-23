@@ -10,6 +10,7 @@ import { type CreatorCodePreviewResult } from "@/lib/actions/creator-codes";
 import type { DiscordIdentity } from "@/lib/types";
 import { DiscordIcon } from "@/components/auth/provider-icons";
 import { FormRow, Input, Textarea, useToast } from "@/components/ui";
+import { OwnerConfirmDialog } from "@/components/account/owner-confirm";
 import { useCart } from "./cart-provider";
 import { useExampleIgn } from "@/lib/example-names";
 
@@ -132,8 +133,12 @@ export function OrderRequestForm({
     }
   }, [state, toast, clear, onOrderSubmitted]);
 
+  // Signed in, "Connect Discord" links a login: "Confirm it's you" first, then it is tried again.
+  const [confirmingOwner, setConfirmingOwner] = useState(false);
+
   useEffect(() => {
-    if (!oauthState.ok && oauthState.message) toast(oauthState.message, "error");
+    if (oauthState.needsOwnerConfirm) setConfirmingOwner(true);
+    else if (!oauthState.ok && oauthState.message) toast(oauthState.message, "error");
   }, [oauthState, toast]);
 
   useEffect(() => {
@@ -223,6 +228,16 @@ export function OrderRequestForm({
 
   return (
     <>
+      {confirmingOwner && (
+        <OwnerConfirmDialog
+          description="Connecting Discord adds a new way to sign in, so confirm it's you first."
+          onClose={() => setConfirmingOwner(false)}
+          onConfirmed={() => {
+            setConfirmingOwner(false);
+            connectDiscord();
+          }}
+        />
+      )}
 
       <form action={formAction} className="store-request-form mt-5 space-y-4 border-t pt-5">
         <input type="hidden" name="items" value={JSON.stringify(items.map(({ slug, qty }) => ({ slug, qty })))} />

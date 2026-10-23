@@ -121,8 +121,6 @@ test("every passkey action is behind the Passkey Sign-in switch", () => {
   // The management actions go through signedIn(), which checks it first.
   assert.match(actions.slice(actions.indexOf("async function signedIn()")), /if \(!\(await passkeysOn\(\)\)\) return null;/);
   for (const name of [
-    "passkeyConfirmationNeededAction",
-    "confirmPasskeyOwnerAction",
     "startPasskeyRegistrationAction",
     "finishPasskeyRegistrationAction",
     "renamePasskeyAction",
@@ -152,38 +150,15 @@ test("a passkey sign-in runs the password sign-in's checks, in the same order", 
   assert.match(finish, /return \{ ok: true, redirectTo: twoFactorPath\(destination\) \};/, "a pending second step goes to /two-factor");
 });
 
-test("adding a passkey needs a fresh 'confirm it's you' before Supabase is asked for anything", () => {
-  const confirm = body("confirmPasskeyOwnerAction");
-  const proof = confirm.indexOf("await confirmOwner(actor, formData)");
-  const grant = confirm.indexOf("issuePasskeyGrant(");
-  assert.ok(proof > -1 && grant > proof, "the grant is issued only after the owner is confirmed");
-  assert.match(confirm.slice(proof, grant), /if \(proofError\) return \{ ok: false, message: proofError \};/);
+test("adding a passkey needs the owner pass before Supabase is asked for anything", () => {
+  // "Confirm it's you" itself is shared with the other sign-in changes: see owner-confirmation.test.ts.
+  assert.doesNotMatch(actions, /async function confirmOwner\(/, "no second copy of the owner check");
+  assert.match(actions, /hasOwnerGrant\(await ownerGrantSubject\(actor\.user\.id\)\)/);
 
   const start = body("startPasskeyRegistrationAction");
-  assert.ok(start.indexOf("hasPasskeyGrant(") > -1 && start.indexOf("hasPasskeyGrant(") < start.indexOf("passkey.startRegistration()"));
+  assert.ok(start.indexOf("ownerConfirmed(actor)") > -1 && start.indexOf("ownerConfirmed(actor)") < start.indexOf("passkey.startRegistration()"));
   const finish = body("finishPasskeyRegistrationAction");
-  assert.ok(finish.indexOf("hasPasskeyGrant(") > -1 && finish.indexOf("hasPasskeyGrant(") < finish.indexOf("passkey.verifyRegistration("), "a challenge alone is not enough");
-
-  const owner = actions.slice(actions.indexOf("async function confirmOwner("), actions.indexOf("/** Whether \"Add a passkey\""));
-  assert.match(owner, /confirmSecondStep\(actor\.supabase, actor\.user, formData, "two-step-settings"\)/, "authenticator code when two-step is on");
-  assert.match(owner, /passwordMatchesCurrent\(actor\.user\.email, password\)/, "otherwise the current password");
-  assert.match(owner, /consumeEmailProofCode\("passkey-add", await grantSubject\(actor\), emailCode\)/, "otherwise a code sent to the inbox, for this session");
-  // The account-wide last sign-in is not proof: another browser's sign-in moves it.
-  assert.doesNotMatch(owner, /last_sign_in_at/);
-
-  const send = body("sendPasskeyEmailCodeAction");
-  assert.match(send, /factors\.totp\.length > 0 \|\| accountHasPassword\(actor\.user\)/, "only for accounts with nothing else to prove");
-  assert.match(send, /actor\.user\.email_confirmed_at/);
-  assert.match(send, /sendEmailProofCode\("passkey-add", await grantSubject\(actor\), actor\.user\.email\)/);
-});
-
-test("the confirmation lasts 15 minutes, for this user and sign-in only", () => {
-  const grant = readFileSync(new URL("../auth/passkey-grant.ts", import.meta.url), "utf8");
-  assert.match(grant, /const TTL_SECONDS = 15 \* 60;/);
-  assert.match(grant, /deriveGrantKey\(secret, "passkey-add"\)/, "its own purpose key");
-  assert.match(grant, /httpOnly: true/);
-  assert.match(grant, /sameSite: "strict"/);
-  assert.match(actions, /sessionId: \(await getSignInSessionId\(\)\) \?\? ""/, "bound to this sign-in's session");
+  assert.ok(finish.indexOf("ownerConfirmed(actor)") > -1 && finish.indexOf("ownerConfirmed(actor)") < finish.indexOf("passkey.verifyRegistration("), "a challenge alone is not enough");
 });
 
 /** Authenticator data: a 32-byte rpIdHash, the flags byte, then a 4-byte counter. */

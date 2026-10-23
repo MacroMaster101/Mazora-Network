@@ -8,7 +8,7 @@ import { canManageSuggestions } from "@/lib/auth/permissions";
 import { canVoteOnComment, COMMENT_VOTES_PER_MINUTE, isVoteValue, type VoteValue } from "@/lib/comments/vote-rules";
 import { getDb, schema } from "@/lib/db/client";
 import { dispatchSuggestionReplyNotification } from "@/lib/notifications-auto";
-import { actionClientKey, rateLimitShared } from "@/lib/rate-limit";
+import { accountKey, rateLimitShared } from "@/lib/rate-limit";
 import { attachmentCountError, filesFromFormData, imageSizeError, urlsFromFormData } from "@/lib/suggestion-image-rules";
 import {
   canDeleteReply,
@@ -119,7 +119,7 @@ export async function postSuggestionReplyAction(formData: FormData): Promise<Res
   const parsed = postReplySchema.safeParse({ suggestionId, body, parentId });
   if (!parsed.success) return { ok: false, message: "Your reply must be between 1 and 4000 characters." };
 
-  const limit = await rateLimitShared(await actionClientKey("suggestion-reply", userId), { limit: 10, windowMs: 60_000 });
+  const limit = await rateLimitShared(accountKey("suggestion-reply", userId), { limit: 10, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "You're replying too fast. Wait a moment and try again." };
 
   // Pure input validation: refuse an over-cap batch BEFORE anything is written,
@@ -428,7 +428,7 @@ export async function toggleSuggestionVoteAction(input: { suggestionId: string }
   // suggestionId was already validated by suggestionIdSchema above (idCheck),
   // so there is nothing left here that a second Zod parse could catch.
 
-  const limit = await rateLimitShared(await actionClientKey("suggestion-vote", userId), { limit: 20, windowMs: 60_000 });
+  const limit = await rateLimitShared(accountKey("suggestion-vote", userId), { limit: 20, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "Too many votes. Wait a moment and try again." };
 
   try {
@@ -471,7 +471,7 @@ export async function setSuggestionLockedAction(input: { suggestionId: string; l
   const parsed = lockSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "That suggestion no longer exists." };
 
-  const limit = await rateLimitShared(await actionClientKey("suggestion-lock", userId), { limit: 20, windowMs: 60_000 });
+  const limit = await rateLimitShared(accountKey("suggestion-lock", userId), { limit: 20, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "Too many changes. Wait a moment and try again." };
 
   const db = getDb();
@@ -634,7 +634,7 @@ export async function voteOnSuggestionReplyAction(input: {
     return { ok: false, message: reply.authorId === userId ? "You can't vote on your own reply." : "You can't vote on this reply." };
   }
 
-  const limit = await rateLimitShared(await actionClientKey("comment-vote", userId), {
+  const limit = await rateLimitShared(accountKey("comment-vote", userId), {
     limit: COMMENT_VOTES_PER_MINUTE,
     windowMs: 60_000,
   });

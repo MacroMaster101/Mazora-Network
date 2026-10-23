@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageNews } from "@/lib/auth/permissions";
-import { roleLabel } from "@/lib/auth/roles";
+import { publicRole, roleLabel } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 import { isUuid } from "@/lib/validation/id";
 import { fetchChannelMessage, getAnnouncementsChannelId, getDiscordBotToken } from "@/lib/discord";
@@ -153,7 +153,8 @@ async function publisherPatch(formData: FormData, fallbackName: string): Promise
     publisherMode: "author",
     authorId: (await getSessionUserId()) ?? undefined,
     authorName: session?.displayName || session?.username || fallbackName,
-    authorRole: session ? roleLabel(session.role) : "News Publisher",
+    // The byline is public: the internal Web Dev rank publishes as "News Publisher".
+    authorRole: session && publicRole(session.role) === session.role ? roleLabel(session.role) : "News Publisher",
     authorAvatarUrl: session?.avatarUrl ?? null,
     ...teamAvatarPatch,
   };

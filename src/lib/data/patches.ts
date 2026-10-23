@@ -10,6 +10,7 @@ import {
   type DiscordRole,
 } from "@/lib/discord";
 import { profilesByBylineName } from "@/lib/data/content";
+import { INTERNAL_ROLE } from "@/lib/auth/roles";
 
 function discordAvatarUrl(message: DiscordMessage, guildId?: string | null): string | undefined {
   const userId = message.author?.id;
@@ -46,7 +47,8 @@ function cleanDiscordPatchLine(line: string): string {
 }
 
 function profileRoleLabel(role?: string | null): string | undefined {
-  if (!role) return undefined;
+  // Patch notes are public: the internal Web Dev rank is never named.
+  if (!role || role === INTERNAL_ROLE) return undefined;
   return role
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
