@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
-import { toOrderStatus, type OrderStatus, type StoreOrder } from "@/lib/order-status";
+import { toOrderStatus, type MemberOrder, type OrderStatus, type StoreOrder } from "@/lib/order-status";
 
 /**
  * Store order repositories.
@@ -85,8 +85,18 @@ export async function getAllOrders(): Promise<StoreOrder[]> {
   }
 }
 
-/** Orders belonging to one account, newest first. */
-export async function getOrdersForUser(userId: string): Promise<StoreOrder[]> {
+/**
+ * The member-facing shape of an order: no staff handler, ticket channel or
+ * Discord id. Built by dropping fields from the full order so a new staff-only
+ * field cannot leak by being added to toOrder alone.
+ */
+function toMemberOrder(order: StoreOrder): MemberOrder {
+  const { handledBy: _handledBy, ticketChannelId: _ticketChannelId, discordId: _discordId, ...own } = order;
+  return own;
+}
+
+/** Orders belonging to one account, newest first. For the member's own pages only. */
+export async function getOrdersForUser(userId: string): Promise<MemberOrder[]> {
   const db = getDb();
   if (!db) return [];
   try {
@@ -95,7 +105,7 @@ export async function getOrdersForUser(userId: string): Promise<StoreOrder[]> {
       .from(schema.orders)
       .where(eq(schema.orders.userId, userId))
       .orderBy(desc(schema.orders.createdAt));
-    return await attachItems(rows);
+    return (await attachItems(rows)).map(toMemberOrder);
   } catch (error) {
     console.error("Failed to load orders for user:", error);
     return [];
@@ -141,6 +151,11 @@ export async function anonymiseOrdersForUser(userId: string): Promise<boolean> {
         discordUsername: null,
         minecraftUsername: null,
         notes: null,
+        // A Discord channel id can resolve to the buyer's ticket, so it goes
+        // with the other identifiers. `handled_by` stays: it names the staff
+        // member who actioned the sale, not the buyer, and is kept for
+        // staff accountability.
+        ticketChannelId: null,
       })
       .where(eq(schema.orders.userId, userId));
     return true;

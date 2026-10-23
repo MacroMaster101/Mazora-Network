@@ -8,13 +8,15 @@ import { Textarea } from "@/components/ui";
 import { reportContentAction } from "@/lib/actions/reports";
 import { canReport, REPORT_REASONS, REPORT_REASON_LABELS, type ReportReason } from "@/lib/report-rules";
 import type { Role } from "@/lib/types";
+import { viewerSubject } from "@/components/comments/types";
 
 const NOTE_LIMIT = 1000;
 
 export interface ReportButtonTarget {
   kind: "suggestion" | "reply";
   id: string;
-  authorId: string;
+  /** The viewer wrote it. The author's account id is never sent to the browser. */
+  isOwn: boolean;
   deletedAt: string | null;
 }
 
@@ -87,7 +89,7 @@ export function ReportButton({
   }
 
   const allowed = canReport(
-    { authorId: target.authorId, deletedAt: target.deletedAt },
+    viewerSubject(target.isOwn, viewer.userId, target.deletedAt),
     { userId: viewer.userId, role: viewer.role },
   );
 

@@ -9,9 +9,8 @@ import { rankTier } from "@/components/admin/rank-chip";
 import { badgeStyle } from "@/lib/auth/role-colors";
 import { roleIconFor } from "@/lib/auth/role-icons";
 import { listPublicStaffAccounts, type PublicStaffMember } from "@/lib/data/accounts";
-import { getPresenceFor } from "@/lib/data/presence";
 import { PresenceDot } from "@/components/presence/presence-dot";
-import { PRESENCE_LABELS, type PresenceShown } from "@/lib/presence-rules";
+import { PRESENCE_LABELS } from "@/lib/presence-rules";
 import { getPageContent } from "@/lib/data/page-content";
 
 export const metadata = publicPageMetadata({
@@ -34,16 +33,8 @@ function iconFor(role: RoleDef): LucideIcon {
   return roleIconFor(role.icon);
 }
 
-function TeamMemberCard({
-  member,
-  role,
-  status,
-}: {
-  member: PublicStaffMember;
-  role: RoleDef;
-  /** Website status; absent when they are offline or chose Invisible. */
-  status: Exclude<PresenceShown, "offline"> | undefined;
-}) {
+function TeamMemberCard({ member, role }: { member: PublicStaffMember; role: RoleDef }) {
+  const status = member.status;
   const RankIcon = iconFor(role);
   const tier = rankTier(role.key);
   const minecraftAvatarUrl = member.minecraftSkinUrl ?? member.minecraftAvatarUrl;
@@ -94,8 +85,6 @@ export default async function StaffPage() {
   // appears here if BOTH their own visibility toggle is public (enforced by
   // listPublicStaffAccounts) AND their role opts into Our Team.
   const TEAM_ROLES: RoleDef[] = roleCatalog().filter((role) => role.kind === "staff" && role.showOnTeam);
-  // Staff are already public on this page; this adds only whether they are around right now.
-  const presence = await getPresenceFor((members ?? []).map((member) => member.userId));
   const groups = TEAM_ROLES.map((role) => ({
     role,
     members: (members ?? []).filter((member) => member.role === role.key),
@@ -217,12 +206,7 @@ export default async function StaffPage() {
                 {index > 0 && <FlowConnector />}
                 <div className="team-tier team-tier-dynamic">
                   {group.members.map((member) => (
-                    <TeamMemberCard
-                      key={member.userId}
-                      member={member}
-                      role={group.role}
-                      status={presence.get(member.userId)}
-                    />
+                    <TeamMemberCard key={member.username} member={member} role={group.role} />
                   ))}
                 </div>
               </div>

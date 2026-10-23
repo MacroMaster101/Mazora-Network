@@ -16,7 +16,7 @@ import {
   type StoreAdminActionResult,
 } from "@/lib/actions/store-admin";
 import { FormRow, Input, Modal, Select, Textarea, TonePill, useToast } from "@/components/ui";
-import { usd } from "@/lib/utils";
+import { slugify, usd } from "@/lib/utils";
 import { deleteStoreCategoryAction, saveStoreCategoryAction, reorderStoreCategoriesAction, toggleStoreCategoryAction, toggleStoreCategorySubcategoriesAction } from "@/lib/actions/store-settings";
 import { Icon } from "@/components/shared/icon";
 import { StoreArtwork } from "@/components/shared/store-artwork";
@@ -75,10 +75,6 @@ const PRODUCT_ERROR_TARGETS: Record<string, string> = {
 };
 
 import { storeArtFor } from "@/lib/store-art";
-
-function slugify(value: string) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
 
 function ProductArtwork({ product, onPreview }: { product: Product; onPreview: () => void }) {
   const [failed, setFailed] = useState(false);

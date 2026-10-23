@@ -1,7 +1,7 @@
 import { rawSkinUrlForHead, resolvePlayerSkin } from "@/lib/minecraft/skin";
-import { isMinecraftAvatarUrl } from "@/lib/avatar-source";
-import { publicUsername } from "@/lib/auth/placeholder";
-import { publicRole } from "@/lib/auth/roles";
+import { isMinecraftAvatarUrl, resolveAvatarUrl } from "@/lib/avatar-source";
+import { publicUsername, siteUsername } from "@/lib/auth/placeholder";
+import { isRoleKey, normalizeRoleKey, publicRole } from "@/lib/auth/roles";
 import type { DirectoryPlayer, OnlinePlayer, Player, Role } from "@/lib/types";
 import type { LinkedAccount } from "@/lib/data/minecraft-accounts";
 
@@ -65,6 +65,71 @@ export function publicDirectoryAccounts(accounts: DirectoryAccountSource[]): Acc
       role: publicRole(account.role),
       avatarUrl: account.avatarUrl,
     }));
+}
+
+/**
+ * One row of the public roster query (lib/data/accounts readPublicRoster):
+ * profiles joined to auth.users, already limited to active accounts that are
+ * not unused invitations. Column names as postgres returns them.
+ */
+export interface PublicRosterSource {
+  user_id: unknown;
+  username: unknown;
+  avatar_url: unknown;
+  email: unknown;
+  role: unknown;
+  staff_hidden: unknown;
+  user_metadata: unknown;
+  minecraft_username: unknown;
+  skin_head_url: unknown;
+}
+
+/**
+ * A roster entry as the public pages may hold it. The auth id stays on the
+ * server (the team page needs it to look up presence) and is never rendered;
+ * the email is used once, to replace an email-handle username, and dropped.
+ * `role` is the stored rank: callers that show it pass it through publicRole.
+ */
+export interface PublicRosterAccount {
+  userId: string;
+  username: string;
+  role: Role;
+  minecraftUsername: string | null;
+  minecraftSkinUrl: string | null;
+  avatarUrl: string | null;
+  publicStaffVisible: boolean;
+}
+
+const text = (value: unknown): string | null => (typeof value === "string" && value.trim() ? value : null);
+
+export function toPublicRosterAccount(row: PublicRosterSource): PublicRosterAccount | null {
+  const userId = text(row.user_id);
+  if (!userId) return null;
+  const email = text(row.email);
+  const metadata =
+    row.user_metadata && typeof row.user_metadata === "object" ? (row.user_metadata as Record<string, unknown>) : null;
+  const username = siteUsername({ profileUsername: text(row.username), metadataUsername: metadata?.username, email, userId });
+  const role = normalizeRoleKey(row.role);
+  return {
+    userId,
+    username: publicUsername({ username, email, userId }),
+    role: isRoleKey(role) ? role : "member",
+    minecraftUsername: text(row.minecraft_username),
+    minecraftSkinUrl: text(row.skin_head_url),
+    avatarUrl: resolveAvatarUrl(text(row.avatar_url), metadata),
+    publicStaffVisible: row.staff_hidden !== true,
+  };
+}
+
+/** The public roster as the player directory reads it: public ranks only. */
+export function rosterDirectoryAccounts(roster: PublicRosterAccount[]): AccountInfo[] {
+  return roster.map((account) => ({
+    username: account.username,
+    minecraftUsername: account.minecraftUsername,
+    minecraftSkinUrl: account.minecraftSkinUrl,
+    role: publicRole(account.role),
+    avatarUrl: account.avatarUrl,
+  }));
 }
 
 export interface BuildDirectoryInput {

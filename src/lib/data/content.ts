@@ -8,7 +8,7 @@
  * remaining sections fill in as their tables are populated.
  */
 import { cache } from "react";
-import { and, asc, desc, eq, getTableColumns, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type {
   Accent,
   EventItem,
@@ -181,9 +181,8 @@ export async function getAdminProducts(): Promise<Product[]> {
  * ------------------------------------------------------------------ */
 
 export async function getVoteSites(): Promise<VoteSite[]> {
-  const { getAdminVoteSites } = await import("@/lib/data/voting");
-  const all = await getAdminVoteSites();
-  return all.filter((s) => s.enabled);
+  const { getAdminVoteSites, publicVoteSites } = await import("@/lib/data/voting");
+  return publicVoteSites(await getAdminVoteSites());
 }
 
 export async function getTopVoters(): Promise<TopVoter[]> {
@@ -725,6 +724,9 @@ export async function getRules(): Promise<RuleCategory[]> {
 // account ranks (see @/lib/data/accounts), so the stub has no callers and has
 // been removed rather than left to mislead the next reader.
 
+/** The gallery page shows one grid with no pager: featured first, then the newest. */
+const GALLERY_LIMIT = 200;
+
 export async function getGallery(userId?: string | null): Promise<GalleryImage[]> {
   const db = getDb();
   if (!db) return [];
@@ -746,14 +748,18 @@ export async function getGallery(userId?: string | null): Promise<GalleryImage[]
       .from(schema.galleryImages)
       .leftJoin(schema.profiles, eq(schema.galleryImages.authorId, schema.profiles.userId))
       .where(eq(schema.galleryImages.status, "published"))
-      .orderBy(desc(schema.galleryImages.featured), desc(schema.galleryImages.createdAt));
+      .orderBy(desc(schema.galleryImages.featured), desc(schema.galleryImages.createdAt))
+      .limit(GALLERY_LIMIT);
 
     let likedSet = new Set<string>();
-    if (userId) {
+    if (userId && rows.length) {
       const likes = await db
         .select({ imageId: schema.galleryLikes.imageId })
         .from(schema.galleryLikes)
-        .where(eq(schema.galleryLikes.userId, userId));
+        .where(and(
+          eq(schema.galleryLikes.userId, userId),
+          inArray(schema.galleryLikes.imageId, rows.map((r) => r.id)),
+        ));
       likedSet = new Set(likes.map((l) => l.imageId));
     }
 

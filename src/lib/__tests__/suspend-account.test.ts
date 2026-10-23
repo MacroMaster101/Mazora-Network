@@ -184,5 +184,9 @@ test("deleting your own account asks for the password and the second step", () =
 });
 
 test("suspended staff are left off the public team page", () => {
-  assert.match(read("../data/accounts.ts"), /account\.accountStatus !== "suspended"/);
+  const accounts = read("../data/accounts.ts");
+  // The team page reads the public roster, which holds active accounts only.
+  assert.match(accounts, /const roster = await listPublicRoster\(\);/);
+  assert.match(accounts, /where p\.account_status = 'active'/);
+  assert.match(accounts, /\.filter\(\(account\) => account\.accountStatus === "active" && !account\.pendingInvite\)/, "the fallback path too");
 });

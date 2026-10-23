@@ -273,10 +273,10 @@ test("the lookup before a token is spent only speaks for the account that was ve
 });
 
 test("the neutral names are exactly the sign-up trigger's placeholders", () => {
-  const names = neutralProfileNames("9D6A48D4-0000-3000-8000-000000000001");
-  assert.equal(names.username, "player_9d6a48d4");
+  const names = neutralProfileNames("ABCDEF01-0000-3000-8000-000000000001");
+  assert.equal(names.username, "player_abcdef01");
   assert.equal(names.displayName, PLACEHOLDER_DISPLAY_NAME);
-  assert.equal(isPlaceholderUsername(names.username, "9d6a48d4-0000-3000-8000-000000000001"), true);
+  assert.equal(isPlaceholderUsername(names.username, "abcdef01-0000-3000-8000-000000000001"), true);
   assert.match(read("../../../supabase/migrations/031_derive_oauth_profile_names.sql"), /return 'player_' \|\| substr\(account_id::text, 1, 8\);/);
 });
 

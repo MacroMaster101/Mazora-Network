@@ -10,7 +10,7 @@ import {
 } from "@/lib/discord";
 import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
 import { normalizeRoleKey } from "@/lib/auth/role-catalog-core";
-import { listAllAuthUsers } from "@/lib/data/accounts";
+import { listAllAuthUsers, usernameForUser } from "@/lib/data/accounts";
 import { rateLimitShared } from "@/lib/rate-limit";
 import type { Role } from "@/lib/types";
 import {
@@ -100,7 +100,7 @@ async function findAccountByDiscordId(
     if (raw === discordId) {
       return {
         userId: user.id,
-        username: String(user.user_metadata?.username ?? user.email?.split("@")[0] ?? "unknown"),
+        username: await usernameForUser(user.id, user),
         // normalizeRoleKey: legacy key read as web_dev until migration 055 (removable after).
         role: (normalizeRoleKey(user.app_metadata?.role) as Role | undefined) ?? "member",
       };

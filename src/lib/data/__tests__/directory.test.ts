@@ -162,14 +162,14 @@ describe("publicDirectoryAccounts", () => {
 });
 
 describe("isEmailDerivedUsername", () => {
-  const id = "9d6a48d4-0000-3000-8000-000000000001";
+  const id = "abcdef01-0000-3000-8000-000000000001";
 
   test("matches the raw handle, the stored sanitised one and its uniqueness suffixes", () => {
     assert.equal(isEmailDerivedUsername("alex.smith", "alex.smith@example.com", id), true, "the raw local part");
     assert.equal(isEmailDerivedUsername("alexsmith", "alex.smith@example.com", id), true, "derive_username's sanitised form");
     assert.equal(isEmailDerivedUsername("ALEXSMITH", "alex.smith@example.com", id), true, "case does not matter");
-    assert.equal(isEmailDerivedUsername("alexsmith_9d6a48d4", "alex.smith@example.com", id), true, "unique_username's first suffix");
-    assert.equal(isEmailDerivedUsername("alexsmit_9d6a48d40000", "alex.smith@example.com", id), true, "unique_username's second suffix");
+    assert.equal(isEmailDerivedUsername("alexsmith_abcdef01", "alex.smith@example.com", id), true, "unique_username's first suffix");
+    assert.equal(isEmailDerivedUsername("alexsmit_abcdef010000", "alex.smith@example.com", id), true, "unique_username's second suffix");
   });
 
   test("matches a long handle cut to 24 characters before 076 and to 16 after it", () => {
@@ -181,21 +181,21 @@ describe("isEmailDerivedUsername", () => {
 
   test("leaves a chosen name, and the placeholder, alone", () => {
     assert.equal(isEmailDerivedUsername("Steve_42", "alex.smith@example.com", id), false);
-    assert.equal(isEmailDerivedUsername("player_9d6a48d4", "alex.smith@example.com", id), false);
+    assert.equal(isEmailDerivedUsername("player_abcdef01", "alex.smith@example.com", id), false);
     assert.equal(isEmailDerivedUsername("alexsmith", "", id), false, "no email, nothing to compare");
-    assert.equal(publicUsername({ username: "Steve_42", email: "steve_42@example.com", userId: id }), "player_9d6a48d4", "a name equal to the handle reads as derived");
+    assert.equal(publicUsername({ username: "Steve_42", email: "steve_42@example.com", userId: id }), "player_abcdef01", "a name equal to the handle reads as derived");
   });
 });
 
 describe("siteUsername", () => {
-  const userId = "9d6a48d4-0000-3000-8000-000000000001";
+  const userId = "abcdef01-0000-3000-8000-000000000001";
   const email = "alex.smith@example.com";
 
   test("keeps the player_ placeholder instead of swapping in the email handle", () => {
-    assert.equal(siteUsername({ profileUsername: "player_9d6a48d4", metadataUsername: undefined, email, userId }), "player_9d6a48d4");
+    assert.equal(siteUsername({ profileUsername: "player_abcdef01", metadataUsername: undefined, email, userId }), "player_abcdef01");
     assert.equal(
-      siteUsername({ profileUsername: "player_9d6a48d4", metadataUsername: "alex.smith", email, userId }),
-      "player_9d6a48d4",
+      siteUsername({ profileUsername: "player_abcdef01", metadataUsername: "alex.smith", email, userId }),
+      "player_abcdef01",
       "an old invite's copied handle does not win either",
     );
   });
@@ -206,8 +206,8 @@ describe("siteUsername", () => {
 
   test("without a profile row: a metadata name of its own, else the placeholder, never the email", () => {
     assert.equal(siteUsername({ profileUsername: null, metadataUsername: "Steve_42", email, userId }), "Steve_42");
-    assert.equal(siteUsername({ profileUsername: null, metadataUsername: "alex.smith", email, userId }), "player_9d6a48d4");
-    assert.equal(siteUsername({ profileUsername: null, metadataUsername: undefined, email, userId }), "player_9d6a48d4");
+    assert.equal(siteUsername({ profileUsername: null, metadataUsername: "alex.smith", email, userId }), "player_abcdef01");
+    assert.equal(siteUsername({ profileUsername: null, metadataUsername: undefined, email, userId }), "player_abcdef01");
     assert.equal(siteUsername({ profileUsername: "  ", metadataUsername: 42, email: null, userId: null }), "player");
   });
 });

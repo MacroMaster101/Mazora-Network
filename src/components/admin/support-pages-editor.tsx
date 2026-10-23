@@ -5,6 +5,7 @@ import Link from "@/components/ui/app-link";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowRight, ArrowUp, ExternalLink, GripVertical, LayoutGrid, List, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import type { SupportCardSettings } from "@/lib/data/support-settings";
+import { slugify } from "@/lib/utils";
 import type { SupportSettingsResult } from "@/lib/actions/support-settings";
 import { Input, Modal, Select, Textarea, useToast } from "@/components/ui";
 import { SUPPORT_ICON_OPTIONS, SupportCardIcon } from "@/components/shared/support-card-icon";
@@ -13,7 +14,6 @@ const BADGE_OPTIONS = ["Direct Help", "Community", "Appeals", "Recruitment", "Pa
 const emptyPage = { eyebrow: "Support", title: "New Support page", lead: "Explain how players should use this Support option.", ticketType: "support", details: ["Add the first required detail."], privacyNote: "Add a privacy or safety note." };
 type Draft = { index: number | null; card: SupportCardSettings };
 
-function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 
 function destinationKind(card: SupportCardSettings) {
   if (card.page) return "managed";

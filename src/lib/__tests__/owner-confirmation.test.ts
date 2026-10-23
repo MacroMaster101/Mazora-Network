@@ -154,7 +154,7 @@ test("the owner pass lasts 15 minutes, for this user and sign-in only", () => {
 
 /* --------------------------------------------- turning two-step on, first time */
 
-function twoFactorStart(options: { ownerGrant: boolean; totp: number; recovered?: boolean; aal1Enroll?: boolean }) {
+function twoFactorStart(options: { ownerGrant: boolean; totp: number; recovered?: boolean; aal1Enroll?: boolean; freshRecovery?: boolean }) {
   let enrolled = 0;
   const issued: unknown[] = [];
   const actions = loadServerModule<typeof TwoFactorActions>(new URL("../actions/two-factor.ts", import.meta.url), {
@@ -189,7 +189,12 @@ function twoFactorStart(options: { ownerGrant: boolean; totp: number; recovered?
       "@/lib/safe-redirect": { safeNext: (value: string) => value },
       "@/lib/auth/recovery-codes": { clearRecoveryCodes: async () => undefined, issueRecoveryCodes: async () => [] },
       "@/lib/auth/two-factor-recovery": { redeemRecoveryCode: async () => ({ ok: false }), removeAllFactors: async () => true, removeFactor: async () => true },
-      "@/lib/auth/recovery-grant": { clearRecoveryGrant: async () => undefined, issueRecoveryGrant: async () => true },
+      "@/lib/auth/recovery-grant": {
+        clearRecoveryGrant: async () => undefined,
+        // Straight after the recovery sign-in unless a test says otherwise.
+        hasFreshRecoveryGrant: async () => options.freshRecovery ?? true,
+        issueRecoveryGrant: async () => true,
+      },
       "@/lib/auth/replace-grant": { clearReplaceGrant: async () => undefined, hasReplaceGrant: async () => true, issueReplaceGrant: async () => true },
       "@/lib/auth/owner-grant": {
         hasOwnerGrant: async () => options.ownerGrant,

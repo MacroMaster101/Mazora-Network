@@ -48,7 +48,8 @@ export async function getRegistrationCounts(eventIds: string[]): Promise<Map<str
       .select({ eventId: schema.eventRegistrations.eventId, total: count() })
       .from(schema.eventRegistrations)
       .innerJoin(schema.minecraftAccounts, eq(schema.minecraftAccounts.userId, schema.eventRegistrations.userId))
-      .where(inArray(schema.eventRegistrations.eventId, eventIds))
+      .innerJoin(schema.profiles, eq(schema.profiles.userId, schema.eventRegistrations.userId))
+      .where(and(inArray(schema.eventRegistrations.eventId, eventIds), eq(schema.profiles.accountStatus, "active")))
       .groupBy(schema.eventRegistrations.eventId);
     return new Map(rows.map((r) => [r.eventId, Number(r.total)]));
   } catch (error) {
@@ -70,7 +71,8 @@ export async function getEventRegistrants(eventId: string): Promise<EventRegistr
       })
       .from(schema.eventRegistrations)
       .innerJoin(schema.minecraftAccounts, eq(schema.minecraftAccounts.userId, schema.eventRegistrations.userId))
-      .where(eq(schema.eventRegistrations.eventId, eventId))
+      .innerJoin(schema.profiles, eq(schema.profiles.userId, schema.eventRegistrations.userId))
+      .where(and(eq(schema.eventRegistrations.eventId, eventId), eq(schema.profiles.accountStatus, "active")))
       .orderBy(asc(schema.eventRegistrations.createdAt));
     return rows.map((r) => ({ username: r.username, skinUrl: r.skinUrl, registeredAt: iso(r.registeredAt) }));
   } catch (error) {

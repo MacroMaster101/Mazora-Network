@@ -21,6 +21,7 @@ import {
   Users,
 } from "lucide-react";
 import type { GameMode } from "@/lib/types";
+import { slugify } from "@/lib/utils";
 import { saveStoreModeAction } from "@/lib/actions/store-admin";
 import { FormRow, Input, Modal, Select, Textarea, useToast } from "@/components/ui";
 
@@ -45,10 +46,6 @@ export const MODE_ICON_OPTIONS = [
   { value: "Coins", label: "Currency", icon: Coins },
 ] as const;
 const MODE_ICON_VALUES = new Set(MODE_ICON_OPTIONS.map((option) => option.value));
-
-function slugify(value: string) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
 
 /**
  * The one game mode editor shared by every admin surface (Store catalog and the

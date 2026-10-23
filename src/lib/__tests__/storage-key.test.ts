@@ -7,7 +7,7 @@ test("the keys this codebase actually builds pass through unchanged", () => {
   // timestamp. None of that should be touched, or existing objects stop
   // resolving.
   for (const key of [
-    "custom/8f14e45f-ea0e-4d6a-9c3b-1234567890ab-1788764715812",
+    "custom/00000000-0000-4000-8000-000000000001-1788764715812",
     "gallery/submit-1788764715812",
     "gallery/admin-1787143194829",
     "store/rank-hero-monthly-1788764715812",

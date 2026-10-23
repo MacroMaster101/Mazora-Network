@@ -109,7 +109,7 @@ test("the skin body route never buffers an upstream body it has not measured", (
 
   // The origin pin and the refusal to follow redirects are untouched.
   assert.match(source, /isSupabaseStorageObjectUrl\(linked\.rawSkinUrl, process\.env\.NEXT_PUBLIC_SUPABASE_URL\)/);
-  assert.match(source, /fetch\(linked\.rawSkinUrl, \{ cache: "no-store", redirect: "error" \}\)/);
+  assert.match(source, /fetch\(linked\.rawSkinUrl, \{\s*cache: "no-store",\s*redirect: "error",\s*signal: AbortSignal\.timeout\(5000\),\s*\}\)/);
 });
 
 /* ---- YouTube channel lookup ---------------------------------------------- */

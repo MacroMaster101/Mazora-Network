@@ -31,7 +31,7 @@ const eventFormSchema = z.object({
   startAt: z.string().trim().min(1, "Start date/time is required."),
   endAt: z.string().trim().optional(),
   maxParticipants: z.coerce.number().int().min(1).max(5000).default(100),
-  rewards: z.string().trim().optional(),
+  rewards: z.string().trim().max(1000, "Keep rewards under 1,000 characters.").optional(),
 });
 
 /**
@@ -149,14 +149,30 @@ export async function saveEventAction(
   const rewardsArray = parsed.data.rewards
     ? parsed.data.rewards.split("\n").map((r) => r.trim()).filter(Boolean)
     : [];
+  if (rewardsArray.length > 20 || rewardsArray.some((reward) => reward.length > 120)) {
+    const message = "List at most 20 rewards, each under 120 characters.";
+    return { ok: false, message, errors: { rewards: message } };
+  }
+
+  const startDate = new Date(parsed.data.startAt);
+  const endDate = parsed.data.endAt ? new Date(parsed.data.endAt) : null;
+  if (Number.isNaN(startDate.getTime())) {
+    const message = "Enter a valid start date and time.";
+    return { ok: false, message, errors: { startAt: message } };
+  }
+  if (endDate && Number.isNaN(endDate.getTime())) {
+    const message = "Enter a valid end date and time.";
+    return { ok: false, message, errors: { endAt: message } };
+  }
+  if (endDate && endDate.getTime() <= startDate.getTime()) {
+    const message = "The end must be after the start.";
+    return { ok: false, message, errors: { endAt: message } };
+  }
 
   const image = await resolveEventImage(formData, parsed.data.slug, existing?.imageUrl ?? null);
   if (image.error) {
     return { ok: false, message: image.error, errors: { imageUrl: image.error } };
   }
-
-  const startDate = new Date(parsed.data.startAt);
-  const endDate = parsed.data.endAt ? new Date(parsed.data.endAt) : null;
 
   try {
     if (eventId) {
@@ -238,12 +254,15 @@ export async function deleteEventAction(formData: FormData): Promise<EventAction
   if (!db) return { ok: false, message: "Database not connected." };
 
   const id = String(formData.get("id") ?? "");
-  const title = String(formData.get("title") ?? "Event");
 
   if (!isUuid(id)) return { ok: false, message: "That event no longer exists." };
 
   try {
-    await db.delete(schema.events).where(eq(schema.events.id, id));
+    // The title in the audit row is the stored one, read back from the row that
+    // was just deleted: the form also sends a `title`, but a caller can type anything.
+    const [deleted] = await db.delete(schema.events).where(eq(schema.events.id, id)).returning({ title: schema.events.title });
+    if (!deleted) return { ok: false, message: "That event no longer exists." };
+    const title = deleted.title;
 
     await db.insert(schema.auditLogs).values({
       action: "events.delete",

@@ -119,7 +119,10 @@ export interface PublicDiscountAlert {
   position: "bottom-right" | "bottom-left";
   expiresAt: string | null;
   productIds: string[];
+  /** A preview: at most ALERT_PRODUCT_PREVIEW_LIMIT of the eligible products. */
   eligibleProducts: PublicDiscountAlertProduct[];
+  /** How many products the code really covers, however few are previewed. */
+  eligibleCount?: number;
   isAllProducts: boolean;
 }
 

@@ -33,6 +33,14 @@ const NO_DB: GalleryActionResult = { ok: false, message: "Database is not connec
 const galleryStatusSchema = z.enum(["published", "pending", "rejected"]);
 const galleryIdSchema = z.string().uuid();
 
+/** The categories the gallery filters and both forms offer; anything else would add a stray filter. */
+const GALLERY_CATEGORIES = ["builds", "events", "spawns", "community"] as const;
+
+function readCategory(formData: FormData): string | null {
+  const category = (clean(formData.get("category"), 40) || "community").toLowerCase();
+  return (GALLERY_CATEGORIES as readonly string[]).includes(category) ? category : null;
+}
+
 function clean(value: FormDataEntryValue | null, max: number): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
@@ -149,11 +157,12 @@ export async function submitGalleryAction(formData: FormData): Promise<GalleryAc
 
   const title = clean(formData.get("title"), 160);
   const description = clean(formData.get("description"), 1000);
-  const category = clean(formData.get("category"), 40) || "community";
+  const category = readCategory(formData);
   const accountName = session.displayName || session.username;
   const authorName = accountName || "Player";
 
   if (!title) return { ok: false, message: "Please provide a title for your artwork." };
+  if (!category) return { ok: false, message: "Pick one of the listed categories." };
 
   const { url: imageUrl, error } = await resolveGalleryImage(formData, `submit-${randomUUID()}`, { copyOwnImages: true });
   if (!imageUrl) return { ok: false, message: error || "Please provide a valid image URL." };
@@ -165,7 +174,7 @@ export async function submitGalleryAction(formData: FormData): Promise<GalleryAc
     description: description || null,
     imageUrl,
     thumbnailUrl: imageUrl,
-    category: category.toLowerCase(),
+    category,
     authorId: userId || null,
     authorName,
     status: initialStatus,
@@ -184,7 +193,10 @@ export async function submitGalleryAction(formData: FormData): Promise<GalleryAc
 
 /** Toggle Like / Heart on a gallery image. */
 export async function toggleGalleryLikeAction(imageId: string): Promise<GalleryActionResult> {
-  const userId = await getSessionUserId();
+  // getSession carries the confirmed-email and active-profile checks that the
+  // bare session id skips.
+  const session = await getSession();
+  const userId = session ? await getSessionUserId() : null;
   if (!userId) return { ok: false, message: "Please log in to like artworks." };
   if (!z.string().uuid().safeParse(imageId).success) {
     return { ok: false, message: "That artwork is not available." };
@@ -311,7 +323,7 @@ export async function adminSaveGalleryAction(formData: FormData): Promise<Galler
   const id = clean(formData.get("id"), 64);
   const title = clean(formData.get("title"), 160);
   const description = clean(formData.get("description"), 1000);
-  const category = clean(formData.get("category"), 40) || "community";
+  const category = readCategory(formData);
   const authorName = clean(formData.get("authorName"), 80) || "Mazora Staff";
   const status = clean(formData.get("status"), 20) || "published";
   const featured = formData.get("featured") === "true" || formData.get("featured") === "on";
@@ -319,6 +331,7 @@ export async function adminSaveGalleryAction(formData: FormData): Promise<Galler
   if (id && !galleryIdSchema.safeParse(id).success) return { ok: false, message: "Missing artwork ID." };
   if (!galleryStatusSchema.safeParse(status).success) return { ok: false, message: "Unknown artwork status." };
   if (!title) return { ok: false, message: "Please provide a title." };
+  if (!category) return { ok: false, message: "Pick one of the listed categories." };
 
   const { url: imageUrl, error } = await resolveGalleryImage(formData, id || `admin-${randomUUID()}`, { overwrite: Boolean(id) });
   if (!imageUrl) return { ok: false, message: error || "Please provide an image URL." };
@@ -331,7 +344,7 @@ export async function adminSaveGalleryAction(formData: FormData): Promise<Galler
         description: description || null,
         imageUrl,
         thumbnailUrl: imageUrl,
-        category: category.toLowerCase(),
+        category,
         authorName,
         status,
         featured,
@@ -355,7 +368,7 @@ export async function adminSaveGalleryAction(formData: FormData): Promise<Galler
     description: description || null,
     imageUrl,
     thumbnailUrl: imageUrl,
-    category: category.toLowerCase(),
+    category,
     authorName,
     status: status || "published",
     featured,

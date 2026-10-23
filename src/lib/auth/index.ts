@@ -10,6 +10,7 @@ import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
 import { realDisplayName } from "@/lib/auth/placeholder";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { clearRecoveryGrant, hasRecoveryGrant } from "@/lib/auth/recovery-grant";
+import { clearOwnerGrant } from "@/lib/auth/owner-grant";
 import { clearPasskeySignInGrant, hasPasskeySignInGrant } from "@/lib/auth/passkey-signin-grant";
 import { clearReplaceGrant } from "@/lib/auth/replace-grant";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
@@ -438,6 +439,9 @@ export async function destroySession(): Promise<void> {
   store.delete(SESSION_COOKIE);
   store.delete(SESSION_ONLY_COOKIE);
   await clearRecoveryGrant();
+  // Session-bound and short-lived, but it goes with the other passes rather
+  // than outliving the sign-out.
+  await clearOwnerGrant();
   await clearPasskeySignInGrant();
   await clearReplaceGrant();
 }

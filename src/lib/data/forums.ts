@@ -11,7 +11,7 @@ import { providerAvatarsFor } from "@/lib/data/provider-avatars";
 import type { PresenceShown } from "@/lib/presence-rules";
 import type { Role } from "@/lib/types";
 import {
-  buildCommentTree, countComments, selectCommentView,
+  buildCommentTree, countComments, MAX_VISIBLE_DEPTH, selectCommentView,
   type CommentNode, type CommentSort, type FlatComment,
 } from "@/lib/comments/tree";
 import type { VoteValue } from "@/lib/comments/vote-rules";
@@ -344,7 +344,7 @@ export async function getTopics(forumId: string, page: number): Promise<{ topics
 export interface TopicHeader {
   id: string; title: string; locked: boolean; pinned: boolean;
   forumName: string; forumSlug: string; forumLocked: boolean;
-  categoryName: string; author: string; authorId: string; createdAt: string;
+  categoryName: string; author: string; createdAt: string;
   /** The author deleted their opening post; the discussion stays up without their name on it. */
   openingRemoved: boolean;
 }
@@ -362,7 +362,6 @@ export async function getTopic(topicId: string): Promise<TopicHeader | null> {
         forumName: schema.forums.name, forumSlug: schema.forums.slug,
         forumLocked: schema.forums.locked, categoryName: schema.forumCategories.name,
         author: sql<string | null>`coalesce(${schema.profiles.displayName}, ${schema.profiles.username})`,
-        authorId: schema.forumTopics.userId,
         createdAt: schema.forumTopics.createdAt,
         openingRemoved: openingPostRemoved,
       })
@@ -387,7 +386,14 @@ export async function getTopic(topicId: string): Promise<TopicHeader | null> {
 export interface ForumComment extends FlatComment {
   body: string;
   editedAt: string | null;
-  authorId: string;
+  /**
+   * The viewer wrote this post. Sent instead of the author's auth id, which
+   * never leaves the loader: the page only needs to know whose post it is
+   * relative to the person looking.
+   */
+  isOwn: boolean;
+  /** Written by the topic's author. */
+  isOp: boolean;
   author: string;
   authorAvatar: string | null;
   /** From auth app_metadata, like every session's role — profiles.role is stale. */
@@ -409,12 +415,23 @@ export interface TopicComments {
 }
 
 /**
+ * Ceiling on the posts one topic page reads. Far above any real discussion
+ * here; it exists so a flooded topic cannot turn one page view into an
+ * unbounded read. Posts past it (the newest) are not shown.
+ */
+export const MAX_TOPIC_POSTS = 2000;
+
+/**
  * A topic's opening post and its comment tree.
  *
- * Every post of the topic is read once, with vote totals and the viewer's own
- * vote, and built into a tree by the shared comment engine. The opening post is
- * kept out of the tree: it is the topic, shown above the comments. Pages count
- * top-level comments after sorting, so a thread never splits across pages.
+ * Read in two steps. First the thread's shape — ids, parents, timestamps and
+ * vote totals, no text — which is all the shared comment engine needs to build,
+ * sort and paginate the tree. Pages count top-level comments after sorting, so
+ * a thread never splits across pages, and "best" ranks on vote totals; neither
+ * maps onto a plain SQL OFFSET, so the shape is paged in memory. Then bodies,
+ * authors, images, presence and the viewer's votes are read only for the posts
+ * this page shows. The opening post is kept out of the tree: it is the topic,
+ * shown above the comments.
  *
  * `comment` (a shared link) overrides `page` and `focus`: the page is the one
  * holding the comment's top-level ancestor, and a comment deeper than the
@@ -432,87 +449,34 @@ export async function getTopicComments(
   await ensureRoleCatalog();
 
   try {
-    const rows = await db
-      .select({
-        id: schema.forumPosts.id, body: schema.forumPosts.body, parentId: schema.forumPosts.parentId,
-        createdAt: schema.forumPosts.createdAt, editedAt: schema.forumPosts.editedAt,
-        deletedAt: schema.forumPosts.deletedAt, authorId: schema.forumPosts.userId,
-        author: sql<string | null>`coalesce(${schema.profiles.displayName}, ${schema.profiles.username})`,
-        authorAvatar: schema.profiles.avatarUrl,
-        authorRole: sql<string | null>`(select u.raw_app_meta_data ->> 'role' from auth.users u where u.id = ${schema.forumPosts.userId})`,
-      })
-      .from(schema.forumPosts)
-      .leftJoin(schema.profiles, eq(schema.profiles.userId, schema.forumPosts.userId))
-      .where(eq(schema.forumPosts.topicId, topicId))
-      .orderBy(asc(schema.forumPosts.createdAt));
-    if (rows.length === 0) return empty;
-
-    const ids = rows.map((row) => row.id);
-    const liveIds = rows.filter((row) => !row.deletedAt).map((row) => row.id);
     const v = schema.forumPostVotes;
-    const [totals, mine, imageRows] = await Promise.all([
-      db
+    const shape: FlatComment[] = (
+      await db
         .select({
-          postId: v.postId,
-          up: sql<number>`(count(*) filter (where ${v.value} = 1))::int`,
-          down: sql<number>`(count(*) filter (where ${v.value} = -1))::int`,
+          id: schema.forumPosts.id, parentId: schema.forumPosts.parentId,
+          createdAt: schema.forumPosts.createdAt, deletedAt: schema.forumPosts.deletedAt,
+          up: sql<number>`(select count(*) from ${v} where ${v.postId} = ${schema.forumPosts.id} and ${v.value} = 1)::int`,
+          down: sql<number>`(select count(*) from ${v} where ${v.postId} = ${schema.forumPosts.id} and ${v.value} = -1)::int`,
         })
-        .from(v)
-        .where(inArray(v.postId, ids))
-        .groupBy(v.postId),
-      options.viewerId
-        ? db.select({ postId: v.postId, value: v.value }).from(v).where(and(eq(v.userId, options.viewerId), inArray(v.postId, ids)))
-        : Promise.resolve([] as { postId: string; value: number }[]),
-      liveIds.length
-        ? db
-            .select({
-              id: schema.forumPostImages.id, postId: schema.forumPostImages.postId,
-              url: schema.forumPostImages.url, sortOrder: schema.forumPostImages.sortOrder,
-            })
-            .from(schema.forumPostImages)
-            .where(inArray(schema.forumPostImages.postId, liveIds))
-            .orderBy(asc(schema.forumPostImages.sortOrder))
-        : Promise.resolve([]),
-    ]);
-
-    const [providerAvatars, presence] = await Promise.all([
-      providerAvatarsFor(rows.filter((row) => !row.authorAvatar).map((row) => row.authorId)),
-      getPresenceFor(rows.map((row) => row.authorId)),
-    ]);
-    const totalsByPost = new Map(totals.map((row) => [row.postId, row]));
-    const mineByPost = new Map(mine.map((row) => [row.postId, row.value]));
-    const imagesByPost = new Map<string, ForumPostImage[]>();
-    for (const { postId, ...image } of imageRows) {
-      imagesByPost.set(postId, [...(imagesByPost.get(postId) ?? []), image]);
-    }
-
-    const comments: ForumComment[] = rows.map((row) => {
-      const counted = totalsByPost.get(row.id);
-      const vote = mineByPost.get(row.id);
-      return {
-        id: row.id,
-        parentId: row.parentId,
-        body: row.body,
-        createdAt: new Date(row.createdAt).toISOString(),
-        editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
-        deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
-        authorId: row.authorId,
-        author: row.author ?? "Unknown",
-        authorAvatar: row.authorAvatar ?? providerAvatars.get(row.authorId) ?? null,
-        authorRole: storedRole(row.authorRole),
-        images: row.deletedAt ? [] : imagesByPost.get(row.id) ?? [],
-        authorStatus: presence.get(row.authorId) ?? null,
-        up: counted?.up ?? 0,
-        down: counted?.down ?? 0,
-        myVote: vote === 1 || vote === -1 ? vote : 0,
-      };
-    });
+        .from(schema.forumPosts)
+        .where(eq(schema.forumPosts.topicId, topicId))
+        .orderBy(asc(schema.forumPosts.createdAt))
+        .limit(MAX_TOPIC_POSTS)
+    ).map((row) => ({
+      id: row.id,
+      parentId: row.parentId,
+      createdAt: new Date(row.createdAt).toISOString(),
+      deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
+      up: Number(row.up) || 0,
+      down: Number(row.down) || 0,
+    }));
+    if (shape.length === 0) return empty;
 
     // The earliest post is the opening post, removed or not — the same rule deletePostAction uses.
-    const [opening, ...replies] = comments;
+    const [openingShape, ...replies] = shape;
     // Replies to the opening post are top-level comments.
     const tree = buildCommentTree(
-      replies.map((reply) => (reply.parentId === opening.id ? { ...reply, parentId: null } : reply)),
+      replies.map((reply) => (reply.parentId === openingShape.id ? { ...reply, parentId: null } : reply)),
       options.sort,
     );
     const totalComments = countComments(tree);
@@ -523,9 +487,75 @@ export async function getTopicComments(
       comment: options.comment ?? null,
     });
 
+    const ids = [openingShape.id, ...shownCommentIds(selected.nodes)];
+    const [rows, topicRows, mine] = await Promise.all([
+      db
+        .select({
+          id: schema.forumPosts.id, body: schema.forumPosts.body, editedAt: schema.forumPosts.editedAt,
+          deletedAt: schema.forumPosts.deletedAt, authorId: schema.forumPosts.userId,
+          author: sql<string | null>`coalesce(${schema.profiles.displayName}, ${schema.profiles.username})`,
+          authorAvatar: schema.profiles.avatarUrl,
+          authorRole: sql<string | null>`(select u.raw_app_meta_data ->> 'role' from auth.users u where u.id = ${schema.forumPosts.userId})`,
+        })
+        .from(schema.forumPosts)
+        .leftJoin(schema.profiles, eq(schema.profiles.userId, schema.forumPosts.userId))
+        .where(and(eq(schema.forumPosts.topicId, topicId), inArray(schema.forumPosts.id, ids))),
+      db
+        .select({ authorId: schema.forumTopics.userId })
+        .from(schema.forumTopics)
+        .where(eq(schema.forumTopics.id, topicId))
+        .limit(1),
+      options.viewerId
+        ? db.select({ postId: v.postId, value: v.value }).from(v).where(and(eq(v.userId, options.viewerId), inArray(v.postId, ids)))
+        : Promise.resolve([] as { postId: string; value: number }[]),
+    ]);
+    const topicAuthorId = topicRows[0]?.authorId ?? null;
+
+    const liveIds = rows.filter((row) => !row.deletedAt).map((row) => row.id);
+    const [imageRows, providerAvatars, presence] = await Promise.all([
+      liveIds.length
+        ? db
+            .select({
+              id: schema.forumPostImages.id, postId: schema.forumPostImages.postId,
+              url: schema.forumPostImages.url, sortOrder: schema.forumPostImages.sortOrder,
+            })
+            .from(schema.forumPostImages)
+            .where(inArray(schema.forumPostImages.postId, liveIds))
+            .orderBy(asc(schema.forumPostImages.sortOrder))
+        : Promise.resolve([]),
+      providerAvatarsFor(rows.filter((row) => !row.authorAvatar).map((row) => row.authorId)),
+      getPresenceFor(rows.map((row) => row.authorId)),
+    ]);
+    const detailsById = new Map(rows.map((row) => [row.id, row]));
+    const mineByPost = new Map(mine.map((row) => [row.postId, row.value]));
+    const imagesByPost = new Map<string, ForumPostImage[]>();
+    for (const { postId, ...image } of imageRows) {
+      imagesByPost.set(postId, [...(imagesByPost.get(postId) ?? []), image]);
+    }
+
+    // The author's id is compared here and goes no further.
+    const toComment = (post: FlatComment): ForumComment => {
+      const row = detailsById.get(post.id);
+      const vote = mineByPost.get(post.id);
+      const authorId = row?.authorId ?? null;
+      return {
+        ...post,
+        body: row?.body ?? "",
+        editedAt: row?.editedAt ? new Date(row.editedAt).toISOString() : null,
+        isOwn: Boolean(authorId && options.viewerId && authorId === options.viewerId),
+        isOp: Boolean(authorId && topicAuthorId && authorId === topicAuthorId),
+        author: row?.author ?? "Unknown",
+        authorAvatar: row ? row.authorAvatar ?? providerAvatars.get(row.authorId) ?? null : null,
+        authorRole: storedRole(row?.authorRole),
+        images: post.deletedAt ? [] : imagesByPost.get(post.id) ?? [],
+        authorStatus: authorId ? presence.get(authorId) ?? null : null,
+        myVote: vote === 1 || vote === -1 ? vote : 0,
+      };
+    };
+
     return {
-      opening,
-      nodes: selected.nodes,
+      opening: toComment(openingShape),
+      nodes: mapCommentNodes(selected.nodes, toComment),
       totalComments,
       pages: selected.pages,
       page: selected.page,
@@ -535,6 +565,29 @@ export async function getTopicComments(
     console.error("getTopicComments failed", error);
     return empty;
   }
+}
+
+/**
+ * Ids of the comments a view renders. Below MAX_VISIBLE_DEPTH the page links
+ * to a focused view instead of rendering children, so their text is not read.
+ */
+export function shownCommentIds(nodes: readonly CommentNode<FlatComment>[]): string[] {
+  return nodes.flatMap((node) => [
+    node.comment.id,
+    ...(node.depth >= MAX_VISIBLE_DEPTH ? [] : shownCommentIds(node.children)),
+  ]);
+}
+
+/** The same tree with each comment swapped for its full form; depths and counts unchanged. */
+export function mapCommentNodes<T extends FlatComment, U extends FlatComment>(
+  nodes: readonly CommentNode<T>[],
+  map: (comment: T) => U,
+): CommentNode<U>[] {
+  return nodes.map((node) => ({
+    ...node,
+    comment: map(node.comment),
+    children: node.depth >= MAX_VISIBLE_DEPTH ? [] : mapCommentNodes(node.children, map),
+  }));
 }
 
 /**

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cropAndCompositeHead } from "@/lib/skins/process";
-import { clientKey, rateLimit, retryAfterHeaders } from "@/lib/rate-limit";
+import { clientKey, rateLimitShared, retryAfterHeaders } from "@/lib/rate-limit";
 import { DEFAULT_SKIN_NAME, isStevePlaceholder, mcHeadsAvatarUrl } from "@/lib/minecraft/skin";
 import { defaultSkin, fetchMojangSkin } from "@/lib/minecraft/mojang-skin-fetch";
 
@@ -34,7 +34,7 @@ function fallback(username: string) {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ username: string }> }) {
-  const limit = rateLimit(clientKey(request, "skin-head"), { limit: 120, windowMs: 60_000 });
+  const limit = await rateLimitShared(clientKey(request, "skin-head"), { limit: 120, windowMs: 60_000 });
   if (!limit.ok) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: retryAfterHeaders(limit.retryAfter) });
   }

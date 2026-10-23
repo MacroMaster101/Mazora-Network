@@ -4,7 +4,7 @@ import {
   incrementNewsArticleReadCount,
 } from "@/lib/data/news-visitors";
 import { getArticle } from "@/lib/data/content";
-import { clientKey, rateLimit, retryAfterHeaders } from "@/lib/rate-limit";
+import { claimOnce, clientKey, rateLimitShared, retryAfterHeaders } from "@/lib/rate-limit";
 import {
   LEGACY_READ_COOKIE_PREFIX,
   NEWS_COOKIE_PATH,
@@ -16,6 +16,9 @@ import {
   serializeReadSlugs,
 } from "@/lib/news-analytics-cookies";
 
+/** How long one address stays counted for one article (30 days, not the cookie's year, to bound the store). */
+const READ_DEDUPE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Legacy cookies cleared per response, so a heavy reader drains over a few visits
@@ -26,7 +29,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  const limit = rateLimit(clientKey(request, "news-read"), { limit: 30, windowMs: 60_000 });
+  const limit = await rateLimitShared(clientKey(request, "news-read"), { limit: 30, windowMs: 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many requests" },
@@ -65,7 +68,14 @@ export async function POST(
 
   const known = parseReadSlugs(request.cookies.get(READS_COOKIE)?.value, SLUG_PATTERN);
   const merged = [...new Set([...known, ...legacySlugs.filter((s) => SLUG_PATTERN.test(s))])];
-  const alreadyCounted = merged.includes(slug);
+  let alreadyCounted = merged.includes(slug);
+  // The cookie list is a hint a client can drop. One read per hashed address and
+  // article is claimed in the shared store (never a raw IP); when the store
+  // cannot answer, the cookie alone decides, as before.
+  if (!alreadyCounted) {
+    const claim = await claimOnce(clientKey(request, `news-read-seen:${slug}`), READ_DEDUPE_TTL_MS);
+    alreadyCounted = claim === "duplicate";
+  }
 
   const count = alreadyCounted
     ? await getNewsArticleReadCount(slug)

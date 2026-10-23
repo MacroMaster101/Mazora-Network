@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { getPlayerDetail } from "@/lib/data/player-detail";
-import { clientKey, rateLimit, retryAfterHeaders } from "@/lib/rate-limit";
+import { clientKey, rateLimitShared, retryAfterHeaders } from "@/lib/rate-limit";
 
 const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;
 
 export async function GET(request: Request, { params }: { params: Promise<{ username: string }> }) {
-  const limit = rateLimit(clientKey(request, "player-detail"), { limit: 60, windowMs: 60_000 });
+  // Shared across instances: a per-instance window multiplies with every lambda
+  // a caller fans out to, and each lookup can reach Mojang.
+  const limit = await rateLimitShared(clientKey(request, "player-detail"), { limit: 60, windowMs: 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many requests" },

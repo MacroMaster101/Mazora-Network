@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
-import { SOCIAL_PLATFORM_KEYS, type CreatorSocial } from "@/lib/creator-socials";
+import { isValidSocialUrl, SOCIAL_PLATFORM_KEYS, type CreatorSocial } from "@/lib/creator-socials";
 import { resolveYouTubeProfileImage } from "@/lib/youtube-profile";
 import { reportDatabaseReadFailure } from "@/lib/db/errors";
 
@@ -17,6 +17,15 @@ export interface ContentCreator {
   createdAt: string;
 }
 
+/** Creators the admin board reads, and the most a public list reads. Neither page paginates. */
+const ADMIN_CREATORS_LIMIT = 500;
+const PUBLIC_CREATORS_LIMIT = 100;
+
+/**
+ * Socials as stored, re-checked on the way out. The save action validates
+ * them, but these become hrefs on public pages, so a row written before that
+ * check (or by hand) must not carry a javascript: or http: link through.
+ */
 function safeSocials(value: unknown): CreatorSocial[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
@@ -24,7 +33,8 @@ function safeSocials(value: unknown): CreatorSocial[] {
     const entry = item as { platform?: unknown; url?: unknown };
     if (typeof entry.platform !== "string" || typeof entry.url !== "string") return [];
     if (!SOCIAL_PLATFORM_KEYS.includes(entry.platform as CreatorSocial["platform"])) return [];
-    return [{ platform: entry.platform as CreatorSocial["platform"], url: entry.url }];
+    if (!isValidSocialUrl(entry.url)) return [];
+    return [{ platform: entry.platform as CreatorSocial["platform"], url: entry.url.trim() }];
   });
 }
 
@@ -56,7 +66,8 @@ export async function getContentCreators(): Promise<ContentCreator[]> {
     const rows = await db
       .select()
       .from(schema.contentCreators)
-      .orderBy(desc(schema.contentCreators.createdAt));
+      .orderBy(desc(schema.contentCreators.createdAt))
+      .limit(ADMIN_CREATORS_LIMIT);
     return Promise.all(rows.map(mapCreator).map(withResolvedProfileImage));
   } catch (error) {
     reportDatabaseReadFailure("Failed to load content creators", error);
@@ -77,12 +88,12 @@ export async function getPublicContentCreators({
           eq(schema.contentCreators.featuredOnHome, true),
         )
       : eq(schema.contentCreators.publicVisible, true);
-    const query = db
+    const rows = await db
       .select()
       .from(schema.contentCreators)
       .where(where)
-      .orderBy(desc(schema.contentCreators.createdAt));
-    const rows = limit ? await query.limit(limit) : await query;
+      .orderBy(desc(schema.contentCreators.createdAt))
+      .limit(Math.min(limit ?? PUBLIC_CREATORS_LIMIT, PUBLIC_CREATORS_LIMIT));
     return Promise.all(rows.map(mapCreator).map(withResolvedProfileImage));
   } catch (error) {
     reportDatabaseReadFailure("Failed to load public content creators", error);

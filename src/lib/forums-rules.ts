@@ -1,5 +1,6 @@
 import type { ReportReason } from "@/lib/report-rules";
 import type { Role } from "@/lib/types";
+import { slugify as baseSlugify } from "@/lib/utils";
 
 /** Shown in place of a removed post so a topic keeps its shape. */
 export const POST_TOMBSTONE = "This post was removed.";
@@ -81,13 +82,9 @@ export function isValidSlug(value: string): boolean {
   return value.length > 0 && value.length <= 60 && SLUG_PATTERN.test(value);
 }
 
+/** The shared slug (lib/utils), capped at the 60 characters isValidSlug allows. */
 export function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60)
-    .replace(/-+$/g, "");
+  return baseSlugify(value).slice(0, 60).replace(/-+$/g, "");
 }
 
 export const TITLE_MIN = 3;

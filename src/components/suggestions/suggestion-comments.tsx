@@ -45,7 +45,7 @@ export function SuggestionComments({
       ),
       renderReport: (comment): ReactNode => (
         <ReportButton
-          target={{ kind: "reply", id: comment.id, authorId: comment.authorId, deletedAt: comment.deletedAt }}
+          target={{ kind: "reply", id: comment.id, isOwn: comment.isOwn, deletedAt: comment.deletedAt }}
           viewer={viewer}
           loginHref={reportLoginHref}
         />

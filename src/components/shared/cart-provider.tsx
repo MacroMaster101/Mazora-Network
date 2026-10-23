@@ -44,6 +44,37 @@ function capQty(qty: number): number {
   return Math.min(qty, MAX_QUANTITY_PER_PRODUCT);
 }
 
+/**
+ * Keeps only stored items that have the shape of a cart line; anything else
+ * (a hand-edited or older value) is dropped instead of throwing later. The price
+ * here is only a display snapshot: the order action prices from the database.
+ */
+export function parseStoredCart(value: unknown): CartItem[] {
+  if (!Array.isArray(value)) return [];
+  const items: CartItem[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const { slug, name, price, accent, category, qty } = entry as Record<string, unknown>;
+    if (typeof slug !== "string" || !slug || slug.length > 120 || seen.has(slug)) continue;
+    if (typeof name !== "string" || name.length > 200) continue;
+    if (typeof price !== "number" || !Number.isFinite(price) || price < 0) continue;
+    if (typeof accent !== "string") continue;
+    if (category !== undefined && typeof category !== "string") continue;
+    if (typeof qty !== "number" || !Number.isInteger(qty) || qty < 1) continue;
+    seen.add(slug);
+    items.push({
+      slug,
+      name,
+      price,
+      accent: accent as CartItem["accent"],
+      ...(category !== undefined ? { category: category as CartItem["category"] } : {}),
+      qty: capQty(qty),
+    });
+  }
+  return items;
+}
+
 export function useCart(): CartCtx {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error("useCart must be used within CartProvider");
@@ -60,7 +91,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       const raw = localStorage.getItem(KEY);
       // A cart saved before the cap existed may hold more than the server takes.
-      if (raw) setItems((JSON.parse(raw) as CartItem[]).map((item) => ({ ...item, qty: capQty(item.qty) })));
+      if (raw) setItems(parseStoredCart(JSON.parse(raw)));
     } catch {
       /* Ignore malformed or unavailable local storage. */
     }

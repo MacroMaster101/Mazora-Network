@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, count, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageModule, FORUMS_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { deletePostAction } from "@/lib/actions/forums";
+import { recordAudit } from "@/lib/audit-log";
 import { getDb, schema } from "@/lib/db/client";
-import { removeForumPostImages } from "@/lib/forums/image-store";
+import { NEWS_IMAGE_BUCKET } from "@/lib/news/image-store";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { accountKey, rateLimitShared } from "@/lib/rate-limit";
 import { isValidSlug, moveInOrder, slugify } from "@/lib/forums-rules";
 
@@ -18,11 +20,21 @@ export interface ForumAdminResult {
 }
 
 /** Every mutation here resolves the same configurable module, fail-closed. */
-async function authorize(): Promise<boolean> {
+async function authorize(): Promise<Actor | null> {
   const session = await getSession();
-  if (!session) return false;
+  if (!session) return null;
   const userId = await getSessionUserId();
-  return canManageModule(FORUMS_PERMISSION_KEY, session, userId);
+  if (!userId || !(await canManageModule(FORUMS_PERMISSION_KEY, session, userId))) return null;
+  return { id: userId, username: session.username };
+}
+
+interface Actor {
+  id: string;
+  username: string;
+}
+
+function audit(actor: Actor, action: string, targetType: string, targetId: string | null, metadata: Record<string, unknown> = {}) {
+  return recordAudit({ action, actorId: actor.id, by: actor.username, targetType, targetId, metadata });
 }
 
 function readName(formData: FormData, field: string): string {
@@ -84,7 +96,8 @@ function refresh() {
 }
 
 export async function createCategoryAction(formData: FormData): Promise<ForumAdminResult> {
-  if (!(await authorize())) return { ok: false, message: "You do not have permission to manage forums." };
+  const actor = await authorize();
+  if (!actor) return { ok: false, message: "You do not have permission to manage forums." };
 
   const name = readCategoryName(formData, "name");
   if (typeof name !== "string") return { ok: false, message: name.error };
@@ -94,10 +107,15 @@ export async function createCategoryAction(formData: FormData): Promise<ForumAdm
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   try {
-    await db.transaction(async (tx) => {
+    const created = await db.transaction(async (tx) => {
       const sortOrder = await nextCategoryOrder(tx);
-      await tx.insert(schema.forumCategories).values({ name, slug, description: readDescription(formData), sortOrder });
+      const [row] = await tx
+        .insert(schema.forumCategories)
+        .values({ name, slug, description: readDescription(formData), sortOrder })
+        .returning({ id: schema.forumCategories.id });
+      return row;
     });
+    await audit(actor, "forums.category.create", "forum_category", created?.id ?? null, { name, slug });
     refresh();
     return { ok: true, message: `${name} created.` };
   } catch {
@@ -113,7 +131,8 @@ export async function createCategoryAction(formData: FormData): Promise<ForumAdm
  * transaction, so a forum that fails never leaves an empty category behind.
  */
 export async function createForumInCategoryAction(formData: FormData): Promise<ForumAdminResult> {
-  if (!(await authorize())) return { ok: false, message: "You do not have permission to manage forums." };
+  const actor = await authorize();
+  if (!actor) return { ok: false, message: "You do not have permission to manage forums." };
 
   const categoryName = readCategoryName(formData, "categoryName");
   if (typeof categoryName !== "string") return { ok: false, message: categoryName.error };
@@ -125,7 +144,7 @@ export async function createForumInCategoryAction(formData: FormData): Promise<F
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
 
-  type Outcome = { createdCategory: boolean } | "forum-taken";
+  type Outcome = { createdCategory: boolean; forumId: string; categoryId: string } | "forum-taken";
   let outcome: Outcome;
   try {
     outcome = await db.transaction(async (tx): Promise<Outcome> => {
@@ -157,7 +176,7 @@ export async function createForumInCategoryAction(formData: FormData): Promise<F
         .returning({ id: schema.forums.id });
       // Throwing rolls back a category created for this forum alone.
       if (!inserted.length) throw new ForumTaken();
-      return { createdCategory: !existing };
+      return { createdCategory: !existing, forumId: inserted[0].id, categoryId };
     });
   } catch (error) {
     if (error instanceof ForumTaken) outcome = "forum-taken";
@@ -170,6 +189,12 @@ export async function createForumInCategoryAction(formData: FormData): Promise<F
   if (outcome === "forum-taken") {
     return { ok: false, message: "A forum with that name already exists. Try a different name." };
   }
+  await audit(actor, "forums.forum.create", "forum", outcome.forumId, {
+    name: forum.name,
+    slug: forum.slug,
+    categoryId: outcome.categoryId,
+    createdCategory: outcome.createdCategory,
+  });
   refresh();
   return {
     ok: true,
@@ -181,7 +206,8 @@ export async function createForumInCategoryAction(formData: FormData): Promise<F
 class ForumTaken extends Error {}
 
 export async function updateCategoryAction(formData: FormData): Promise<ForumAdminResult> {
-  if (!(await authorize())) return { ok: false, message: "You do not have permission to manage forums." };
+  const actor = await authorize();
+  if (!actor) return { ok: false, message: "You do not have permission to manage forums." };
 
   const categoryId = String(formData.get("categoryId") ?? "");
   const name = readName(formData, "name");
@@ -197,6 +223,7 @@ export async function updateCategoryAction(formData: FormData): Promise<ForumAdm
       .where(eq(schema.forumCategories.id, categoryId))
       .returning({ id: schema.forumCategories.id });
     if (!updated.length) return { ok: false, message: "Unknown category." };
+    await audit(actor, "forums.category.update", "forum_category", categoryId, { name });
     revalidatePath("/forums");
     revalidatePath("/admin/forums");
     return { ok: true, message: `${name} updated.` };
@@ -206,7 +233,8 @@ export async function updateCategoryAction(formData: FormData): Promise<ForumAdm
 }
 
 export async function updateForumAction(formData: FormData): Promise<ForumAdminResult> {
-  if (!(await authorize())) return { ok: false, message: "You do not have permission to manage forums." };
+  const actor = await authorize();
+  if (!actor) return { ok: false, message: "You do not have permission to manage forums." };
 
   const forumId = String(formData.get("forumId") ?? "");
   const name = readName(formData, "name");
@@ -222,6 +250,7 @@ export async function updateForumAction(formData: FormData): Promise<ForumAdminR
       .where(eq(schema.forums.id, forumId))
       .returning({ id: schema.forums.id });
     if (!updated.length) return { ok: false, message: "Unknown forum." };
+    await audit(actor, "forums.forum.update", "forum", forumId, { name });
     revalidatePath("/forums");
     revalidatePath("/admin/forums");
     return { ok: true, message: `${name} updated.` };
@@ -230,7 +259,7 @@ export async function updateForumAction(formData: FormData): Promise<ForumAdminR
   }
 }
 
-async function swapForumOrder(forumId: string, direction: "up" | "down"): Promise<ForumAdminResult> {
+async function swapForumOrder(actor: Actor, forumId: string, direction: "up" | "down"): Promise<ForumAdminResult> {
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
 
@@ -261,6 +290,7 @@ async function swapForumOrder(forumId: string, direction: "up" | "down"): Promis
       }
     });
 
+    await audit(actor, "forums.forum.reorder", "forum", forumId, { direction });
     revalidatePath("/forums");
     revalidatePath("/admin/forums");
     return { ok: true, message: "Order updated." };
@@ -269,7 +299,7 @@ async function swapForumOrder(forumId: string, direction: "up" | "down"): Promis
   }
 }
 
-async function swapCategoryOrder(categoryId: string, direction: "up" | "down"): Promise<ForumAdminResult> {
+async function swapCategoryOrder(actor: Actor, categoryId: string, direction: "up" | "down"): Promise<ForumAdminResult> {
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
 
@@ -302,6 +332,7 @@ async function swapCategoryOrder(categoryId: string, direction: "up" | "down"): 
       }
     });
 
+    await audit(actor, "forums.category.reorder", "forum_category", categoryId, { direction });
     revalidatePath("/forums");
     revalidatePath("/admin/forums");
     return { ok: true, message: "Order updated." };
@@ -311,25 +342,34 @@ async function swapCategoryOrder(categoryId: string, direction: "up" | "down"): 
 }
 
 export async function moveForumAction(forumId: string, direction: string): Promise<ForumAdminResult> {
-  if (!(await authorize())) return { ok: false, message: "You do not have permission to manage forums." };
+  const actor = await authorize();
+  if (!actor) return { ok: false, message: "You do not have permission to manage forums." };
   // A direct caller bypasses the "up" | "down" type; anything else is neither
   // "up" nor down, so it is refused rather than silently treated as "down".
   if (direction !== "up" && direction !== "down") return { ok: false, message: "Invalid direction." };
-  return swapForumOrder(forumId, direction);
+  return swapForumOrder(actor, forumId, direction);
 }
 
 export async function moveCategoryAction(categoryId: string, direction: string): Promise<ForumAdminResult> {
-  if (!(await authorize())) return { ok: false, message: "You do not have permission to manage forums." };
+  const actor = await authorize();
+  if (!actor) return { ok: false, message: "You do not have permission to manage forums." };
   if (direction !== "up" && direction !== "down") return { ok: false, message: "Invalid direction." };
-  return swapCategoryOrder(categoryId, direction);
+  return swapCategoryOrder(actor, categoryId, direction);
 }
 
 export async function setForumLockedAction(forumId: string, locked: boolean): Promise<ForumAdminResult> {
-  if (!(await authorize())) return { ok: false, message: "You do not have permission to manage forums." };
+  const actor = await authorize();
+  if (!actor) return { ok: false, message: "You do not have permission to manage forums." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   try {
-    await db.update(schema.forums).set({ locked, updatedAt: new Date() }).where(eq(schema.forums.id, forumId));
+    const updated = await db
+      .update(schema.forums)
+      .set({ locked, updatedAt: new Date() })
+      .where(eq(schema.forums.id, forumId))
+      .returning({ id: schema.forums.id });
+    if (!updated.length) return { ok: false, message: "Unknown forum." };
+    await audit(actor, locked ? "forums.forum.lock" : "forums.forum.unlock", "forum", forumId);
     revalidatePath("/forums");
     revalidatePath("/admin/forums");
     return { ok: true, message: locked ? "Forum locked." : "Forum unlocked." };
@@ -339,22 +379,45 @@ export async function setForumLockedAction(forumId: string, locked: boolean): Pr
 }
 
 export async function deleteForumAction(forumId: string): Promise<ForumAdminResult> {
-  if (!(await authorize())) return { ok: false, message: "You do not have permission to manage forums." };
+  const actor = await authorize();
+  if (!actor) return { ok: false, message: "You do not have permission to manage forums." };
   if (!UUID.test(forumId)) return { ok: false, message: "Unknown forum." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   try {
     // The cascade removes the image rows but not the stored files, which would
-    // stay public on the bucket. Collect them first, remove them after.
+    // stay public on the bucket. Collect the storage keys first (the cascade
+    // takes the rows that hold them), delete the forum, and only then remove
+    // the files: a failed delete must not cost the images.
     const posts = await db
       .select({ id: schema.forumPosts.id })
       .from(schema.forumPosts)
       .innerJoin(schema.forumTopics, eq(schema.forumTopics.id, schema.forumPosts.topicId))
       .where(eq(schema.forumTopics.forumId, forumId));
-    await removeForumPostImages(posts.map((post) => post.id));
+    const images = posts.length
+      ? await db
+          .select({ storageKey: schema.forumPostImages.storageKey })
+          .from(schema.forumPostImages)
+          .where(inArray(schema.forumPostImages.postId, posts.map((post) => post.id)))
+      : [];
 
-    const deleted = await db.delete(schema.forums).where(eq(schema.forums.id, forumId)).returning({ id: schema.forums.id });
+    const deleted = await db
+      .delete(schema.forums)
+      .where(eq(schema.forums.id, forumId))
+      .returning({ id: schema.forums.id, name: schema.forums.name, slug: schema.forums.slug });
     if (!deleted.length) return { ok: false, message: "Unknown forum." };
+
+    try {
+      const admin = getSupabaseAdmin();
+      if (admin && images.length) await admin.storage.from(NEWS_IMAGE_BUCKET).remove(images.map((image) => image.storageKey));
+    } catch (error) {
+      console.error("Forum deleted but its stored images could not be removed", error);
+    }
+    await audit(actor, "forums.forum.delete", "forum", forumId, {
+      name: deleted[0].name,
+      slug: deleted[0].slug,
+      posts: posts.length,
+    });
     refresh();
     return { ok: true, message: "Forum deleted." };
   } catch {
@@ -368,7 +431,8 @@ export async function deleteForumAction(forumId: string): Promise<ForumAdminResu
  * forums with it. Move or delete the forums first.
  */
 export async function deleteCategoryAction(categoryId: string): Promise<ForumAdminResult> {
-  if (!(await authorize())) return { ok: false, message: "You do not have permission to manage forums." };
+  const actor = await authorize();
+  if (!actor) return { ok: false, message: "You do not have permission to manage forums." };
   if (!UUID.test(categoryId)) return { ok: false, message: "Unknown category." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
@@ -384,6 +448,7 @@ export async function deleteCategoryAction(categoryId: string): Promise<ForumAdm
     });
     if (deleted === "has-forums") return { ok: false, message: "Delete or move this category's forums first." };
     if (deleted === "missing") return { ok: false, message: "Unknown category." };
+    await audit(actor, "forums.category.delete", "forum_category", categoryId);
     refresh();
     return { ok: true, message: "Category deleted." };
   } catch {

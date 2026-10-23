@@ -126,7 +126,7 @@ export function EligibleItemsModal({ alert, alerts, isOpen, onClose }: EligibleI
               <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
                 {currentAlert.isAllProducts
                   ? "Good news! This discount code applies to every product across our entire store."
-                  : `This discount code applies to the ${currentAlert.eligibleProducts.length} hand-picked items listed below.`}
+                  : `This discount code applies to the ${currentAlert.eligibleCount ?? currentAlert.eligibleProducts.length} hand-picked items listed below.`}
               </p>
             </div>
 

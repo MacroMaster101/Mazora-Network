@@ -48,3 +48,8 @@ export async function hasOwnerGrant(subject: ResetGrantSubject): Promise<boolean
   if (!k || !subject.sessionId) return false;
   return verifySessionGrant((await cookies()).get(COOKIE)?.value, subject, k, nowSeconds());
 }
+
+/** Signing out ends the pass with the session it was bound to. */
+export async function clearOwnerGrant(): Promise<void> {
+  (await cookies()).delete(COOKIE);
+}

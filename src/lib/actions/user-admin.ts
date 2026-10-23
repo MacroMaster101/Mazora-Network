@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import type { Role } from "@/lib/types";
 import {
@@ -14,11 +14,11 @@ import {
   roleLabel,
 } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { listAllAuthUsers, usernameForUser } from "@/lib/data/accounts";
+import { PUBLIC_ROSTER_TAG, listAllAuthUsers, usernameForUser } from "@/lib/data/accounts";
 import { cleanupAccountOwnedData } from "@/lib/data/account-deletion";
 import { endAllSessions, setAccountSuspended } from "@/lib/data/account-status";
 import { recordAudit } from "@/lib/audit-log";
-import { getDb, schema } from "@/lib/db/client";
+import { getDb } from "@/lib/db/client";
 import { canAssignRoles, canManageMinecraft } from "@/lib/auth/permissions";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { normalizeRoleKey, roleDef } from "@/lib/auth/role-catalog-core";
@@ -218,19 +218,19 @@ export async function inviteUserAction(
     };
   }
 
-  const db = getDb();
-  if (db) {
-    await db.insert(schema.auditLogs).values({
-      action: "user.invite",
-      targetType: "user",
-      targetId: data.user.id,
-      metadata: { email, role, by: session.username },
-    });
-  }
+  await recordAudit({
+    action: "user.invite",
+    actorId,
+    by: session.username,
+    targetType: "user",
+    targetId: data.user.id,
+    metadata: { email, role },
+  });
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/staff");
   revalidatePath("/staff");
+  revalidateTag(PUBLIC_ROSTER_TAG);
   return {
     ok: true,
     message: `Invitation sent to ${email} as ${roleLabel(role)}.`,
@@ -275,18 +275,18 @@ export async function setStaffPublicVisibilityAction(
   });
   if (updateError) return { ok: false, message: "Could not update public team visibility." };
 
-  const db = getDb();
-  if (db) {
-    await db.insert(schema.auditLogs).values({
-      action: visible ? "staff.public.enable" : "staff.public.disable",
-      targetType: "user",
-      targetId: userId,
-      metadata: { visible, by: session.username },
-    });
-  }
+  await recordAudit({
+    action: visible ? "staff.public.enable" : "staff.public.disable",
+    actorId: await getSessionUserId(),
+    by: session.username,
+    targetType: "user",
+    targetId: userId,
+    metadata: { visible },
+  });
 
   revalidatePath("/admin/staff");
   revalidatePath("/staff");
+  revalidateTag(PUBLIC_ROSTER_TAG);
   return {
     ok: true,
     message: visible ? "Staff member is now visible on Our Team." : "Staff member is now hidden from Our Team.",
@@ -336,15 +336,14 @@ export async function revokeInviteAction(
     return { ok: false, message: "The invitation could not be withdrawn." };
   }
 
-  const db = getDb();
-  if (db) {
-    await db.insert(schema.auditLogs).values({
-      action: "user.invite.revoke",
-      targetType: "user",
-      targetId: userId,
-      metadata: { email: target.user.email ?? null, by: session.username },
-    });
-  }
+  await recordAudit({
+    action: "user.invite.revoke",
+    actorId: await getSessionUserId(),
+    by: session.username,
+    targetType: "user",
+    targetId: userId,
+    metadata: { email: target.user.email ?? null },
+  });
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/staff");
@@ -388,6 +387,14 @@ export async function resendInviteAction(
     console.error("Invite resend failed", resendError);
     return { ok: false, message: "The invitation could not be resent." };
   }
+
+  await recordAudit({
+    action: "user.invite.resend",
+    actorId: await getSessionUserId(),
+    by: session.username,
+    targetType: "user",
+    targetId: userId,
+  });
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/staff");
@@ -470,6 +477,7 @@ export async function setUserSuspendedAction(
   revalidatePath("/admin/users");
   revalidatePath("/admin/staff");
   revalidatePath("/staff");
+  revalidateTag(PUBLIC_ROSTER_TAG);
   return { ok: true, message: suspend ? `${targetName} is suspended.` : `${targetName} can sign in again.` };
 }
 
@@ -549,24 +557,42 @@ export async function deleteUserAction(
   const db = getDb();
   if (!db) return { ok: false, message: "Account data cleanup is temporarily unavailable." };
 
+  // The cleanup has to run first: the order rows are found by the auth id, which
+  // the FK nulls the moment the user goes, and the stored files cascade does not
+  // reach. It is idempotent, so if the deletion below fails the account is left
+  // intact (only partly scrubbed) and running Delete again finishes the job.
   const cleanup = await cleanupAccountOwnedData(userId);
   if (!cleanup.ok) return { ok: false, message: cleanup.message };
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
   if (deleteError) {
     console.error("User delete failed", deleteError);
-    return { ok: false, message: "The account could not be deleted." };
+    await recordAudit({
+      action: "user.delete.failed",
+      actorId,
+      by: session.username,
+      targetType: "user",
+      targetId: userId,
+      metadata: { stage: "auth-delete", cleanedUp: true },
+    });
+    return {
+      ok: false,
+      message: "The account could not be deleted. Its stored files were already removed, so run Delete again to finish.",
+    };
   }
 
   // Proof that an authorized deletion occurred, and of whom: the username, so
   // staff can tell later which account it was (the owner's decision). Nothing
   // else is kept: no email, no auth id. Written only after Supabase confirms
-  // the deletion.
-  await db.insert(schema.auditLogs).values({
+  // the deletion, and it cannot throw: the account is already gone, so a logging
+  // failure must not report the deletion as failed.
+  await recordAudit({
     action: "user.delete",
+    actorId: actorId ?? null,
+    by: session.username,
     targetType: "user",
     targetId: null,
-    metadata: { username: targetName, deletedRole: targetRole, by: session.username },
+    metadata: { username: targetName, deletedRole: targetRole },
   });
 
   revalidatePath("/admin/users");
@@ -607,15 +633,13 @@ export async function adminReleaseMinecraftUsernameAction(
   const { error } = await admin.from("minecraft_accounts").delete().eq("user_id", userId);
   if (error) return { ok: false, message: "Could not release Minecraft IGN." };
 
-  const db = getDb();
-  if (db) {
-    await db.insert(schema.auditLogs).values({
-      action: "user.minecraft.release",
-      targetType: "user",
-      targetId: userId,
-      metadata: { by: session.username },
-    });
-  }
+  await recordAudit({
+    action: "user.minecraft.release",
+    actorId,
+    by: session.username,
+    targetType: "user",
+    targetId: userId,
+  });
 
   revalidatePath("/admin/users");
   revalidatePath("/dashboard/settings");
