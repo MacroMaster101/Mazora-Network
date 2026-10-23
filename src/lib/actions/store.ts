@@ -42,7 +42,7 @@ const contactSchema = z.object({
     .max(16, "Minecraft usernames are at most 16 characters.")
     .regex(/^[A-Za-z0-9_]+$/, "Use only letters, numbers and underscores."),
   notes: z.string().trim().max(500, "Keep notes under 500 characters.").optional(),
-  agreement: z.literal("yes", { errorMap: () => ({ message: "Confirm that this is a manual order request." }) }),
+  agreement: z.literal("yes", { error: "Confirm that this is a manual order request." }),
   website: z.string().max(0),
 });
 

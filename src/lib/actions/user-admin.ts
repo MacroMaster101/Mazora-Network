@@ -52,12 +52,12 @@ function isGrantable(value: string): value is Role {
 
 const inviteSchema = z.object({
   email: z
-    .string({ required_error: "Enter an email address." })
+    .string({ error: "Enter an email address." })
     .trim()
     .min(1, "Enter an email address.")
     .max(254, "That email address is too long.")
     .email("Enter a valid email address."),
-  role: z.string({ required_error: "Choose a rank." }).refine(isGrantable, {
+  role: z.string({ error: "Choose a rank." }).refine(isGrantable, {
     message: "Choose a rank.",
   }),
 });
