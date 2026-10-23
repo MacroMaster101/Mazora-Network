@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
-import { isRoleKey, normalizeRoleKey } from "@/lib/auth/roles";
+import { isRoleKey, normalizeRoleKey, publicRole } from "@/lib/auth/roles";
 import {
   buildCommentTree, countComments, selectCommentView,
   type CommentNode, type CommentSort, type FlatComment,
@@ -380,9 +380,9 @@ export async function getSuggestionThread(
   }
 }
 
-/** A stored app_metadata role as a catalogue key, or Member. normalizeRoleKey
+/** A stored app_metadata role as the rank the public sees (publicRole), or Member. normalizeRoleKey
  *  reads the legacy top-role key as web_dev until migration 055 (removable after). */
 function storedRole(value: unknown): Role {
   const role = normalizeRoleKey(value);
-  return isRoleKey(role) ? role : "member";
+  return isRoleKey(role) ? publicRole(role) : "member";
 }

@@ -124,3 +124,16 @@ test("the recovery pepper warning is production-only and logged once per instanc
   assert.match(warning, /^console\.error\(\s*"[^"]*",?\s*$/);
   assert.doesNotMatch(warning, /\$\{|process\.env|,\s*pepper|,\s*code/);
 });
+
+test("a staff invite does not hand the email handle to the signup trigger as a username", () => {
+  const src = read("../actions/user-admin.ts");
+  const invite = src.slice(
+    src.indexOf("export async function inviteUserAction"),
+    src.indexOf("export async function resendInviteAction"),
+  );
+  const call = invite.slice(invite.indexOf("inviteUserByEmail("), invite.indexOf("});", invite.indexOf("inviteUserByEmail(")));
+  assert.match(call, /redirectTo: inviteRedirect\(\)/);
+  // With no metadata username, derive_username (080) gives the player_<uuid8> placeholder.
+  assert.doesNotMatch(call, /username|split\("@"\)|data:/);
+  assert.doesNotMatch(invite, /username: email\.split\("@"\)/);
+});

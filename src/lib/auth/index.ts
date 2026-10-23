@@ -7,7 +7,7 @@ import { ensureUserProfile } from "@/lib/auth/profile";
 import { isDemoAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { resolveAvatarUrl } from "@/lib/avatar-source";
 import { pickDiscordIdentity } from "@/lib/auth/discord-identity";
-import { isPlaceholderUsername, realDisplayName } from "@/lib/auth/placeholder";
+import { realDisplayName } from "@/lib/auth/placeholder";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { clearRecoveryGrant, hasRecoveryGrant } from "@/lib/auth/recovery-grant";
 import { clearPasskeySignInGrant, hasPasskeySignInGrant } from "@/lib/auth/passkey-signin-grant";
@@ -276,16 +276,13 @@ export const getSession = cache(async (): Promise<Session | null> => {
       return null;
     }
 
-    const emailName = data.user.email?.split("@")[0] ?? "player";
-    // The signup trigger stores `player_<uuid8>` / "New Player" for OAuth
-    // accounts that arrive without their own username/display_name. Neither is a
-    // name the member chose, so both are skipped here and the real name is
-    // derived from provider metadata / email — keeping the header and the admin
-    // Users board showing the same handle for the same person.
-    const chosenUsername = isPlaceholderUsername(profile?.username, data.user.id) ? undefined : profile?.username;
-    const username = cleanUsername(
-      chosenUsername ?? fallbackMeta.username ?? fallbackMeta.preferred_username ?? fallbackMeta.user_name ?? emailName,
-    );
+    // The profile's username, the `player_<uuid8>` placeholder included: it is
+    // the name this account signs in with and the one the site shows, the same
+    // as siteUsername gives the admin lists. It is never swapped for the email
+    // handle, which migration 081 removed for being a name nobody chose to
+    // publish; a forum post or gallery entry takes this name when the member
+    // has no display name. "New Player" is still skipped below.
+    const username = cleanUsername(profile.username);
     const displayName = String(
       realDisplayName(profile?.display_name) ?? preferredMeta.full_name ?? preferredMeta.name ?? preferredMeta.display_name ?? fallbackMeta.full_name ?? fallbackMeta.name ?? username,
     ).slice(0, 64);

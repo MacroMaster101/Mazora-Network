@@ -51,3 +51,19 @@ test("a rebuilt profile cleans the display name the way the form would", () => {
     assert.equal(displayName.parse(stored), stored, JSON.stringify(sent));
   }
 });
+
+test("a rebuilt profile never takes its username from the email address", () => {
+  // The trigger's rule since migration 080: metadata names only, then the placeholder.
+  assert.match(profile, /cleanUsername\(metadata\.username \?\? metadata\.preferred_username \?\? metadata\.user_name, user\.id\)/);
+  assert.match(profile, /return cleaned\.length >= 3 \? cleaned : placeholderUsername\(userId\);/);
+  assert.doesNotMatch(profile, /email\?\.split\("@"\)/);
+});
+
+test("the session keeps the profile's username, placeholder included, never the email handle", () => {
+  const session = readFileSync(new URL("../auth/index.ts", import.meta.url), "utf8");
+  const body = session.slice(session.indexOf("export const getSession"), session.indexOf("return {", session.indexOf("export const getSession")));
+  assert.match(body, /const username = cleanUsername\(profile\.username\);/);
+  assert.doesNotMatch(body, /email\?\.split\("@"\)|isPlaceholderUsername/);
+  // The username is read only after a missing or inactive profile has already returned null.
+  assert.ok(body.indexOf('profile.account_status !== "active"') < body.indexOf("cleanUsername(profile.username)"));
+});

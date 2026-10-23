@@ -173,9 +173,12 @@ export async function inviteUserAction(
     }
   }
 
+  // No username in the invite metadata: the signup trigger would take it as the
+  // invitee's chosen name, and the email handle is often a real name nobody
+  // chose to publish (migration 080). They get the player_<uuid8> placeholder
+  // and pick a name in Settings.
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     redirectTo: inviteRedirect(),
-    data: { username: email.split("@")[0] },
   });
 
   if (error || !data?.user) {

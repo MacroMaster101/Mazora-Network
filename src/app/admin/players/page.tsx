@@ -16,7 +16,7 @@ export default async function AdminPlayersPage() {
 
   const [players, directory, serverStatus] = await Promise.all([
     getPlayers(),
-    getDirectory(),
+    getDirectory({ staffView: true }),
     getServerStatus(),
   ]);
 

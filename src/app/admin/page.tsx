@@ -42,7 +42,7 @@ export default async function ControlRoom() {
     getServerStatus(),
     getDiscordStats(),
     canModerate ? getPlayers() : Promise.resolve([]),
-    canModerate ? getDirectory() : Promise.resolve([]),
+    canModerate ? getDirectory({ staffView: true }) : Promise.resolve([]),
     canManageContent ? getEvents() : Promise.resolve([]),
     canManageContent ? getNews() : Promise.resolve([]),
     canManageContent ? getProducts() : Promise.resolve([]),
