@@ -41,6 +41,11 @@ test("a member-written user_metadata flag never says the account has a password"
   assert.equal(accountHasPassword({ ...googleOnly, user_metadata: { has_password: true } } as never), false);
   assert.equal(accountHasPassword(googleOnly), false);
   assert.doesNotMatch(between(read("../auth/reauth.ts"), "export function accountHasPassword", "\n}\n"), /user_metadata/);
+  // The settings page asks the same question, and nothing writes the old flag any more.
+  const panels = read("../../components/account/account-panels.tsx");
+  assert.match(panels, /hasPassword = accountHasPassword\(data\.user\);/);
+  assert.doesNotMatch(panels, /user_metadata\?\.has_password/);
+  assert.doesNotMatch(read("../actions/auth.ts"), /data: \{ has_password: true \}/);
 });
 
 test("the email identity and the service-role flag still say yes, and an explicit no wins", () => {

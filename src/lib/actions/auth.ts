@@ -1112,7 +1112,7 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
     if (viaRecoveryCode && !admin) return { ok: false, message: "Authentication is temporarily unavailable. Please try again." };
     const { error } = admin
       ? await admin.auth.admin.updateUserById(userData.user.id, { password: parsed.data.password })
-      : await supabase.auth.updateUser({ password: parsed.data.password, data: { has_password: true } });
+      : await supabase.auth.updateUser({ password: parsed.data.password });
     if (error) return { ok: false, message: "The password could not be updated. Request a new code and try again." };
     await markHasPassword(userData?.user?.id);
 
@@ -1260,7 +1260,6 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
 
     let { error } = await supabase.auth.updateUser({
       password: parsed.data.password,
-      data: { has_password: true },
       ...(nonce ? { nonce } : {}),
     });
 

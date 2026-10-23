@@ -533,7 +533,7 @@ test("the password is blanked in the database, with the admin API only as a fall
   const reauth = between(read("../auth/reauth.ts"), "export function accountHasPassword", "\n}\n");
   const explicitNo = reauth.indexOf("if (user.app_metadata?.has_password === false) return false;");
   assert.ok(explicitNo > 0 && explicitNo < reauth.indexOf('identity?.provider === "email"'), "before the email identity says yes");
-  assert.match(read("../../components/account/account-panels.tsx"), /data\.user\.app_metadata\?\.has_password !== false &&/);
+  assert.match(read("../../components/account/account-panels.tsx"), /hasPassword = accountHasPassword\(data\.user\);/);
   // ...and choosing a password turns it back, by a second route if the first fails.
   const auth = read("../actions/auth.ts");
   const mark = between(auth, "async function markHasPassword", "\n}\n");
