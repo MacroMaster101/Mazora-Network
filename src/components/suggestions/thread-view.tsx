@@ -13,7 +13,7 @@ import { canVoteOnComment } from "@/lib/comments/vote-rules";
 import { canReport } from "@/lib/report-rules";
 import { commentHref, MAX_VISIBLE_DEPTH, type CommentNode, type CommentSort } from "@/lib/comments/tree";
 import type { Role } from "@/lib/types";
-import type { CommentView } from "@/components/comments/types";
+import { viewerSubject, type CommentView } from "@/components/comments/types";
 import { UserAvatar } from "@/components/shared";
 import { fmtDate, relative } from "@/lib/utils";
 import { CategoryChip, StatusPill } from "./suggestion-meta";
@@ -46,7 +46,7 @@ function toViewTree(
 ): CommentNode<CommentView>[] {
   return nodes.map((node) => {
     const reply = node.comment;
-    const subject = { authorId: reply.authorId, deletedAt: reply.deletedAt };
+    const subject = viewerSubject(reply.isOwn, actor.userId, reply.deletedAt);
     const canEdit = canEditReply(threadState, subject, actor);
     const canDelete = canDeleteReply(threadState, subject, actor);
     const removed = Boolean(reply.deletedAt);
@@ -57,16 +57,16 @@ function toViewTree(
       deletedAt: reply.deletedAt,
       up: reply.up,
       down: reply.down,
-      authorId: removed ? "" : reply.authorId,
+      isOwn: removed ? false : reply.isOwn,
       authorName: removed ? "" : reply.author.displayName || reply.author.username,
       authorUsername: removed ? "removed" : reply.author.username,
       authorAvatar: removed ? null : reply.author.avatarUrl,
       authorRole: removed ? "member" : reply.authorRole,
-      isOp: removed ? false : reply.authorId === thread.authorId,
+      isOp: removed ? false : reply.isOp,
       authorStatus: removed ? null : reply.authorStatus,
       editedAt: reply.editedAt,
       myVote: reply.myVote,
-      body: <p className="whitespace-pre-line">{replyBody(reply)}</p>,
+      body: <p className="whitespace-pre-line">{replyBody({ ...subject, body: reply.body })}</p>,
       editBody: canEdit ? reply.body : null,
       images: reply.images.length ? <ImageGallery images={reply.images} canRemove={canDelete} /> : null,
       canVote: canVoteOnComment(subject, { userId: actor.userId, accountStatus }),
@@ -118,7 +118,7 @@ export function ThreadView({
   // moderator regardless of lock state) — deleteSuggestionImageAction applies
   // that identical rule to a suggestion's own images, so there is no separate
   // permission concept to invent here.
-  const canRemoveThreadImages = canDeleteReply(threadState, { authorId: thread.authorId, deletedAt: null }, actor);
+  const canRemoveThreadImages = canDeleteReply(threadState, viewerSubject(thread.isOwn, viewerId, null), actor);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
@@ -151,7 +151,7 @@ export function ThreadView({
               <MessageCircle size={13} aria-hidden="true" /> {thread.totalReplies} {thread.totalReplies === 1 ? "reply" : "replies"}
             </span>
             <ReportButton
-              target={{ kind: "suggestion", id: thread.id, authorId: thread.authorId, deletedAt: null }}
+              target={{ kind: "suggestion", id: thread.id, isOwn: thread.isOwn, deletedAt: null }}
               viewer={viewer}
               loginHref={loginHref}
             />

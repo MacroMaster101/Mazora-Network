@@ -13,7 +13,8 @@ import type { Role } from "@/lib/types";
  * removed comment's text must never ride along.
  */
 export interface CommentView extends FlatComment {
-  authorId: string;
+  /** The viewer wrote this comment. The author's account id never reaches the page. */
+  isOwn: boolean;
   authorName: string;
   authorUsername: string;
   authorAvatar: string | null;
@@ -32,6 +33,20 @@ export interface CommentView extends FlatComment {
   canEdit: boolean;
   canDelete: boolean;
   canReport: boolean;
+}
+
+/**
+ * A rule subject for a comment its loader described as the viewer's own or
+ * not. The rules compare ids, but loaders send `isOwn` instead of the author's
+ * id, so the viewer's own id stands in for "mine" and "" — never a real
+ * account id — for anyone else.
+ */
+export function viewerSubject(
+  isOwn: boolean,
+  viewerId: string | null,
+  deletedAt: string | null,
+): { authorId: string; deletedAt: string | null } {
+  return { authorId: isOwn && viewerId ? viewerId : "", deletedAt };
 }
 
 export interface VoteResult {

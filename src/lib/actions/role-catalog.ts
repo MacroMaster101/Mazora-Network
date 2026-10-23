@@ -167,6 +167,15 @@ export async function updateRoleAction(
   if (!role) return { ok: false, message: "That role no longer exists." };
 
   const allowed = editableFields(role);
+  // Locked roles (owner, web_dev) carry the highest access: an Owner must not
+  // be able to rename or recolour them (or the Web Dev role above their own).
+  if (
+    role.locked &&
+    me.session.role !== TOP_ROLE &&
+    (patch.label !== undefined || patch.color !== undefined || patch.icon !== undefined || patch.description !== undefined)
+  ) {
+    return { ok: false, message: `Only the ${TOP_ROLE === "web_dev" ? "Web Dev" : "top role"} can change the look of ${role.label}.` };
+  }
   const next: Record<string, unknown> = { updatedAt: new Date() };
   if (patch.label !== undefined) {
     if (typeof patch.label !== "string") return { ok: false, message: "Invalid name." };

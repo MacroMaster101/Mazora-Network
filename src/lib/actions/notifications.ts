@@ -86,8 +86,17 @@ function refreshNotificationPages() {
   revalidatePath("/dashboard");
 }
 
+/**
+ * The signed-in member's id, only for an active session. getSession carries the
+ * confirmed-email and active-profile checks that the bare session id skips.
+ */
+async function activeUserId(): Promise<string | null> {
+  const session = await getSession();
+  return session ? getSessionUserId() : null;
+}
+
 export async function listMyNotificationsAction(): Promise<AccountNotification[]> {
-  const [userId, db] = await Promise.all([getSessionUserId(), Promise.resolve(getDb())]);
+  const [userId, db] = await Promise.all([activeUserId(), Promise.resolve(getDb())]);
   if (!userId || !db) return [];
   try {
     const rows = await db
@@ -113,7 +122,7 @@ export async function listMyNotificationsAction(): Promise<AccountNotification[]
 }
 
 export async function setNotificationReadAction(id: string, read: boolean): Promise<Result> {
-  const userId = await getSessionUserId();
+  const userId = await activeUserId();
   const db = getDb();
   if (!userId) return { ok: false, message: "Your session has expired." };
   if (!db) return { ok: false, message: "The database is not connected." };
@@ -126,7 +135,7 @@ export async function setNotificationReadAction(id: string, read: boolean): Prom
 }
 
 export async function setAllNotificationsReadAction(read: boolean): Promise<Result> {
-  const userId = await getSessionUserId();
+  const userId = await activeUserId();
   const db = getDb();
   if (!userId) return { ok: false, message: "Your session has expired." };
   if (!db) return { ok: false, message: "The database is not connected." };
@@ -136,7 +145,7 @@ export async function setAllNotificationsReadAction(read: boolean): Promise<Resu
 }
 
 export async function deleteNotificationAction(id?: string): Promise<Result> {
-  const userId = await getSessionUserId();
+  const userId = await activeUserId();
   const db = getDb();
   if (!userId) return { ok: false, message: "Your session has expired." };
   if (!db) return { ok: false, message: "The database is not connected." };

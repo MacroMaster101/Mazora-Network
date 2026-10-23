@@ -41,6 +41,16 @@ export interface StoreOrder {
   items: OrderLine[];
 }
 
+/**
+ * A member's own view of an order. Staff accountability (`handledBy`) and the
+ * Discord resources behind the order (`ticketChannelId`, `discordId`) stay
+ * server-side: the member has no use for them, and migration 076 already hides
+ * the first two from owners at the REST layer.
+ */
+export type MemberOrder = Omit<StoreOrder, "handledBy" | "ticketChannelId" | "discordId"> & {
+  handledBy?: null;
+};
+
 export const ORDER_STATUSES: OrderStatus[] = [
   "pending",
   "confirmed",

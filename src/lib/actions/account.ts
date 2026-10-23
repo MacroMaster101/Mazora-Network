@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { PUBLIC_ROSTER_TAG } from "@/lib/data/accounts";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getSignInSessionId, hasActiveSession } from "@/lib/auth";
@@ -12,8 +13,10 @@ import { throttleAuthAction } from "@/lib/rate-limit";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET } from "@/lib/storage/avatar-bucket";
 import { removeStoredSkinFiles } from "@/lib/storage/skin-files";
+import { recordAudit } from "@/lib/audit-log";
 import { cleanupAccountOwnedData } from "@/lib/data/account-deletion";
 import { displayName } from "@/lib/validation/auth";
+import { siteUsername } from "@/lib/auth/placeholder";
 
 export interface AccountActionResult {
   ok: boolean;
@@ -138,6 +141,7 @@ export async function disconnectMinecraftAction(
   revalidatePath("/admin/account");
   revalidatePath("/dashboard/minecraft");
   revalidatePath("/players", "layout");
+  revalidateTag(PUBLIC_ROSTER_TAG);
   revalidatePath("/leaderboards");
   return { ok: true, message: "Minecraft has been disconnected." };
 }
@@ -175,9 +179,13 @@ export async function deleteAccountAction(
     .select("username")
     .eq("user_id", auth.user.id)
     .maybeSingle();
-  const username = String(
-    profile?.username ?? auth.user.user_metadata?.username ?? auth.user.email?.split("@")[0] ?? "",
-  ).trim();
+  // The name getSession shows the member, never their email handle.
+  const username = siteUsername({
+    profileUsername: profile?.username,
+    metadataUsername: auth.user.user_metadata?.username,
+    email: auth.user.email,
+    userId: auth.user.id,
+  });
 
   if (!username || confirmation.toLowerCase() !== username.toLowerCase()) {
     return { ok: false, errors: { confirmation: `Type ${username || "your username"} to confirm.` } };
@@ -235,7 +243,20 @@ export async function deleteAccountAction(
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(auth.user.id);
 
-  if (deleteError) return { ok: false, message: "Your account could not be deleted. Please try again or contact support." };
+  if (deleteError) {
+    console.error("Self-service account delete failed", deleteError);
+    // Cleanup is idempotent and must precede the delete (order rows are found by
+    // the auth id, files are not cascaded), so a retry finishes the job.
+    await recordAudit({
+      action: "account.delete.failed",
+      actorId: auth.user.id,
+      by: "self",
+      targetType: "user",
+      targetId: auth.user.id,
+      metadata: { stage: "auth-delete", cleanedUp: true },
+    });
+    return { ok: false, message: "Your account could not be deleted. Please try again or contact support." };
+  }
 
   // The auth user no longer exists, but clearing the local session cookie
   // prevents the browser retaining a stale JWT until its normal expiry.

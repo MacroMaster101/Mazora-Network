@@ -1,7 +1,8 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { PUBLIC_ROSTER_TAG, usernameForUser } from "@/lib/data/accounts";
 import type { Role } from "@/lib/types";
 import { canGrantRank, canManageRank, getSession, getSessionUserId, isRoleKey, isStaff, roleKeys, roleLabel } from "@/lib/auth";
 import { normalizeRoleKey, roleDef } from "@/lib/auth/role-catalog-core";
@@ -117,8 +118,7 @@ export async function changeUserRole(input: {
     targetType: "user",
     targetId: input.userId,
     metadata: {
-      username:
-        target.user.user_metadata?.username ?? target.user.email?.split("@")[0] ?? null,
+      username: await usernameForUser(input.userId, target.user),
       email: target.user.email ?? null,
       from: currentRole,
       to: newRole,
@@ -157,5 +157,6 @@ export async function changeUserRole(input: {
   revalidatePath("/admin/users");
   revalidatePath("/admin/staff");
   revalidatePath("/staff");
+  revalidateTag(PUBLIC_ROSTER_TAG);
   return { ok: true, message: `Role changed to ${roleLabel(newRole)}.` };
 }

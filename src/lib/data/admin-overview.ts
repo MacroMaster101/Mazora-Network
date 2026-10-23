@@ -13,7 +13,7 @@ import type { Role } from "@/lib/types";
 import { isRoleKey, isStaff, normalizeRoleKey } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { listAllAuthUsers } from "@/lib/data/accounts";
+import { listAllAuthUsers, resolveUsername } from "@/lib/data/accounts";
 import { resolveAvatarUrl } from "@/lib/avatar-source";
 
 export interface AccountRow {
@@ -83,16 +83,27 @@ export async function getAccountsSnapshot(): Promise<AccountsSnapshot | null> {
   // This list is built from auth alone for speed, so it has no profile join and
   // therefore no chosen avatar. One extra read keeps the control room's faces
   // consistent with the Users board rather than falling back to a generic head.
+  // The same read supplies the site username, so the list never falls back
+  // to an email handle.
   const chosenAvatars = new Map<string, string | null>();
+  const profileUsernames = new Map<string, string | null>();
   try {
-    const { data: profiles } = await admin.from("profiles").select("user_id, avatar_url");
-    for (const row of profiles ?? []) chosenAvatars.set(String(row.user_id), row.avatar_url ?? null);
+    const { data: profiles } = await admin.from("profiles").select("user_id, avatar_url, username");
+    for (const row of profiles ?? []) {
+      chosenAvatars.set(String(row.user_id), row.avatar_url ?? null);
+      profileUsernames.set(String(row.user_id), row.username ?? null);
+    }
   } catch {
     // Avatars are cosmetic here; a failure must not take out the whole snapshot.
   }
 
   const users = data.users.map((u) => ({
-    username: String(u.user_metadata?.username ?? u.email?.split("@")[0] ?? "player"),
+    username: resolveUsername({
+      profileUsername: profileUsernames.get(u.id),
+      metadataUsername: u.user_metadata?.username,
+      email: u.email,
+      userId: u.id,
+    }),
     email: u.email ?? "",
     role: toRole(u.app_metadata?.role),
     createdAt: u.created_at ?? "",

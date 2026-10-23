@@ -7,12 +7,12 @@ import {
 } from "@/lib/db/connection-url";
 
 const transactionPoolerUrl =
-  "postgres://postgres.project:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres";
+  "postgres://postgres.project-ref:secret@aws-0-region.pooler.supabase.com:6543/postgres";
 
 test("uses the Supabase session pooler during local development", () => {
   assert.equal(
     databaseUrlForRuntime(transactionPoolerUrl, "development"),
-    "postgres://postgres.project:secret@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres",
+    "postgres://postgres.project-ref:secret@aws-0-region.pooler.supabase.com:5432/postgres",
   );
 });
 

@@ -46,6 +46,8 @@ test("an account deletion records the username, and still no email or account id
   const start = admin.indexOf('action: "user.delete"');
   const row = admin.slice(start, admin.indexOf("});", start));
   assert.match(row, /targetId: null/, "no account id");
-  assert.match(row, /metadata: \{ username: targetName, deletedRole: targetRole, by: session\.username \}/);
+  // recordAudit (lib/audit-log) folds `by` into the metadata.
+  assert.match(row, /by: session\.username,/);
+  assert.match(row, /metadata: \{ username: targetName, deletedRole: targetRole \}/);
   assert.doesNotMatch(row, /email/, "no email");
 });

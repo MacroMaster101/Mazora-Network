@@ -171,7 +171,7 @@ const codeSchema = z.object({
         platform: z.enum(SOCIAL_PLATFORM_KEYS as [SocialPlatform, ...SocialPlatform[]]),
         // Parsed with the URL constructor and protocol-allowlisted, so a
         // `javascript:` value can never be stored and later clicked in the admin.
-        url: z.string().trim().max(300).refine(isValidSocialUrl, "Enter a full http(s) link."),
+        url: z.string().trim().max(300).refine(isValidSocialUrl, "Enter a full https:// link."),
       }),
     )
     .max(SOCIAL_PLATFORM_KEYS.length, "Too many social links."),

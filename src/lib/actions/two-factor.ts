@@ -10,7 +10,7 @@ import { throttleAuthAction } from "@/lib/rate-limit";
 import { safeNext } from "@/lib/safe-redirect";
 import { clearRecoveryCodes, issueRecoveryCodes } from "@/lib/auth/recovery-codes";
 import { redeemRecoveryCode, removeAllFactors, removeFactor } from "@/lib/auth/two-factor-recovery";
-import { clearRecoveryGrant, issueRecoveryGrant } from "@/lib/auth/recovery-grant";
+import { clearRecoveryGrant, hasFreshRecoveryGrant, issueRecoveryGrant } from "@/lib/auth/recovery-grant";
 import { clearReplaceGrant, hasReplaceGrant, issueReplaceGrant } from "@/lib/auth/replace-grant";
 import { hasOwnerGrant, issueOwnerGrant } from "@/lib/auth/owner-grant";
 import { ownerGrantSubject } from "@/lib/auth/owner-confirmation";
@@ -119,7 +119,10 @@ async function replaceSubject(actor: SignedIn) {
  * first, and records that in a short-lived replace pass the confirm step
  * requires: otherwise the new app's own code would be enough to remove the old
  * one, and a signed-in browser alone could take over the second factor. A
- * sign-in that used a recovery code has already spent one, so it goes straight on.
+ * sign-in that used a recovery code has already spent one, so it goes straight
+ * on, but only within 15 minutes of that sign-in: after that it confirms it's
+ * the owner again (a recovery code works for that too), because the replacement
+ * starts by taking the old authenticator off.
  */
 export async function startTwoFactorEnrollmentAction(formData?: FormData): Promise<TwoFactorEnrollment> {
   const actor = await signedIn();
@@ -136,6 +139,21 @@ export async function startTwoFactorEnrollmentAction(formData?: FormData): Promi
   // out, so the owner confirms it's them first, as for adding a passkey. A
   // recovery-code sign-in has already proved it (see the replacement below).
   if (factors.totp.length === 0 && !actor.recovered && !(await hasOwnerGrant(await ownerGrantSubject(actor.user.id)))) {
+    return { ok: false, needsOwnerConfirm: true };
+  }
+
+  // A recovered session replacing its lost authenticator: the old one is
+  // removed below before the new one exists. The recovery pass lasts as long as
+  // the session, so a copied session could otherwise strip two-step
+  // verification weeks later by starting a replacement and abandoning it. Only
+  // straight after the recovery sign-in does the spent code count; later, the
+  // owner confirms it's them first.
+  if (
+    factors.totp.length > 0 &&
+    actor.recovered &&
+    !(await hasFreshRecoveryGrant(await replaceSubject(actor))) &&
+    !(await hasOwnerGrant(await ownerGrantSubject(actor.user.id)))
+  ) {
     return { ok: false, needsOwnerConfirm: true };
   }
 

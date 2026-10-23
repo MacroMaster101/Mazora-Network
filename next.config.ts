@@ -35,7 +35,30 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=()" },
+  {
+    key: "Permissions-Policy",
+    value: [
+      "camera=()",
+      "microphone=()",
+      "geolocation=()",
+      "browsing-topics=()",
+      "payment=()",
+      "usb=()",
+      "serial=()",
+      "hid=()",
+      "bluetooth=()",
+      "midi=()",
+      "accelerometer=()",
+      "gyroscope=()",
+      "magnetometer=()",
+      "display-capture=()",
+      // Passkey sign-in and registration run on our own pages only.
+      "publickey-credentials-get=(self)",
+      "publickey-credentials-create=(self)",
+    ].join(", "),
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-site" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
 ];
 
@@ -43,6 +66,12 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      {
+        // Drawn heads and bodies are meant to be embedded by other sites (the
+        // game server, Discord embeds), so they opt back out of same-site.
+        source: "/api/minecraft/skin/:path*",
+        headers: [{ key: "Cross-Origin-Resource-Policy", value: "cross-origin" }],
+      },
       {
         /*
           Artwork under /public is served with `max-age=0` by default, so every
@@ -61,6 +90,8 @@ const nextConfig: NextConfig = {
         source: "/images/:path*",
         headers: [
           { key: "Cache-Control", value: "public, max-age=2592000, stale-while-revalidate=31536000" },
+          // Logos and share art are fetched by other sites' pages and previews.
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
         ],
       },
     ];
@@ -96,10 +127,15 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 2592000,
     remotePatterns: [
       { protocol: "https", hostname: "mc-heads.net" },
-      { protocol: "https", hostname: "api.dicebear.com" },
-      { protocol: "https", hostname: "cdn.discordapp.com" },
-      { protocol: "https", hostname: "media.discordapp.net" },
-      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      // Paths are limited to what the app renders: avatars, not arbitrary files.
+      { protocol: "https", hostname: "api.dicebear.com", pathname: "/*.x/**" },
+      { protocol: "https", hostname: "cdn.discordapp.com", pathname: "/avatars/**" },
+      { protocol: "https", hostname: "cdn.discordapp.com", pathname: "/embed/avatars/**" },
+      { protocol: "https", hostname: "cdn.discordapp.com", pathname: "/guilds/*/users/*/avatars/**" },
+      { protocol: "https", hostname: "cdn.discordapp.com", pathname: "/attachments/**" },
+      { protocol: "https", hostname: "media.discordapp.net", pathname: "/attachments/**" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com", pathname: "/a/**" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com", pathname: "/a-/**" },
       ...(supabaseImagePattern ? [supabaseImagePattern] : []),
     ],
   },

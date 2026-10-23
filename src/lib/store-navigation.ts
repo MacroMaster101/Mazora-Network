@@ -1,3 +1,5 @@
+import { slugify } from "@/lib/utils";
+
 export const STORE_RETURN_KEY = "mazora-store-return";
 export const STORE_RETURN_PENDING_KEY = "mazora-store-return-pending";
 export const STORE_DETAIL_FROM_STORE_KEY = "mazora-store-detail-from-store";
@@ -27,10 +29,7 @@ export type StoreReturnState = {
 export const STORE_ALL_VIEW = "All";
 
 export function storeParamSlug(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return slugify(value);
 }
 
 /**

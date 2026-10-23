@@ -67,7 +67,7 @@ async function skinPng(colour = { r: 200, g: 120, b: 160 }): Promise<Buffer> {
 }
 
 type Route = { GET: (request: unknown, context: { params: Promise<{ username: string }> }) => Promise<Response> };
-const RATE_LIMIT = { clientKey: () => "fake-client", rateLimit: () => ({ ok: true }), retryAfterHeaders: () => ({}) };
+const RATE_LIMIT = { clientKey: () => "fake-client", rateLimitShared: async () => ({ ok: true }), retryAfterHeaders: () => ({}) };
 
 /**
  * The real head and body routes over the real Mojang skin module; only the

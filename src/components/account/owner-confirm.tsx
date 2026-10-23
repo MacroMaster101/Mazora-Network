@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "@/components/ui/app-link";
 import { LifeBuoy, Loader2, Mail, ShieldCheck, Smartphone } from "lucide-react";
 import { OtpInput } from "@/components/auth/auth-forms";
 import { FormRow, Input, Modal } from "@/components/ui";
@@ -20,10 +21,13 @@ import type { OwnerProof } from "@/lib/auth/owner-proof-kind";
  */
 export function OwnerConfirmForm({
   proof,
+  emailUnconfirmed = false,
   onConfirmed,
   onCancel,
 }: {
   proof: OwnerProof;
+  /** The account email is not confirmed, so no code can be sent to it. */
+  emailUnconfirmed?: boolean;
   onConfirmed: () => void;
   onCancel: () => void;
 }) {
@@ -34,6 +38,8 @@ export function OwnerConfirmForm({
   const [emailSent, setEmailSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Also learned from the send attempt, for forms opened without the status.
+  const [unconfirmed, setUnconfirmed] = useState(emailUnconfirmed);
   const busy = status !== "idle" || sending;
 
   const sendEmailCode = async () => {
@@ -43,6 +49,10 @@ export function OwnerConfirmForm({
     const result = await sendOwnerEmailCodeAction();
     setSending(false);
     if (!result.ok) {
+      if (result.emailUnconfirmed) {
+        setUnconfirmed(true);
+        return;
+      }
       setError(result.message ?? "The code couldn't be sent. Try again later.");
       return;
     }
@@ -116,7 +126,28 @@ export function OwnerConfirmForm({
           <Input id="owner-confirm-password" name="password" type="password" autoComplete="current-password" required autoFocus disabled={busy} />
         </FormRow>
       )}
-      {proof === "email" && (
+      {proof === "email" && unconfirmed && (
+        /* Nothing here can prove it's the owner: no password, no authenticator,
+           and codes go only to a confirmed address. A password reset confirms it. */
+        <div role="alert" className="grid gap-2 text-sm text-muted">
+          <p>
+            Your account email isn&apos;t confirmed yet, so we can&apos;t send it a code, and there&apos;s no password or
+            authenticator to check instead.
+          </p>
+          <p>
+            Use{" "}
+            <Link href="/forgot-password" className="font-semibold text-accent-bright hover:underline">
+              Forgot password
+            </Link>{" "}
+            to confirm your email and set a password, then try again. If you can&apos;t get into that inbox,{" "}
+            <Link href="/support" className="font-semibold text-accent-bright hover:underline">
+              contact Support
+            </Link>
+            .
+          </p>
+        </div>
+      )}
+      {proof === "email" && !unconfirmed && (
         <div className="grid gap-3">
           <p className="text-sm text-muted">
             Your account signs in with Google or Discord, so there&apos;s no password to check. We&apos;ll email a 6-digit
@@ -143,7 +174,7 @@ export function OwnerConfirmForm({
           )}
         </div>
       )}
-      <p className="text-xs text-muted">You won&apos;t be asked again for 15 minutes.</p>
+      {!(proof === "email" && unconfirmed) && <p className="text-xs text-muted">You won&apos;t be asked again for 15 minutes.</p>}
       {error && (
         <p role="alert" className="text-sm font-semibold text-danger">
           {error}
@@ -175,7 +206,9 @@ export function OwnerConfirmPanel({
   onConfirmed: () => void;
   onCancel: () => void;
 }) {
-  const [state, setState] = useState<{ step: "loading" } | { step: "ask"; proof: OwnerProof } | { step: "error" }>({ step: "loading" });
+  const [state, setState] = useState<
+    { step: "loading" } | { step: "ask"; proof: OwnerProof; emailUnconfirmed: boolean } | { step: "error" }
+  >({ step: "loading" });
   // The latest callback, without re-running the status check when it changes.
   const confirmed = useRef(onConfirmed);
   useEffect(() => {
@@ -190,7 +223,7 @@ export function OwnerConfirmPanel({
         if (!active) return;
         if (!status) setState({ step: "error" });
         else if (!status.needed) confirmed.current();
-        else setState({ step: "ask", proof: status.proof });
+        else setState({ step: "ask", proof: status.proof, emailUnconfirmed: Boolean(status.emailUnconfirmed) });
       });
     return () => {
       active = false;
@@ -222,7 +255,14 @@ export function OwnerConfirmPanel({
           </div>
         </>
       )}
-      {state.step === "ask" && <OwnerConfirmForm proof={state.proof} onConfirmed={onConfirmed} onCancel={onCancel} />}
+      {state.step === "ask" && (
+        <OwnerConfirmForm
+          proof={state.proof}
+          emailUnconfirmed={state.emailUnconfirmed}
+          onConfirmed={onConfirmed}
+          onCancel={onCancel}
+        />
+      )}
     </div>
   );
 }

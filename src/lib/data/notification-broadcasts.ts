@@ -1,5 +1,5 @@
 import "server-only";
-import { desc, eq } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import type { NotificationAudience } from "@/lib/notification-targeting";
 
@@ -56,15 +56,4 @@ export async function listNotificationBroadcasts(limit = 50): Promise<Notificati
     console.error("Broadcast history list failed", error);
     return [];
   }
-}
-
-export async function getNotificationBroadcast(id: string): Promise<NotificationBroadcast | null> {
-  const db = getDb();
-  if (!db) return null;
-  const [row] = await db
-    .select()
-    .from(schema.notificationBroadcasts)
-    .where(eq(schema.notificationBroadcasts.id, id))
-    .limit(1);
-  return row ? toBroadcast(row) : null;
 }

@@ -4,14 +4,11 @@ import { useState, useTransition } from "react";
 import Link from "@/components/ui/app-link";
 import { ArrowLeft, ArrowRight, ChevronRight, Edit3, Eye, EyeOff, Grid2X2, GripVertical, Layers3, List, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import type { GameMode, Product, StoreCategoryConfig, StoreSubcategoryConfig } from "@/lib/types";
+import { slugify } from "@/lib/utils";
 import { deleteStoreSubcategoryAction, reorderStoreSubcategoriesAction, saveStoreSubcategoryAction, toggleStoreSubcategoryAction } from "@/lib/actions/store-settings";
 import { FormRow, Input, Modal, Textarea, useToast } from "@/components/ui";
 import { Icon } from "@/components/shared";
 import { MODE_ICON_OPTIONS } from "@/components/admin/game-mode-form-modal";
-
-function slugify(value: string) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
 
 function productSubcategory(product: Product) {
   return product.subcategory ?? product.billing ?? "";

@@ -223,11 +223,16 @@ export function TwoFactorSetupScreen({
                 </span>
               </div>
             ) : enrollment.needsOwnerConfirm ? (
-              /* Turning it on: confirm it's the owner before a QR code is made,
-                 so a copied session can't lock the owner out with its own app. */
+              /* Turning it on, or a recovered session replacing its lost app:
+                 confirm it's the owner before a QR code is made, so a copied
+                 session can't lock the owner out with its own app. */
               <div className="grid min-h-[18rem] content-center">
                 <OwnerConfirmPanel
-                  description="So that only you can turn on two-step verification for this account."
+                  description={
+                    replacing
+                      ? "So that only you can link a new authenticator app to this account."
+                      : "So that only you can turn on two-step verification for this account."
+                  }
                   onConfirmed={() => void start()}
                   onCancel={onClose}
                 />

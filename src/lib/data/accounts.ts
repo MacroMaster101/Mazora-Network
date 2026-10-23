@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { eq, sql } from "drizzle-orm";
 import { INTERNAL_ROLE, isRoleKey, isStaff, normalizeRoleKey } from "@/lib/auth/roles";
 import { ensureRoleCatalog } from "@/lib/data/roles";
@@ -10,6 +11,9 @@ import { getDb, schema } from "@/lib/db/client";
 import { isMinecraftAvatarUrl, resolveAvatarUrl } from "@/lib/avatar-source";
 import { buildDiscordIdentityMap } from "@/lib/discord-identity-map";
 import { publicUsername, realDisplayName, siteUsername } from "@/lib/auth/placeholder";
+import { toPublicRosterAccount, type PublicRosterAccount, type PublicRosterSource } from "@/lib/data/directory-merge";
+import { getPresenceFor } from "@/lib/data/presence";
+import type { PresenceShown } from "@/lib/presence-rules";
 import type { Role } from "@/lib/types";
 
 /**
@@ -66,10 +70,18 @@ export interface AccountSummary {
   accountStatus: string | null;
 }
 
+/**
+ * One card on the public team page. No auth id: presence is looked up on the
+ * server and arrives as `status`, and the username (unique) is the React key.
+ */
 export type PublicStaffMember = Pick<
   AccountSummary,
-  "userId" | "username" | "role" | "minecraftUsername" | "minecraftSkinUrl"
-> & { minecraftAvatarUrl: string | null };
+  "username" | "role" | "minecraftUsername" | "minecraftSkinUrl"
+> & {
+  minecraftAvatarUrl: string | null;
+  /** Website status; absent when they are offline or chose Invisible. */
+  status?: Exclude<PresenceShown, "offline">;
+};
 
 function toRole(value: unknown): Role {
   // normalizeRoleKey: legacy "it" rows read as web_dev until migration 055 (removable after).
@@ -318,31 +330,104 @@ export async function listStaffAccounts(): Promise<AccountSummary[] | null> {
   return accounts.filter((account) => isStaff(account.role));
 }
 
-/** Public-safe team data: no email, sign-in timestamps, or invitation details. */
+/*
+  The public roster: what /players, /staff and the player-detail API may show.
+
+  These used to call listAccounts() on every request, which pages through
+  GoTrue's admin API (up to 50 calls) and scans auth.identities, for data that
+  is the same for every visitor. One query over profiles joined to auth.users
+  reads only the fields the public pages use, and the Next data cache holds the
+  result for a minute. Nothing viewer-specific goes in: the cache key is fixed
+  and the rows are identical whoever asks.
+
+  Only active accounts that are not unused invitations are read (the same rule
+  publicDirectoryAccounts applies to listAccounts). Provider photos come from
+  user_metadata: listUsers() returns `identities: null`, so the old path never
+  had them either.
+
+  A query error is thrown inside the cached function, so unstable_cache never
+  stores it; publicRoster then falls back to listAccounts for that request.
+*/
+export const PUBLIC_ROSTER_TAG = "public-account-roster";
+const PUBLIC_ROSTER_TTL_SECONDS = 60;
+
+async function readPublicRoster(): Promise<PublicRosterAccount[]> {
+  const db = getDb();
+  if (!db) throw new Error("Database unavailable");
+  const result = await db.execute(
+    sql`select p.user_id, p.username, p.avatar_url, u.email,
+               u.raw_app_meta_data ->> 'role' as role,
+               coalesce((u.raw_app_meta_data -> 'staff_public') = 'false'::jsonb, false) as staff_hidden,
+               u.raw_user_meta_data as user_metadata,
+               m.minecraft_username, m.skin_head_url
+          from public.profiles p
+          join auth.users u on u.id = p.user_id
+          left join public.minecraft_accounts m on m.user_id = p.user_id
+         where p.account_status = 'active'
+           and not (u.invited_at is not null and u.last_sign_in_at is null and u.email_confirmed_at is null)`,
+  );
+  const rows = (Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? [])) as PublicRosterSource[];
+  return rows.flatMap((row) => toPublicRosterAccount(row) ?? []);
+}
+
+const readCachedPublicRoster = unstable_cache(readPublicRoster, [PUBLIC_ROSTER_TAG], {
+  tags: [PUBLIC_ROSTER_TAG],
+  revalidate: PUBLIC_ROSTER_TTL_SECONDS,
+});
+
+/** The public roster, cached for every viewer alike. Null when no account source is configured. */
+export async function listPublicRoster(): Promise<PublicRosterAccount[] | null> {
+  // Outside the cache: callers render rank labels from the catalogue, and a
+  // cache hit must not leave this instance without one.
+  await ensureRoleCatalog();
+  if (getDb()) {
+    try {
+      return await readCachedPublicRoster();
+    } catch (error) {
+      console.error("Failed to read the public roster; listing accounts instead:", error);
+    }
+  }
+  const accounts = await listAccounts();
+  if (!accounts) return null;
+  return accounts
+    .filter((account) => account.accountStatus === "active" && !account.pendingInvite)
+    .map((account) => ({
+      userId: account.userId,
+      username: publicUsername(account),
+      role: account.role,
+      minecraftUsername: account.minecraftUsername,
+      minecraftSkinUrl: account.minecraftSkinUrl,
+      avatarUrl: account.avatarUrl,
+      publicStaffVisible: account.publicStaffVisible,
+    }));
+}
+
+/** Public-safe team data: no auth id, email, sign-in timestamps, or invitation details. */
 export async function listPublicStaffAccounts(): Promise<PublicStaffMember[] | null> {
-  const staff = await listStaffAccounts();
-  if (!staff) return null;
-  return staff
+  const roster = await listPublicRoster();
+  if (!roster) return null;
+  const staff = roster
     // Web Dev is an internal systems role, never a public team rank. Keep this
     // guard in the repository so no public caller can accidentally expose it.
-    // A suspended member keeps their rank but is not shown as part of the team.
+    // Suspended members and unused invitations are already off the roster.
     .filter(
       (account) =>
+        isStaff(account.role) &&
         account.role !== INTERNAL_ROLE &&
-        !account.pendingInvite &&
-        account.publicStaffVisible &&
-        account.accountStatus !== "suspended",
-    )
-    .map(({ userId, username, email, role, minecraftUsername, minecraftSkinUrl, avatarUrl }) => {
-      const safeSkinUrl = isMinecraftAvatarUrl(minecraftSkinUrl) ? minecraftSkinUrl : null;
-      return {
-        userId,
-        // Never the email handle a member without a chosen name falls back to.
-        username: publicUsername({ username, email, userId }),
-        role,
-        minecraftUsername,
-        minecraftSkinUrl: safeSkinUrl,
-        minecraftAvatarUrl: safeSkinUrl ?? (isMinecraftAvatarUrl(avatarUrl) ? avatarUrl : null),
-      };
-    });
+        account.publicStaffVisible,
+    );
+  // Staff are already public on this page; this adds only whether they are around right now.
+  const presence = await getPresenceFor(staff.map((account) => account.userId));
+  return staff.map(({ userId, username, role, minecraftUsername, minecraftSkinUrl, avatarUrl }) => {
+    const safeSkinUrl = isMinecraftAvatarUrl(minecraftSkinUrl) ? minecraftSkinUrl : null;
+    return {
+      // Already the public name: never the email handle a member without a chosen name falls back to.
+      username,
+      role,
+      minecraftUsername,
+      minecraftSkinUrl: safeSkinUrl,
+      minecraftAvatarUrl: safeSkinUrl ?? (isMinecraftAvatarUrl(avatarUrl) ? avatarUrl : null),
+      status: presence.get(userId),
+    };
+  });
 }

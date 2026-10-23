@@ -106,7 +106,8 @@ test("the cart never holds more of one product than an order may carry", () => {
   // Adding again, the drawer's stepper and a cart restored from storage all go through it.
   assert.match(cart, /qty: capQty\(item\.qty \+ 1\)/);
   assert.match(cart, /qty: capQty\(qty\)/);
-  assert.match(cart, /qty: capQty\(item\.qty\)/);
+  assert.match(cart, /qty: capQty\(qty\),/);
+  assert.match(cart, /setItems\(parseStoredCart\(JSON\.parse\(raw\)\)\)/);
   // No quantity is written any other way, apart from the first unit of a new line.
   // (`qty: number` is a type annotation, not a write.)
   const writes = cart.match(/\bqty: (?!number\b)[^,;}\n]+/g) ?? [];

@@ -372,8 +372,9 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
   const parsed = loginSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
 
-  // Bucketed per address *and* per submitted email, so spraying one account is
-  // capped without a shared NAT locking out everyone behind it.
+  // Bucketed per address *and* per submitted identifier, so spraying one account
+  // is capped without a shared NAT locking out everyone behind it. The account
+  // itself has a second bucket once the identifier is resolved, below.
   const throttled = await throttleAuthAction("login", {
     limit: 8,
     windowMs: 15 * 60_000,
@@ -395,6 +396,19 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
 
     // A username is translated to its address here; an email passes through.
     const loginEmail = await resolveLoginEmail(parsed.data.identifier);
+
+    // The bucket above is keyed on what was typed, so an account's username and
+    // its email would each get their own allowance. This one is keyed on the
+    // account: the resolved address. A username that resolves to nobody keeps
+    // its typed name here, never the shared sentinel, or unknown names would
+    // share one bucket and run out sooner than a real account's, telling a
+    // guesser which names exist. Every attempt passes both checks, found or not.
+    const throttledAccount = await throttleAuthAction("login-account", {
+      limit: 8,
+      windowMs: 15 * 60_000,
+      identity: loginEmail === UNRESOLVED_IDENTIFIER ? `unresolved:${parsed.data.identifier}` : loginEmail,
+    });
+    if (throttledAccount) return { ok: false, message: throttledAccount };
 
     const { data: signedIn, error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
@@ -1098,7 +1112,7 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
     if (viaRecoveryCode && !admin) return { ok: false, message: "Authentication is temporarily unavailable. Please try again." };
     const { error } = admin
       ? await admin.auth.admin.updateUserById(userData.user.id, { password: parsed.data.password })
-      : await supabase.auth.updateUser({ password: parsed.data.password, data: { has_password: true } });
+      : await supabase.auth.updateUser({ password: parsed.data.password });
     if (error) return { ok: false, message: "The password could not be updated. Request a new code and try again." };
     await markHasPassword(userData?.user?.id);
 
@@ -1246,7 +1260,6 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
 
     let { error } = await supabase.auth.updateUser({
       password: parsed.data.password,
-      data: { has_password: true },
       ...(nonce ? { nonce } : {}),
     });
 

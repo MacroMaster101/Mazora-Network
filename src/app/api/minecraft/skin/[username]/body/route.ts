@@ -3,7 +3,7 @@ import { getUploadedSkin } from "@/lib/data/minecraft-accounts";
 import { compositeBody } from "@/lib/skins/body";
 import { validateSkinBytes, type SkinFormat } from "@/lib/skins/process";
 import { readSkinBody } from "@/lib/skins/read-body";
-import { clientKey, rateLimit, retryAfterHeaders } from "@/lib/rate-limit";
+import { clientKey, rateLimitShared, retryAfterHeaders } from "@/lib/rate-limit";
 import { DEFAULT_SKIN_NAME, isStevePlaceholder, mcHeadsBodyUrl } from "@/lib/minecraft/skin";
 import { defaultSkin, fetchMojangSkin } from "@/lib/minecraft/mojang-skin-fetch";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
@@ -44,7 +44,11 @@ async function uploadedSkin(username: string): Promise<{ bytes: Buffer; format: 
     return null;
   }
 
-  const upstream = await fetch(linked.rawSkinUrl, { cache: "no-store", redirect: "error" }).catch(() => null);
+  const upstream = await fetch(linked.rawSkinUrl, {
+    cache: "no-store",
+    redirect: "error",
+    signal: AbortSignal.timeout(5000),
+  }).catch(() => null);
   if (!upstream?.ok) return null;
 
   const bytes = await readSkinBody(upstream);
@@ -58,7 +62,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ username: string }> },
 ) {
-  const limit = rateLimit(clientKey(request, "skin-body"), { limit: 60, windowMs: 60_000 });
+  const limit = await rateLimitShared(clientKey(request, "skin-body"), { limit: 60, windowMs: 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many requests" },

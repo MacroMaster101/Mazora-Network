@@ -343,9 +343,11 @@ export function PlayPageEditor({
     setIsSyncing(true);
     setSyncStatus(null);
     try {
-      const res = await fetch(
-        channelToUse ? `/api/discord/patches?channelId=${encodeURIComponent(channelToUse)}` : "/api/discord/patches",
-      );
+      const res = await fetch("/api/discord/patches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(channelToUse ? { channelId: channelToUse } : {}),
+      });
       const data = await res.json();
 
       if (data.error === "no_channel_configured") {

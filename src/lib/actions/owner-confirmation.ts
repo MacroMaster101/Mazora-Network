@@ -17,16 +17,32 @@ import { throttleAuthAction } from "@/lib/rate-limit";
 export interface OwnerConfirmResult {
   ok: boolean;
   message?: string;
+  /** No password, no authenticator and no confirmed email: no code can be sent (see EMAIL_UNCONFIRMED). */
+  emailUnconfirmed?: boolean;
 }
 
 export interface OwnerConfirmStatus {
   /** False while a pass from the last 15 minutes still holds. */
   needed: boolean;
   proof: OwnerProof;
+  /** The proof is "email", but the address is not confirmed, so the form explains what to do instead. */
+  emailUnconfirmed?: boolean;
 }
 
 const UNAVAILABLE = "That couldn't be checked right now. Please try again.";
 const EXPIRED = "Your session has expired. Sign in again.";
+/*
+  A Google- or Discord-only account whose address was never confirmed has
+  nothing this form can check: no password, no authenticator, and the code goes
+  only to a confirmed address (an unconfirmed one may not be the owner's). A
+  password reset confirms the address as it goes (actions/auth), so that is the
+  way through; support can help when the inbox is not theirs either.
+*/
+const EMAIL_UNCONFIRMED =
+  "Your account email isn't confirmed yet, so we can't send it a code. Use \"Forgot password\" on the sign-in page to confirm it and set a password, or contact Support for help.";
+
+const hasConfirmedEmail = (user: { email?: string | null; email_confirmed_at?: string | null }) =>
+  Boolean(user.email && user.email_confirmed_at);
 
 /** A completed sign-in: one still owing its two-step code, or a suspended account, is not. */
 async function signedIn() {
@@ -44,7 +60,11 @@ export async function ownerConfirmationStatusAction(): Promise<OwnerConfirmStatu
   if (!actor) return null;
   const proof = await ownerProofFor(actor.supabase, actor.user);
   if (!proof) return null;
-  return { needed: !(await hasOwnerGrant(await ownerGrantSubject(actor.user.id))), proof };
+  return {
+    needed: !(await hasOwnerGrant(await ownerGrantSubject(actor.user.id))),
+    proof,
+    ...(proof === "email" && !hasConfirmedEmail(actor.user) ? { emailUnconfirmed: true } : {}),
+  };
 }
 
 /** Checks the proof and, on success, issues the owner pass for 15 minutes. */
@@ -75,7 +95,7 @@ export async function sendOwnerEmailCodeAction(): Promise<OwnerConfirmResult> {
   if (!proof) return { ok: false, message: UNAVAILABLE };
   if (proof !== "email") return { ok: false, message: "Confirm with your password or authenticator code instead." };
   if (!actor.user.email || !actor.user.email_confirmed_at) {
-    return { ok: false, message: "A confirmed email address is needed to confirm it's you." };
+    return { ok: false, emailUnconfirmed: true, message: EMAIL_UNCONFIRMED };
   }
 
   const throttled = await throttleAuthAction("owner-email-send", { limit: 3, windowMs: 15 * 60_000, identity: actor.user.id });

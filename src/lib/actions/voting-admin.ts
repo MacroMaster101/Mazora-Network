@@ -8,6 +8,7 @@ import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { recordAudit } from "@/lib/audit-log";
+import { isHttpsUrl } from "@/lib/net/safe-url";
 
 export interface VotingActionResult {
   ok: boolean;
@@ -18,10 +19,7 @@ export interface VotingActionResult {
 const voteSiteSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().trim().min(2, "Site name must be at least 2 characters.").max(100, "Site name must be 100 characters or fewer."),
-  url: z.string().trim().max(1000, "The site URL is too long.").url("Enter a valid site URL.").refine((value) => {
-    const protocol = new URL(value).protocol;
-    return protocol === "https:";
-  }, "The site URL must use secure https://."),
+  url: z.string().trim().max(1000, "The site URL is too long.").refine(isHttpsUrl, "Enter a valid site URL that uses secure https://."),
   rewardDescription: z.string().trim().max(300, "The reward description is too long."),
   cooldownHours: z.coerce.number().int().min(1).max(720),
   enabled: z.boolean(),

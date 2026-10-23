@@ -46,13 +46,15 @@ export async function passwordMatchesCurrent(email: string, password: string): P
  * password }) adds no "email" identity — that is what the flag is for, so it
  * lives in `app_metadata`, which only the service role can write.
  *
- * user_metadata is still consulted, but only as an additional way to say *yes*.
- * It can never be used to say no, so forging it buys nothing.
+ * user_metadata is never read. Members can write it, and a forged "yes" is not
+ * harmless: on a Google- or Discord-only account it makes every "confirm it's
+ * you" step demand a password that does not exist, locking the owner out of
+ * their own security settings. Migration 082 copied the old user_metadata flag
+ * across for accounts set before app_metadata was written.
  */
 export function accountHasPassword(user: {
   identities?: { provider?: string }[] | null;
   app_metadata?: Record<string, unknown> | null;
-  user_metadata?: Record<string, unknown> | null;
 } | null | undefined): boolean {
   if (!user) return false;
   // An explicit "no": the server removed a password it could not trust
@@ -60,8 +62,7 @@ export function accountHasPassword(user: {
   // service role can write this, and the next password set turns it back.
   if (user.app_metadata?.has_password === false) return false;
   if ((user.identities ?? []).some((identity) => identity?.provider === "email")) return true;
-  if (user.app_metadata?.has_password === true) return true;
-  return user.user_metadata?.has_password === true;
+  return user.app_metadata?.has_password === true;
 }
 
 /**

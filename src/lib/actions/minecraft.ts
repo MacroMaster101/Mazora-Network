@@ -1,7 +1,8 @@
 "use server";
 
 import sharp from "sharp";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { PUBLIC_ROSTER_TAG } from "@/lib/data/accounts";
 import { hasActiveSession } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -116,6 +117,7 @@ export async function linkMinecraftUsernameAction(
   // header and sidebar — which render the avatar — serving their cached copy.
   revalidatePath("/admin", "layout");
   revalidatePath("/admin/account");
+  revalidateTag(PUBLIC_ROSTER_TAG);
 
   return {
     ok: true,
@@ -273,6 +275,7 @@ export async function uploadMinecraftSkinAction(
   revalidatePath("/admin", "layout");
   revalidatePath("/admin/account");
   revalidatePath("/players", "layout");
+  revalidateTag(PUBLIC_ROSTER_TAG);
   revalidatePath("/leaderboards");
 
   return { ok: true, message: "Skin uploaded and set as your profile photo." };
@@ -331,6 +334,7 @@ export async function removeMinecraftSkinAction(
   revalidatePath("/admin", "layout");
   revalidatePath("/admin/account");
   revalidatePath("/players", "layout");
+  revalidateTag(PUBLIC_ROSTER_TAG);
   revalidatePath("/leaderboards");
 
   return { ok: true, message: "Skin removed." };

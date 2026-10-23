@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManagePlay } from "@/lib/auth/permissions";
 import { getPatchUpdates } from "@/lib/data/patches";
+import { site } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,7 +27,17 @@ export const revalidate = 0;
  * patch-keyword filter whenever an explicit channel id is passed, so those
  * messages come back verbatim rather than filtered.
  */
-export async function GET(request: Request) {
+export async function POST(request: Request) {
+  // Syncing calls the Discord API and revalidates pages, so it is a POST (never
+  // a link or image tag a third-party page can trigger) from our own origin.
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(site.url).origin && origin !== new URL(request.url).origin) {
+    return NextResponse.json(
+      { ok: false, error: "forbidden_origin" },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const session = await getSession();
   const userId = session ? await getSessionUserId() : null;
   if (!session || !(await canManagePlay(session, userId))) {
@@ -36,8 +47,8 @@ export async function GET(request: Request) {
     );
   }
 
-  const { searchParams } = new URL(request.url);
-  const requested = searchParams.get("channelId")?.trim();
+  const body = (await request.json().catch(() => null)) as { channelId?: unknown } | null;
+  const requested = typeof body?.channelId === "string" ? body.channelId.trim() : undefined;
   if (requested && !/^\d{17,20}$/.test(requested)) {
     return NextResponse.json(
       { ok: false, error: "invalid_channel_id" },

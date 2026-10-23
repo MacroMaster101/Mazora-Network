@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import type { Role } from "@/lib/types";
 import { getSession, hasAtLeast } from "@/lib/auth";
 import { isRoleKey, TOP_ROLE } from "@/lib/auth/roles";
@@ -39,6 +40,9 @@ export interface PermissionActionResult {
   message: string;
 }
 
+const MAX_PERMISSION_USER_IDS = 100;
+const userIdSchema = z.string().uuid();
+
 const PERMISSION_KEYS: readonly string[] = [...ALL_PERMISSION_KEYS];
 
 export async function saveModulePermissionAction(
@@ -68,8 +72,13 @@ export async function saveModulePermissionAction(
   const userIds = rawUserIds
     .flatMap((val) => (typeof val === "string" ? val.split(/[\s,]+/) : []))
     .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 100);
+    .filter(Boolean);
+  if (userIds.length > MAX_PERMISSION_USER_IDS) {
+    return { ok: false, message: `Add at most ${MAX_PERMISSION_USER_IDS} individual users.` };
+  }
+  if (!userIds.every((id) => userIdSchema.safeParse(id).success)) {
+    return { ok: false, message: "Each individual user must be a valid user ID." };
+  }
 
   const before = await getModulePermissions(settingKey);
   const value = { roles, userIds };

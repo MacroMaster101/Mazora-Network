@@ -273,10 +273,10 @@ test("the lookup before a token is spent only speaks for the account that was ve
 });
 
 test("the neutral names are exactly the sign-up trigger's placeholders", () => {
-  const names = neutralProfileNames("9D6A48D4-0000-3000-8000-000000000001");
-  assert.equal(names.username, "player_9d6a48d4");
+  const names = neutralProfileNames("ABCDEF01-0000-3000-8000-000000000001");
+  assert.equal(names.username, "player_abcdef01");
   assert.equal(names.displayName, PLACEHOLDER_DISPLAY_NAME);
-  assert.equal(isPlaceholderUsername(names.username, "9d6a48d4-0000-3000-8000-000000000001"), true);
+  assert.equal(isPlaceholderUsername(names.username, "abcdef01-0000-3000-8000-000000000001"), true);
   assert.match(read("../../../supabase/migrations/031_derive_oauth_profile_names.sql"), /return 'player_' \|\| substr\(account_id::text, 1, 8\);/);
 });
 
@@ -533,7 +533,7 @@ test("the password is blanked in the database, with the admin API only as a fall
   const reauth = between(read("../auth/reauth.ts"), "export function accountHasPassword", "\n}\n");
   const explicitNo = reauth.indexOf("if (user.app_metadata?.has_password === false) return false;");
   assert.ok(explicitNo > 0 && explicitNo < reauth.indexOf('identity?.provider === "email"'), "before the email identity says yes");
-  assert.match(read("../../components/account/account-panels.tsx"), /data\.user\.app_metadata\?\.has_password !== false &&/);
+  assert.match(read("../../components/account/account-panels.tsx"), /hasPassword = accountHasPassword\(data\.user\);/);
   // ...and choosing a password turns it back, by a second route if the first fails.
   const auth = read("../actions/auth.ts");
   const mark = between(auth, "async function markHasPassword", "\n}\n");

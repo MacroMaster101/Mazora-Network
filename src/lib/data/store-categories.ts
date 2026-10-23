@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import type { GameMode, StoreCategoryConfig, StoreSubcategoryConfig } from "@/lib/types";
+import { slugify } from "@/lib/utils";
 
 export const STORE_CATEGORY_CONFIG_KEY = "store.category_config";
 export const STORE_CATEGORY_KEYS = ["Ranks", "Crate Keys", "Battlepass", "Add-ons"] as const;
@@ -132,7 +133,7 @@ export async function getStoreCategoryConfigs(modes: GameMode[]): Promise<StoreC
 }
 
 export function storeCategorySlug(key: string): string {
-  return key.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return slugify(key);
 }
 
 

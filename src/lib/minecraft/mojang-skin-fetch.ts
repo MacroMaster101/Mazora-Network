@@ -47,8 +47,13 @@ const HEADERS = { "User-Agent": "MazoraNetworkWebsite/1.0" };
 const SKIN_CACHE_MS = 6 * 60 * 60_000;
 const MISS_CACHE_MS = 10 * 60_000;
 const CACHE_LIMIT = 500;
+// "No such profile" and "could not ask" answers live in their own small cache so
+// a run of made-up names (valid-looking, never a real account) can only churn
+// this one, never evict the real players' skins held in `skins`.
+const MISS_CACHE_LIMIT = 200;
 
 const skins = new Map<string, { skin: MojangSkinAnswer; expiresAt: number }>();
+const misses = new Map<string, { skin: MojangSkinAnswer; expiresAt: number }>();
 let defaultSkinCache: { skin: MojangSkin | null; expiresAt: number } | null = null;
 
 function remember(key: string, skin: MojangSkinAnswer) {
@@ -56,6 +61,12 @@ function remember(key: string, skin: MojangSkinAnswer) {
   skins.set(key, { skin, expiresAt: Date.now() + (skin ? SKIN_CACHE_MS : MISS_CACHE_MS) });
   // Oldest first in insertion order: drop from the front past the limit.
   while (skins.size > CACHE_LIMIT) skins.delete(skins.keys().next().value as string);
+}
+
+function rememberMiss(key: string, skin: MojangSkinAnswer) {
+  misses.delete(key);
+  misses.set(key, { skin, expiresAt: Date.now() + MISS_CACHE_MS });
+  while (misses.size > MISS_CACHE_LIMIT) misses.delete(misses.keys().next().value as string);
 }
 
 async function jsonFrom(response: Response | null): Promise<unknown> {
@@ -69,12 +80,24 @@ export async function fetchMojangSkin(username: string): Promise<MojangSkinAnswe
   const key = username.toLowerCase();
   const cached = skins.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.skin;
+  const missed = misses.get(key);
+  if (missed && missed.expiresAt > Date.now()) return missed.skin;
 
   const skin = await loadMojangSkin(username);
   // No answer: keep the last one we had (asked again after the miss window).
   if (skin === null && cached?.skin) {
     skins.set(key, { skin: cached.skin, expiresAt: Date.now() + MISS_CACHE_MS });
     return cached.skin;
+  }
+  if (skin === "missing") {
+    rememberMiss(key, "default");
+    return "default";
+  }
+  // A name we have never held a skin for and could not reach Mojang about also
+  // stays out of the main cache.
+  if (skin === null && !cached) {
+    rememberMiss(key, null);
+    return null;
   }
   remember(key, skin);
   return skin;
@@ -88,14 +111,15 @@ export async function defaultSkin(): Promise<MojangSkin | null> {
   return skin;
 }
 
-async function loadMojangSkin(username: string): Promise<MojangSkinAnswer> {
+/** As MojangSkinAnswer, plus "missing": Mojang says no account holds the name. */
+async function loadMojangSkin(username: string): Promise<MojangSkinAnswer | "missing"> {
   const profile = await fetchWithDeadline(
     `https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(username)}`,
     { headers: HEADERS, cache: "no-store" },
     TIMEOUT_MS,
   );
   // No account holds the name (an offline-mode player): the default skin.
-  if (profile?.status === 404 || profile?.status === 204) return "default";
+  if (profile?.status === 404 || profile?.status === 204) return "missing";
   const id = mojangProfileId(await jsonFrom(profile));
   if (!id) return null;
 

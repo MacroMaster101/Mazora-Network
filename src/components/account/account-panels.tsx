@@ -27,6 +27,7 @@ import { TwoFactorCard, type TwoFactorOverview } from "@/components/dashboard/tw
 import { PasskeysCard, type PasskeyProof } from "@/components/dashboard/passkeys-card";
 import { getMyPasskeys, type PasskeySummary } from "@/lib/data/passkeys";
 import { ownerProofKind } from "@/lib/auth/owner-proof-kind";
+import { accountHasPassword } from "@/lib/auth/reauth";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { remainingRecoveryCodes } from "@/lib/auth/recovery-codes";
 import { ProfileForm } from "@/components/dashboard/profile-form";
@@ -84,22 +85,11 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
       if (data?.user) {
         email = data.user.email ?? "";
         hasGoogle = data.user.identities?.some((i) => i.provider === "google") ?? false;
-        // Supabase's updateUser({ password }) sets the password but does not add
-        // an "email" identity for accounts that originated from OAuth, so the
-        // identities list alone can't detect a password set this way. The
-        // has_password metadata flag (set in updatePasswordAction) is the
-        // reliable signal for that case.
-        // Mirrors accountHasPassword() in src/lib/actions/auth.ts. app_metadata is
-        // where the flag is written now (only the service role can set it);
-        // user_metadata is still read so accounts flagged before that change
-        // keep showing the current-password field. An explicit `false` there
-        // means the server removed an untrusted password (lib/auth/signup-trust)
-        // and wins over the rest, exactly as in accountHasPassword().
-        hasPassword =
-          data.user.app_metadata?.has_password !== false &&
-          ((data.user.identities?.some((i) => i.provider === "email") ?? false) ||
-            data.user.app_metadata?.has_password === true ||
-            Boolean(data.user.user_metadata?.has_password));
+        // The same answer the "confirm it's you" steps use: the email identity
+        // or the app_metadata flag, which only the service role can write. A
+        // password set on an OAuth account adds no email identity, so the flag
+        // is what records it (migration 082 moved the older user_metadata ones).
+        hasPassword = accountHasPassword(data.user);
 
         // Everything the Security card shows, from the record already fetched.
         // getSession() is only for the access token's `amr` claim, which is the

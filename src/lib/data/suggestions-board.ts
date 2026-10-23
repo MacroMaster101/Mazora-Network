@@ -8,6 +8,7 @@ import {
 import type { VoteValue } from "@/lib/comments/vote-rules";
 import { getDb, schema } from "@/lib/db/client";
 import { ensureRoleCatalog } from "@/lib/data/roles";
+import { mapCommentNodes, shownCommentIds } from "@/lib/data/forums";
 import { getPresenceFor } from "@/lib/data/presence";
 import { providerAvatarsFor } from "@/lib/data/provider-avatars";
 import type { PresenceShown } from "@/lib/presence-rules";
@@ -47,7 +48,10 @@ export interface SuggestionImage {
 }
 
 export interface ThreadReply extends FlatComment {
-  authorId: string;
+  /** The viewer wrote this reply. Sent instead of the author's auth id, which never leaves the loader. */
+  isOwn: boolean;
+  /** Written by the suggestion's author. */
+  isOp: boolean;
   author: BoardAuthor;
   /** From auth app_metadata, like every session's role — profiles.role is stale. */
   authorRole: Role;
@@ -62,8 +66,8 @@ export interface ThreadReply extends FlatComment {
 export interface SuggestionThread extends BoardSuggestion {
   // Not on BoardSuggestion: the board list has no reason to know it, but the
   // thread view needs it to build a ReportTarget for the suggestion itself
-  // (see ReportButton) without re-deriving permissions in a Client Component.
-  authorId: string;
+  // (see ReportButton). Whether the viewer wrote it, never the author's id.
+  isOwn: boolean;
   description: string;
   images: SuggestionImage[];
   /** This view's comment tree: the whole thread, or the focused subtree as one node. */
@@ -102,14 +106,27 @@ const imageCountSql = sql<number>`cast((
   where ${schema.suggestionImages.suggestionId} = ${schema.suggestions.id}
 ) as integer)`;
 
+/** Suggestions one board view reads. The board has no pager; this keeps one view bounded. */
+export const BOARD_SUGGESTIONS_LIMIT = 100;
+
+/** Characters of a description the board reads. Cards clamp it to two lines. */
+const BOARD_DESCRIPTION_PREVIEW = 320;
+
+const descriptionPreviewSql = sql<string>`left(${schema.suggestions.description}, ${BOARD_DESCRIPTION_PREVIEW})`;
+
 export async function listBoardSuggestions(opts: {
   sort: SuggestionSort;
   category?: string;
   status?: string;
   viewerId?: string | null;
+  limit?: number;
+  offset?: number;
 }): Promise<BoardSuggestion[]> {
   const db = getDb();
   if (!db) return [];
+
+  const limit = Math.min(Math.max(1, Math.floor(opts.limit ?? BOARD_SUGGESTIONS_LIMIT)), BOARD_SUGGESTIONS_LIMIT);
+  const offset = Math.max(0, Math.floor(opts.offset ?? 0));
 
   try {
     const conditions = [];
@@ -120,7 +137,7 @@ export async function listBoardSuggestions(opts: {
       .select({
         id: schema.suggestions.id,
         title: schema.suggestions.title,
-        description: schema.suggestions.description,
+        description: descriptionPreviewSql,
         category: schema.suggestions.category,
         status: schema.suggestions.status,
         locked: schema.suggestions.locked,
@@ -138,19 +155,25 @@ export async function listBoardSuggestions(opts: {
       .where(conditions.length ? and(...conditions) : undefined);
 
     const rows = await (opts.sort === "top"
-      ? query.orderBy(desc(votesCountSql), desc(schema.suggestions.createdAt))
-      : query.orderBy(desc(schema.suggestions.createdAt)));
+      ? query.orderBy(desc(votesCountSql), desc(schema.suggestions.createdAt), desc(schema.suggestions.id))
+      : query.orderBy(desc(schema.suggestions.createdAt), desc(schema.suggestions.id))
+    )
+      .limit(limit)
+      .offset(offset);
 
-    const votedIds = opts.viewerId
-      ? new Set(
-          (
-            await db
-              .select({ id: schema.suggestionVotes.suggestionId })
-              .from(schema.suggestionVotes)
-              .where(eq(schema.suggestionVotes.userId, opts.viewerId))
-          ).map((r) => r.id),
-        )
-      : new Set<string>();
+    // Only this view's suggestions: the viewer's whole vote history is not needed to mark them.
+    const rowIds = rows.map((r) => r.id);
+    const votedIds =
+      opts.viewerId && rowIds.length
+        ? new Set(
+            (
+              await db
+                .select({ id: schema.suggestionVotes.suggestionId })
+                .from(schema.suggestionVotes)
+                .where(and(eq(schema.suggestionVotes.userId, opts.viewerId), inArray(schema.suggestionVotes.suggestionId, rowIds)))
+            ).map((r) => r.id),
+          )
+        : new Set<string>();
 
     // Members who signed in with Google/Discord and never opened profile
     // settings have no chosen avatar, yet the header still shows their provider
@@ -162,7 +185,7 @@ export async function listBoardSuggestions(opts: {
     return rows.map((r) => ({
       id: r.id,
       title: r.title,
-      description: r.description,
+      description: r.description ?? "",
       category: r.category || "Gameplay",
       status: (r.status as SuggestionStatus) || "open",
       locked: Boolean(r.locked),
@@ -183,6 +206,22 @@ export async function listBoardSuggestions(opts: {
   }
 }
 
+/**
+ * Ceiling on the replies one thread view reads. Far above any real discussion
+ * here; it keeps a flooded thread from turning one page view into an unbounded
+ * read. Replies past it (the newest) are not shown.
+ */
+export const MAX_THREAD_REPLIES = 2000;
+
+/**
+ * One suggestion and its reply tree.
+ *
+ * Read like a forum topic (getTopicComments): first the tree's shape — ids,
+ * parents, timestamps and vote totals, no text — then bodies, authors, images,
+ * presence and the viewer's votes only for the replies this view shows. A
+ * removed reply with nothing visible under it, or one below the visible depth,
+ * is never read in full.
+ */
 export async function getSuggestionThread(
   id: string,
   viewerId?: string | null,
@@ -221,30 +260,61 @@ export async function getSuggestionThread(
     if (!row) return null;
 
     // Not filtered by deletedAt: soft-deleted replies stay in position so the
-    // thread keeps its shape; a later task renders a tombstone in their place.
-    const replyRows = await db
-      .select({
-        id: schema.suggestionReplies.id,
-        authorId: schema.suggestionReplies.userId,
-        body: schema.suggestionReplies.body,
-        createdAt: schema.suggestionReplies.createdAt,
-        editedAt: schema.suggestionReplies.editedAt,
-        deletedAt: schema.suggestionReplies.deletedAt,
-        parentId: schema.suggestionReplies.parentId,
-        authorUsername: schema.profiles.username,
-        authorDisplayName: schema.profiles.displayName,
-        authorAvatarUrl: schema.profiles.avatarUrl,
-        authorRole: sql<string | null>`(select u.raw_app_meta_data ->> 'role' from auth.users u where u.id = ${schema.suggestionReplies.userId})`,
-      })
-      .from(schema.suggestionReplies)
-      .leftJoin(schema.profiles, eq(schema.suggestionReplies.userId, schema.profiles.userId))
-      .where(eq(schema.suggestionReplies.suggestionId, id))
-      .orderBy(asc(schema.suggestionReplies.createdAt));
+    // thread keeps its shape; the tree keeps them as tombstones while a live
+    // reply sits beneath.
+    const rv = schema.suggestionReplyVotes;
+    const shape: FlatComment[] = (
+      await db
+        .select({
+          id: schema.suggestionReplies.id,
+          parentId: schema.suggestionReplies.parentId,
+          createdAt: schema.suggestionReplies.createdAt,
+          deletedAt: schema.suggestionReplies.deletedAt,
+          up: sql<number>`(select count(*) from ${rv} where ${rv.replyId} = ${schema.suggestionReplies.id} and ${rv.value} = 1)::int`,
+          down: sql<number>`(select count(*) from ${rv} where ${rv.replyId} = ${schema.suggestionReplies.id} and ${rv.value} = -1)::int`,
+        })
+        .from(schema.suggestionReplies)
+        .where(eq(schema.suggestionReplies.suggestionId, id))
+        .orderBy(asc(schema.suggestionReplies.createdAt))
+        .limit(MAX_THREAD_REPLIES)
+    ).map((r) => ({
+      id: r.id,
+      parentId: r.parentId,
+      createdAt: toIso(r.createdAt),
+      deletedAt: toIsoOrNull(r.deletedAt),
+      up: Number(r.up) || 0,
+      down: Number(r.down) || 0,
+    }));
+    const tree = buildCommentTree(shape, options.sort ?? "best");
+    const selected = selectCommentView(tree, {
+      page: 1,
+      perPage: null,
+      focus: options.focus ?? null,
+      comment: options.comment ?? null,
+    });
+    const replyIds = shownCommentIds(selected.nodes);
 
-    // One query for the whole thread: the suggestion's own images plus every
-    // reply's, grouped in memory — same shape as the reply grouping above, so
-    // this adds no N+1.
-    const replyIds = replyRows.map((r) => r.id);
+    const replyRows = replyIds.length
+      ? await db
+          .select({
+            id: schema.suggestionReplies.id,
+            authorId: schema.suggestionReplies.userId,
+            body: schema.suggestionReplies.body,
+            editedAt: schema.suggestionReplies.editedAt,
+            deletedAt: schema.suggestionReplies.deletedAt,
+            authorUsername: schema.profiles.username,
+            authorDisplayName: schema.profiles.displayName,
+            authorAvatarUrl: schema.profiles.avatarUrl,
+            authorRole: sql<string | null>`(select u.raw_app_meta_data ->> 'role' from auth.users u where u.id = ${schema.suggestionReplies.userId})`,
+          })
+          .from(schema.suggestionReplies)
+          .leftJoin(schema.profiles, eq(schema.suggestionReplies.userId, schema.profiles.userId))
+          .where(and(eq(schema.suggestionReplies.suggestionId, id), inArray(schema.suggestionReplies.id, replyIds)))
+      : [];
+
+    // One query for the view: the suggestion's own images plus every shown
+    // live reply's, grouped in memory — no N+1.
+    const liveReplyIds = replyRows.filter((r) => !r.deletedAt).map((r) => r.id);
     const imageRows = await db
       .select({
         id: schema.suggestionImages.id,
@@ -255,10 +325,10 @@ export async function getSuggestionThread(
       })
       .from(schema.suggestionImages)
       .where(
-        replyIds.length
+        liveReplyIds.length
           ? or(
               eq(schema.suggestionImages.suggestionId, id),
-              inArray(schema.suggestionImages.replyId, replyIds),
+              inArray(schema.suggestionImages.replyId, liveReplyIds),
             )
           : eq(schema.suggestionImages.suggestionId, id),
       )
@@ -277,25 +347,11 @@ export async function getSuggestionThread(
       }
     }
 
-    const rv = schema.suggestionReplyVotes;
-    const [voteTotals, myVotes] = replyIds.length
-      ? await Promise.all([
-          db
-            .select({
-              replyId: rv.replyId,
-              up: sql<number>`(count(*) filter (where ${rv.value} = 1))::int`,
-              down: sql<number>`(count(*) filter (where ${rv.value} = -1))::int`,
-            })
-            .from(rv)
-            .where(inArray(rv.replyId, replyIds))
-            .groupBy(rv.replyId),
-          viewerId
-            ? db.select({ replyId: rv.replyId, value: rv.value }).from(rv).where(and(eq(rv.userId, viewerId), inArray(rv.replyId, replyIds)))
-            : Promise.resolve([] as { replyId: string; value: number }[]),
-        ])
-      : [[], []];
-    const totalsByReply = new Map(voteTotals.map((row) => [row.replyId, row]));
-    const mineByReply = new Map(myVotes.map((row) => [row.replyId, row.value]));
+    const myVotes =
+      viewerId && replyIds.length
+        ? await db.select({ replyId: rv.replyId, value: rv.value }).from(rv).where(and(eq(rv.userId, viewerId), inArray(rv.replyId, replyIds)))
+        : [];
+    const mineByReply = new Map(myVotes.map((r) => [r.replyId, r.value]));
 
     let hasVoted = false;
     if (viewerId) {
@@ -307,8 +363,8 @@ export async function getSuggestionThread(
       hasVoted = voteRows.length > 0;
     }
 
-    // One lookup for the whole thread: the suggestion's author plus every reply
-    // author who has not chosen a profile avatar.
+    // One lookup for the whole view: the suggestion's author plus every shown
+    // reply author who has not chosen a profile avatar.
     const [providerAvatars, presence] = await Promise.all([
       providerAvatarsFor([
         row.authorAvatarUrl ? null : row.authorId,
@@ -317,43 +373,35 @@ export async function getSuggestionThread(
       getPresenceFor(replyRows.map((r) => r.authorId)),
     ]);
 
-    const flatReplies: ThreadReply[] = replyRows.map((r) => {
-      const counted = totalsByReply.get(r.id);
-      const vote = mineByReply.get(r.id);
+    // Author ids are compared here and go no further: the page gets isOwn/isOp.
+    const detailsById = new Map(replyRows.map((r) => [r.id, r]));
+    const toReply = (reply: FlatComment): ThreadReply => {
+      const r = detailsById.get(reply.id);
+      const vote = mineByReply.get(reply.id);
+      const authorId = r?.authorId ?? null;
       return {
-        id: r.id,
-        parentId: r.parentId,
-        authorId: r.authorId,
+        ...reply,
+        isOwn: Boolean(authorId && viewerId && authorId === viewerId),
+        isOp: Boolean(authorId && authorId === row.authorId),
         author: {
-          username: r.authorUsername || "community_member",
-          displayName: r.authorDisplayName || null,
-          avatarUrl: r.authorAvatarUrl || providerAvatars.get(r.authorId) || null,
+          username: r?.authorUsername || "community_member",
+          displayName: r?.authorDisplayName || null,
+          avatarUrl: r ? r.authorAvatarUrl || providerAvatars.get(r.authorId) || null : null,
         },
-        authorRole: storedRole(r.authorRole),
+        authorRole: storedRole(r?.authorRole),
         // A removed reply's text and images must never reach the client: they
         // are serialised into the page payload even when the DOM shows a tombstone.
-        body: r.deletedAt ? "" : r.body,
-        createdAt: toIso(r.createdAt),
-        editedAt: toIsoOrNull(r.editedAt),
-        deletedAt: toIsoOrNull(r.deletedAt),
-        images: r.deletedAt ? [] : (imagesByReply.get(r.id) ?? []),
-        authorStatus: presence.get(r.authorId) ?? null,
-        up: counted?.up ?? 0,
-        down: counted?.down ?? 0,
+        body: reply.deletedAt ? "" : r?.body ?? "",
+        editedAt: toIsoOrNull(r?.editedAt ?? null),
+        images: reply.deletedAt ? [] : (imagesByReply.get(reply.id) ?? []),
+        authorStatus: authorId ? presence.get(authorId) ?? null : null,
         myVote: vote === 1 || vote === -1 ? vote : 0,
       };
-    });
-    const tree = buildCommentTree(flatReplies, options.sort ?? "best");
-    const selected = selectCommentView(tree, {
-      page: 1,
-      perPage: null,
-      focus: options.focus ?? null,
-      comment: options.comment ?? null,
-    });
+    };
 
     return {
       id: row.id,
-      authorId: row.authorId,
+      isOwn: Boolean(viewerId && row.authorId === viewerId),
       title: row.title,
       category: row.category || "Gameplay",
       description: row.description,
@@ -370,7 +418,7 @@ export async function getSuggestionThread(
       repliesCount: Number(row.repliesCount) || 0,
       imageCount: Number(row.imageCount) || 0,
       images: suggestionImages,
-      replies: selected.nodes,
+      replies: mapCommentNodes(selected.nodes, toReply),
       totalReplies: countComments(tree),
       focusId: selected.focusId,
     };

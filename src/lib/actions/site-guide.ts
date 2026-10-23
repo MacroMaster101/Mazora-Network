@@ -1,9 +1,15 @@
 "use server";
 
-import { getDiscordIdentity, getSessionUserId } from "@/lib/auth";
+import { getDiscordIdentity, getSession, getSessionUserId } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { SiteGuideStatus } from "@/lib/site-guide";
+
+/** Only an active session (confirmed email, active profile) counts; the bare session id skips those checks. */
+async function activeUserId(): Promise<string | null> {
+  const session = await getSession();
+  return session ? getSessionUserId() : null;
+}
 
 /**
  * Records that the member closed the site guide. Only stamps a null column, so
@@ -12,7 +18,7 @@ import type { SiteGuideStatus } from "@/lib/site-guide";
 export async function markSiteGuideSeen(): Promise<void> {
   if (!isSupabaseConfigured()) return;
   const admin = getSupabaseAdmin();
-  const userId = await getSessionUserId();
+  const userId = await activeUserId();
   if (!admin || !userId) return;
 
   await admin
@@ -29,7 +35,7 @@ export async function markSiteGuideSeen(): Promise<void> {
 export async function getSiteGuideStatus(): Promise<SiteGuideStatus> {
   const none: SiteGuideStatus = { ign: null, discord: null };
   if (!isSupabaseConfigured()) return none;
-  const userId = await getSessionUserId();
+  const userId = await activeUserId();
   if (!userId) return none;
 
   const admin = getSupabaseAdmin();

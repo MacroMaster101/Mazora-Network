@@ -207,40 +207,6 @@ export function Board({
   );
 }
 
-/** A queue component for quick staff actions. */
-export function StandbyQueue({
-  items,
-  showDiagnostics = false,
-}: {
-  items: { label: string; href: string; icon: ReactNode }[];
-  showDiagnostics?: boolean;
-}) {
-  return (
-    <div className="grid gap-2.5 p-4 sm:grid-cols-2">
-      {items.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className="flex items-center gap-3 rounded-xl border border-line bg-card/50 p-3.5 transition-all hover:border-accent/40 hover:bg-accent/5 group"
-        >
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line bg-ink/5 text-accent-bright group-hover:scale-105 transition-transform">
-            {item.icon}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-xs font-bold text-ink group-hover:text-accent-bright transition-colors">
-              {item.label}
-            </span>
-            <span className="block text-[10px] text-muted font-medium">
-              {showDiagnostics ? "Awaiting connection" : "Coming soon"}
-            </span>
-          </span>
-          <ArrowUpRight size={14} className="shrink-0 text-muted group-hover:text-accent-bright transition-colors" />
-        </Link>
-      ))}
-    </div>
-  );
-}
-
 /** Shown when a board's source isn't configured — never a fabricated zero. */
 export function BoardNotice({ children }: { children: ReactNode }) {
   return <p className="px-5 py-8 text-center text-xs font-medium text-muted">{children}</p>;

@@ -341,7 +341,7 @@ export function FloatingDiscountAlert({ alerts, alert }: FloatingDiscountAlertPr
               <span className="truncate">
                 {currentAlert.isAllProducts
                   ? "Applies to: All Store Items"
-                  : `Applies to: ${currentAlert.eligibleProducts?.length ?? currentAlert.productIds.length} Eligible Items`}
+                  : `Applies to: ${currentAlert.eligibleCount ?? currentAlert.eligibleProducts?.length ?? currentAlert.productIds.length} Eligible Items`}
               </span>
             </div>
             <button

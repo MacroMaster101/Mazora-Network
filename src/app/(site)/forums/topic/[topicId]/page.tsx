@@ -7,7 +7,7 @@ import { canDeletePost, canEditPost, canReply, canReportPost, type ForumActor, p
 import { canVoteOnComment } from "@/lib/comments/vote-rules";
 import { commentHref, MAX_VISIBLE_DEPTH, parseCommentSort, type CommentNode } from "@/lib/comments/tree";
 import { renderPostBody } from "@/lib/forums/render-post";
-import type { CommentView } from "@/components/comments/types";
+import { viewerSubject, type CommentView } from "@/components/comments/types";
 import { ForumComments } from "@/components/forums/forum-comments";
 import { PostImages } from "@/components/forums/post-images";
 import { ReplyForm } from "@/components/forums/reply-form";
@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  * post's words never reach the page payload.
  */
 function toView(topic: TopicHeader, post: ForumComment, actor: ForumActor, isOpening: boolean): CommentView {
-  const subject = { authorId: post.authorId, deletedAt: post.deletedAt };
+  const subject = viewerSubject(post.isOwn, actor.userId, post.deletedAt);
   const forum = { locked: topic.forumLocked };
   const topicState = { locked: topic.locked, deletedAt: null };
   const canEdit = canEditPost(forum, topicState, subject, actor);
@@ -50,18 +50,18 @@ function toView(topic: TopicHeader, post: ForumComment, actor: ForumActor, isOpe
     deletedAt: post.deletedAt,
     up: post.up,
     down: post.down,
-    authorId: removed ? "" : post.authorId,
+    isOwn: removed ? false : post.isOwn,
     authorName: removed ? "" : post.author,
     authorUsername: removed ? "removed" : post.author,
     authorAvatar: removed ? null : post.authorAvatar,
     authorRole: removed ? "member" : post.authorRole,
     // Once the author has deleted their opening post, the topic reads "[deleted]";
     // an OP badge on their later replies would say who that was.
-    isOp: removed || topic.openingRemoved ? false : post.authorId === topic.authorId,
+    isOp: removed || topic.openingRemoved ? false : post.isOp,
     authorStatus: removed ? null : post.authorStatus,
     editedAt: post.editedAt,
     myVote: post.myVote,
-    body: renderPostBody(postBody(post)),
+    body: renderPostBody(postBody({ ...subject, body: post.body })),
     editBody: canEdit ? post.body : null,
     images: post.images.length ? <PostImages images={post.images} /> : null,
     canVote: canVoteOnComment(subject, actor),

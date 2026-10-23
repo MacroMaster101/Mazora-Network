@@ -266,15 +266,16 @@ export async function getCreatorCodeStats(): Promise<Map<string, CreatorCodeStat
  */
 export const getActivePublicDiscountAlerts = cache(loadActivePublicDiscountAlerts);
 
-/**
- * Returns the primary (most recent) active public discount promotion.
- * Kept for backward compatibility.
- */
-export async function getActivePublicDiscountAlert(): Promise<PublicDiscountAlert | null> {
-  const alerts = await getActivePublicDiscountAlerts();
-  return alerts[0] ?? null;
-}
 
+/*
+  The alerts ride in the root layout, so their product lists are serialised
+  into every page while a promotion runs — once per alert. A sitewide code used
+  to carry the whole catalogue. Each alert now carries at most this many
+  previews, with only the fields the floating alert and its eligible-items
+  dialog render or hand to the cart. Eligibility itself is decided by
+  `productIds` / `isAllProducts`, never by this list.
+*/
+export const ALERT_PRODUCT_PREVIEW_LIMIT = 48;
 
 async function loadActivePublicDiscountAlerts(): Promise<PublicDiscountAlert[]> {
   const db = getDb();
@@ -316,7 +317,7 @@ async function loadActivePublicDiscountAlerts(): Promise<PublicDiscountAlert[]> 
 
     // Load active products once to map previews
     const allProducts = await getProducts();
-    const allProductsPreview: PublicDiscountAlertProduct[] = allProducts.map((p) => ({
+    const toPreview = (p: (typeof allProducts)[number]): PublicDiscountAlertProduct => ({
       id: p.id,
       name: p.name,
       slug: p.slug,
@@ -326,7 +327,7 @@ async function loadActivePublicDiscountAlerts(): Promise<PublicDiscountAlert[]> 
       subcategory: p.subcategory ?? null,
       accent: p.accent,
       image: p.imageUrl ?? null,
-    }));
+    });
 
     return rows.flatMap((row) => {
       const productIds = productIdsByCode.get(row.id) ?? [];
@@ -340,9 +341,9 @@ async function loadActivePublicDiscountAlerts(): Promise<PublicDiscountAlert[]> 
       */
       if (!isAllProducts && productIds.length === 0) return [];
 
-      const eligibleProducts = isAllProducts
-        ? allProductsPreview
-        : allProductsPreview.filter((p) => Boolean(p.id && productIds.includes(p.id)));
+      const picked = new Set(productIds);
+      const eligible = isAllProducts ? allProducts : allProducts.filter((p) => Boolean(p.id && picked.has(p.id)));
+      const eligibleProducts = eligible.slice(0, ALERT_PRODUCT_PREVIEW_LIMIT).map(toPreview);
 
       const defaultBadge = row.codeType === "event" ? "SPECIAL EVENT" : "CREATOR CODE";
       const defaultHeadline = `${row.percentOff}% off eligible items with code ${row.code}`;
@@ -358,6 +359,7 @@ async function loadActivePublicDiscountAlerts(): Promise<PublicDiscountAlert[]> 
         expiresAt: optionalDateIso(row.expiresAt),
         productIds,
         eligibleProducts,
+        eligibleCount: eligible.length,
         isAllProducts,
       }];
     });

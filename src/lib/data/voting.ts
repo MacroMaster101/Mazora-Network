@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
+import { isHttpsUrl } from "@/lib/net/safe-url";
 import type { VoteSite } from "@/lib/types";
 
 export interface AdminVoteSite extends VoteSite {
@@ -46,6 +47,30 @@ export const defaultVoteSites: AdminVoteSite[] = [
   },
 ];
 
+type VoteSiteRow = typeof schema.voteSites.$inferSelect;
+
+/** Every stored site, so the editor can still show and fix one with a bad url. */
+function toVoteSites(rows: VoteSiteRow[]): AdminVoteSite[] {
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    url: r.url,
+    reward: r.rewardDescription || "",
+    rewardDescription: r.rewardDescription || "",
+    cooldownHours: r.cooldownHours,
+    enabled: r.enabled,
+  }));
+}
+
+/**
+ * The sites /vote may link to. Every url becomes a public href there, so a row
+ * that is not a plain https link (saved before the editor checked, or written
+ * by hand) is dropped rather than rendered.
+ */
+export function publicVoteSites<T extends VoteSite & { enabled?: boolean }>(sites: T[]): T[] {
+  return sites.filter((s) => s.enabled && isHttpsUrl(s.url));
+}
+
 export async function getAdminVoteSites(): Promise<AdminVoteSite[]> {
   const db = getDb();
   if (!db) return defaultVoteSites;
@@ -65,29 +90,13 @@ export async function getAdminVoteSites(): Promise<AdminVoteSite[]> {
           }))
         );
         const seeded = await db.select().from(schema.voteSites);
-        return seeded.map((r) => ({
-          id: r.id,
-          name: r.name,
-          url: r.url,
-          reward: r.rewardDescription || "",
-          rewardDescription: r.rewardDescription || "",
-          cooldownHours: r.cooldownHours,
-          enabled: r.enabled,
-        }));
+        return toVoteSites(seeded);
       } catch (seedErr) {
         console.error("Failed to seed default vote sites", seedErr);
       }
     }
 
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      url: r.url,
-      reward: r.rewardDescription || "",
-      rewardDescription: r.rewardDescription || "",
-      cooldownHours: r.cooldownHours,
-      enabled: r.enabled,
-    }));
+    return toVoteSites(rows);
   } catch (error) {
     console.error("Failed to load admin vote sites:", error);
     return defaultVoteSites;
