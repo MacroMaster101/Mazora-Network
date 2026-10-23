@@ -6,11 +6,12 @@ import { listNotificationBroadcasts } from "@/lib/data/notification-broadcasts";
 import { listNotificationTemplates } from "@/lib/data/notification-templates";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { AdminBroadcastManager } from "@/components/admin/admin-broadcast-manager";
+import { canSendOfficialNotifications } from "@/lib/notification-authority";
 
 export const metadata: Metadata = { title: "Notifications · Admin" };
 
 export default async function AdminNotificationsPage() {
-  await requireModuleAccess(NOTIFICATIONS_PERMISSION_KEY, "/admin/notifications");
+  const session = await requireModuleAccess(NOTIFICATIONS_PERMISSION_KEY, "/admin/notifications");
   const [accounts, broadcasts, templates] = await Promise.all([
     listAccounts(),
     listNotificationBroadcasts(),
@@ -27,7 +28,12 @@ export default async function AdminNotificationsPage() {
   return (
     <>
       <DashHeader title="Notifications" subtitle="Compose and broadcast announcements, events, and system notifications across the network." />
-      <AdminBroadcastManager users={users} broadcasts={broadcasts} templates={templates} />
+      <AdminBroadcastManager
+        users={users}
+        broadcasts={broadcasts}
+        templates={templates}
+        canSendOfficial={canSendOfficialNotifications(session.role)}
+      />
     </>
   );
 }

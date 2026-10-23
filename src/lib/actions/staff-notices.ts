@@ -17,7 +17,8 @@ import {
   sendBotDirectMessage,
   type GuildMemberMatch,
 } from "@/lib/discord";
-import { actionClientKey, rateLimitShared } from "@/lib/rate-limit";
+import { accountKey, rateLimitShared } from "@/lib/rate-limit";
+import { canSendOfficialNotifications } from "@/lib/notification-authority";
 import {
   MAX_OPENING_LENGTH,
   MAX_TITLE_LENGTH,
@@ -60,7 +61,7 @@ export async function searchDiscordMembers(
   // The composer searches as the operator types (debounced), so the ceiling is
   // higher than a click-to-search flow would need. 90/min still bounds a stuck
   // client, while a person typing a name at speed never reaches it.
-  const limit = await rateLimitShared(await actionClientKey("discord-member-search", auth.actorId), {
+  const limit = await rateLimitShared(accountKey("discord-member-search", auth.actorId), {
     limit: 90,
     windowMs: 60_000,
   });
@@ -148,7 +149,7 @@ export async function sendStaffNotice(input: {
   }
 
   // A stuck button must not be able to spam someone's DMs.
-  const limit = await rateLimitShared(await actionClientKey("staff-notice", actorId), {
+  const limit = await rateLimitShared(accountKey("staff-notice", actorId), {
     limit: 10,
     windowMs: 60_000,
   });
@@ -253,7 +254,9 @@ export async function sendStaffNotice(input: {
           title: text.title,
           message: text.message,
           category: "system",
-          sender: "mazora",
+          // The inbox copy carries the Mazora Team identity only from an owner;
+          // below that it shows as sent by staff (lib/notification-authority).
+          sender: canSendOfficialNotifications(session.role) ? "mazora" : "staff",
           href: null,
         });
         inboxed = true;
@@ -354,7 +357,7 @@ export async function getRecipientContext(discordUserId: string): Promise<Recipi
   // Fires whenever a recipient is picked (two Discord calls plus a full
   // listAccounts() sweep), so it needs its own, more generous ceiling than a
   // mutation — but a stuck client must still not be able to hammer it.
-  const limit = await rateLimitShared(await actionClientKey("recipient-context", actorId), {
+  const limit = await rateLimitShared(accountKey("recipient-context", actorId), {
     limit: 30,
     windowMs: 60_000,
   });

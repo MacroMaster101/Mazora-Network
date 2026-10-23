@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isOfficialCategory } from "@/lib/notification-authority";
 import { MinecraftAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
 import type { Role } from "@/lib/types";
@@ -232,10 +233,13 @@ export function AdminBroadcastManager({
   users = [],
   broadcasts: broadcastRecords = [],
   templates: templateRecords = [],
+  canSendOfficial = false,
 }: {
   users?: UserOption[];
   broadcasts?: BroadcastRecord[];
   templates?: TemplateRecord[];
+  /** Owners only: the Mazora Team identity and security notices (lib/notification-authority). */
+  canSendOfficial?: boolean;
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"broadcasts" | "templates" | "direct">("broadcasts");
@@ -254,7 +258,7 @@ export function AdminBroadcastManager({
   const [target, setTarget] = useState<BroadcastItem["target"]>("all");
   const [priority, setPriority] = useState<BroadcastItem["priority"]>("normal");
   const [category, setCategory] = useState<BroadcastItem["category"]>("announcement");
-  const [broadcastChannel, setBroadcastChannel] = useState<"mazora" | "account">("mazora");
+  const [broadcastChannel, setBroadcastChannel] = useState<"mazora" | "account">(canSendOfficial ? "mazora" : "account");
   const [sending, setSending] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [feedbackError, setFeedbackError] = useState(false);
@@ -264,10 +268,13 @@ export function AdminBroadcastManager({
   const [userQuery, setUserQuery] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const userPickerRef = useRef<HTMLDivElement>(null);
-  const [deliveryChannel, setDeliveryChannel] = useState<"account" | "mazora">("mazora");
+  const [deliveryChannel, setDeliveryChannel] = useState<"account" | "mazora">(canSendOfficial ? "mazora" : "account");
   // Fixed templates fire from an auth flow, and a disabled one is switched
   // off — neither belongs in the manual dispatcher's template list.
-  const dispatchableTemplates = templates.filter((t) => !t.fixed && t.enabled);
+  // A security template would be refused below Owner, so it is not offered.
+  const dispatchableTemplates = templates.filter(
+    (t) => !t.fixed && t.enabled && (canSendOfficial || !isOfficialCategory(t.category)),
+  );
   const [selectedTemplateId, setSelectedTemplateId] = useState(dispatchableTemplates[0]?.id || "");
   const firstTpl = dispatchableTemplates[0];
   const initialDirect = parseTitleIconAndText(firstTpl?.title || "");
@@ -632,8 +639,10 @@ export function AdminBroadcastManager({
                   <button
                     type="button"
                     onClick={() => setBroadcastChannel("mazora")}
+                    disabled={!canSendOfficial}
+                    title={canSendOfficial ? undefined : "Only owners can send as the Mazora Team."}
                     className={cn(
-                      "flex items-center gap-3 p-3.5 rounded-xl border transition-all text-left",
+                      "flex items-center gap-3 p-3.5 rounded-xl border transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed",
                       broadcastChannel === "mazora"
                         ? "border-accent bg-accent/10 shadow-md shadow-accent/15 ring-1 ring-accent/30"
                         : "border-line-strong dark:border-line bg-white dark:bg-surface/60 hover:bg-gray-50 dark:hover:bg-surface"
@@ -682,7 +691,7 @@ export function AdminBroadcastManager({
                     <option value="announcement">📢 Announcement</option>
                     <option value="event">🎉 Event & Rewards</option>
                     <option value="system">⚡ System & Patch</option>
-                    <option value="security">🛡️ Security & Staff</option>
+                    {canSendOfficial && <option value="security">🛡️ Security & Staff</option>}
                   </select>
                 </div>
 
@@ -971,8 +980,10 @@ export function AdminBroadcastManager({
                 <button
                   type="button"
                   onClick={() => setDeliveryChannel("mazora")}
+                  disabled={!canSendOfficial}
+                  title={canSendOfficial ? undefined : "Only owners can send as the Mazora Team."}
                   className={cn(
-                    "flex items-center gap-3 p-3.5 rounded-xl border transition-all text-left",
+                    "flex items-center gap-3 p-3.5 rounded-xl border transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed",
                     deliveryChannel === "mazora"
                       ? "border-accent bg-accent/10 shadow-md shadow-accent/15 ring-1 ring-accent/30"
                       : "border-line-strong dark:border-line bg-white dark:bg-surface/60 hover:bg-gray-50 dark:hover:bg-surface"

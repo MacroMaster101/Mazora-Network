@@ -218,16 +218,21 @@ function hashed(value: string): string {
 /**
  * Server-action equivalent of `clientKey`. Actions never receive a `Request`,
  * so the address comes from the incoming request headers instead.
- *
- * `identity` narrows the bucket beyond the address for callers that explicitly
- * want a combined key. `throttleAuthAction` below instead creates independent
- * address and identity buckets, which is required to stop IP rotation.
  */
-export async function actionClientKey(scope: string, identity?: string): Promise<string> {
+export async function actionClientKey(scope: string): Promise<string> {
   const headerList = await headers();
   const ip = clientIpFrom((name) => headerList.get(name));
-  const suffix = identity ? `:${hashed(identity.toLowerCase())}` : "";
-  return `${scope}:${hashed(ip)}${suffix}`;
+  return `${scope}:${hashed(ip)}`;
+}
+
+/**
+ * Bucket key for a per-account limit: the signed-in account alone, wherever it
+ * connects from. Mixing the address into it (`scope:ip:account`) gave every
+ * new address a fresh allowance, so one account behind a few proxies posted
+ * past its limit. Only a truncated digest of the id is kept.
+ */
+export function accountKey(scope: string, accountId: string): string {
+  return `${scope}:account:${hashed(accountId.trim().toLowerCase())}`;
 }
 
 /**

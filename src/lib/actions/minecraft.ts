@@ -72,6 +72,16 @@ export async function linkMinecraftUsernameAction(
     return { ok: false, enabled, message: "Minecraft name must be 3–16 letters, numbers, or underscores." };
   }
 
+  // The same "ign-claim" bucket as useMinecraftAvatarAction (lib/actions/avatar),
+  // so this twin is no way around it: unthrottled, the two replies below let one
+  // account check every IGN and handle, and rename its own handle at will.
+  const claimThrottled = await throttleAuthAction("ign-claim", {
+    limit: 5,
+    windowMs: 60 * 60_000,
+    identity: user.id,
+  });
+  if (claimThrottled) return { ok: false, enabled, message: claimThrottled };
+
   // Someone else already holds this IGN or handle — refuse rather than let two
   // accounts show the same player identity. Same availability check the
   // registration flow uses, so the two cannot drift.

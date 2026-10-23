@@ -10,7 +10,7 @@ import { recordAudit } from "@/lib/audit-log";
 import { getPostForEdit } from "@/lib/data/forums";
 import { attachForumPostImages, removeForumPostImages } from "@/lib/forums/image-store";
 import { dispatchForumReplyNotification } from "@/lib/forums/notify";
-import { actionClientKey, rateLimitShared } from "@/lib/rate-limit";
+import { accountKey, rateLimitShared } from "@/lib/rate-limit";
 import { REPORT_REASONS, type ReportReason } from "@/lib/report-rules";
 import { attachmentCountError, filesFromFormData, imageSizeError, urlsFromFormData } from "@/lib/suggestion-image-rules";
 import {
@@ -114,7 +114,7 @@ export async function createTopicAction(formData: FormData): Promise<ForumAction
     return { ok: false, message: "You cannot start a topic in this forum." };
   }
 
-  const limit = await rateLimitShared(await actionClientKey("forum-topic", me.userId), {
+  const limit = await rateLimitShared(accountKey("forum-topic", me.userId), {
     limit: 5,
     windowMs: 60_000,
   });
@@ -189,7 +189,7 @@ export async function createPostAction(formData: FormData): Promise<ForumActionR
     return { ok: false, message: "This topic is not accepting replies." };
   }
 
-  const limit = await rateLimitShared(await actionClientKey("forum-post", me.userId), {
+  const limit = await rateLimitShared(accountKey("forum-post", me.userId), {
     limit: 10,
     windowMs: 60_000,
   });
@@ -471,7 +471,7 @@ export async function reportForumPostAction(input: {
     };
   }
 
-  const limit = await rateLimitShared(await actionClientKey("forum-report", me.userId), { limit: 10, windowMs: 60_000 });
+  const limit = await rateLimitShared(accountKey("forum-report", me.userId), { limit: 10, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "You're reporting too fast. Wait a moment and try again." };
 
   try {
@@ -531,7 +531,7 @@ export async function voteOnForumPostAction(input: {
     return { ok: false, message: post.authorId === me.userId ? "You can't vote on your own post." : "You can't vote on this post." };
   }
 
-  const limit = await rateLimitShared(await actionClientKey("comment-vote", me.userId), {
+  const limit = await rateLimitShared(accountKey("comment-vote", me.userId), {
     limit: COMMENT_VOTES_PER_MINUTE,
     windowMs: 60_000,
   });

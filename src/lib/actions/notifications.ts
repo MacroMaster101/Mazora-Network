@@ -15,7 +15,8 @@ import {
   type NotificationAudience,
 } from "@/lib/notification-targeting";
 import { isSafeLink } from "@/lib/net/safe-url";
-import { actionClientKey, rateLimitShared } from "@/lib/rate-limit";
+import { canSendOfficialNotifications, officialNotificationRefusal } from "@/lib/notification-authority";
+import { accountKey, rateLimitShared } from "@/lib/rate-limit";
 
 export type NotificationCategory = "welcome" | "system" | "support" | "security" | "announcement" | "event";
 export type NotificationSender = "mazora" | "staff" | "system";
@@ -161,7 +162,9 @@ export async function sendBroadcastNotificationAction(input: {
   if (!auth) return { ok: false, message: "Not authorized." };
   const parsed = broadcastSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "Check the notification title, message, and audience." };
-  const limit = await rateLimitShared(await actionClientKey("notification-broadcast", auth.actorId), { limit: 10, windowMs: 60_000 });
+  const refusal = officialNotificationRefusal(auth.session.role, parsed.data);
+  if (refusal) return { ok: false, message: refusal };
+  const limit = await rateLimitShared(accountKey("notification-broadcast", auth.actorId), { limit: 10, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "Too many broadcasts. Wait a moment and try again." };
   const db = getDb();
   const accounts = await listAccounts();
@@ -233,9 +236,24 @@ export async function updateBroadcastNotificationAction(input: {
   if (!auth) return { ok: false, message: "Not authorized." };
   const parsed = broadcastEditSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "Check the broadcast title and message." };
+  const refusal = officialNotificationRefusal(auth.session.role, { category: parsed.data.category });
+  if (refusal) return { ok: false, message: refusal };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   try {
+    // Rewriting an owner's official broadcast would put new words under the
+    // Mazora Team identity, so below Owner only staff-sent ones can be edited.
+    if (!canSendOfficialNotifications(auth.session.role)) {
+      const [existing] = await db
+        .select({ sender: schema.notificationBroadcasts.sender, category: schema.notificationBroadcasts.category })
+        .from(schema.notificationBroadcasts)
+        .where(eq(schema.notificationBroadcasts.id, parsed.data.id))
+        .limit(1);
+      if (!existing) return { ok: false, message: "That broadcast no longer exists." };
+      if (officialNotificationRefusal(auth.session.role, existing)) {
+        return { ok: false, message: "Only owners can edit a broadcast sent as the Mazora Team or as a security notice." };
+      }
+    }
     const [updated] = await db
       .update(schema.notificationBroadcasts)
       .set({
@@ -384,7 +402,9 @@ export async function sendDirectNotificationAction(input: {
   if (!auth) return { ok: false, message: "Not authorized." };
   const parsed = directSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "Check the selected account, title, and message." };
-  const limit = await rateLimitShared(await actionClientKey("notification-direct", auth.actorId), { limit: 30, windowMs: 60_000 });
+  const refusal = officialNotificationRefusal(auth.session.role, parsed.data);
+  if (refusal) return { ok: false, message: refusal };
+  const limit = await rateLimitShared(accountKey("notification-direct", auth.actorId), { limit: 30, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "Too many notifications. Wait a moment and try again." };
   const db = getDb();
   const accounts = await listAccounts();

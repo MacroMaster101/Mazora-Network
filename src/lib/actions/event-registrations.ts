@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, count, eq } from "drizzle-orm";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db/client";
-import { actionClientKey, rateLimitShared } from "@/lib/rate-limit";
+import { accountKey, rateLimitShared } from "@/lib/rate-limit";
 import { isUuid } from "@/lib/validation/id";
 import { effectiveEventStatus, registrationOpen } from "@/lib/events/status";
 
@@ -39,7 +39,7 @@ export async function registerForEventAction(input: { eventId: string }): Promis
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
 
-  const limit = await rateLimitShared(await actionClientKey("event-register", userId), { limit: 10, windowMs: 60_000 });
+  const limit = await rateLimitShared(accountKey("event-register", userId), { limit: 10, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "Too many attempts. Wait a moment and try again." };
 
   const [account] = await db
@@ -108,7 +108,7 @@ export async function leaveEventAction(input: { eventId: string }): Promise<Even
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
 
-  const limit = await rateLimitShared(await actionClientKey("event-register", userId), { limit: 10, windowMs: 60_000 });
+  const limit = await rateLimitShared(accountKey("event-register", userId), { limit: 10, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "Too many attempts. Wait a moment and try again." };
 
   try {
