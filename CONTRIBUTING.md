@@ -13,7 +13,7 @@ Never commit `.env`, `.env.local`, service-role keys, Discord tokens, database c
 - Enforce authentication, authorization, and input validation inside server actions and API routes; a hidden button or protected page alone is not a security boundary.
 - Add or update targeted tests when changing authorization, redirects, URL validation, uploads, or other security-sensitive behavior.
 - Do not mutate production data from tests or seed scripts.
-- Use made-up data only in tests, fixtures and examples: no real player or staff names, Discord IDs, UUIDs, emails or order data. This repository is public and git history keeps everything. See [`AGENTS.md`](AGENTS.md).
+- Use made-up data only in tests, fixtures and examples: no real player or staff names, Discord IDs, UUIDs, emails or order data. This repository is public and git history keeps everything.
 
 ## Quality gate
 
