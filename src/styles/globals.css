@@ -3,6 +3,48 @@
 @tailwind utilities;
 
 /* Public creator directory and channel picker */
+.user-presence-avatar-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgb(var(--card));
+  box-shadow: 0 0 0 1px rgb(var(--line-strong));
+}
+
+.header-account-trigger {
+  display: inline-flex;
+  height: 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 3px 6px 3px 3px;
+  color: rgb(var(--ink));
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.header-account-trigger:hover,
+.header-account-trigger[aria-expanded="true"] {
+  border-color: rgb(var(--line-strong));
+  background: rgb(var(--surface));
+}
+
+.header-account-trigger:focus-visible {
+  outline: 2px solid rgb(var(--accent-bright));
+  outline-offset: 2px;
+}
+
+:root body .scroll-header .header-account-trigger .account-chevron {
+  color: rgb(var(--ink));
+}
+
+:root body .scroll-header .user-avatar {
+  border-color: rgb(var(--line-strong));
+}
+
 .creator-directory-section {
   display: grid;
   gap: 1.35rem;
@@ -51,8 +93,6 @@
   gap: 1rem;
   overflow: hidden;
   padding-block: 0.5rem;
-  -webkit-mask-image: linear-gradient(90deg, transparent, black 6%, black 94%, transparent);
-  mask-image: linear-gradient(90deg, transparent, black 6%, black 94%, transparent);
 }
 
 .creator-ribbon-row {
@@ -111,27 +151,6 @@
   transition: opacity 220ms ease, visibility 220ms ease;
 }
 
-.creator-ribbon-controls::before,
-.creator-ribbon-controls::after {
-  position: absolute;
-  inset-block: 0.45rem;
-  z-index: -1;
-  width: clamp(4.75rem, 9vw, 8rem);
-  content: "";
-  opacity: 0.94;
-  pointer-events: none;
-}
-
-.creator-ribbon-controls::before {
-  left: 0;
-  background: linear-gradient(90deg, rgb(var(--base) / 0.74), rgb(var(--base) / 0.28) 48%, transparent);
-}
-
-.creator-ribbon-controls::after {
-  right: 0;
-  background: linear-gradient(270deg, rgb(var(--base) / 0.74), rgb(var(--base) / 0.28) 48%, transparent);
-}
-
 .creator-ribbon-row:hover .creator-ribbon-controls,
 .creator-ribbon-row:focus-within .creator-ribbon-controls,
 .creator-ribbon-row.is-manual-row .creator-ribbon-controls {
@@ -140,92 +159,31 @@
 }
 
 .creator-ribbon-control {
-  --creator-control-shift: 0.55rem;
   display: grid;
-  position: relative;
   width: 3rem;
   height: 3rem;
   place-items: center;
-  overflow: hidden;
-  border: 1px solid rgb(var(--line-strong) / 0.9);
-  border-radius: 1rem;
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / 0.24), transparent 52%),
-    rgb(var(--card) / 0.76);
-  box-shadow:
-    0 1rem 2.2rem -0.9rem rgb(15 7 29 / 0.82),
-    inset 0 1px 0 rgb(255 255 255 / 0.3),
-    inset 0 -1px 0 rgb(var(--accent-rgb) / 0.14);
+  border: 1px solid rgb(var(--line-strong));
+  border-radius: 0.85rem;
+  background: rgb(var(--card));
   color: rgb(var(--ink));
-  -webkit-backdrop-filter: blur(22px) saturate(165%);
-  backdrop-filter: blur(22px) saturate(165%);
+  box-shadow: 0 3px 12px rgb(20 12 35 / 0.2);
   pointer-events: auto;
-  transform: translateX(var(--creator-control-shift));
-  transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease;
-}
-
-.creator-ribbon-control.is-next {
-  --creator-control-shift: -0.55rem;
-}
-
-.creator-ribbon-row:hover .creator-ribbon-control,
-.creator-ribbon-row:focus-within .creator-ribbon-control,
-.creator-ribbon-row.is-manual-row .creator-ribbon-control {
-  transform: translateX(0);
+  transition: border-color 180ms ease, color 180ms ease;
 }
 
 .creator-ribbon-control:hover,
 .creator-ribbon-control:focus-visible {
-  border-color: rgb(var(--accent-rgb) / 0.88);
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / 0.34), transparent 52%),
-    rgb(var(--card) / 0.92);
-  box-shadow:
-    0 1rem 2.4rem -0.75rem rgb(var(--accent-rgb) / 0.62),
-    0 0 0 1px rgb(var(--accent-rgb) / 0.16),
-    inset 0 1px 0 rgb(255 255 255 / 0.38);
+  border-color: rgb(var(--accent));
   color: rgb(var(--accent-bright));
-  outline: 3px solid rgb(var(--accent-rgb) / 0.2);
+  outline: 2px solid rgb(var(--accent-bright));
   outline-offset: 2px;
 }
 
-.creator-ribbon-control:active {
-  transform: scale(0.95);
-}
-
-.creator-ribbon-control:disabled {
-  opacity: 0.34;
-  cursor: not-allowed;
-}
-
-:root[data-theme="dark"] .creator-ribbon-control {
-  border-color: rgb(196 157 255 / 0.42);
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / 0.15), transparent 52%),
-    rgb(18 12 29 / 0.74);
-  color: rgb(249 247 252);
-}
-
-:root[data-theme="light"] .creator-ribbon-control {
-  border-color: rgb(124 58 237 / 0.34);
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / 0.82), transparent 58%),
-    rgb(255 255 255 / 0.72);
-  box-shadow:
-    0 1rem 2.2rem -0.9rem rgb(65 40 102 / 0.48),
-    inset 0 1px 0 rgb(255 255 255 / 0.96),
-    inset 0 -1px 0 rgb(124 58 237 / 0.12);
-}
+.creator-ribbon-control:disabled { opacity: 0.45; cursor: not-allowed; }
 
 @media (hover: none) {
-  .creator-ribbon-controls {
-    opacity: 1;
-    visibility: visible;
-  }
-
-  .creator-ribbon-control {
-    transform: none;
-  }
+  .creator-ribbon-controls { opacity: 1; visibility: visible; }
 }
 
 .creator-ribbon-group {
@@ -602,8 +560,7 @@
   .creator-showcase {
     margin-inline: -1rem;
     padding-inline: 1rem;
-    -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
-    mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+
   }
 
   .creator-ribbon-item {
@@ -652,7 +609,10 @@
 @media (prefers-reduced-motion: reduce) {
   .creator-ribbon-track {
     animation: none;
+    transform: none !important;
   }
+
+  .creator-ribbon-controls { display: none; }
 
   .creator-ribbon-group[aria-hidden="true"] {
     display: none;
@@ -701,22 +661,19 @@
 :root,
 :root[data-theme="light"] {
   color-scheme: light;
-  /* Soft lavender-grey, not near-white. The first daylight palette (base
-     247 245 251, pure-white cards) read as glare over the bright daylight
-     artwork; these sit a step down so the page is calmer to read for long
-     stretches. Every text token below still clears 4.5:1 on surface. */
-  --base: 232 228 240;
-  --surface: 224 219 235;
-  --card: 244 242 248;
-  --line: 207 199 222;
-  --line-strong: 180 169 202;
+  /* Neutral reading surfaces with a restrained violet accent. Control borders
+     remain distinct from the softer lines separating content. */
+  --base: 246 245 249;
+  --surface: 239 237 245;
+  --card: 255 255 255;
+  --line: 218 213 227;
+  --line-strong: 141 130 158;
   --ink: 30 23 43;
-  --muted: 84 74 102;
-  --accent: 124 58 237;
-  /* #7C3AED royal violet */
+  --muted: 80 71 96;
+  --accent: 109 40 217;
   --accent-bright: 101 32 205;
   /* deeper violet — readable on light */
-  --accent-rgb: 124 58 237;
+  --accent-rgb: 109 40 217;
   /* Deep enough for gold text on gold-tinted chips (was 3:1 there). */
   --gold: 138 84 6;
   /* red-700 / amber-800 / green-800: status text usually sits on a tint of its
@@ -8821,8 +8778,7 @@ body:has(.store-detail-page) .scroll-header[data-away="true"][data-hidden="false
 /* Instead of a page-wide bar, the floating nav and account dock each carry
    their own compact glass pill, so they stay readable over any content. */
 /* Dark theme floating nav pill & account dock */
-:root[data-theme="dark"] .scroll-header[data-away="true"][data-hidden="false"] .desktop-nav-shell,
-:root[data-theme="dark"] .scroll-header[data-away="true"][data-hidden="false"] .desktop-account-dock {
+:root[data-theme="dark"] .scroll-header[data-away="true"][data-hidden="false"] .desktop-nav-shell {
   border: 1px solid rgb(216 180 254 / 0.16);
   border-radius: 999px;
   background: rgb(9 5 18 / 0.85);
@@ -8832,8 +8788,7 @@ body:has(.store-detail-page) .scroll-header[data-away="true"][data-hidden="false
 }
 
 /* Light theme floating nav pill & account dock */
-:root:not([data-theme="dark"]) .scroll-header[data-away="true"][data-hidden="false"] .desktop-nav-shell,
-:root:not([data-theme="dark"]) .scroll-header[data-away="true"][data-hidden="false"] .desktop-account-dock {
+:root:not([data-theme="dark"]) .scroll-header[data-away="true"][data-hidden="false"] .desktop-nav-shell {
   border: 1px solid rgba(147, 51, 234, 0.28);
   border-radius: 999px;
   background: rgb(var(--card) / 0.92);
@@ -8847,9 +8802,7 @@ body:has(.store-detail-page) .scroll-header[data-away="true"][data-hidden="false
   padding-inline: 0.6rem;
 }
 
-.scroll-header[data-away="true"][data-hidden="false"] .desktop-account-dock {
-  padding: 0.3rem 0.45rem;
-}
+
 
 .scroll-header[data-away="true"][data-hidden="false"] .header-brand-logo {
   filter: drop-shadow(0 5px 13px rgb(7 3 16 / 0.75));

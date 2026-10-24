@@ -86,7 +86,6 @@ export default async function VotePage() {
           <div className="vote-redesign-copy">
             <p><Sparkles size={14} aria-hidden="true" /> <span data-page-field="heroEyebrow">{copy.heroEyebrow}</span></p>
             <h1><span data-page-field="heroTitle">{copy.heroTitle}</span> <span data-page-field="heroAccent">{copy.heroAccent}</span></h1>
-            <div data-page-field="heroLead">{copy.heroLead}</div>
 
             {!generalSettings.votingEnabled && (
               <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-900 dark:text-amber-200">
@@ -106,6 +105,7 @@ export default async function VotePage() {
           </div>
 
           <div className="vote-redesign-journey" aria-label="How voting works">
+            <p className="vote-redesign-journey-lead" data-page-field="heroLead">{copy.heroLead}</p>
             <span><b>01</b><Vote size={15} /> <span data-page-field="journeyOne">{copy.journeyOne}</span></span>
             <i aria-hidden="true" />
             <span><b>02</b><Check size={15} /> <span data-page-field="journeyTwo">{copy.journeyTwo}</span></span>

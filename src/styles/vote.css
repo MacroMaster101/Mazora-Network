@@ -293,6 +293,7 @@
 
 .vote-redesign-journey {
   display: flex;
+  flex-wrap: wrap;
   width: min(100%, 44rem);
   min-height: 3.05rem;
   align-items: center;
@@ -308,6 +309,19 @@
   backdrop-filter: blur(12px);
   font-size: 0.7rem;
 }
+
+.vote-redesign-journey .vote-redesign-journey-lead {
+  flex-basis: 100%;
+  grid-column: 1 / -1;
+  margin: 0;
+  color: rgb(var(--ink));
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.6;
+  text-wrap: balance;
+}
+
+:root body .vote-redesign-journey { row-gap: 0.65rem; }
 
 .vote-redesign-journey span {
   display: inline-flex;
@@ -588,7 +602,7 @@
 :root[data-theme="light"] .vote-table-search svg,
 :root[data-theme="light"] .vote-filter-menu>summary>svg:last-child,
 :root[data-theme="light"] .vote-filter-current small {
-  color: rgb(78 60 99 / 0.62);
+  color: rgb(var(--muted));
 }
 
 :root[data-theme="light"] .vote-filter-menu>summary>svg:first-child,
@@ -631,7 +645,7 @@
 }
 
 :root[data-theme="light"] .vote-mobile-metric small {
-  color: rgb(78 60 99 / 0.62);
+  color: rgb(var(--muted));
 }
 
 :root[data-theme="light"] .vote-ref-pagination .btn-ghost {

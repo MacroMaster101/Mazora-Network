@@ -41,8 +41,8 @@ export function ThemeToggle({ className }: { className?: string }) {
 }
 
 export function ThemeCycleButton({ className }: { className?: string }) {
-  const { resolved, setTheme } = useTheme();
-  const isDark = resolved === "dark";
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === "dark";
   const Icon = isDark ? Moon : Sun;
   const nextTheme = isDark ? "light" : "dark";
 

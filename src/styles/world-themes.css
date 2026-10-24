@@ -13,21 +13,18 @@
 }
 
 :root[data-theme="light"] {
-  --world-home-hero: url("/images/worlds/home-hero-light.webp");
-  --world-valley: url("/images/worlds/valley-light.webp");
-  --world-store-hero: url("/images/worlds/store-hero-light.webp");
-  --world-store-body: url("/images/worlds/store-body-light.webp");
-  --world-vote-body: url("/images/worlds/vote-body-light.webp");
-  --world-news-hero: url("/images/worlds/news-hero-light.webp");
-  --world-news-body: url("/images/worlds/news-body-light.webp");
-  /* Shared by public worlds, account areas, auth, and loading screens. The
-     wash used to be near-white at 0.5, which laid a milky glare over artwork
-     that is already bright. A dusky lavender plus a slight dim (below) calms
-     the scene instead of bleaching it. Text on the scenery never relies on
-     this wash: page heroes get a local scrim, like the dark theme's. */
-  --world-shade: 184 174 206;
-  --world-wash: 0.42;
-  --world-dim: brightness(0.94) saturate(1.06);
+  --world-home-hero: url("/images/worlds/home-hero-light-v3.webp");
+  --world-valley: url("/images/worlds/valley-light-v3.webp");
+  --world-store-hero: url("/images/worlds/store-hero-light-v3.webp");
+  --world-store-body: url("/images/worlds/store-body-light-v3.webp");
+  --world-vote-body: url("/images/worlds/vote-body-light-v3.webp");
+  --world-news-hero: url("/images/worlds/news-hero-light-v3.webp");
+  --world-news-body: url("/images/worlds/news-body-light-v3.webp");
+  /* Daylight artwork keeps its own colour. Reading surfaces are defined in
+     light-theme.css rather than tinting the entire scene for text contrast. */
+  --world-shade: 246 245 249;
+  --world-wash: 0.64;
+  --world-dim: none;
 }
 
 /* Only the public frame's art layer is a pseudo-element; the account area
@@ -43,9 +40,80 @@
   pointer-events: none;
 }
 :root[data-theme="light"] .world-backdrop { background-image: var(--art-light); }
+
+
 @media (max-width: 640px) {
   .world-backdrop { background-image: var(--art-dark-mobile); }
   :root[data-theme="light"] .world-backdrop { background-image: var(--art-light-mobile); }
+}
+
+/* Swap palettes and artwork together. Component hover transitions would
+   otherwise leave pale labels on the previous theme's surfaces mid-switch. */
+:root[data-theme-switching] *,
+:root[data-theme-switching] *::before,
+:root[data-theme-switching] *::after {
+  transition: none !important;
+}
+
+:root[data-theme-switching]::view-transition-old(root),
+:root[data-theme-switching]::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root::view-transition-group(root),
+  :root::view-transition-old(root),
+  :root::view-transition-new(root) { animation: none !important; }
+}
+
+/* The utility dock keeps the same edges, spacing and button hierarchy in
+   daylight and at night, both over the hero and after scrolling. */
+:root body .scroll-header .desktop-account-dock {
+  gap: 0.25rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid rgb(var(--line-strong) / 0.65);
+  border-radius: 999px;
+  background: rgb(var(--card) / 0.96);
+  box-shadow: 0 4px 16px -10px rgb(30 23 43 / 0.3);
+}
+
+:root body .scroll-header .desktop-register-link {
+  background: #6d28d9;
+  color: #fff;
+  box-shadow: none;
+}
+
+:root body .scroll-header .desktop-register-link:hover { background: #5b21b6; }
+
+:root body .scroll-header .desktop-login-link {
+  color: rgb(var(--ink));
+  text-shadow: none;
+}
+
+:root body .scroll-header .desktop-login-link:hover {
+  background: rgb(var(--surface));
+  color: rgb(var(--accent-bright));
+}
+
+:root body .scroll-header .theme-orb {
+  border-color: rgb(var(--line-strong));
+  background: rgb(var(--surface));
+  color: rgb(var(--ink));
+  box-shadow: none;
+}
+
+:root body .scroll-header .theme-orb:hover {
+  transform: none;
+  border-color: rgb(var(--accent));
+  color: rgb(var(--accent-bright));
+}
+
+:root body .theme-orb-glow { display: none; }
+
+/* Filled selection controls need the same readable white labels at night. */
+:root[data-theme="dark"] body .gallery-filter-bar button[aria-pressed="true"] {
+  background: #6d28d9;
 }
 
 /* The shared frame owns one scene all the way through the footer. Specificity
@@ -132,11 +200,7 @@
 :root[data-theme="light"] body .site-world-main::before {
   background: linear-gradient(180deg, rgb(var(--base) / 0.12), transparent);
 }
-/* No fog panel behind light page heroes. A big radial glow pinned to the left
-   (tried 2026-09-26) read as a milky patch, sat off-centre on centred heroes
-   like /staff, and needed a mask to avoid a hard edge. Hero copy instead gets
-   the per-line halo Home uses (see the end of this file), so the scene stays
-   clear everywhere the text is not. */
+/* Keep page heroes open to the daylight scene, matching the night layout. */
 :root[data-theme="light"] body .page-hero-atmosphere { background: none; }
 /* .home-world overlaps the hero's last 8rem (negative margin, higher z-index).
    A film starting at its top edge drew a visible line through the hero CTAs on
@@ -391,27 +455,12 @@ body .site-world-main :is(.store-marketplace, .store-detail-page)::before {
   background: rgb(var(--card)) !important;
   backdrop-filter: none;
 }
-/*
-  Daylight scrim behind hero leads, so they stay readable over a bright world
-  image. The vote lead is a bare <div>; its sibling notice div carries classes.
-
-  The geometry is deliberately NOT inside the light-theme block. Padding that
-  only exists in one theme makes the scrim reserve space in one theme and not
-  the other, which pushed every hero element below the lead down in daylight
-  while night sat higher — the same page landing in two different places
-  depending on the theme. So the box is reserved in both themes and only its
-  colour changes; note this narrows the text measure by the horizontal padding
-  in both, which is why the wrapping now matches too.
-*/
+/* Hero leads share their geometry in both themes, without a backing box. */
 .vote-redesign-copy > div:not([class]),
 :is(.store-hero-v2-copy, .vote-redesign-copy, .newsroom-hero-copy, .news-detail-intro) > p:not(.eyebrow) {
   background: transparent;
-  border-radius: 0.75rem;
-  padding: 0.65rem 0.9rem;
-}
-:root[data-theme="light"] body .vote-redesign-copy > div:not([class]),
-:root[data-theme="light"] body :is(.store-hero-v2-copy, .vote-redesign-copy, .newsroom-hero-copy, .news-detail-intro) > p:not(.eyebrow) {
-  background: rgb(var(--card) / 0.94);
+  border-radius: 0;
+  padding: 0;
 }
 :root[data-theme="light"] body .store-hero-cart-trigger {
   background: rgb(var(--card));
@@ -438,18 +487,18 @@ body .site-world-main :is(.store-marketplace, .store-detail-page)::before {
 /* Admin store pages: the creator-code intro was white text written for the
    night backdrop (1.3:1 on daylight). */
 :root[data-theme="light"] body .creator-code-page-intro {
-  color: rgb(var(--ink) / 0.82);
-  text-shadow: 0 0 12px rgb(var(--world-shade)), 0 0 24px rgb(var(--world-shade) / 0.8);
+  color: rgb(var(--ink));
+  text-shadow: none;
 }
 :root[data-theme="light"] body :is(.page-hero, .page-detail-hero, .state-error-actions) .btn-ghost {
   color: rgb(var(--ink));
   background: rgb(var(--card));
   border-color: rgb(var(--line-strong));
 }
-/* Home body copy sits directly on the landscape; a soft halo keeps it legible
-   under the lighter wash without boxing it in. */
+/* On-scenery copy uses ink rather than a blurred halo. */
 :root[data-theme="light"] body .home-clean-join :is(p:not(.eyebrow), .home-value-points) {
-  text-shadow: 0 0 12px rgb(var(--world-shade)), 0 0 24px rgb(var(--world-shade) / 0.8);
+  color: rgb(var(--ink));
+  text-shadow: none;
 }
 :root[data-theme="light"] body .gallery-filter-bar {
   padding: 1rem;
@@ -475,11 +524,10 @@ body .site-world-main :is(.store-marketplace, .store-detail-page)::before {
   text-shadow: none;
 }
 :root[data-theme="light"] body .newsroom-hero-copy h1 span { color: rgb(var(--accent-bright)); }
-/* The game-mode picker's intro sits straight on the marketplace art; sampled
-   worst case was 3.6:1 without a halo. Same treatment as the Home copy. Must
-   stay after the `text-shadow: none` list above, which has equal specificity. */
+/* Keep the game-mode introduction crisp over the marketplace scene. */
 :root[data-theme="light"] body .store-mode-selector-intro :is(span, p) {
-  text-shadow: 0 0 10px rgb(var(--base)), 0 0 20px rgb(var(--base) / 0.85);
+  color: rgb(var(--ink));
+  text-shadow: none;
 }
 :root[data-theme="light"] body .vote-hub-guide-list > div > span { color: rgb(var(--muted)); }
 :root[data-theme="light"] body .vote-hub-guide-list i { color: rgb(var(--accent-bright)); }
@@ -509,57 +557,6 @@ body .site-world-main :is(.store-marketplace, .store-detail-page)::before {
 :root[data-theme="light"] ::-webkit-scrollbar-thumb { background: #9572c7 !important; border-color: #f0edf8 !important; }
 
 @media (max-width: 640px) {
-  :root[data-theme="light"] { --world-news-hero: url("/images/worlds/news-hero-light-mobile.webp"); }
   :root body .site-world-frame::before { background-position: center, 32% center !important; }
   .world-backdrop { background-position: 42% center; }
-}
-
-
-/* ---------------------------------------------------------------------------
-   Daylight text on scenery.
-   Anything that sits straight on the world art (no card, chip or button behind
-   it) is measured against the art itself, which the page wash only partly
-   calms. Sampling the art on every public page put the violet eyebrows at
-   ~2:1 and muted copy at ~2.3:1; only near-black ink held up. So on-art text:
-     - takes near-ink for "muted" and violet-950 for "accent-bright", by
-       overriding those tokens on the element itself (every rule that paints
-       rgb(var(--muted)) or rgb(var(--accent-bright)) picks it up), and
-     - gets a tight halo in the page colour around each line (the Home-copy
-       technique), which carries small text over the busiest pixels.
-   "On art" = not inside, and not itself, a surface: .panel/.glass, anything
-   with a bg-* utility or a *card* class, buttons and button-styled links
-   (.btn*, *cta*, role=button), chips, pills and badges.
-   Text inside those keeps the normal tokens and no halo.
-   Kept last in the file: several rules above set text-shadow: none on hero
-   and section copy at equal or lower specificity.
-   --------------------------------------------------------------------------- */
-:root[data-theme="light"] body :is(.site-world-content, .account-content, .site-footer) :is(h1, h2, h3, h4, h5, p, span, li, small, dt, dd, label, a, strong, em, time, div):not(:is(.panel, .glass, [class*="bg-"], [class*="card"], [class*="chip"], [class*="pill"], [class*="badge"], [class*="btn"], [class*="cta"], [role="button"], button, .btn, input, select, textarea) *):not(.panel, .glass, [class*="bg-"], [class*="card"], [class*="chip"], [class*="pill"], [class*="badge"], [class*="btn"], [class*="cta"], [role="button"], button, .btn) {
-  --muted: 44 34 62;
-  /* violet-950: the deepest step that still reads as brand violet; any
-     lighter and the 11px eyebrows fall under 3:1 on the busiest art. */
-  --accent-bright: 46 16 101;
-  text-shadow:
-    0 0 6px rgb(var(--base)),
-    0 0 14px rgb(var(--base) / 0.95),
-    0 0 28px rgb(var(--base) / 0.8);
-}
-/* The 11px mono eyebrow is too thin to hold its own over detailed scenery even
-   with the halo; a heavier weight keeps it legible without a backing panel. */
-:root[data-theme="light"] body :is(.site-world-content, .account-content) .eyebrow:not(:is(.panel, .glass, [class*="bg-"], [class*="card"]) *) { font-weight: 700; font-size: 0.76rem; }
-/* Custom properties and text-shadow inherit, so an on-art wrapper would hand
-   its darker tokens and halo down to a card inside it. Surfaces restore the
-   shared daylight values (globals.css) for themselves and their contents. */
-:root[data-theme="light"] body :is(.site-world-content, .account-content, .site-footer) :is(.panel, .glass, [class*="bg-"], [class*="card"], [class*="chip"], [class*="pill"], [class*="badge"], [class*="btn"], [class*="cta"], [role="button"], button, .btn) {
-  --muted: 84 74 102;
-  --accent-bright: 101 32 205;
-  text-shadow: none;
-}
-/* .chip's 3% ink tint is effectively transparent over scenery (the game-mode
-   detail chips measured ~2:1). In daylight give chips a solid surface; inside
-   cards it matches the card, so only the border shows, as before. */
-:root[data-theme="light"] body .chip { background: rgb(var(--card) / 0.94); }
-/* The refresh control's 14% muted tint vanished over scenery (/players). */
-:root[data-theme="light"] body .refresh-button { background: rgb(var(--card) / 0.94); }
-:root[data-theme="light"] body .refresh-button:hover:not(:disabled) {
-  background: linear-gradient(rgb(var(--accent) / 0.08), rgb(var(--accent) / 0.08)), rgb(var(--card));
 }

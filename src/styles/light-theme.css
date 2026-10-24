@@ -1,0 +1,371 @@
+/* Daylight uses the same continuous world and component geometry as night.
+   Only colour, contrast and control visibility change with the theme. */
+:root[data-theme="light"] {
+  --muted: 60 48 76;
+}
+
+/* No inherited text halos across cards, links or scenery. */
+:root[data-theme="light"] body :is(.site-world-main, .account-area, .auth-modal, .auth-page) * {
+  text-shadow: none;
+}
+
+:root[data-theme="light"] body :is(.hero-art, .vote-redesign-art, .store-world-art, .newsroom-hero-backdrop, .news-detail-hero-backdrop) {
+  filter: none;
+}
+
+:root[data-theme="light"] body :is(.hero-grid, .hero-orbit, .hero-logo-aura, .store-hero-grid, .vote-redesign-grid, .store-hero-v2-brand-aura) {
+  display: none;
+}
+
+:root[data-theme="light"] body .site-world-main::before {
+  background: none;
+}
+
+:root[data-theme="light"] body :is(.page-hero-copy, .store-hero-v2-copy, .vote-redesign-copy, .newsroom-hero-copy, .news-detail-intro) {
+  color: rgb(var(--ink));
+}
+
+:root[data-theme="light"] body :is(.store-hero-v2-copy, .vote-redesign-copy, .newsroom-hero-copy, .news-detail-intro) > p:not(.eyebrow),
+:root[data-theme="light"] body .vote-redesign-copy > div:not([class]) {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+}
+
+:root[data-theme="light"] body .site-world-main :is(.page-hero, .page-detail-hero, .section-heading, .home-section-heading, .home-clean-join, .creator-home-heading, .creator-directory-heading, .team-copy, .team-org-heading, .vote-hub-heading, .newsroom-hero-copy, .news-detail-intro) :is(h1, h2, h3, h4, dd) {
+  color: rgb(var(--ink));
+  text-shadow: none;
+}
+
+:root[data-theme="light"] body .site-world-main :is(.text-muted, .home-clean-join p:not(.eyebrow), .home-clean-join dt, .home-value-points, .creator-home-heading p, .creator-directory-heading p) {
+  color: rgb(var(--muted));
+}
+
+:root[data-theme="light"] body .site-world-main :is(.eyebrow, .home-section-heading > div > a) {
+  color: rgb(var(--accent-bright));
+  text-shadow: none;
+}
+
+/* Copy on scenery uses a firm ink tone; panels keep their quieter labels. */
+:root[data-theme="light"] body .site-world-main :is(.page-hero-copy, .section-heading, .creator-home-heading, .creator-directory-heading, .gallery-category-heading, .home-clean-join, .team-copy, .store-hero-v2-copy, .newsroom-hero-copy) p:not(.eyebrow),
+:root[data-theme="light"] body .team-hero-lead {
+  color: rgb(var(--ink));
+  font-weight: 500;
+}
+
+:root[data-theme="light"] body :is(.vote-redesign-copy, .newsroom-hero-copy) h1 span:first-child {
+  color: rgb(var(--ink));
+}
+
+:root[data-theme="light"] body :is(.newsroom-live-pill, .newsroom-hero-note) svg {
+  color: rgb(var(--accent-bright));
+}
+
+:root[data-theme="light"] body .vote-realm-leader-title > span {
+  color: rgb(var(--gold));
+  background: rgb(var(--gold) / 0.08);
+  border-color: rgb(var(--gold) / 0.3);
+}
+
+:root[data-theme="light"] body .vote-hub-sites-head > span {
+  color: rgb(var(--success));
+  background: rgb(var(--success) / 0.08);
+  border-color: rgb(var(--success) / 0.3);
+}
+
+:root[data-theme="light"] body .vote-hub-sites-head > span i {
+  background: rgb(var(--success));
+  box-shadow: none;
+}
+
+:root[data-theme="light"] body .vote-hub-cooldown {
+  color: rgb(var(--muted));
+}
+
+:root[data-theme="light"] body .vote-hub-cooldown svg {
+  color: rgb(var(--accent-bright));
+}
+
+:root[data-theme="light"] body .hover\:text-white:hover {
+  color: white;
+}
+
+/* Shared content surfaces, including portalled dialogs and dropdowns. */
+:root[data-theme="light"] body :is(.panel, .glass, .auth-card, .auth-modal-shell, .auth-modal-form, .modal-frame, .account-menu, .desktop-more-menu, .mobile-menu-panel, .dashboard-mobile-nav, .hero-stat, .home-network-facts, .home-map-shell, .home-map-toolbar, .home-map-coming-soon, .store-product-card, .vote-hub-leaderboard-card, .vote-hub-guide, .vote-hub-sites, .news-public-card, .newsroom-feature) {
+  background: rgb(var(--card)) !important;
+  border-color: rgb(var(--line));
+  color: rgb(var(--ink));
+  box-shadow: 0 4px 18px -12px rgb(30 23 43 / 0.2);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-theme="light"] body .hero-stat :is(.text-white, .text-white\/80) {
+  color: rgb(var(--ink));
+}
+
+:root[data-theme="light"] body .hero-stat :is(.telemetry, .text-white\/55) {
+  color: rgb(var(--muted));
+}
+
+:root[data-theme="light"] body :is(.hero-stat-icon, .home-map-icon, .home-map-signal) {
+  background: rgb(var(--surface));
+  color: rgb(var(--accent-bright));
+  border-color: rgb(var(--line));
+  box-shadow: none;
+}
+
+/* A short header fade matches the night theme without a hard white bar. */
+:root[data-theme="light"] body .scroll-header::before,
+:root[data-theme="light"] body:has(.site-world-frame) .scroll-header:not([data-away="true"])::before,
+:root[data-theme="light"] body:has(.site-world-frame) .scroll-header[data-away="true"][data-hidden="false"]::before {
+  inset: 0 0 -1.5rem;
+  border: 0;
+  background: linear-gradient(180deg, rgb(var(--base) / 0.96), rgb(var(--base) / 0.7) 60%, transparent);
+  opacity: 1;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-theme="light"] body :is(.desktop-nav-item, .desktop-nav-icon, .desktop-login-link) {
+  color: rgb(var(--ink));
+  text-shadow: none;
+}
+
+:root[data-theme="light"] body .desktop-nav-item:is(:hover, .is-active),
+:root[data-theme="light"] body .desktop-nav-item.is-active .desktop-nav-icon {
+  color: rgb(var(--accent-bright));
+}
+
+:root[data-theme="light"] body :is(.theme-orb, .auth-theme-toggle) {
+  border-color: rgb(var(--line-strong)) !important;
+  background: rgb(var(--card)) !important;
+  color: rgb(var(--accent-bright)) !important;
+  box-shadow: none;
+}
+
+:root[data-theme="light"] body .theme-orb-glow {
+  display: none;
+}
+
+/* Workspaces retain the same continuous landscape as the dark theme. */
+:root[data-theme="light"] body .account-area {
+  background-image: var(--world-valley);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+:root[data-theme="light"] body :is(.dashboard-sidebar, .admin-sidebar) > nav,
+:root[data-theme="light"] body :is(.dashboard-sidebar, .admin-sidebar) > div:first-child {
+  border-color: rgb(var(--line));
+  background: rgb(var(--card));
+  box-shadow: 0 4px 18px -12px rgb(30 23 43 / 0.2);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-theme="light"] body :is(.dashboard-sidebar, .admin-sidebar) nav a[aria-current="page"] {
+  background: rgb(var(--surface));
+  color: rgb(var(--accent-bright));
+  border-color: rgb(var(--accent));
+  box-shadow: none;
+}
+
+:root[data-theme="light"] body :is(.dash-header, .admin-editor-heading) {
+  color: rgb(var(--ink));
+  text-shadow: none;
+  border-color: rgb(var(--line));
+}
+
+:root[data-theme="light"] body .dash-header .text-muted,
+:root[data-theme="light"] body .admin-editor-heading .text-muted {
+  color: rgb(var(--muted));
+}
+
+:root[data-theme="light"] body .account-content :is(th, td) {
+  border-color: rgb(var(--line));
+}
+
+:root[data-theme="light"] body .account-content thead {
+  background: rgb(var(--surface));
+  color: rgb(var(--ink));
+}
+
+/* Explicit control edges and labels, without altering checkbox/radio layouts,
+   chart colour pickers, transparent search fields, or image captions. */
+:root[data-theme="light"] body :is(.field, .input, .auth-card .field.auth-field) {
+  border-color: rgb(var(--line-strong));
+  background-color: rgb(var(--card));
+  color: rgb(var(--ink));
+  box-shadow: none;
+}
+
+:root[data-theme="light"] body :is(input, textarea)::placeholder {
+  color: rgb(var(--muted));
+  opacity: 1;
+}
+
+:root[data-theme="light"] body :is(.site-world-main, .account-area, .auth-modal) :is(input, textarea)::placeholder {
+  color: rgb(var(--muted));
+  opacity: 1;
+}
+
+:root[data-theme="light"] body :is(.field, .input, .auth-card .field.auth-field):focus {
+  border-color: rgb(var(--accent));
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+:root[data-theme="light"] body :is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 3px;
+}
+
+:root[data-theme="light"] body :is(.btn-ghost, .btn-secondary, .hero-cta-quiet, .vote-redesign-secondary, .store-hero-cart-trigger, .chip, .refresh-button) {
+  border-color: rgb(var(--line-strong));
+  background: rgb(var(--card));
+  color: rgb(var(--ink));
+  text-shadow: none;
+  backdrop-filter: none;
+}
+
+:root[data-theme="light"] body :is(.btn-primary, .btn-gold, .hero-cta-primary, .vote-redesign-primary) {
+  background: rgb(var(--accent));
+  color: #fff;
+  text-shadow: none;
+  box-shadow: 0 4px 10px -6px rgb(var(--accent) / 0.5);
+}
+
+:root[data-theme="light"] body :is(.btn-ghost, .btn-secondary, .hero-cta-quiet, .vote-redesign-secondary, .store-hero-cart-trigger, .refresh-button):hover:not(:disabled) {
+  border-color: rgb(var(--accent));
+  background: rgb(var(--surface));
+  color: rgb(var(--accent-bright));
+}
+
+:root[data-theme="light"] body :is(.btn-primary, .btn-gold, .hero-cta-primary, .vote-redesign-primary):hover:not(:disabled) {
+  background: rgb(var(--accent-bright));
+  color: #fff;
+}
+
+/* Authentication keeps its matching world panel in both themes. */
+:root[data-theme="light"] body :is(.auth-modal-world, .auth-world) {
+  background-image: linear-gradient(rgb(var(--base) / .64), rgb(var(--base) / .72)), var(--world-home-hero);
+  background-position: 48% center;
+  background-size: cover;
+}
+
+:root[data-theme="light"] body .auth-modal-world::after {
+  display: none;
+}
+
+/* Phones (and short landscape tablets) swap the world panel for a slim scene
+   header above the form. Wash it light too, or the purple logo sits on a
+   near-black bar. */
+@media (max-width: 639px), (min-width: 640px) and (max-width: 1023px) and (max-height: 520px) {
+  :root[data-theme="light"] body .auth-modal-toolbar {
+    border-bottom-color: rgb(var(--line-strong) / 0.7);
+    background:
+      linear-gradient(rgb(var(--base) / 0.7), rgb(var(--base) / 0.78)),
+      var(--world-home-hero) center 43% / cover;
+    box-shadow: 0 14px 34px -26px rgb(var(--accent-rgb) / 0.45);
+  }
+}
+
+/* The footer blends into the same scene instead of ending in a white slab. */
+:root[data-theme="light"] body :is(.site-world-frame, .account-area) .site-footer,
+:root[data-theme="light"] body .site-world-frame:has(main) .site-footer {
+  border-top: 0;
+  background: linear-gradient(transparent, rgb(var(--base) / 0.9) 6rem) !important;
+  color: rgb(var(--muted));
+}
+
+:root[data-theme="light"] body .site-footer :is(h3, button) {
+  color: rgb(var(--ink));
+  text-shadow: none;
+}
+
+/* Match the night composition with a daylight scrim. Scenery stays continuous;
+   ink text never relies on the brightness of an individual tree or building. */
+:root[data-theme="light"] body .account-area {
+  background-image: linear-gradient(rgb(var(--world-shade) / var(--world-wash)), rgb(var(--world-shade) / var(--world-wash))), var(--world-valley);
+}
+
+:root[data-theme="light"] body .hero-vignette {
+  background: linear-gradient(180deg, rgb(var(--base) / .18), rgb(var(--base) / .08) 45%, rgb(var(--base) / .3));
+}
+
+:root[data-theme="light"] body .site-world-main .store-hero-v2 .store-hero-overlay,
+:root[data-theme="light"] body .newsroom-page .newsroom-hero-backdrop::before,
+:root[data-theme="light"] body .vote-redesign-vignette {
+  background: linear-gradient(180deg, rgb(var(--base) / .32), rgb(var(--base) / .52) 40%, rgb(var(--base) / .72) 75%, rgb(var(--base) / .64));
+}
+
+:root[data-theme="light"] body .store-hero-v2 .store-world-art { z-index: 0; }
+:root[data-theme="light"] body .store-hero-v2 .store-hero-overlay { z-index: 1; pointer-events: none; }
+
+:root[data-theme="light"] body .news-detail-hero-backdrop {
+  background-image: linear-gradient(180deg, rgb(var(--base) / .32), rgb(var(--base) / .52) 40%, rgb(var(--base) / .72) 75%, rgb(var(--base) / .64)), var(--world-news-hero);
+}
+
+/* Remove text clipping and inherited night colours, preserving the coloured
+   second line and the original typography, spacing and centred alignment. */
+:root[data-theme="light"] body .site-world-main :is(.newsroom-hero-copy, .store-hero-v2-copy, .vote-redesign-copy) h1,
+:root[data-theme="light"] body .site-world-main :is(.newsroom-hero-copy, .store-hero-v2-copy, .vote-redesign-copy) h1 span,
+:root[data-theme="light"] body .site-world-main .text-transparent.bg-clip-text {
+  background-image: none;
+  -webkit-text-fill-color: currentColor;
+  text-shadow: none;
+}
+
+:root[data-theme="light"] body .site-world-main :is(.newsroom-hero-copy, .store-hero-v2-copy, .vote-redesign-copy) h1 { color: rgb(var(--ink)); }
+:root[data-theme="light"] body .site-world-main :is(.newsroom-hero-copy, .store-hero-v2-copy, .vote-redesign-copy) h1 span { color: rgb(var(--accent-bright)); }
+:root[data-theme="light"] body .site-world-main :is(.newsroom-hero-copy, .vote-redesign-copy) h1 span:first-child { color: rgb(var(--ink)); }
+:root[data-theme="light"] body .site-world-main .text-transparent.bg-clip-text { color: rgb(var(--accent-bright)); }
+
+:root[data-theme="light"] body .site-world-main :is(.eyebrow, .vote-redesign-copy > p) { color: #501b8e; }
+:root[data-theme="light"] body .site-world-main :is(.newsroom-hero-copy, .store-hero-v2-copy, .news-detail-intro) > p,
+:root[data-theme="light"] body .team-hero-lead,
+:root[data-theme="light"] body .vote-hub-heading > p:not(.eyebrow) {
+  color: rgb(var(--ink)) !important;
+  font-weight: 500;
+}
+
+/* These are the same glass panels as night, with opaque daylight surfaces
+   for small labels. Route sheets used to reapply translucent night glass. */
+:root[data-theme="light"] body .site-world-main :is(.newsroom-live-pill, .newsroom-mast-stat, .newsroom-hero-note, .store-hero-v2-live-pill, .store-hero-v2-stat, .store-hero-v2-note, .vote-redesign-status, .vote-redesign-stat, .vote-redesign-journey) {
+  background: rgb(var(--card));
+  border-color: rgb(var(--line-strong));
+  color: rgb(var(--ink));
+  box-shadow: 0 6px 20px -14px rgb(30 23 43 / .3);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-theme="light"] body .site-world-main :is(.newsroom-mast-stat, .store-hero-v2-stat, .vote-redesign-stat) strong,
+:root[data-theme="light"] body .site-world-main :is(.newsroom-hero-note, .store-hero-v2-note) strong { color: rgb(var(--ink)); }
+:root[data-theme="light"] body .site-world-main :is(.newsroom-mast-stat, .store-hero-v2-stat, .vote-redesign-stat) small,
+:root[data-theme="light"] body .site-world-main :is(.newsroom-hero-note, .store-hero-v2-note) { color: rgb(var(--muted)); }
+:root[data-theme="light"] body .site-world-main :is(.newsroom-hero-note, .store-hero-v2-note) svg { color: rgb(var(--accent)); }
+
+:root[data-theme="light"] body .site-world-main .vote-redesign-status > span:first-child {
+  background: rgb(var(--surface));
+  color: rgb(var(--ink));
+  border-color: rgb(var(--line));
+}
+
+:root[data-theme="light"] body .site-world-main .vote-redesign-status i {
+  background: rgb(var(--success));
+  box-shadow: 0 0 0 3px rgb(var(--success) / .12);
+}
+
+:root[data-theme="light"] body .site-world-main .vote-redesign-status i.bg-amber-400 {
+  background: rgb(var(--warning));
+  box-shadow: 0 0 0 3px rgb(var(--warning) / .12);
+}
+
+:root[data-theme="light"] body .page-detail-hero .text-ink { color: rgb(var(--ink)); }
+:root[data-theme="light"] body .bg-purple-600.text-white { background-color: rgb(var(--accent)); }
+:root[data-theme="light"] body .bg-purple-600.text-white:hover { background-color: rgb(var(--accent-bright)); }

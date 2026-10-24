@@ -117,9 +117,9 @@ export function DashboardSidebar({ session }: { session: Session }) {
   });
 
   return (
-    <aside className="dashboard-sidebar hidden lg:flex lg:flex-col lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start gap-4">
+    <aside aria-label="Account navigation" className="dashboard-sidebar flex flex-col lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start gap-4">
       {/* User Account Profile Card — fixed in place, never scrolls with the nav list below it. */}
-      <div className="shrink-0 rounded-2xl border border-line-strong bg-card/90 dark:bg-card/80 p-3.5 xl:p-4 backdrop-blur-xl shadow-lg">
+      <div className="hidden lg:block shrink-0 rounded-2xl border border-line-strong bg-card/90 dark:bg-card/80 p-3.5 xl:p-4 backdrop-blur-xl shadow-lg">
         <div className="flex items-center gap-3 xl:gap-3.5">
           <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={40} />
           <div className="min-w-0 flex-1">
@@ -148,14 +148,14 @@ export function DashboardSidebar({ session }: { session: Session }) {
       </div>
 
       {/* Mobile Navigation Dropdown for small screens */}
-      <details className="dashboard-mobile-nav lg:hidden rounded-2xl border border-line-strong bg-card/90 dark:bg-card/80 p-3 backdrop-blur-xl shadow-lg">
+      <details key={pathname} className="dashboard-mobile-nav lg:hidden rounded-2xl border border-line-strong bg-card/90 dark:bg-card/80 p-3 backdrop-blur-xl shadow-lg">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5">
           <span className="flex min-w-0 items-center gap-3">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent-bright">
               <ActiveIcon size={16} />
             </span>
             <span className="min-w-0">
-              <span className="block text-[9px] font-extrabold uppercase tracking-widest text-muted">Account Menu</span>
+              <span className="block text-[11px] font-extrabold uppercase tracking-widest text-muted">Account Menu</span>
               <span className="block truncate text-xs font-bold text-ink">{activeItem.label}</span>
             </span>
           </span>

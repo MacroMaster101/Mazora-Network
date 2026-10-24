@@ -4,6 +4,18 @@
  * Rendered only under /dashboard and /admin, so those layouts import it instead
  * of the root one.
  */
+/* Shared geometry keeps theme switching stable while making workspace
+   navigation and supporting copy easier to read in either theme. */
+.account-area :is(.dashboard-sidebar, .admin-sidebar) nav a {
+  min-height: 2.75rem;
+  font-size: 0.875rem;
+}
+
+.account-content :is(.text-xs, .text-\[11px\]) {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
 /* Profile photo editor — one crop-safe avatar system for uploads and linked
    Minecraft skins, with touch-friendly controls on compact screens. */
 .profile-avatar-editor {
