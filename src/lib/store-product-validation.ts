@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const STORE_PRODUCT_ACCENTS = ["green", "gold", "cyan", "rose", "violet", "orange"] as const;
 
-export const storeProductSchema = z.object({
+const storeProductSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().trim().min(2, "Enter a product name.").max(100),
   description: z.string().trim().min(5, "Add a short description.").max(1000),

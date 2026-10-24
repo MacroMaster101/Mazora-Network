@@ -27,7 +27,7 @@ function StatusIcon({ status }: { status: OrderStatus }) {
   return <Clock3 size={13} aria-hidden="true" />;
 }
 
-export function OrderStatusPill({ status }: { status: OrderStatus }) {
+function OrderStatusPill({ status }: { status: OrderStatus }) {
   return (
     <span
       className={cn(

@@ -360,6 +360,8 @@ export async function moveCategoryAction(categoryId: string, direction: string):
 export async function setForumLockedAction(forumId: string, locked: boolean): Promise<ForumAdminResult> {
   const actor = await authorize();
   if (!actor) return { ok: false, message: "You do not have permission to manage forums." };
+  if (!UUID.test(forumId)) return { ok: false, message: "Unknown forum." };
+  if (typeof locked !== "boolean") return { ok: false, message: "Invalid lock state." };
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   try {

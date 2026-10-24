@@ -45,7 +45,7 @@ export function DiscordIcon({ size = 20, className }: { size?: number; className
   );
 }
 
-export function TikTokIcon({ size = 20, className }: { size?: number; className?: string }) {
+function TikTokIcon({ size = 20, className }: { size?: number; className?: string }) {
   return (
     <svg
       width={size}

@@ -13,6 +13,8 @@
  */
 
 import { site } from "@/lib/site";
+import { containsLink } from "@/lib/store-messages-shared";
+import { escapeDiscordMarkdown } from "@/lib/store-order-rules";
 
 export type StaffNoticeTemplate = "terminated" | "warning" | "promotion" | "custom";
 
@@ -163,8 +165,74 @@ const DEFINITIONS: Record<Exclude<StaffNoticeTemplate, "custom">, TemplateDefini
   },
 };
 
+/*
+  Wording that announces an official action against the recipient: losing a
+  staff position, a demotion, a ban or a suspension. Matched against a folded
+  copy of the text (see foldForMatch) so spacing, punctuation and digit
+  swaps such as "T3rminated" or "d e m o t e d" do not slip past.
+*/
+const OFFICIAL_ACTION_STEMS = ["terminat", "demot", "dismissedfrom", "fired", "suspend", "suspension", "revok", "strippedof"];
+const OFFICIAL_ACTION_PHRASES = ["removedfromstaff", "removedfromthestaff", "removedfromyourposition", "positionremoved", "positionended"];
+/** Short words that need a word boundary, or they would match "urban" and "kickoff". */
+const OFFICIAL_ACTION_WORDS = /\b(?:ban|banned|bans|blacklisted)\b/;
+
+const LOOKALIKES: Record<string, string> = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", $: "s", "!": "i" };
+
+function foldForMatch(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[013457@$!]/g, (match) => LOOKALIKES[match] ?? match)
+    .replace(/[^a-z]/g, "");
+}
+
+/** Whether a headline or opening reads as a termination, demotion or ban. */
+export function readsAsOfficialAction(value: string | undefined): boolean {
+  if (!value?.trim()) return false;
+  const folded = foldForMatch(value);
+  if (OFFICIAL_ACTION_STEMS.some((stem) => folded.includes(stem))) return true;
+  if (OFFICIAL_ACTION_PHRASES.some((phrase) => folded.includes(phrase))) return true;
+  const spaced = value.toLowerCase().replace(/[013457@$!]/g, (match) => LOOKALIKES[match] ?? match);
+  return OFFICIAL_ACTION_WORDS.test(spaced);
+}
+
+/**
+ * What a sender below Owner may not put in a notice, or null when it is fine.
+ *
+ * The bot DMs any guild member under the Mazora Network name, so a delegated
+ * console user could otherwise send a convincing fake: a link to a lookalike
+ * login page, or a custom notice titled "Staff Position Terminated" that skips
+ * the Owner-only termination template. Below Owner nothing typed may carry a
+ * link (the footer already names the real support channel), and the headline
+ * and opening may not announce a termination, demotion or ban. The reason is
+ * left to the operator's judgement: a warning reason may legitimately mention
+ * that a ban could follow.
+ */
+export function staffNoticeAuthorityRefusal(
+  input: Pick<StaffNoticeInput, "template" | "reason" | "customTitle" | "titleOverride" | "openingOverride">,
+  official: boolean,
+): string | null {
+  if (official) return null;
+  if (input.template === "terminated") return "Only an owner can send a termination notice.";
+  const typed = [input.reason, input.customTitle, input.titleOverride, input.openingOverride];
+  if (typed.some((value) => value && containsLink(value))) {
+    return "Only an owner can put a link in a notice. The reply footer already links to support.";
+  }
+  const headline = [input.template === "custom" ? input.customTitle : undefined, input.titleOverride, input.openingOverride];
+  if (headline.some(readsAsOfficialAction)) {
+    return "Only an owner can send a notice that announces a termination, demotion or ban.";
+  }
+  return null;
+}
+
+/**
+ * `official` is whether the sender may speak with the full authority of the
+ * site (canSendOfficialNotifications). It defaults to false so a caller that
+ * cannot establish the sender's site rank, like the slash command, gets the
+ * stricter rules rather than none.
+ */
 export function validateStaffNotice(
   input: StaffNoticeInput,
+  { official = false }: { official?: boolean } = {},
 ): { ok: true } | { ok: false; message: string } {
   if (!STAFF_NOTICE_TEMPLATES.includes(input.template)) {
     return { ok: false, message: "Unknown notice template." };
@@ -186,25 +254,9 @@ export function validateStaffNotice(
       return { ok: false, message: `The title must be ${MAX_TITLE_LENGTH} characters or fewer.` };
     }
   }
+  const refusal = staffNoticeAuthorityRefusal(input, official);
+  if (refusal) return { ok: false, message: refusal };
   return { ok: true };
-}
-
-/**
- * The exact DM payload.
- *
- * `allowed_mentions: { parse: [] }` is the security control, not decoration: the
- * reason is operator-typed free text, and without this an "@everyone" inside it
- * would ping the recipient's client. Escaping the text instead would corrupt
- * legitimate reasons that mention a username.
- */
-/**
- * Neutralise Discord markdown in the recipient's name so a display name like
- * `**Owner**` or `> quote` cannot restyle the notice it is embedded in. The
- * reason is deliberately NOT escaped (see the payload comment above) — only the
- * name, which a member controls, is. Mirrors the store-order embed's escaping.
- */
-function escapeMarkdown(value: string): string {
-  return value.replace(/[\\*_~`|>]/g, (match) => `\\${match}`);
 }
 
 /**
@@ -233,8 +285,16 @@ export function staffNoticeText(input: StaffNoticeInput): { title: string; messa
   return { title, message: `${opening}\n\n${reason}` };
 }
 
+/**
+ * The exact DM payload.
+ *
+ * `allowed_mentions: { parse: [] }` is the security control, not decoration: the
+ * reason is operator-typed free text, and without this an "@everyone" inside it
+ * would ping the recipient's client. Escaping the text instead would corrupt
+ * legitimate reasons that mention a username.
+ */
 export function renderStaffNotice(input: StaffNoticeInput): Record<string, unknown> {
-  const username = escapeMarkdown(input.username.trim());
+  const username = escapeDiscordMarkdown(input.username.trim());
   const reason = input.reason.trim();
 
   const title =

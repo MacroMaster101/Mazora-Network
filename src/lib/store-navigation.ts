@@ -28,7 +28,7 @@ export type StoreReturnState = {
  */
 export const STORE_ALL_VIEW = "All";
 
-export function storeParamSlug(value: string): string {
+function storeParamSlug(value: string): string {
   return slugify(value);
 }
 

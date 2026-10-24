@@ -5,7 +5,7 @@ import { getSignInSessionId } from "@/lib/auth";
 import { consumeEmailProofCode } from "@/lib/auth/account-deletion-proof";
 import { accountHasPassword, confirmSecondStep, passwordMatchesCurrent } from "@/lib/auth/reauth";
 import { ownerProofKind, type OwnerProof } from "@/lib/auth/owner-proof-kind";
-import { throttleAuthAction } from "@/lib/rate-limit";
+import { throttleAuthAction, throttleCurrentPasswordCheck } from "@/lib/rate-limit";
 
 /**
  * "Confirm it's you": the owner, again, right now, before a change that adds a
@@ -45,6 +45,9 @@ export async function confirmAccountOwner(supabase: SupabaseClient, user: User, 
     if (!password) return "Enter your current password.";
     const throttled = await throttleAuthAction("reauth-password", { limit: 5, windowMs: 15 * 60_000, identity: user.id });
     if (throttled) return throttled;
+    // Shared with every other current-password check (lib/rate-limit).
+    const throttledCheck = await throttleCurrentPasswordCheck(user.id);
+    if (throttledCheck) return throttledCheck;
     if (!user.email || !(await passwordMatchesCurrent(user.email, password))) return "That password is incorrect.";
     return null;
   }

@@ -16,7 +16,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { ignAvailability, linkMinecraftIgn } from "@/lib/minecraft/link";
 import { dispatchSignInNotifications } from "@/lib/notifications-auto";
-import { throttleAuthAction } from "@/lib/rate-limit";
+import { throttleAuthAction, throttleCurrentPasswordCheck } from "@/lib/rate-limit";
+import { loginLockedOut, recordLoginFailure, rememberLoginDevice } from "@/lib/auth/login-lockout";
 import { SIGN_IN_FAILED, SUSPENDED_PATH, UNRESOLVED_IDENTIFIER, looksLikeEmail } from "@/lib/auth/login-identifier";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { accountHasPassword, passwordMatchesCurrent } from "@/lib/auth/reauth";
@@ -372,14 +373,11 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
   const parsed = loginSchema.safeParse(authFormValues(formData));
   if (!parsed.success) return { ok: false, errors: authValidationErrors(parsed.error) };
 
-  // Bucketed per address *and* per submitted identifier, so spraying one account
-  // is capped without a shared NAT locking out everyone behind it. The account
-  // itself has a second bucket once the identifier is resolved, below.
-  const throttled = await throttleAuthAction("login", {
-    limit: 8,
-    windowMs: 15 * 60_000,
-    identity: parsed.data.identifier,
-  });
+  // Every attempt from this address, whatever account it names. Wide enough
+  // for a school or carrier NAT; nothing here is keyed on an account, so
+  // knowing someone's username is not enough to lock them out. The account's
+  // own buckets count wrong passwords only (lib/auth/login-lockout), below.
+  const throttled = await throttleAuthAction("login", { limit: 40, windowMs: 15 * 60_000 });
   if (throttled) return { ok: false, message: throttled };
 
   if (isSupabaseConfigured()) {
@@ -397,24 +395,25 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
     // A username is translated to its address here; an email passes through.
     const loginEmail = await resolveLoginEmail(parsed.data.identifier);
 
-    // The bucket above is keyed on what was typed, so an account's username and
-    // its email would each get their own allowance. This one is keyed on the
-    // account: the resolved address. A username that resolves to nobody keeps
-    // its typed name here, never the shared sentinel, or unknown names would
-    // share one bucket and run out sooner than a real account's, telling a
-    // guesser which names exist. Every attempt passes both checks, found or not.
-    const throttledAccount = await throttleAuthAction("login-account", {
-      limit: 8,
-      windowMs: 15 * 60_000,
-      identity: loginEmail === UNRESOLVED_IDENTIFIER ? `unresolved:${parsed.data.identifier}` : loginEmail,
-    });
-    if (throttledAccount) return { ok: false, message: throttledAccount };
+    // The lockout is keyed on the account, the resolved address, so its
+    // username and its email share one allowance. A username that resolves to
+    // nobody keeps its typed name here, never the shared sentinel, or unknown
+    // names would share one bucket and run out sooner than a real account's,
+    // telling a guesser which names exist. Every attempt takes the same checks,
+    // found or not; this one only reads the counts.
+    const lockoutIdentity = loginEmail === UNRESOLVED_IDENTIFIER ? `unresolved:${parsed.data.identifier}` : loginEmail;
+    const lockedOut = await loginLockedOut(lockoutIdentity);
+    if (lockedOut) return { ok: false, message: lockedOut };
 
     const { data: signedIn, error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password: parsed.data.password,
     });
     if (error) {
+      // Counted only when the auth server says the password is wrong (an
+      // unknown account gets that same answer). Not for "email not confirmed",
+      // which means it matched, and not for an outage or the server's own limit.
+      if (classifyPasswordProbe(error) === "wrong") await recordLoginFailure(lockoutIdentity);
       if (isUnconfirmedEmailError(error)) {
         // The auth server only says "not confirmed" once the password has
         // matched, so this browser has just proved it knows the pending
@@ -437,6 +436,9 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
       }
       return { ok: false, message: SIGN_IN_FAILED };
     }
+
+    // The password matched: this browser is a known device for the account.
+    await rememberLoginDevice(loginEmail);
 
     // Read once: both checks below must be about the same answer.
     const status = signedIn.user ? await accountStatusFor(signedIn.user.id) : null;
@@ -854,6 +856,15 @@ export async function confirmEmailAction(_previous: AuthResult, formData: FormDa
   redirect(type === "recovery" ? "/reset-password" : "/");
 }
 
+/** Comfortably above a typical lookup plus the auth server's verify round trip. */
+const CODE_ANSWER_FLOOR_MS = 1_200;
+
+/** Resolve once at least `ms` have passed since `startedAt`. */
+async function notSoonerThan(startedAt: number, ms: number): Promise<void> {
+  const left = ms - (Date.now() - startedAt);
+  if (left > 0) await new Promise((resolve) => setTimeout(resolve, left));
+}
+
 /**
  * Confirms a new account from the 6-digit code emailed at signup (the
  * {{ .Token }} in the "Confirm signup" template), typed on the "check your
@@ -889,8 +900,14 @@ export async function confirmEmailCodeAction(_previous: AuthResult, formData: Fo
   // account this code confirmed and one confirmed earlier look alike. A code
   // is only ever for a pending self sign-up, so anything else is answered like
   // a wrong code and its token (a staff invite's, say) is left unspent.
+  //
+  // Both "wrong code" answers below take at least CODE_ANSWER_FLOOR_MS. The
+  // first one skips the auth server's round trip, so without the floor it came
+  // back measurably sooner and told a guesser the address is a confirmed account.
+  const startedAt = Date.now();
   const before = await findAccountByEmail(parsed.data.email);
   if (before.status === "found" && emailStanding(before.account) !== "pending") {
+    await notSoonerThan(startedAt, CODE_ANSWER_FLOOR_MS);
     return { ok: false, errors: { token: "That code is incorrect or has expired." } };
   }
 
@@ -899,7 +916,10 @@ export async function confirmEmailCodeAction(_previous: AuthResult, formData: Fo
     token: parsed.data.token,
     type: "signup",
   });
-  if (error) return { ok: false, errors: { token: "That code is incorrect or has expired." } };
+  if (error) {
+    await notSoonerThan(startedAt, CODE_ANSWER_FLOOR_MS);
+    return { ok: false, errors: { token: "That code is incorrect or has expired." } };
+  }
 
   // A failed read above leaves it to the confirmation time and the invite date.
   if (await notAFirstSignupConfirmation(supabase, verified.user, confirmedBeforeVerifying(before, verified.user?.id))) {
@@ -1233,6 +1253,9 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       if (!currentPassword) {
         return { ok: false, errors: { currentPassword: "Enter your current password." } };
       }
+      // Shared with every other current-password check (lib/rate-limit).
+      const throttledCheck = await throttleCurrentPasswordCheck(userData?.user?.id ?? email);
+      if (throttledCheck) return { ok: false, message: throttledCheck };
       if (!(await passwordMatchesCurrent(email, currentPassword))) {
         return { ok: false, errors: { currentPassword: "That is not your current password." } };
       }

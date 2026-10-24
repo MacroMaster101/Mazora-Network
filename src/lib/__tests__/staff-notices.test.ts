@@ -25,7 +25,7 @@ function input(overrides: Partial<StaffNoticeInput> = {}): StaffNoticeInput {
 
 describe("validateStaffNotice", () => {
   test("accepts a well-formed notice", () => {
-    assert.deepEqual(validateStaffNotice(input()), { ok: true });
+    assert.deepEqual(validateStaffNotice(input(), { official: true }), { ok: true });
   });
 
   test("rejects an empty reason", () => {

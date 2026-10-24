@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getNewsVisitorCount, incrementNewsVisitorCount } from "@/lib/data/news-visitors";
-import { claimOnce, clientKey, rateLimitShared, retryAfterHeaders } from "@/lib/rate-limit";
+import { claimOnce, rateLimitShared, retryAfterHeaders } from "@/lib/rate-limit";
+import { newsClientKey } from "../_client-key";
 import {
   NEWS_COOKIE_PATH,
   VISITOR_COOKIE,
@@ -10,7 +11,7 @@ import {
 } from "@/lib/news-analytics-cookies";
 
 export async function POST(request: NextRequest) {
-  const limit = await rateLimitShared(clientKey(request, "news-visitor"), { limit: 30, windowMs: 60_000 });
+  const limit = await rateLimitShared(newsClientKey(request, "news-visitor"), { limit: 30, windowMs: 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many requests" },
@@ -27,13 +28,13 @@ export async function POST(request: NextRequest) {
   }
 
   // The cookie is only a hint a client can drop. The count itself is claimed
-  // once per hashed address in the shared store (clientKey never holds a raw
-  // IP), so omitting the cookie or rotating it does not mint another visit.
+  // once per hashed address (an IPv6 client's /64) in the shared store, never a
+  // raw IP, so omitting the cookie or rotating it does not mint another visit.
   // If the store cannot answer, fall back to the cookie alone; the shared
   // limiter above still bounds the rate.
   let alreadyCounted = request.cookies.has(VISITOR_COOKIE);
   if (!alreadyCounted) {
-    const claim = await claimOnce(clientKey(request, "news-visitor-seen"), VISITOR_COOKIE_MAX_AGE * 1000);
+    const claim = await claimOnce(newsClientKey(request, "news-visitor-seen"), VISITOR_COOKIE_MAX_AGE * 1000);
     alreadyCounted = claim === "duplicate";
   }
   const count = alreadyCounted ? await getNewsVisitorCount() : await incrementNewsVisitorCount();

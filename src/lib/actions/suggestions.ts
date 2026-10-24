@@ -269,6 +269,12 @@ export async function editSuggestionReplyAction(input: { replyId: string; body: 
     };
   }
 
+  const limit = await rateLimitShared(accountKey("suggestion-reply-edit", userId), {
+    limit: 20,
+    windowMs: 10 * 60_000,
+  });
+  if (!limit.ok) return { ok: false, message: "You're editing too fast. Wait a moment and try again." };
+
   const parsed = editReplySchema.safeParse({ replyId, body: input?.body });
   if (!parsed.success) return { ok: false, message: "Your reply must be between 1 and 4000 characters." };
 

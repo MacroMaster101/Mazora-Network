@@ -12,7 +12,7 @@ const ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const GROUP = 5;
 
 /** One code, `XXXXX-XXXXX`: 10 characters from a 31-letter alphabet, ~49 bits. */
-export function generateRecoveryCode(): string {
+function generateRecoveryCode(): string {
   const chars = Array.from({ length: GROUP * 2 }, () => ALPHABET[randomInt(ALPHABET.length)]);
   return `${chars.slice(0, GROUP).join("")}-${chars.slice(GROUP).join("")}`;
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageStore } from "@/lib/auth/permissions";
+import { recordAudit } from "@/lib/audit-log";
 import { getDb, schema } from "@/lib/db/client";
 import { getAdminGameModes, getAdminProducts, getProducts } from "@/lib/data/content";
 import { categoryConfigId, getStoreCategoryConfigs, getStoreCategorySettingState, STORE_CATEGORY_CONFIG_KEY } from "@/lib/data/store-categories";
@@ -347,6 +348,14 @@ export async function reorderStoreCategoriesAction(formData: FormData): Promise<
   }
 
   await persistCategoryState(updatedState);
+  await recordAudit({
+    action: "store.category.reorder",
+    actorId: await getSessionUserId(),
+    by: session.username,
+    targetType: "setting",
+    targetId: categoryConfigId(gameModeSlug, key),
+    metadata: { from: index, to: targetIndex, order: updatedCategories.map((cat) => cat.key) },
+  });
   refreshCategoryPaths(gameModeSlug);
   return { ok: true, message: "Category order updated." };
 }
@@ -490,6 +499,14 @@ export async function toggleStoreSubcategoryAction(formData: FormData): Promise<
   const nextCategory = { ...category, subcategories: category.subcategories.map((item) => item.key === key ? { ...item, enabled } : item) };
   const state = await getStoreCategorySettingState();
   await persistCategoryState(withCategoryOverride(state, nextCategory));
+  await recordAudit({
+    action: "store.subcategory.toggle",
+    actorId: await getSessionUserId(),
+    by: session.username,
+    targetType: "setting",
+    targetId: `${categoryConfigId(gameModeSlug, categoryKey)}:${key}`,
+    metadata: { before: { enabled: subcategory.enabled }, after: { enabled } },
+  });
   refreshCategoryPaths(gameModeSlug);
   return { ok: true, message: enabled ? `${subcategory.label} enabled.` : `${subcategory.label} hidden.` };
 }
@@ -559,6 +576,14 @@ export async function reorderStoreSubcategoriesAction(formData: FormData): Promi
   const updatedCategory = { ...category, subcategories: updatedSubcategories };
   const state = await getStoreCategorySettingState();
   await persistCategoryState(withCategoryOverride(state, updatedCategory));
+  await recordAudit({
+    action: "store.subcategory.reorder",
+    actorId: await getSessionUserId(),
+    by: session.username,
+    targetType: "setting",
+    targetId: categoryConfigId(gameModeSlug, categoryKey),
+    metadata: { subcategoryKey: key, from: index, to: targetIndex, order: updatedSubcategories.map((sub) => sub.key) },
+  });
 
   refreshCategoryPaths(gameModeSlug);
   return { ok: true, message: "Subcategory order updated." };

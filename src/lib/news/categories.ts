@@ -21,7 +21,7 @@ export type NewsCategory = (typeof NEWS_CATEGORIES)[number];
 
 export const DEFAULT_NEWS_CATEGORY: NewsCategory = "Announcements";
 
-export function isNewsCategory(value: unknown): value is NewsCategory {
+function isNewsCategory(value: unknown): value is NewsCategory {
   return typeof value === "string" && (NEWS_CATEGORIES as readonly string[]).includes(value.trim());
 }
 

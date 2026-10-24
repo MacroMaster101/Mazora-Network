@@ -23,12 +23,12 @@ test("the decoded-size cap is 40 megapixels", () => {
 });
 
 test("animated decodes get a higher cap, because sharp sums it over frames", () => {
-  assert.equal(MAX_ANIMATED_IMAGE_PIXELS, 120_000_000);
+  assert.equal(MAX_ANIMATED_IMAGE_PIXELS, 48_000_000);
   assert.ok(MAX_ANIMATED_IMAGE_PIXELS > MAX_IMAGE_PIXELS);
   assert.equal(SHARP_ANIMATED_INPUT.limitInputPixels, MAX_ANIMATED_IMAGE_PIXELS);
   assert.equal(SHARP_ANIMATED_INPUT.animated, true);
-  // An ordinary animated banner (800x450, 150 frames = 54 MP) must still fit.
-  assert.ok(800 * 450 * 150 <= MAX_ANIMATED_IMAGE_PIXELS);
+  // An ordinary animated banner (800x450, 100 frames = 36 MP) must still fit.
+  assert.ok(800 * 450 * 100 <= MAX_ANIMATED_IMAGE_PIXELS);
 });
 
 test("limitInputPixels is the mechanism that rejects an oversized decode", async () => {
@@ -140,4 +140,12 @@ test("the skin upload refuses a skin it cannot re-encode instead of storing the 
   const source = read("../actions/minecraft.ts");
   assert.ok(!source.includes(".catch(() => bytes)"));
   assert.match(source, /That skin file could not be processed\. Try downloading it again\./);
+});
+
+test("next.config exposes only the mc-heads placeholders and no Discord attachments", () => {
+  const config = read("../../../next.config.ts");
+  assert.doesNotMatch(config, /\/attachments\//);
+  const heads = config.split(/\r?\n/).filter((line) => line.includes('hostname: "mc-heads.net"'));
+  assert.ok(heads.length > 0);
+  for (const line of heads) assert.match(line, /pathname: "\/(avatar|body)\/MHF_Steve\/\*"/);
 });

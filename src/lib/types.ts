@@ -358,7 +358,10 @@ export interface DirectoryPlayer {
   skin: PlayerSkin;
   /** Site role for linked members (member, admin, owner …). Absent for server-only players. */
   role?: Role;
-  /** The avatar the member chose on the website (Discord photo, upload, etc.). Absent for server-only players. */
+  /**
+   * The member's site avatar, only when it is a Minecraft head (the one kind the
+   * card draws); null for a provider or uploaded photo. Absent for server-only players.
+   */
   siteAvatarUrl?: string | null;
   firstJoined?: string;
   lastSeen?: string;

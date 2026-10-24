@@ -22,6 +22,7 @@ import type {
 } from "@/lib/types";
 import { INTERNAL_ROLE, normalizeRoleKey, publicRole, roleLabel } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
+import { publicVoterName } from "@/lib/data/directory-merge";
 import { getRegistrationCounts } from "@/lib/data/event-registrations";
 import { effectiveEventStatus, isKnownEventStatus } from "@/lib/events/status";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -190,9 +191,19 @@ export async function getTopVoters(): Promise<TopVoter[]> {
   if (!db) return [];
 
   try {
+    /*
+      Only active accounts stand on the public board, as on the player list: a
+      suspended or deleted member's votes stay counted in vote_history but their
+      name is not shown. A site username is passed through publicUsername like
+      the roster's, so an email-handle name never reaches the page; the email is
+      read for that check alone and dropped below.
+    */
     const rows = await db
       .select({
-        username: sql<string>`coalesce(${schema.minecraftAccounts.minecraftUsername}, ${schema.profiles.username}, 'Unknown')`,
+        userId: schema.voteHistory.userId,
+        minecraftUsername: schema.minecraftAccounts.minecraftUsername,
+        profileUsername: schema.profiles.username,
+        email: sql<string | null>`(select u.email from auth.users u where u.id = ${schema.voteHistory.userId})`,
         dailyVotes: sql<number>`cast(count(case when ${schema.voteHistory.votedAt} >= now() - interval '24 hours' then 1 end) as integer)`,
         weeklyVotes: sql<number>`cast(count(case when ${schema.voteHistory.votedAt} >= now() - interval '7 days' then 1 end) as integer)`,
         monthlyVotes: sql<number>`cast(count(case when ${schema.voteHistory.votedAt} >= date_trunc('month', now()) then 1 end) as integer)`,
@@ -207,7 +218,10 @@ export async function getTopVoters(): Promise<TopVoter[]> {
         allTimeVotes: sql<number>`cast(count(*) as integer)`,
       })
       .from(schema.voteHistory)
-      .leftJoin(schema.profiles, eq(schema.voteHistory.userId, schema.profiles.userId))
+      .innerJoin(schema.profiles, and(
+        eq(schema.voteHistory.userId, schema.profiles.userId),
+        eq(schema.profiles.accountStatus, "active"),
+      ))
       .leftJoin(schema.minecraftAccounts, eq(schema.voteHistory.userId, schema.minecraftAccounts.userId))
       .groupBy(schema.voteHistory.userId, schema.profiles.username, schema.minecraftAccounts.minecraftUsername)
       /*
@@ -219,7 +233,10 @@ export async function getTopVoters(): Promise<TopVoter[]> {
       .orderBy(sql`count(*) desc`)
       .limit(100);
 
-    return rows;
+    return rows.map(({ userId, minecraftUsername, profileUsername, email, ...votes }) => ({
+      username: publicVoterName({ userId, minecraftUsername, profileUsername, email }),
+      ...votes,
+    }));
   } catch (error) {
     console.error("Failed to query top voters from database:", error);
     return [];
@@ -365,14 +382,19 @@ function bylineRole(role: string): string {
 }
 
 /** A stored byline label, or undefined when it names the internal rank (older snapshots did). */
-function publicRoleLabel(label: string | null): string | undefined {
+export function publicRoleLabel(label: string | null): string | undefined {
   if (!label) return undefined;
   return label === roleLabel(INTERNAL_ROLE) ? undefined : label;
 }
 
-function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile): NewsArticle {
+/**
+ * `withBody: false` is for the listings (getNews): their cards and the sitemap
+ * never render the article text, and it travels to client components, so the
+ * paragraphs stay on the server. The text is still read for the read-time estimate.
+ */
+function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile, { withBody = true }: { withBody?: boolean } = {}): NewsArticle {
   const normalised = (row.content ?? "").replace(/\r\n?/g, "\n");
-  const body = normalised.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  const body = withBody ? normalised.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean) : [];
   const published = row.publishedAt ?? row.createdAt;
   const publisherMode = row.publisherMode === "author" ? "author" : "team";
   const teamByline = publisherMode === "team";
@@ -398,7 +420,7 @@ function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile): NewsArticle {
       : (liveAuthor?.role
           ? // normalizeRoleKey: profiles.role may still hold the legacy key until migration 055 (removable after).
           bylineRole(normalizeRoleKey(liveAuthor.role))
-          : (publicRoleLabel(row.authorRole) ?? row.discordAuthorRole ?? "News Publisher")),
+          : (publicRoleLabel(row.authorRole) ?? publicRoleLabel(row.discordAuthorRole) ?? "News Publisher")),
     authorAvatar: teamByline
       ? (row.teamAvatarUrl ?? "/images/mazora-icon.png")
       : (liveAuthor?.avatarUrl ?? row.authorAvatarUrl ?? undefined),
@@ -408,6 +430,15 @@ function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile): NewsArticle {
   };
 }
 
+/** The columns a news listing reads: no ids, review state or Discord message refs. */
+const NEWS_LIST_COLUMNS =
+  "slug, title, excerpt, content, category, published_at, created_at, publisher_mode, author_id, author_name, author_role, author_avatar_url, discord_author, discord_author_role, team_avatar_url, read_time_minutes, featured_image";
+
+/**
+ * Every published article, for the listings (home, /news, the sitemap, the
+ * admin count). `body` is always empty here: only the article page renders the
+ * text, and it reads its own row through getArticle.
+ */
 export const getNews = cache(loadNews);
 async function loadNews(): Promise<NewsArticle[]> {
   const admin = getSupabaseAdmin();
@@ -415,7 +446,7 @@ async function loadNews(): Promise<NewsArticle[]> {
     try {
       const { data, error } = await admin
         .from("news_articles")
-        .select("*")
+        .select(NEWS_LIST_COLUMNS)
         .eq("status", "published")
         .order("published_at", { ascending: false });
       if (!error && data) {
@@ -463,27 +494,25 @@ async function loadNews(): Promise<NewsArticle[]> {
           const liveProfile = liveById ?? (liveByName
             ? { avatar_url: liveByName.avatarUrl, display_name: liveByName.displayName, username: liveByName.username, role: liveByName.role }
             : undefined);
-          const content = String(row.body ?? row.content ?? "").replace(/\r\n?/g, "\n");
+          const content = String(row.content ?? "").replace(/\r\n?/g, "\n");
           return {
             slug: String(row.slug),
             title: String(row.title),
             excerpt: String(row.excerpt ?? ""),
-            body: content
-              .split(/\n{2,}/)
-              .map((p) => p.trim())
-              .filter(Boolean),
+            body: [],
             category: String(row.category ?? "News"),
             accent: "violet",
             date: String(row.published_at ?? row.created_at ?? new Date().toISOString()),
             author: teamByline
               ? "Mazora Team"
               : String((liveProfile?.display_name || liveProfile?.username) ?? row.author_name ?? row.discord_author ?? "Mazora Team"),
+            // The same guard as toArticle: the listing never names the Web Dev rank either.
             authorRole: teamByline
               ? "Official Newsroom"
               : (liveProfile?.role
                   ? // normalizeRoleKey: legacy key until migration 055 (removable after).
-                  roleLabel(normalizeRoleKey(liveProfile.role))
-                  : String(row.author_role ?? row.discord_author_role ?? "News Publisher")),
+                  bylineRole(normalizeRoleKey(liveProfile.role))
+                  : (publicRoleLabel(row.author_role ?? null) ?? publicRoleLabel(row.discord_author_role ?? null) ?? "News Publisher")),
             authorAvatar: teamByline
               ? (row.team_avatar_url ?? "/images/mazora-icon.png")
               : (liveProfile?.avatar_url ?? row.author_avatar_url ?? undefined),
@@ -530,7 +559,7 @@ async function loadNews(): Promise<NewsArticle[]> {
         displayName: row.liveDisplayName ?? fallback?.displayName ?? null,
         username: row.liveUsername ?? fallback?.username ?? null,
         role: row.liveRole ?? fallback?.role ?? null,
-      });
+      }, { withBody: false });
     });
   } catch {
     return [];

@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { rawSkinUrlForHead } from "@/lib/minecraft/skin";
 
@@ -58,7 +58,48 @@ export const listLinkedAccounts = cache(async (): Promise<LinkedAccount[]> => {
   }
 });
 
-/** The skin URLs for one IGN, matched case-insensitively as usernames are. */
+/**
+ * One linked account by IGN, for the player-detail lookup: the same row
+ * listLinkedAccounts would hold for it, without reading every link.
+ */
+export async function getLinkedAccount(username: string): Promise<LinkedAccount | null> {
+  const db = getDb();
+  if (!db) return null;
+
+  try {
+    const [row] = await db
+      .select({
+        username: schema.minecraftAccounts.minecraftUsername,
+        headUrl: schema.minecraftAccounts.skinHeadUrl,
+        rawSkinUrl: schema.minecraftAccounts.rawSkinUrl,
+        linkedAt: schema.minecraftAccounts.linkedAt,
+      })
+      .from(schema.minecraftAccounts)
+      .innerJoin(schema.profiles, eq(schema.profiles.userId, schema.minecraftAccounts.userId))
+      .where(and(
+        sql`lower(${schema.minecraftAccounts.minecraftUsername}) = lower(${username})`,
+        eq(schema.profiles.accountStatus, "active"),
+      ))
+      .limit(1);
+    if (!row) return null;
+    const linkedAt = row.linkedAt instanceof Date ? row.linkedAt : new Date(row.linkedAt);
+    return {
+      username: row.username,
+      headUrl: row.headUrl,
+      rawSkinUrl: row.rawSkinUrl,
+      linkedAt: Number.isNaN(linkedAt.getTime()) ? new Date().toISOString() : linkedAt.toISOString(),
+    };
+  } catch (error) {
+    console.error("Failed to read a linked Minecraft account:", error);
+    return null;
+  }
+}
+
+/**
+ * The skin URLs for one IGN, matched case-insensitively as usernames are.
+ * Active accounts only, like the player list: a suspended or deleted member's
+ * uploaded skin is not served for their name.
+ */
 export async function getLinkedSkin(
   username: string,
 ): Promise<{ rawSkinUrl: string | null; headUrl: string | null } | null> {
@@ -72,7 +113,11 @@ export async function getLinkedSkin(
         headUrl: schema.minecraftAccounts.skinHeadUrl,
       })
       .from(schema.minecraftAccounts)
-      .where(sql`lower(${schema.minecraftAccounts.minecraftUsername}) = lower(${username})`)
+      .innerJoin(schema.profiles, eq(schema.profiles.userId, schema.minecraftAccounts.userId))
+      .where(and(
+        sql`lower(${schema.minecraftAccounts.minecraftUsername}) = lower(${username})`,
+        eq(schema.profiles.accountStatus, "active"),
+      ))
       .limit(1);
 
     return rows[0] ?? null;
@@ -106,7 +151,10 @@ export async function getUploadedSkin(username: string): Promise<{ rawSkinUrl: s
     const [profile] = await db
       .select({ avatarUrl: schema.profiles.avatarUrl })
       .from(schema.profiles)
-      .where(sql`lower(${schema.profiles.username}) = lower(${username})`)
+      .where(and(
+        sql`lower(${schema.profiles.username}) = lower(${username})`,
+        eq(schema.profiles.accountStatus, "active"),
+      ))
       .limit(1);
     const raw = rawSkinUrlForHead(profile?.avatarUrl);
     return raw ? { rawSkinUrl: raw } : null;

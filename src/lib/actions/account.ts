@@ -9,7 +9,7 @@ import { consumeAccountDeletionCode, sendAccountDeletionCode } from "@/lib/auth/
 import { accountHasPassword, confirmSecondStep, passwordMatchesCurrent } from "@/lib/auth/reauth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { throttleAuthAction } from "@/lib/rate-limit";
+import { accountKey, rateLimitShared, throttleAuthAction, throttleCurrentPasswordCheck, tooManyAttemptsMessage } from "@/lib/rate-limit";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { AVATAR_BUCKET } from "@/lib/storage/avatar-bucket";
 import { removeStoredSkinFiles } from "@/lib/storage/skin-files";
@@ -68,6 +68,9 @@ export async function updateProfileAction(
 
   const auth = await authenticatedUser();
   if (!auth) return { ok: false, message: "You must be signed in to update your profile." };
+  // Per account: each save writes the profile and the auth metadata.
+  const limited = await rateLimitShared(accountKey("profile-update", auth.user.id), { limit: 20, windowMs: 10 * 60_000 });
+  if (!limited.ok) return { ok: false, message: tooManyAttemptsMessage(limited.retryAfter) };
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false, message: "Profile management is temporarily unavailable." };
 
@@ -210,6 +213,9 @@ export async function deleteAccountAction(
     // Per account, so a signed-in browser cannot be used to guess the password.
     const throttled = await throttleAuthAction("account-delete", { limit: 5, windowMs: 15 * 60_000, identity: auth.user.id });
     if (throttled) return { ok: false, message: throttled };
+    // Shared with every other current-password check (lib/rate-limit).
+    const throttledCheck = await throttleCurrentPasswordCheck(auth.user.id);
+    if (throttledCheck) return { ok: false, message: throttledCheck };
     if (!auth.user.email || !(await passwordMatchesCurrent(auth.user.email, currentPassword))) {
       return { ok: false, errors: { currentPassword: "That is not your current password." } };
     }

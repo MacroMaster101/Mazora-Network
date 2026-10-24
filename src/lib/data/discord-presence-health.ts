@@ -34,7 +34,7 @@ let pendingPing: Promise<void> | null = null;
  * a hard-coded address outlives the service it named (the old one now 404s),
  * so an unset variable means no ping rather than pinging a dead host.
  */
-export function discordPresenceHealthUrl(): string | null {
+function discordPresenceHealthUrl(): string | null {
   const configured = process.env.DISCORD_PRESENCE_HEALTH_URL?.trim();
   if (!configured) return null;
 

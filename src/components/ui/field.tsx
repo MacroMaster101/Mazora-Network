@@ -1,7 +1,7 @@
 import type { ComponentPropsWithRef, ComponentPropsWithoutRef, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function Label({ htmlFor, children, hint }: { htmlFor?: string; children: ReactNode; hint?: string }) {
+function Label({ htmlFor, children, hint }: { htmlFor?: string; children: ReactNode; hint?: string }) {
   return (
     <label htmlFor={htmlFor} className="mb-1.5 flex items-center justify-between text-sm font-medium">
       <span>{children}</span>

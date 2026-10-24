@@ -15,6 +15,7 @@ import { roleLabel } from "@/lib/auth/roles";
 import {
   MAX_REASON_LENGTH,
   renderStaffNotice,
+  staffNoticeAuthorityRefusal,
   SUGGESTED_REASONS,
   templateMentionsStaffTeam,
   type StaffNoticeTemplate,
@@ -117,7 +118,13 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
   const [titleOverride, setTitleOverride] = useState("");
   const [openingOverride, setOpeningOverride] = useState("");
   const edited = Boolean(titleOverride.trim() || openingOverride.trim());
-  const ready = target !== null && reason.trim().length > 0 && !titleNeeded;
+  // canTerminate is the Owner bar, the same one sendStaffNotice applies to
+  // links and to wording that announces a termination, demotion or ban.
+  const authorityRefusal = staffNoticeAuthorityRefusal(
+    { template, reason, customTitle, titleOverride, openingOverride },
+    canTerminate,
+  );
+  const ready = target !== null && reason.trim().length > 0 && !titleNeeded && !authorityRefusal;
 
   /**
    * Sequence guard for out-of-order responses.
@@ -610,6 +617,12 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
           </div>
         )}
 
+        {authorityRefusal && (
+          <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+            {authorityRefusal}
+          </p>
+        )}
+
         {result && (
           <p
             className={`rounded-lg px-3 py-2 text-sm ${
@@ -640,7 +653,7 @@ export function StaffNoticeComposer({ canTerminate }: { canTerminate: boolean })
               Discord messages cannot be recalled once delivered.
             </p>
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="btn btn-primary btn-sm" disabled={sending} onClick={submit}>
+              <button type="button" className="btn btn-primary btn-sm" disabled={sending || Boolean(authorityRefusal)} onClick={submit}>
                 {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                 {sending ? "Sending…" : "Yes, send it"}
               </button>

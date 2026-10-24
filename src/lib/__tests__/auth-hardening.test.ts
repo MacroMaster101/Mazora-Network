@@ -236,17 +236,17 @@ test("the form shows Forgot password and Support instead of a send button that c
 
 /* ------------------------------------------- sign-in throttle follows the account */
 
-test("sign-in attempts are also counted per account, after the username is resolved", () => {
+test("sign-in counts wrong passwords per account, after the username is resolved", () => {
   const login = between(read("../actions/auth.ts"), "export async function loginAction", "\n}\n");
-  const typed = login.indexOf('throttleAuthAction("login", {');
+  const perAddress = login.indexOf('throttleAuthAction("login", { limit: 40, windowMs: 15 * 60_000 });');
   const resolved = login.indexOf("const loginEmail = await resolveLoginEmail(parsed.data.identifier);");
-  const account = login.indexOf('throttleAuthAction("login-account", {');
+  const peek = login.indexOf("const lockedOut = await loginLockedOut(lockoutIdentity);");
   const attempt = login.indexOf("supabase.auth.signInWithPassword(");
-  assert.ok(typed > -1 && resolved > typed && account > resolved && attempt > account);
+  assert.ok(perAddress > -1 && resolved > perAddress && peek > resolved && attempt > peek);
   // An unknown name keeps its own bucket, never the shared sentinel.
   assert.match(
-    login.slice(account, attempt),
-    /identity: loginEmail === UNRESOLVED_IDENTIFIER \? `unresolved:\$\{parsed\.data\.identifier\}` : loginEmail,/,
+    login.slice(resolved, peek),
+    /const lockoutIdentity = loginEmail === UNRESOLVED_IDENTIFIER \? `unresolved:\$\{parsed\.data\.identifier\}` : loginEmail;/,
   );
   // Still one generic failure for a wrong password or an unknown account.
   assert.equal((login.match(/SIGN_IN_FAILED/g) ?? []).length, 1);

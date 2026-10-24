@@ -58,6 +58,14 @@ export async function getRegistrationCounts(eventIds: string[]): Promise<Map<str
   }
 }
 
+/**
+ * The most registrants one event can hold: the admin form's ceiling on
+ * maxParticipants (events-admin.ts), and registering stops at the event's own
+ * limit. The list is never cut short for a real event, but a public page can
+ * not be made to read an unbounded number of rows.
+ */
+export const MAX_EVENT_REGISTRANTS = 5000;
+
 /** Who registered for an event, earliest first. */
 export async function getEventRegistrants(eventId: string): Promise<EventRegistrant[]> {
   const db = getDb();
@@ -73,7 +81,8 @@ export async function getEventRegistrants(eventId: string): Promise<EventRegistr
       .innerJoin(schema.minecraftAccounts, eq(schema.minecraftAccounts.userId, schema.eventRegistrations.userId))
       .innerJoin(schema.profiles, eq(schema.profiles.userId, schema.eventRegistrations.userId))
       .where(and(eq(schema.eventRegistrations.eventId, eventId), eq(schema.profiles.accountStatus, "active")))
-      .orderBy(asc(schema.eventRegistrations.createdAt));
+      .orderBy(asc(schema.eventRegistrations.createdAt))
+      .limit(MAX_EVENT_REGISTRANTS);
     return rows.map((r) => ({ username: r.username, skinUrl: r.skinUrl, registeredAt: iso(r.registeredAt) }));
   } catch (error) {
     console.error("Failed to load event registrants:", error);

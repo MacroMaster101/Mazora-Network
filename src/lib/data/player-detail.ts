@@ -1,5 +1,5 @@
 import "server-only";
-import { getDirectory } from "@/lib/data/directory";
+import { getDirectoryPlayer } from "@/lib/data/directory";
 import { lookupMojangName } from "@/lib/minecraft/mojang";
 import { resolvePlayerSkin, type MojangResult } from "@/lib/minecraft/skin";
 import type { DirectoryPlayer } from "@/lib/types";
@@ -19,8 +19,7 @@ export interface PlayerDetail {
  * their pixels, so what Mojang thinks of the name changes nothing.
  */
 export async function getPlayerDetail(username: string): Promise<PlayerDetail | null> {
-  const directory = await getDirectory();
-  const player = directory.find((entry) => entry.username.toLowerCase() === username.toLowerCase());
+  const player = await getDirectoryPlayer(username);
   if (!player) return null;
 
   if (player.skin.source === "uploaded") {

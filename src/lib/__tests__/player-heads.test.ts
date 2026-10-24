@@ -280,9 +280,11 @@ test("client fallbacks use MHF_Steve, never the account called Steve", async () 
 /* ----------------------------------------------------------- skin lookup */
 
 function uploadedSkinFixture(rows: { linked?: { rawSkinUrl: string | null; headUrl: string | null }; avatarUrl?: string | null }) {
-  // getLinkedSkin reads minecraft_accounts first, then getUploadedSkin reads profiles.
+  // getLinkedSkin reads minecraft_accounts (joined to profiles for the active
+  // check) first, then getUploadedSkin reads profiles.
   const reads = [rows.linked ? [rows.linked] : [], rows.avatarUrl === undefined ? [] : [{ avatarUrl: rows.avatarUrl }]];
-  const db = { select: () => ({ from: () => ({ where: () => ({ limit: async () => reads.shift() ?? [] }) }) }) };
+  const where = () => ({ limit: async () => reads.shift() ?? [] });
+  const db = { select: () => ({ from: () => ({ innerJoin: () => ({ where }), where }) }) };
   return loadServerModule<typeof import("@/lib/data/minecraft-accounts")>(new URL("../data/minecraft-accounts.ts", import.meta.url), {
     mocks: {
       react: { cache: <T>(fn: T) => fn },
