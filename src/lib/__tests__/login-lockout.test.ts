@@ -124,7 +124,7 @@ test("a pass round-trips, is bound to the account's email, and holds no address"
   assert.equal(lockout.knownDeviceHolds(token, "Steve_42@Example.com", key, now), true, "email case does not matter");
   assert.equal(lockout.knownDeviceHolds(token, "alex_builder@example.com", key, now), false, "another account");
   assert.equal(lockout.knownDeviceHolds(token, "unresolved:Steve_42", key, now), false);
-  assert.ok(!Buffer.from(token.split(".")[0], "base64url").toString("utf8").includes("example.com"), "never the raw email");
+  assert.doesNotMatch(Buffer.from(token.split(".")[0], "base64url").toString("utf8"), /steve_42|@/i, "never the raw email");
 
   // Expired, tampered, or signed with another purpose's key: no pass.
   assert.equal(lockout.knownDeviceHolds(token, "steve_42@example.com", key, now + lockout.KNOWN_DEVICE_TTL_SECONDS + 1), false);
