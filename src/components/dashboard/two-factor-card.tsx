@@ -8,6 +8,7 @@ import {
   KeyRound,
   LifeBuoy,
   Loader2,
+  Mail,
   MessageSquareText,
   ShieldCheck,
   ShieldOff,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 import { Input, Modal, useToast } from "@/components/ui";
 import { OtpInput } from "@/components/auth/auth-forms";
-import { disableTwoFactorAction, regenerateRecoveryCodesAction } from "@/lib/actions/two-factor";
+import { disableTwoFactorAction, regenerateRecoveryCodesAction, setTwoFactorEmailFallbackAction } from "@/lib/actions/two-factor";
 import { relative } from "@/lib/utils";
 import { RecoveryCodesView } from "./recovery-codes-view";
 import { TwoFactorSetupScreen } from "./two-factor-setup-screen";
@@ -28,6 +29,8 @@ export interface TwoFactorOverview {
   codesRemaining: number;
   /** This sign-in used a recovery code instead of the authenticator app. */
   recovered: boolean;
+  emailFallbackEnabled: boolean;
+  emailFallbackAvailable: boolean;
 }
 
 function Row({
@@ -90,7 +93,7 @@ export function TwoFactorCard({
   const { toast } = useToast();
   const [setup, setSetup] = useState<"setup" | "replace" | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [dialog, setDialog] = useState<"regenerate" | "disable" | null>(null);
+  const [dialog, setDialog] = useState<"regenerate" | "disable" | "email-enable" | "email-disable" | null>(null);
   const [newCodes, setNewCodes] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [keptCurrent, setKeptCurrent] = useState(false);
@@ -137,12 +140,14 @@ export function TwoFactorCard({
     setUseRecovery(false);
   }
 
-  async function run(kind: "regenerate" | "disable", formData: FormData) {
+  async function run(kind: "regenerate" | "disable" | "email-enable" | "email-disable", formData: FormData) {
     setBusy(true);
     setDialogError(null);
     try {
       // Both need the second step again, not just this signed-in browser.
-      const result = kind === "regenerate" ? await regenerateRecoveryCodesAction(formData) : await disableTwoFactorAction(formData);
+      formData.set("emailFallback", kind === "email-enable" ? "enable" : "disable");
+      const result = kind === "regenerate" ? await regenerateRecoveryCodesAction(formData)
+        : kind === "disable" ? await disableTwoFactorAction(formData) : await setTwoFactorEmailFallbackAction(formData);
       if (!result.ok) {
         setDialogError(result.message ?? "Something went wrong. Please try again.");
         return;
@@ -163,6 +168,8 @@ export function TwoFactorCard({
   }
 
   const { enabled, enrolledAt, codesRemaining, recovered } = overview;
+  const emailDialog = dialog === "email-enable" || dialog === "email-disable";
+  const emailEnabling = dialog === "email-enable";
 
   return (
     <section
@@ -223,6 +230,23 @@ export function TwoFactorCard({
             action={
               <button type="button" onClick={() => setSetup(enabled ? "replace" : "setup")} className={actionButton}>
                 {enabled ? "Replace" : "Set up"}
+              </button>
+            }
+          />
+          <Row
+            icon={<Mail size={18} aria-hidden="true" />}
+            title="Email code (optional)"
+            detail={overview.emailFallbackEnabled
+              ? "On. Receive a sign-in code at your confirmed account email."
+              : !enabled ? "Set up your authenticator first, then choose email as an optional backup."
+              : overview.emailFallbackAvailable ? "Off. Allow a code sent to your confirmed email when signing in."
+              : "Email codes are unavailable right now. Your authenticator and recovery codes still work."}
+            action={
+              <button type="button" className={actionButton}
+                disabled={!enabled || (!overview.emailFallbackEnabled && !overview.emailFallbackAvailable)}
+                onClick={() => setDialog(overview.emailFallbackEnabled ? "email-disable" : "email-enable")}
+              >
+                {overview.emailFallbackEnabled ? "Turn off" : "Enable"}
               </button>
             }
           />
@@ -317,7 +341,7 @@ export function TwoFactorCard({
       <Modal
         open={dialog !== null}
         onClose={closeDialog}
-        label={dialog === "disable" ? "Turn off two-step verification" : "Regenerate recovery codes"}
+        label={emailDialog ? `${emailEnabling ? "Enable" : "Turn off"} email sign-in codes` : dialog === "disable" ? "Turn off two-step verification" : "Regenerate recovery codes"}
       >
         <form
           onSubmit={(event) => {
@@ -329,10 +353,14 @@ export function TwoFactorCard({
           className={`panel mx-auto max-w-md p-6 sm:p-7 ${dialog === "disable" ? "border-danger/40" : ""}`}
         >
           <h2 className={`font-display text-xl font-bold ${dialog === "disable" ? "text-danger" : "text-ink"}`}>
-            {dialog === "disable" ? "Turn off two-step verification?" : newCodes ? "Your new recovery codes" : "Regenerate recovery codes?"}
+            {emailDialog ? `${emailEnabling ? "Enable" : "Turn off"} email sign-in codes?` : dialog === "disable" ? "Turn off two-step verification?" : newCodes ? "Your new recovery codes" : "Regenerate recovery codes?"}
           </h2>
           <p className="mt-2 text-sm text-muted">
-            {dialog === "disable"
+            {emailDialog
+              ? emailEnabling
+                ? "Email codes provide another way to finish signing in. Anyone who can access your inbox could use this option, so protect your email account too. Confirm with your authenticator or a recovery code."
+                : "Email will no longer be offered at sign-in. Your authenticator app and recovery codes will keep working. Confirm with your authenticator or a recovery code."
+              : dialog === "disable"
               ? "Signing in will only need your password again. The Mazora code in your authenticator app and your recovery codes stop working for good — turning it back on later means scanning a new QR code."
               : newCodes
                 ? "Save these now — this is the only time they are shown. Your old codes no longer work."
@@ -408,7 +436,8 @@ export function TwoFactorCard({
                   ) : (
                     <KeyRound size={14} aria-hidden="true" />
                   )}
-                  {dialog === "disable" ? (busy ? "Turning off…" : "Turn off") : busy ? "Creating…" : "Regenerate codes"}
+                  {emailDialog ? (busy ? "Saving…" : emailEnabling ? "Enable email codes" : "Turn off email codes")
+                    : dialog === "disable" ? (busy ? "Turning off…" : "Turn off") : busy ? "Creating…" : "Regenerate codes"}
                 </button>
               </>
             )}

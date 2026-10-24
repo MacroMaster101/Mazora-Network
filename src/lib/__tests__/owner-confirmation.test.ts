@@ -159,6 +159,11 @@ function twoFactorStart(options: { ownerGrant: boolean; totp: number; recovered?
   const issued: unknown[] = [];
   const actions = loadServerModule<typeof TwoFactorActions>(new URL("../actions/two-factor.ts", import.meta.url), {
     mocks: {
+      "@/lib/supabase/admin": { getSupabaseAdmin: () => null },
+      "@/lib/auth/account-deletion-proof": {},
+      "@/lib/auth/email-two-factor": {},
+      "@/lib/auth/email-two-factor-core": {},
+      "@/lib/auth/email-two-factor-grant": { clearEmailTwoFactorGrant: async () => {} },
       "next/cache": { revalidatePath() {} },
       "next/navigation": { redirect() {} },
       "@/lib/auth": {

@@ -85,3 +85,18 @@ test("a code sent for one purpose cannot be spent on another", async () => {
   assert.equal(await proof.consumeEmailProofCode("account-change", subject, "123457"), false, "a deletion code does not confirm a sign-in change");
   assert.equal(await proof.consumeAccountDeletionCode(subject, "123457"), true);
 });
+
+test("email sign-in codes cannot confirm account changes and are single-use, session-bound, and expiring", async () => {
+  const { proof, advance } = fixture();
+  assert.equal(await proof.sendEmailProofCode("two-factor-sign-in", subject, "alex@example.com"), true);
+  assert.equal(await proof.consumeEmailProofCode("account-change", subject, "123456"), false);
+  assert.equal(await proof.consumeAccountDeletionCode(subject, "123456"), false);
+  assert.equal(await proof.consumeEmailProofCode("two-factor-sign-in", { ...subject, sessionId: "another-fake-session" }, "123456"), false);
+  const results = await Promise.all([proof.consumeEmailProofCode("two-factor-sign-in", subject, "123456"), proof.consumeEmailProofCode("two-factor-sign-in", subject, "123456")]);
+  assert.equal(results.filter(Boolean).length, 1);
+  await proof.sendEmailProofCode("two-factor-sign-in", subject, "alex@example.com");
+  await proof.sendEmailProofCode("two-factor-sign-in", subject, "alex@example.com");
+  assert.equal(await proof.consumeEmailProofCode("two-factor-sign-in", subject, "123457"), false);
+  advance(600_000);
+  assert.equal(await proof.consumeEmailProofCode("two-factor-sign-in", subject, "123458"), false);
+});

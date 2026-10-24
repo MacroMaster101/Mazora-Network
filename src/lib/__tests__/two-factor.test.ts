@@ -154,7 +154,7 @@ test("pages send signed-out visitors through requireSession, not straight to log
 test("password reset on a two-step account also needs the second factor", () => {
   const src = read("../actions/auth.ts");
   const reset = src.slice(src.indexOf("export async function finishPasswordResetAction"));
-  const gate = reset.indexOf("if (await isTwoFactorPending())");
+  const gate = reset.indexOf("if (await isTwoFactorPending() || await isEmailTwoFactorSignIn())");
   const update = reset.indexOf("supabase.auth.updateUser(");
   assert.ok(gate > 0 && gate < update, "the two-step check runs before the password is changed");
   assert.match(src, /mfa\.challengeAndVerify\(\{ factorId: factor\.id, code: mfaCode \}\)/);
@@ -209,7 +209,7 @@ test("a recovery code works the industry-standard way: spent, but two-step stays
   // The sign-in then carries a recovery pass the gate accepts.
   assert.match(read("../actions/two-factor.ts"), /issueRecoveryGrant\(\{ userId: pending\.user\.id, sessionId \}\)/);
   // A recovery pass (or a verified passkey, see passkeys.test) counts as the second step.
-  assert.match(read("../auth/index.ts"), /const aal: "aal1" \| "aal2" = recovered \|\| passkeyVerified \? "aal2" : token\.aal;/);
+  assert.match(read("../auth/index.ts"), /const aal: "aal1" \| "aal2" = recovered \|\| passkeyVerified \|\| emailVerified \? "aal2" : token\.aal;/);
 });
 
 test("a recovery pass is bound to one session and cannot pass as a reset grant", () => {

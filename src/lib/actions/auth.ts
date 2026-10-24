@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { SESSION_ONLY_COOKIE, sessionOnlyMarkerOptions } from "@/lib/supabase/session-cookie";
 import { createClient } from "@supabase/supabase-js";
 import type { Role } from "@/lib/types";
-import { createSession, getSession, getSessionUserId, isRoleKey, isStaff, landingPathFor, normalizeRoleKey, isTwoFactorPending, hasActiveSession, pickDiscordIdentity, twoFactorPath } from "@/lib/auth";
+import { createSession, getSession, getSessionUserId, isRoleKey, isStaff, landingPathFor, normalizeRoleKey, isTwoFactorPending, isEmailTwoFactorSignIn, hasActiveSession, pickDiscordIdentity, twoFactorPath } from "@/lib/auth";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { ensureUserProfile } from "@/lib/auth/profile";
 import { site } from "@/lib/site";
@@ -1093,7 +1093,7 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
     // recovery code), exactly as signing in does; Supabase itself refuses the
     // change from a session that has not passed it (insufficient_aal).
     let viaRecoveryCode = false;
-    if (await isTwoFactorPending()) {
+    if (await isTwoFactorPending() || await isEmailTwoFactorSignIn()) {
       const step = await passResetTwoFactor(supabase, userData.user, formData);
       if (typeof step === "object") return step;
       viaRecoveryCode = step === "recovery";

@@ -198,7 +198,7 @@ test("the two-step check honours the passkey pass only on a passkey session", ()
   assert.match(rule, /hasAuthenticator &&/);
   assert.match(rule, /token\.amr\.includes\("passkey"\)/, "the token must say it was a passkey sign-in");
   assert.match(rule, /hasPasskeySignInGrant\(\{ userId: data\.user\.id, sessionId: token\.sessionId \}\)/);
-  assert.match(auth, /const aal: "aal1" \| "aal2" = recovered \|\| passkeyVerified \? "aal2" : token\.aal;/);
+  assert.match(auth, /const aal: "aal1" \| "aal2" = recovered \|\| passkeyVerified \|\| emailVerified \? "aal2" : token\.aal;/);
   // It passes the check and nothing more: the recovery-only shortcuts stay keyed on `recovered`.
   assert.match(auth, /\.\.\.\(state\.recovered \? \{ recoveredSignIn: true \} : \{\}\)/);
   assert.match(auth, /\.\.\.\(state\.passkeyVerified \? \{ passkeySignIn: true \} : \{\}\)/);
