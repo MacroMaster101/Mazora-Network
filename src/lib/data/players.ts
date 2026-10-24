@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
-import { and, sql, type SQL } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
+import { and, asc, desc, isNotNull, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import type { Player } from "@/lib/types";
 import { formatPlaytime } from "@/lib/utils";
@@ -12,9 +13,19 @@ import { formatPlaytime } from "@/lib/utils";
  */
 const ONLINE_FRESHNESS_MS = 2 * 60_000;
 
+/*
+  The whole synced table, for the directory, the sitemap and the admin boards.
+  Shared across requests for half a minute: the plugin re-syncs about that often
+  anyway, and it is the same for every visitor, so each /players view no longer
+  reads every player the server has ever seen. Online is judged when the cache
+  fills, so it can lag by that half minute. A failure throws inside, so it is
+  never cached.
+*/
+const readCachedPlayers = unstable_cache(() => readPlayers(), ["minecraft-players"], { revalidate: 30 });
+
 export const getPlayers = cache(async (): Promise<Player[]> => {
   try {
-    return await readPlayers();
+    return await readCachedPlayers();
   } catch (error) {
     console.error("Failed to fetch synced Minecraft players:", error);
     return [];
@@ -34,11 +45,12 @@ export async function getPlayerRows(username: string): Promise<Player[]> {
   }
 }
 
-async function readPlayers(where?: SQL): Promise<Player[]> {
+async function readPlayers(where?: SQL, ranking?: { by: LeaderboardKey; limit: number }): Promise<Player[]> {
   const db = getDb();
   if (!db) return [];
 
-  const rows = await db
+  const rankColumn = ranking?.by === "balance" ? schema.minecraftPlayers.balance : schema.minecraftPlayers.playtimeSeconds;
+  const query = db
     .select({
       uuid: schema.minecraftPlayers.minecraftUuid,
       username: schema.minecraftPlayers.username,
@@ -67,7 +79,12 @@ async function readPlayers(where?: SQL): Promise<Player[]> {
         sql`exists (select 1 from ${schema.profiles} where ${schema.profiles.userId} = ${schema.minecraftAccounts.userId} and ${schema.profiles.accountStatus} = 'active')`,
       ),
     )
-    .where(where);
+    .where(ranking ? and(where, isNotNull(rankColumn)) : where);
+  // A leaderboard is sorted and cut in SQL (the playtime and balance indexes
+  // serve it), not by reading every player the server has ever seen.
+  const rows = ranking
+    ? await query.orderBy(desc(rankColumn), asc(schema.minecraftPlayers.username)).limit(ranking.limit)
+    : await query;
 
   const freshAfter = Date.now() - ONLINE_FRESHNESS_MS;
   return rows.map((row) => {
@@ -115,10 +132,11 @@ async function readPlayers(where?: SQL): Promise<Player[]> {
   });
 }
 
-export async function getPlayer(username: string): Promise<Player | null> {
-  const players = await getPlayers();
-  return players.find((player) => player.username.toLowerCase() === username.toLowerCase()) ?? null;
-}
+/** One player by IGN: only that name's rows, never the whole table. Cached per request (metadata and page share it). */
+export const getPlayer = cache(async (username: string): Promise<Player | null> => {
+  const rows = await getPlayerRows(username);
+  return rows.find((player) => player.username.toLowerCase() === username.toLowerCase()) ?? null;
+});
 
 export type LeaderboardKey = "playtime" | "balance";
 
@@ -134,12 +152,24 @@ export const leaderboardTabs: { key: LeaderboardKey; label: string }[] = [
   { key: "balance", label: "Balance" },
 ];
 
+const LEADERBOARD_SIZE = 100;
+
+/** One leaderboard, its top LEADERBOARD_SIZE read straight from SQL. */
+export async function getLeaderboard(key: LeaderboardKey): Promise<LeaderboardEntry[]> {
+  try {
+    return buildLeaderboard(await readPlayers(undefined, { by: key, limit: LEADERBOARD_SIZE }), key);
+  } catch (error) {
+    console.error("Failed to fetch a leaderboard:", error);
+    return [];
+  }
+}
+
 export function buildLeaderboard(players: Player[], key: LeaderboardKey): LeaderboardEntry[] {
   const value = (player: Player) => key === "playtime" ? player.playtimeSeconds : player.balance;
   const tracked = players.filter((player) => key === "playtime" ? player.playtimeTracked : player.balanceTracked);
   return tracked
     .sort((a, b) => value(b) - value(a) || a.username.localeCompare(b.username))
-    .slice(0, 100)
+    .slice(0, LEADERBOARD_SIZE)
     .map((player, index) => {
       const metric = value(player);
       return {

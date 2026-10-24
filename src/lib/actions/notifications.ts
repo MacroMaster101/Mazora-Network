@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageModule, NOTIFICATIONS_PERMISSION_KEY } from "@/lib/auth/permissions";
-import { listAccounts } from "@/lib/data/accounts";
+import { findAccountName, listAccountRoles } from "@/lib/data/accounts";
 import type { BroadcastPriority } from "@/lib/data/notification-broadcasts";
 import { getNotificationTemplate, updateNotificationTemplate } from "@/lib/data/notification-templates";
 import { getDb, schema } from "@/lib/db/client";
@@ -15,6 +15,7 @@ import {
   type NotificationAudience,
 } from "@/lib/notification-targeting";
 import { isSafeLink } from "@/lib/net/safe-url";
+import { uuidArrayLiteral } from "@/lib/validation/id";
 import {
   canSendOfficialNotifications,
   officialNotificationRefusal,
@@ -196,46 +197,49 @@ export async function sendBroadcastNotificationAction(input: {
   const limit = await rateLimitShared(accountKey("notification-broadcast", auth.actorId), { limit: 10, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "Too many broadcasts. Wait a moment and try again." };
   const db = getDb();
-  const accounts = await listAccounts();
   if (!db) return { ok: false, message: "The database is not connected." };
+  const accounts = await listAccountRoles();
   if (!accounts) return { ok: false, message: "Accounts could not be loaded." };
   const recipients = accounts.filter((account) => roleMatchesNotificationAudience(account.role, parsed.data.audience));
   if (recipients.length === 0) return { ok: false, message: "No accounts match that audience." };
   try {
-    // The broadcast record is written first so every delivered row can point
-    // back at it. That link is what makes editing a sent broadcast rewrite
-    // what recipients see, and deleting one withdraw the delivered copies.
-    const [broadcast] = await db
-      .insert(schema.notificationBroadcasts)
-      .values({
-        title: parsed.data.title,
-        message: parsed.data.message,
-        audience: parsed.data.audience,
-        category: parsed.data.category,
-        sender: parsed.data.sender,
-        priority: parsed.data.priority,
-        href: parsed.data.href || null,
-        delivered: recipients.length,
-        actorId: auth.actorId,
-        actorName: auth.session.username,
-      })
-      .returning();
+    // One transaction: a delivery that fails part-way leaves no broadcast
+    // record claiming it reached people who never got it.
+    await db.transaction(async (tx) => {
+      // The broadcast record is written first so every delivered row can point
+      // back at it. That link is what makes editing a sent broadcast rewrite
+      // what recipients see, and deleting one withdraw the delivered copies.
+      const [broadcast] = await tx
+        .insert(schema.notificationBroadcasts)
+        .values({
+          title: parsed.data.title,
+          message: parsed.data.message,
+          audience: parsed.data.audience,
+          category: parsed.data.category,
+          sender: parsed.data.sender,
+          priority: parsed.data.priority,
+          href: parsed.data.href || null,
+          delivered: recipients.length,
+          actorId: auth.actorId,
+          actorName: auth.session.username,
+        })
+        .returning();
 
-    await db.insert(schema.notifications).values(recipients.map((account) => ({
-      userId: account.userId,
-      title: parsed.data.title,
-      message: parsed.data.message,
-      category: parsed.data.category,
-      sender: parsed.data.sender,
-      href: parsed.data.href || null,
-      broadcastId: broadcast?.id ?? null,
-    })));
-    await db.insert(schema.auditLogs).values({
-      actorId: auth.actorId,
-      action: "notifications.broadcast",
-      targetType: "audience",
-      targetId: parsed.data.audience,
-      metadata: { delivered: recipients.length, title: parsed.data.title, by: auth.session.username },
+      // The recipients travel as ONE array parameter. A multi-row VALUES list
+      // takes seven parameters per recipient and Postgres allows 65,535, so
+      // the old insert failed outright past about 9,000 members.
+      await tx.execute(sql`
+        insert into public.notifications (user_id, title, message, category, sender, href, broadcast_id)
+        select recipient, ${parsed.data.title}, ${parsed.data.message}, ${parsed.data.category},
+               ${parsed.data.sender}, ${parsed.data.href || null}, ${broadcast?.id ?? null}::uuid
+          from unnest(${uuidArrayLiteral(recipients.map((account) => account.userId))}::uuid[]) as recipient`);
+      await tx.insert(schema.auditLogs).values({
+        actorId: auth.actorId,
+        action: "notifications.broadcast",
+        targetType: "audience",
+        targetId: parsed.data.audience,
+        metadata: { delivered: recipients.length, title: parsed.data.title, by: auth.session.username },
+      });
     });
     refreshNotificationPages();
     return { ok: true, message: `Delivered to ${recipients.length} account${recipients.length === 1 ? "" : "s"}.`, delivered: recipients.length };
@@ -458,9 +462,9 @@ export async function sendDirectNotificationAction(input: {
   const limit = await rateLimitShared(accountKey("notification-direct", auth.actorId), { limit: 30, windowMs: 60_000 });
   if (!limit.ok) return { ok: false, message: "Too many notifications. Wait a moment and try again." };
   const db = getDb();
-  const accounts = await listAccounts();
   if (!db) return { ok: false, message: "The database is not connected." };
-  const recipient = accounts?.find((account) => account.userId === parsed.data.userId);
+  const recipient = await findAccountName(parsed.data.userId);
+  if (recipient === undefined) return { ok: false, message: "Accounts could not be loaded." };
   if (!recipient) return { ok: false, message: "That account no longer exists." };
   try {
     await db.insert(schema.notifications).values({

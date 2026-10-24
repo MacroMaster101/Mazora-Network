@@ -6,7 +6,7 @@ import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageSettings } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
 import {
-  getSiteGeneralSettings,
+  getFreshSiteGeneralSettings,
   updateSiteGeneralSettings,
   SITE_GENERAL_SETTINGS_KEY,
 } from "@/lib/data/site-settings";
@@ -108,7 +108,7 @@ export async function saveSiteGeneralSettingsAction(
     return { ok: false, message: "Please correct the errors in the form.", errors: zodErrors(parsed.error) };
   }
 
-  const before = await getSiteGeneralSettings();
+  const before = await getFreshSiteGeneralSettings();
 
   try {
     const next = await updateSiteGeneralSettings(parsed.data);
@@ -137,7 +137,9 @@ export async function saveSiteGeneralSettingsAction(
     revalidatePath("/play");
     revalidatePath("/status");
     revalidatePath("/game-modes");
-    revalidatePath("/", "layout");
+    // updateSiteGeneralSettings purged the settings tag, which is what every
+    // page's layout and metadata read; a "/" layout revalidation would also
+    // purge every other cached read on the site.
 
     return { ok: true, message: "Site settings updated and published successfully." };
   } catch (error) {

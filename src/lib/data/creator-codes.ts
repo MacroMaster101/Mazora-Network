@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { and, desc, eq, getTableColumns, gt, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { SOCIAL_PLATFORM_KEYS, type CreatorSocial } from "@/lib/creator-socials";
@@ -259,12 +260,40 @@ export async function getCreatorCodeStats(): Promise<Map<string, CreatorCodeStat
   return stats;
 }
 
+/** Data-cache tag of the public discount alerts: code and product saves purge it. */
+export const DISCOUNT_ALERTS_TAG = "public-discount-alerts";
+const DISCOUNT_ALERTS_TTL_SECONDS = 60;
+
+/*
+  Shared by every request and instance. The alerts ride in the root layout, so
+  they were one to three queries (the codes, their products and the whole
+  catalogue) on every page view. Saving a code or a product purges the tag; the
+  TTL bounds how long a code that reaches its expiry is still listed, and an
+  expired one is dropped on the way out regardless. A failed read throws inside
+  the cached function, so unstable_cache never stores it.
+*/
+const readCachedDiscountAlerts = unstable_cache(loadActivePublicDiscountAlerts, [DISCOUNT_ALERTS_TAG], {
+  tags: [DISCOUNT_ALERTS_TAG],
+  revalidate: DISCOUNT_ALERTS_TTL_SECONDS,
+});
+
 /**
  * Returns all currently active public discount promotions to display across
- * website pages as an interactive floating carousel.
- * Cached per-request using React cache().
+ * website pages as an interactive floating carousel. From the shared cache,
+ * once per request.
  */
-export const getActivePublicDiscountAlerts = cache(loadActivePublicDiscountAlerts);
+export const getActivePublicDiscountAlerts = cache(async (): Promise<PublicDiscountAlert[]> => {
+  if (!getDb()) return [];
+  try {
+    const now = Date.now();
+    return (await readCachedDiscountAlerts()).filter(
+      (alert) => !alert.expiresAt || new Date(alert.expiresAt).getTime() > now,
+    );
+  } catch (err) {
+    console.error("Failed to load active public discount alerts:", err);
+    return [];
+  }
+});
 
 
 /*
@@ -280,92 +309,89 @@ export const ALERT_PRODUCT_PREVIEW_LIMIT = 48;
 async function loadActivePublicDiscountAlerts(): Promise<PublicDiscountAlert[]> {
   const db = getDb();
   if (!db) return [];
-  try {
-    const now = new Date();
-    const rows = await db
-      .select()
-      .from(schema.creatorCodes)
-      .where(
-        and(
-          eq(schema.creatorCodes.showPublicAlert, true),
-          eq(schema.creatorCodes.enabled, true),
-          or(
-            isNull(schema.creatorCodes.expiresAt),
-            gt(schema.creatorCodes.expiresAt, now),
-          ),
+  // Errors propagate: getActivePublicDiscountAlerts logs them, and the cache
+  // never stores a failure as "no alerts".
+  const now = new Date();
+  const rows = await db
+    .select()
+    .from(schema.creatorCodes)
+    .where(
+      and(
+        eq(schema.creatorCodes.showPublicAlert, true),
+        eq(schema.creatorCodes.enabled, true),
+        or(
+          isNull(schema.creatorCodes.expiresAt),
+          gt(schema.creatorCodes.expiresAt, now),
         ),
-      )
-      .orderBy(desc(schema.creatorCodes.createdAt))
-      .limit(8);
+      ),
+    )
+    .orderBy(desc(schema.creatorCodes.createdAt))
+    .limit(8);
 
-    if (rows.length === 0) return [];
+  if (rows.length === 0) return [];
 
-    const rowIds = rows.map((r) => r.id);
+  const rowIds = rows.map((r) => r.id);
 
-    // Fetch hand-picked product associations in a single query
-    const codeProducts = await db
-      .select({ codeId: schema.creatorCodeProducts.codeId, productId: schema.creatorCodeProducts.productId })
-      .from(schema.creatorCodeProducts)
-      .where(inArray(schema.creatorCodeProducts.codeId, rowIds));
+  // Fetch hand-picked product associations in a single query
+  const codeProducts = await db
+    .select({ codeId: schema.creatorCodeProducts.codeId, productId: schema.creatorCodeProducts.productId })
+    .from(schema.creatorCodeProducts)
+    .where(inArray(schema.creatorCodeProducts.codeId, rowIds));
 
-    const productIdsByCode = new Map<string, string[]>();
-    for (const item of codeProducts) {
-      const list = productIdsByCode.get(item.codeId) ?? [];
-      list.push(item.productId);
-      productIdsByCode.set(item.codeId, list);
-    }
-
-    // Load active products once to map previews
-    const allProducts = await getProducts();
-    const toPreview = (p: (typeof allProducts)[number]): PublicDiscountAlertProduct => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      price: p.price,
-      salePrice: p.salePrice ?? null,
-      category: p.category,
-      subcategory: p.subcategory ?? null,
-      accent: p.accent,
-      image: p.imageUrl ?? null,
-    });
-
-    return rows.flatMap((row) => {
-      const productIds = productIdsByCode.get(row.id) ?? [];
-      const isAllProducts = Boolean(row.appliesToAllProducts);
-
-      /*
-        Advertise only what checkout will actually honour. Sitewide is the
-        stored flag, matching resolveCreatorCode — a code with neither the flag
-        nor any picks discounts nothing, so promoting it across every page
-        would send buyers to a checkout that refuses the code.
-      */
-      if (!isAllProducts && productIds.length === 0) return [];
-
-      const picked = new Set(productIds);
-      const eligible = isAllProducts ? allProducts : allProducts.filter((p) => Boolean(p.id && picked.has(p.id)));
-      const eligibleProducts = eligible.slice(0, ALERT_PRODUCT_PREVIEW_LIMIT).map(toPreview);
-
-      const defaultBadge = row.codeType === "event" ? "SPECIAL EVENT" : "CREATOR CODE";
-      const defaultHeadline = `${row.percentOff}% off eligible items with code ${row.code}`;
-
-      return [{
-        code: row.code,
-        codeType: row.codeType === "event" ? "event" : "creator",
-        creatorName: row.creatorName,
-        percentOff: row.percentOff,
-        badge: row.alertBadge?.trim() || defaultBadge,
-        headline: row.alertHeadline?.trim() || defaultHeadline,
-        position: "bottom-right",
-        expiresAt: optionalDateIso(row.expiresAt),
-        productIds,
-        eligibleProducts,
-        eligibleCount: eligible.length,
-        isAllProducts,
-      }];
-    });
-  } catch (err) {
-    console.error("Failed to load active public discount alerts:", err);
-    return [];
+  const productIdsByCode = new Map<string, string[]>();
+  for (const item of codeProducts) {
+    const list = productIdsByCode.get(item.codeId) ?? [];
+    list.push(item.productId);
+    productIdsByCode.set(item.codeId, list);
   }
+
+  // Load active products once to map previews
+  const allProducts = await getProducts();
+  const toPreview = (p: (typeof allProducts)[number]): PublicDiscountAlertProduct => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    price: p.price,
+    salePrice: p.salePrice ?? null,
+    category: p.category,
+    subcategory: p.subcategory ?? null,
+    accent: p.accent,
+    image: p.imageUrl ?? null,
+  });
+
+  return rows.flatMap((row) => {
+    const productIds = productIdsByCode.get(row.id) ?? [];
+    const isAllProducts = Boolean(row.appliesToAllProducts);
+
+    /*
+      Advertise only what checkout will actually honour. Sitewide is the
+      stored flag, matching resolveCreatorCode — a code with neither the flag
+      nor any picks discounts nothing, so promoting it across every page
+      would send buyers to a checkout that refuses the code.
+    */
+    if (!isAllProducts && productIds.length === 0) return [];
+
+    const picked = new Set(productIds);
+    const eligible = isAllProducts ? allProducts : allProducts.filter((p) => Boolean(p.id && picked.has(p.id)));
+    const eligibleProducts = eligible.slice(0, ALERT_PRODUCT_PREVIEW_LIMIT).map(toPreview);
+
+    const defaultBadge = row.codeType === "event" ? "SPECIAL EVENT" : "CREATOR CODE";
+    const defaultHeadline = `${row.percentOff}% off eligible items with code ${row.code}`;
+
+    return [{
+      code: row.code,
+      codeType: row.codeType === "event" ? "event" : "creator",
+      creatorName: row.creatorName,
+      percentOff: row.percentOff,
+      badge: row.alertBadge?.trim() || defaultBadge,
+      headline: row.alertHeadline?.trim() || defaultHeadline,
+      position: "bottom-right",
+      expiresAt: optionalDateIso(row.expiresAt),
+      productIds,
+      eligibleProducts,
+      eligibleCount: eligible.length,
+      isAllProducts,
+    }];
+  });
 }
 

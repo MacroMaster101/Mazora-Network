@@ -38,15 +38,30 @@ export const STATUS_UNREADABLE = "unreadable" as const;
  * one failing connection does not sign everyone out. Only when neither can
  * answer is the result "unreadable".
  */
+/**
+ * The profile fields every signed-in request needs, in one read per request:
+ * the account status (checked by getAuthUser on every request) and the chosen
+ * presence status (the header's status menu). They were two separate reads of
+ * the same row. Undefined when there is no database connection; throws when
+ * the read fails, so each caller keeps its own failure rule.
+ */
+export const readProfileFlags = cache(
+  async (userId: string): Promise<{ status: string; presence: string } | null | undefined> => {
+    const db = getDb();
+    if (!db) return undefined;
+    const [row] = await db
+      .select({ status: schema.profiles.accountStatus, presence: schema.profiles.presenceStatus })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.userId, userId))
+      .limit(1);
+    return row ?? null;
+  },
+);
+
 export const accountStatusFor = cache(async (userId: string): Promise<AccountStatusRead> => {
-  const db = getDb();
-  if (db) {
+  if (getDb()) {
     try {
-      const [row] = await db
-        .select({ status: schema.profiles.accountStatus })
-        .from(schema.profiles)
-        .where(eq(schema.profiles.userId, userId))
-        .limit(1);
+      const row = await readProfileFlags(userId);
       return (row?.status as AccountStatus | undefined) ?? null;
     } catch (error) {
       console.error("Account status read failed", error);

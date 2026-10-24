@@ -29,6 +29,9 @@ async function requireRoleManager() {
 
 function revalidateRoleViews() {
   for (const path of ["/admin/roles", "/admin/permissions", "/admin/staff", "/admin/users", "/staff"]) revalidatePath(path);
+  // Deliberately site-wide: rank names and colours render on almost every
+  // page, and the catalogue changes rarely enough that purging every cached
+  // read once per edit is the simpler trade.
   revalidatePath("/", "layout");
 }
 

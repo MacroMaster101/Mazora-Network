@@ -1,3 +1,4 @@
+import "server-only";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import type { GameMode, StoreCategoryConfig, StoreSubcategoryConfig } from "@/lib/types";

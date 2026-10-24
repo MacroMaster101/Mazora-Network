@@ -1,8 +1,9 @@
+import "server-only";
 import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { site } from "@/lib/site";
-import { safeNext } from "@/lib/safe-redirect";
+import { isSafeSupportHref } from "@/lib/support-href";
 
 export type SupportFaq = { question: string; answer: string };
 
@@ -41,22 +42,10 @@ export type SupportCardSettings = {
   page?: SupportPageDetails;
 };
 
+export { isSafeSupportHref };
+
 export const SUPPORT_MAIN_KEY = "support.main";
 export const SUPPORT_CARDS_KEY = "support.cards";
-
-/** Dynamic support links are rendered as anchors, so reject executable and off-site internal URLs. */
-export function isSafeSupportHref(value: string, external: boolean): boolean {
-  const href = value.trim();
-  if (external) {
-    try {
-      const url = new URL(href);
-      return url.protocol === "https:" && Boolean(url.hostname) && !url.username && !url.password;
-    } catch {
-      return false;
-    }
-  }
-  return href.startsWith("/") && safeNext(href) === href;
-}
 
 function sanitizeSupportCard(card: SupportCardSettings): SupportCardSettings {
   if (isSafeSupportHref(card.href, card.external)) return card;

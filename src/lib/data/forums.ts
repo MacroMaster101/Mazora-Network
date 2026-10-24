@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { DELETED_AUTHOR, POSTS_PER_PAGE, TOPICS_PER_PAGE, type ForumActor } from "@/lib/forums-rules";
@@ -8,6 +9,7 @@ import { isRoleKey, normalizeRoleKey, publicRole } from "@/lib/auth/roles";
 import { ensureRoleCatalog } from "@/lib/data/roles";
 import { getPresenceFor } from "@/lib/data/presence";
 import { providerAvatarsFor } from "@/lib/data/provider-avatars";
+import { uuidArrayLiteral } from "@/lib/validation/id";
 import type { PresenceShown } from "@/lib/presence-rules";
 import type { Role } from "@/lib/types";
 import {
@@ -98,11 +100,33 @@ export interface BoardCategory {
  * so a forum with only deleted topics still returns a row reading zero rather
  * than vanishing from the board.
  */
+export const FORUM_BOARD_TAG = "forum-board";
+
+/*
+  The board counts every live topic and post, which grows with the forum and
+  ran on every /forums view. Shared across requests and instances instead:
+  every action that adds, removes or moves a topic or post purges the tag (next
+  to its revalidatePath("/forums")), and the TTL is only a backstop. A failure
+  throws inside, so it is never cached.
+*/
+const readCachedForumBoard = unstable_cache(readForumBoard, [FORUM_BOARD_TAG], {
+  tags: [FORUM_BOARD_TAG],
+  revalidate: 300,
+});
+
 export async function getForumBoard(): Promise<BoardCategory[]> {
+  if (!getDb()) return [];
+  try {
+    return await readCachedForumBoard();
+  } catch {
+    return [];
+  }
+}
+
+async function readForumBoard(): Promise<BoardCategory[]> {
   const db = getDb();
   if (!db) return [];
-
-  try {
+  {
     const rows = await db
       .select({
         categoryId: schema.forumCategories.id,
@@ -176,8 +200,6 @@ export async function getForumBoard(): Promise<BoardCategory[]> {
       });
     }
     return [...byCategory.values()];
-  } catch {
-    return [];
   }
 }
 
@@ -248,16 +270,39 @@ export async function getForumBySlug(slug: string): Promise<ForumHeader | null> 
   deletePostAction uses. Its author can remove it while the discussion stays
   up, so the topic lists need to know whether it is gone.
 */
-const openingPostId = sql`(
-  select fp.id from ${schema.forumPosts} fp
-  where fp.topic_id = ${schema.forumTopics.id}
-  order by fp.created_at limit 1
-)`;
 const openingPostRemoved = sql<boolean>`coalesce((
   select fp.deleted_at is not null from ${schema.forumPosts} fp
   where fp.topic_id = ${schema.forumTopics.id}
   order by fp.created_at limit 1
 ), false)`;
+
+/**
+ * Reply counts and opening-post state for one page of topics, in one query
+ * bounded by that page: each topic's opening post comes off
+ * forum_posts_topic_idx, and its live posts other than that one are counted.
+ * A topic with no posts at all has no entry.
+ */
+async function topicStats(topicIds: string[]): Promise<Map<string, { replies: number; openingRemoved: boolean }>> {
+  const stats = new Map<string, { replies: number; openingRemoved: boolean }>();
+  const db = getDb();
+  if (!db || topicIds.length === 0) return stats;
+  const result = await db.execute(sql`
+    select o.topic_id::text as topic_id,
+           o.deleted_at is not null as opening_removed,
+           (select count(*) from forum_posts fp
+             where fp.topic_id = o.topic_id and fp.deleted_at is null and fp.id <> o.id)::int as replies
+      from (
+        select distinct on (topic_id) topic_id, id, deleted_at
+          from forum_posts
+         where topic_id = any(${uuidArrayLiteral(topicIds)}::uuid[])
+         order by topic_id, created_at
+      ) o
+  `);
+  for (const row of result as Array<Record<string, unknown>>) {
+    stats.set(String(row.topic_id), { replies: Number(row.replies ?? 0), openingRemoved: row.opening_removed === true });
+  }
+  return stats;
+}
 
 /** Pinned first, then most recently posted in. Reply count excludes the opening post. */
 export async function getTopics(forumId: string, page: number): Promise<{ topics: TopicRow[]; total: number }> {
@@ -266,7 +311,10 @@ export async function getTopics(forumId: string, page: number): Promise<{ topics
   const offset = Math.max(0, page - 1) * TOPICS_PER_PAGE;
 
   try {
-    const rows = await db
+    // The page of topics first, straight off forum_topics_list_idx. Joining
+    // and grouping every post before the LIMIT made a forum page cost grow
+    // with the size of the whole forum.
+    const topicRows = await db
       .select({
         id: schema.forumTopics.id,
         title: schema.forumTopics.title,
@@ -277,25 +325,20 @@ export async function getTopics(forumId: string, page: number): Promise<{ topics
         authorId: schema.forumTopics.userId,
         authorUsername: schema.profiles.username,
         authorAvatar: schema.profiles.avatarUrl,
-        // Live posts other than the opening post: right whether or not the opening post is still up.
-        replyCount: sql<number>`(count(${schema.forumPosts.id}) filter (where ${schema.forumPosts.id} <> ${openingPostId}))::int`,
-        openingRemoved: openingPostRemoved,
       })
       .from(schema.forumTopics)
       .leftJoin(schema.profiles, eq(schema.profiles.userId, schema.forumTopics.userId))
-      .leftJoin(
-        schema.forumPosts,
-        and(eq(schema.forumPosts.topicId, schema.forumTopics.id), isNull(schema.forumPosts.deletedAt)),
-      )
       .where(and(eq(schema.forumTopics.forumId, forumId), isNull(schema.forumTopics.deletedAt)))
-      .groupBy(
-        schema.forumTopics.id, schema.forumTopics.title, schema.forumTopics.pinned,
-        schema.forumTopics.locked, schema.forumTopics.lastPostAt, schema.forumTopics.userId,
-        schema.profiles.displayName, schema.profiles.username, schema.profiles.avatarUrl,
-      )
       .orderBy(desc(schema.forumTopics.pinned), desc(schema.forumTopics.lastPostAt))
       .limit(TOPICS_PER_PAGE)
       .offset(offset);
+
+    const stats = await topicStats(topicRows.map((row) => row.id));
+    const rows = topicRows.map((row) => ({
+      ...row,
+      replyCount: stats.get(row.id)?.replies ?? 0,
+      openingRemoved: stats.get(row.id)?.openingRemoved ?? false,
+    }));
 
     const [totals] = await db
       .select({ total: count() })

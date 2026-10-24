@@ -12,6 +12,15 @@
 /** How long a READ notification is kept before the reaper may delete it. */
 export const NOTIFICATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+/**
+ * How long an UNREAD notification is kept. Far longer than a read one: a
+ * member who has not opened the bell in months must still find what was
+ * waiting. But not forever — every broadcast leaves one row per member, and
+ * the copies sent to accounts nobody uses any more were never going to be
+ * read, so the table grew with every broadcast for good.
+ */
+export const UNREAD_NOTIFICATION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+
 /** The subset of a notification row the retention rule reads. */
 export interface RetainableNotification {
   id: string;
@@ -26,21 +35,22 @@ function millis(value: string | Date | null | undefined): number {
 
 /**
  * Which notifications a retention run should delete: ones the member has
- * already READ and that are older than `ttlMs`.
+ * already READ and that are older than `ttlMs`, and unread ones older than
+ * `unreadTtlMs`.
  *
- * Unread is the hard guard. A member who has not opened the bell in two months
- * must still find what was waiting for them, so age alone never deletes — an
- * unread notice is kept indefinitely. Only something already seen is expendable.
+ * Unread is the strong guard. A member who has not opened the bell in two
+ * months must still find what was waiting for them, so an unread notice is
+ * kept for a year (UNREAD_NOTIFICATION_TTL_MS), not a month.
  */
 export function selectExpiredNotifications<T extends RetainableNotification>(
   notifications: T[],
   now: number,
   ttlMs: number,
+  unreadTtlMs: number = UNREAD_NOTIFICATION_TTL_MS,
 ): T[] {
-  const cutoff = now - ttlMs;
   return notifications.filter((n) => {
-    if (!n.readAt) return false; // never seen — keep regardless of age
     const created = millis(n.createdAt);
-    return Number.isFinite(created) && created < cutoff;
+    if (!Number.isFinite(created)) return false;
+    return created < now - (n.readAt ? ttlMs : unreadTtlMs);
   });
 }

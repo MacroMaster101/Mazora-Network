@@ -1,7 +1,8 @@
 "use server";
 
 import { and, eq, ne, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { DISCOUNT_ALERTS_TAG } from "@/lib/data/creator-codes";
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageStore } from "@/lib/auth/permissions";
@@ -62,6 +63,8 @@ function errors(error: z.ZodError): Record<string, string> {
 }
 
 function refreshStore(slug?: string) {
+  // The discount alerts carry product previews.
+  revalidateTag(DISCOUNT_ALERTS_TAG);
   revalidatePath("/store");
   revalidatePath("/admin/store");
   revalidatePath("/admin/store/catalog");
@@ -422,7 +425,7 @@ export async function deleteStoreProductAction(formData: FormData): Promise<Stor
   revalidatePath(`/admin/store/catalog/${before.gameModeSlug}`);
   revalidatePath("/admin/store/creator-codes/creators");
   revalidatePath("/admin/store/creator-codes/events");
-  revalidatePath("/", "layout");
+  // refreshStore purged the discount alerts' tag, which is all the layout reads.
 
   let message = `${before.name} deleted.`;
   if (emptiedCodes.length > 0) {

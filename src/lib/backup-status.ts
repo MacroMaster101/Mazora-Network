@@ -33,12 +33,12 @@ export type BackupHealth =
 /**
  * How old the last success may be before the card complains.
  *
- * The workflow runs weekly, so this has to clear seven days or the card is red
- * every Sunday morning. Ten days tolerates one missed or delayed run — GitHub
- * queues scheduled workflows under load — while still catching two consecutive
+ * The workflow runs daily, so a healthy backup is up to a day old. Sixty hours
+ * tolerates one missed or delayed run — GitHub queues scheduled workflows under
+ * load, and occasionally drops one — while still catching two consecutive
  * misses, which is the point at which something is actually wrong.
  */
-export const BACKUP_STALE_AFTER_MS = 10 * 24 * 60 * 60 * 1000;
+export const BACKUP_STALE_AFTER_MS = 60 * 60 * 60 * 1000;
 
 /**
  * Accept the repository setting in the forms a person actually pastes.
@@ -94,7 +94,7 @@ const NOTHING: RunFigures = {
  * exposes a run's conclusion and its jobs, but nothing a workflow writes to
  * $GITHUB_STEP_SUMMARY — that text exists solely in the web UI. So the numbers
  * have to come from stdout, and the lines below are printed on purpose by
- * scripts/backup.ts, scripts/backup-storage.ts and the verify step in the
+ * scripts/backup.ts, scripts/backup-storage.ts and the verify step, all in the
  * mazora-backups repository. Changing that wording there blanks this card.
  *
  * They matter because "success" proves nothing about content: a run that

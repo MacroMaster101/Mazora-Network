@@ -17,6 +17,42 @@ import { cn } from "@/lib/utils";
 
 type FilterKey = "all" | "online" | "members";
 
+/** Cards rendered per section at first, and added by each "Show more". */
+const GRID_PAGE_SIZE = 60;
+
+/**
+ * A section's cards, GRID_PAGE_SIZE at a time. Every card loads a skin avatar,
+ * so rendering a directory of thousands at once meant thousands of image
+ * requests and DOM nodes before the visitor scrolled at all. Search still
+ * covers everyone; keyed on the filter and query, so a new search starts from
+ * the first page again.
+ */
+function PlayerGrid({ players, onOpen }: { players: DirectoryPlayer[]; onOpen: (username: string) => void }) {
+  const [shown, setShown] = useState(GRID_PAGE_SIZE);
+  const remaining = players.length - shown;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        {players.slice(0, shown).map((player) => (
+          <PlayerSlot key={player.username} player={player} onOpen={onOpen} />
+        ))}
+      </div>
+      {remaining > 0 && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShown((count) => count + GRID_PAGE_SIZE)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line-strong bg-card px-4 py-2 text-xs font-bold text-ink transition-colors hover:border-accent/50"
+          >
+            Show {Math.min(remaining, GRID_PAGE_SIZE)} more
+            <span className="text-muted">({remaining} left)</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface PlayerExplorerProps {
   players: DirectoryPlayer[];
   serverStatus?: ServerStatus;
@@ -289,11 +325,7 @@ export function PlayerExplorer({ players, serverStatus, toolbarEnd }: PlayerExpl
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                {onlinePlayers.map((player) => (
-                  <PlayerSlot key={player.username} player={player} onOpen={setSelected} />
-                ))}
-              </div>
+              <PlayerGrid key={`${filter}:${query}`} players={onlinePlayers} onOpen={setSelected} />
             </div>
           )}
 
@@ -310,11 +342,7 @@ export function PlayerExplorer({ players, serverStatus, toolbarEnd }: PlayerExpl
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                {offlinePlayers.map((player) => (
-                  <PlayerSlot key={player.username} player={player} onOpen={setSelected} />
-                ))}
-              </div>
+              <PlayerGrid key={`${filter}:${query}`} players={offlinePlayers} onOpen={setSelected} />
             </div>
           )}
 
@@ -355,11 +383,7 @@ export function PlayerExplorer({ players, serverStatus, toolbarEnd }: PlayerExpl
           </div>
 
           {onlinePlayers.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {onlinePlayers.map((player) => (
-                <PlayerSlot key={player.username} player={player} onOpen={setSelected} />
-              ))}
-            </div>
+            <PlayerGrid key={`${filter}:${query}`} players={onlinePlayers} onOpen={setSelected} />
           ) : (
             <div className="rounded-2xl border border-slate-300/90 bg-white/95 p-8 sm:p-10 text-center space-y-4 shadow-md dark:border-line/70 dark:bg-card/85 backdrop-blur-md max-w-xl mx-auto my-6">
               <div
@@ -425,11 +449,7 @@ export function PlayerExplorer({ players, serverStatus, toolbarEnd }: PlayerExpl
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                {memberOnlinePlayers.map((player) => (
-                  <PlayerSlot key={player.username} player={player} onOpen={setSelected} />
-                ))}
-              </div>
+              <PlayerGrid key={`${filter}:${query}`} players={memberOnlinePlayers} onOpen={setSelected} />
             </div>
           )}
 
@@ -446,11 +466,7 @@ export function PlayerExplorer({ players, serverStatus, toolbarEnd }: PlayerExpl
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                {memberOfflinePlayers.map((player) => (
-                  <PlayerSlot key={player.username} player={player} onOpen={setSelected} />
-                ))}
-              </div>
+              <PlayerGrid key={`${filter}:${query}`} players={memberOfflinePlayers} onOpen={setSelected} />
             </div>
           )}
 

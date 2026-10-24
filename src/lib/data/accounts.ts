@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 /** The subset of the GoTrue user record these readers touch. */
 type AuthUserRecord = Awaited<ReturnType<NonNullable<ReturnType<typeof getSupabaseAdmin>>["auth"]["admin"]["listUsers"]>>["data"]["users"][number];
 import { getDb, schema } from "@/lib/db/client";
+import { isUuid } from "@/lib/validation/id";
 import { isMinecraftAvatarUrl, resolveAvatarUrl } from "@/lib/avatar-source";
 import { buildDiscordIdentityMap } from "@/lib/discord-identity-map";
 import { publicUsername, realDisplayName, siteUsername } from "@/lib/auth/placeholder";
@@ -183,8 +184,9 @@ async function minecraftProfiles(): Promise<Map<string, { username: string; skin
   after the cut-off disappeared from the Users board, the public team page and
   the player directory's role lookup.
 
-  Pages until short or empty, with a hard ceiling so a runaway loop can never
-  hang an admin render.
+  Read from the database in one query first (readAuthUsersFromDatabase). Only
+  without it does this page GoTrue: until short or empty, with a hard ceiling
+  so a runaway loop can never hang an admin render.
 
   `truncated` is true when the ceiling was hit with the last page still full,
   so there may be accounts that were never read. Display callers can ignore it;
@@ -196,6 +198,9 @@ const USER_PAGE_LIMIT = 50;
 export async function listAllAuthUsers(
   admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
 ): Promise<{ users: AuthUserRecord[]; error: string | null; truncated: boolean }> {
+  const fromDatabase = await readAuthUsersFromDatabase();
+  if (fromDatabase) return { users: fromDatabase, error: null, truncated: false };
+
   const users: AuthUserRecord[] = [];
   let truncated = false;
   for (let page = 1; page <= USER_PAGE_LIMIT; page += 1) {
@@ -207,6 +212,60 @@ export async function listAllAuthUsers(
     if (page === USER_PAGE_LIMIT) truncated = true;
   }
   return { users, error: null, truncated };
+}
+
+/*
+  The same records in ONE query over auth.users, with no ceiling. Paging GoTrue
+  is a serial HTTP call per 200 accounts (50 of them at 10,000), on every admin
+  board and the nightly cleanup, and stops there.
+
+  Built as JSON so the fields keep GoTrue's names and timestamps arrive as ISO
+  strings, exactly as listUsers returns them. Identities are included, which
+  listUsers leaves null. Null on any failure, so the caller falls back to
+  paging GoTrue rather than acting on a partial list.
+*/
+async function readAuthUsersFromDatabase(): Promise<AuthUserRecord[] | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const result = await db.execute(
+      sql`select json_build_object(
+                'id', u.id,
+                'aud', u.aud,
+                'role', u.role,
+                'email', u.email,
+                'phone', u.phone,
+                'created_at', u.created_at,
+                'updated_at', u.updated_at,
+                'last_sign_in_at', u.last_sign_in_at,
+                'invited_at', u.invited_at,
+                'email_confirmed_at', u.email_confirmed_at,
+                'confirmed_at', u.confirmed_at,
+                'banned_until', u.banned_until,
+                'is_anonymous', u.is_anonymous,
+                'app_metadata', coalesce(u.raw_app_meta_data, '{}'::jsonb),
+                'user_metadata', coalesce(u.raw_user_meta_data, '{}'::jsonb),
+                'identities', coalesce(
+                  (select json_agg(json_build_object(
+                            'id', i.id, 'user_id', i.user_id, 'provider', i.provider,
+                            'identity_data', i.identity_data))
+                     from auth.identities i where i.user_id = u.id),
+                  '[]'::json)
+              ) as record
+         from auth.users u
+        order by u.created_at`,
+    );
+    const rows = (Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? [])) as { record?: unknown }[];
+    return rows.flatMap((row) => {
+      const record = typeof row.record === "string" ? JSON.parse(row.record) : row.record;
+      return record && typeof record === "object" && typeof (record as { id?: unknown }).id === "string"
+        ? [record as AuthUserRecord]
+        : [];
+    });
+  } catch (error) {
+    console.error("Reading accounts from the database failed; paging the auth API instead:", error);
+    return null;
+  }
 }
 
 /** Every account, newest rank-holders included. Returns null when unconfigured. */
@@ -320,6 +379,74 @@ export async function listAccounts(): Promise<AccountSummary[] | null> {
   } catch (error) {
     console.error("Failed to list accounts:", error);
     return null;
+  }
+}
+
+/*
+  Every account's id and rank, read in one query over auth.users.
+
+  For callers that only need to know who holds which role (broadcast
+  delivery): listAccounts pages through GoTrue's admin API 200 accounts at a
+  time and stops at 10,000, so a broadcast to a larger community silently
+  missed everyone past the cut-off. Null when the database is unavailable.
+*/
+export async function listAccountRoles(): Promise<Array<{ userId: string; role: Role }> | null> {
+  const db = getDb();
+  if (!db) return null;
+  // Custom staff roles are matched through the catalogue.
+  await ensureRoleCatalog();
+  try {
+    const result = await db.execute(sql`select id::text as user_id, raw_app_meta_data ->> 'role' as role from auth.users`);
+    const rows = (Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? [])) as {
+      user_id?: unknown;
+      role?: unknown;
+    }[];
+    return rows.flatMap((row) => (typeof row.user_id === "string" ? [{ userId: row.user_id, role: toRole(row.role) }] : []));
+  } catch (error) {
+    console.error("Failed to read account roles:", error);
+    return null;
+  }
+}
+
+/**
+ * One account's id and site username by primary key, for a direct
+ * notification: not the whole directory. Null when there is no such account,
+ * undefined when it could not be read.
+ */
+export async function findAccountName(userId: string): Promise<{ userId: string; username: string } | null | undefined> {
+  const db = getDb();
+  if (!db) return undefined;
+  if (!isUuid(userId)) return null;
+  try {
+    const result = await db.execute(
+      sql`select u.id::text as user_id, u.email, u.raw_user_meta_data ->> 'username' as metadata_username, p.username
+            from auth.users u
+            left join public.profiles p on p.user_id = u.id
+           where u.id = ${userId}::uuid
+           limit 1`,
+    );
+    const rows = (Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? [])) as {
+      user_id?: string;
+      email?: string | null;
+      metadata_username?: string | null;
+      username?: string | null;
+    }[];
+    const [row] = rows;
+    if (!row?.user_id) return null;
+    return {
+      userId: row.user_id,
+      username: String(
+        resolveUsername({
+          profileUsername: row.username,
+          metadataUsername: row.metadata_username,
+          email: row.email,
+          userId: row.user_id,
+        }),
+      ),
+    };
+  } catch (error) {
+    console.error("Account lookup failed:", error);
+    return undefined;
   }
 }
 

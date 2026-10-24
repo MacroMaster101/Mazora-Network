@@ -36,7 +36,7 @@ test("a successful run older than the stale window is late", () => {
 });
 
 test("the stale boundary is inclusive — exactly at the limit is still healthy", () => {
-  // Off-by-one here makes the card cry wolf every single week at the same hour.
+  // Off-by-one here makes the card cry wolf at the same hour after every run.
   const edge = run({ finishedAt: new Date(NOW - BACKUP_STALE_AFTER_MS).toISOString() });
   assert.equal(assessBackup(edge, NOW, true).health, "healthy");
 });
@@ -83,10 +83,10 @@ test("a future timestamp is clamped rather than reported as negative age", () =>
   assert.equal(result.ageMs, 0);
 });
 
-test("the stale window allows one missed weekly run before complaining", () => {
-  // Weekly schedule plus slack: a single delayed run is not an incident.
-  assert.ok(BACKUP_STALE_AFTER_MS > 7 * DAY, "must tolerate the normal weekly gap");
-  assert.ok(BACKUP_STALE_AFTER_MS < 14 * DAY, "must notice two consecutive misses");
+test("the stale window allows one missed daily run before complaining", () => {
+  // Daily schedule plus slack: a single missed or delayed run is not an incident.
+  assert.ok(BACKUP_STALE_AFTER_MS > 2 * DAY, "must tolerate one missed daily run");
+  assert.ok(BACKUP_STALE_AFTER_MS < 3 * DAY, "must notice two consecutive misses");
 });
 
 test("the repository setting accepts what a person is likely to paste", () => {

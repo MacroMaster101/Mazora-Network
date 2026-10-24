@@ -1,3 +1,4 @@
+import "server-only";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { MAX_STORE_FEATURED_SLUGS, MIN_STORE_FEATURED_SLUGS } from "@/lib/types";

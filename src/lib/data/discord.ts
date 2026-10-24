@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { site } from "@/lib/site";
 import { fetchWithDeadline } from "@/lib/data/upstream";
 
@@ -57,12 +58,27 @@ async function fetchDiscordStats(): Promise<DiscordStats> {
   }
 }
 
+/*
+  Shared by every instance through the Next data cache, which serves its last
+  answer while it refreshes, so a new instance does not make a page wait on
+  Discord (see readSharedStatus in ./status). Asked directly outside Next.
+*/
+const readSharedStats = unstable_cache(fetchDiscordStats, ["discord-invite-stats"], { revalidate: 60 });
+
+async function fetchSharedStats(): Promise<DiscordStats> {
+  try {
+    return await readSharedStats();
+  } catch {
+    return fetchDiscordStats();
+  }
+}
+
 export async function getDiscordStats(): Promise<DiscordStats> {
   const now = Date.now();
   if (cachedStats && cachedStats.expiresAt > now) return cachedStats.value;
   if (pendingStats) return pendingStats;
 
-  pendingStats = fetchDiscordStats().then((value) => {
+  pendingStats = fetchSharedStats().then((value) => {
     cachedStats = { value, expiresAt: Date.now() + LIVE_CACHE_MS };
     return value;
   }).finally(() => {

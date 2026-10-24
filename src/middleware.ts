@@ -101,7 +101,14 @@ export async function middleware(request: NextRequest) {
   const config = getSupabaseConfig();
   const hasAuthCookie = request.cookies.getAll().some(({ name }) => name.startsWith("sb-") && name.includes("auth-token"));
 
-  if (!config || !hasAuthCookie || request.nextUrl.pathname.startsWith("/auth/")) {
+  /*
+    No session refresh for API routes: each one authenticates itself and its
+    Supabase client refreshes an expiring token on its own. Refreshing here as
+    well made every heartbeat, roster poll and visitor count of a signed-in
+    member a second Supabase Auth call from the edge, far from the database.
+  */
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
+  if (!config || !hasAuthCookie || isApiRoute || request.nextUrl.pathname.startsWith("/auth/")) {
     return withCsp(request, nonce, csp, isAdminPagePreview).response;
   }
 
@@ -180,6 +187,10 @@ export async function middleware(request: NextRequest) {
   Policy header and without the launch gate above. Nested paths now always run
   through here.
 
+  `api/minecraft/skin/` is skipped too: it serves player avatars, a directory
+  page asks for dozens at once, and an image response has no use for a page's
+  policy or a session refresh (the route sets its own cache headers).
+
   What is still skipped, knowingly: a missing file such as /nothing.png or
   /images/nothing.png. Its not-found page is sent without the policy, because
   the matcher is decided before anything knows whether the file exists.
@@ -189,5 +200,5 @@ export async function middleware(request: NextRequest) {
   test keeps public/ to that layout.
 */
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|images/|[^/]+\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|images/|api/minecraft/skin/|[^/]+\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

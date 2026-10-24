@@ -144,7 +144,7 @@ describe("presence storage", () => {
   });
 
   test("the heartbeat endpoint refuses a caller without a session before touching the database", () => {
-    const guardIndex = route.indexOf("if (!session");
+    const guardIndex = route.indexOf("if (!userId");
     const writeIndex = route.indexOf("recordActivity(userId");
     assert.ok(guardIndex > -1 && writeIndex > guardIndex);
   });
@@ -177,8 +177,8 @@ describe("presence storage", () => {
 
   test("the heartbeat is rate limited by address before the session lookup, then by account", () => {
     const byAddress = route.indexOf('clientKey(request, "presence-beat")');
-    const sessionLookup = route.indexOf("await getSession()");
-    const byAccount = route.indexOf("rateLimitShared(`presence-beat:${userId}`");
+    const sessionLookup = route.indexOf("await getPresenceUserId()");
+    const byAccount = route.indexOf("rateLimit(`presence-beat:${userId}`");
     assert.ok(byAddress > -1 && byAddress < sessionLookup, "address limit runs first");
     assert.ok(byAccount > sessionLookup && byAccount < route.indexOf("recordActivity(userId"), "account limit before any write");
   });
@@ -193,6 +193,27 @@ describe("presence storage", () => {
     assert.ok(sharedMs < debounceMs, "a read started before a change must expire before pages ask because of it");
   });
 
+  test("the roster is cached at the edge only briefly, and pages spread their asks", () => {
+    const roster = readFileSync(new URL("../../app/api/presence/online/route.ts", import.meta.url), "utf8");
+    const panels = readFileSync(new URL("../../components/forums/online-panels.tsx", import.meta.url), "utf8");
+    const edgeSeconds = Number(/const EDGE_CACHE_SECONDS = (\d+);/.exec(roster)?.[1]);
+    assert.ok(edgeSeconds > 0 && edgeSeconds <= 10, "a change shows within seconds");
+    assert.match(roster, /s-maxage=\$\{EDGE_CACHE_SECONDS\}/);
+    assert.match(panels, /PING_DEBOUNCE_MS \+ Math\.random\(\) \* PING_JITTER_MS/);
+  });
+
+  test("the heartbeat skips getSession and the shared limiter, and one tab beats for the browser", () => {
+    const beacon = readFileSync(new URL("../../components/presence/presence-beacon.tsx", import.meta.url), "utf8");
+    assert.doesNotMatch(route, /getSession\(\)|rateLimitShared/);
+    assert.match(route, /getPresenceUserId\(\)/);
+    // The interval runs regularBeat, which defers to a beat another tab just sent
+    // and stops after a long idle; state changes still call beat() directly.
+    assert.match(beacon, /window\.setInterval\(regularBeat, HEARTBEAT_INTERVAL_MS\)/);
+    const regular = beacon.slice(beacon.indexOf("const regularBeat"), beacon.indexOf("const tick"));
+    assert.match(regular, /readShared\(LAST_BEAT_KEY\) < SHARED_BEAT_GAP_MS\) return;/);
+    assert.match(regular, /latestInteraction\(\) >= HEARTBEAT_IDLE_CUTOFF_MS\) return;/);
+  });
+
   test("the live roster endpoint is read-only", () => {
     const roster = readFileSync(new URL("../../app/api/presence/online/route.ts", import.meta.url), "utf8");
     assert.match(roster, /export async function GET\(/);
@@ -201,7 +222,8 @@ describe("presence storage", () => {
 
   test("leaving is rate limited per account and only touches members shown online", () => {
     const leave = route.slice(route.indexOf("body.leaving === true"));
-    assert.ok(leave.indexOf("rateLimitShared(`presence-leave:${userId}`") < leave.indexOf("recordLeaving(userId, receivedAt)"));
+    const limitAt = leave.indexOf("rateLimit(`presence-leave:${userId}`");
+    assert.ok(limitAt > -1 && limitAt < leave.indexOf("recordLeaving(userId, receivedAt)"));
     const body = presence.slice(presence.indexOf("export async function recordLeaving"), presence.indexOf("export async function getPresenceChoice"));
     assert.match(body, /ne\(schema\.profiles\.presenceStatus, "invisible"\)/);
     assert.match(body, /gte\(schema\.profiles\.lastSeenAt/);

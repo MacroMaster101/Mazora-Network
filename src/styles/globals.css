@@ -5352,6 +5352,27 @@ html {
     font-weight: 700;
   }
 
+  .state-error-contact {
+    max-width: 34rem;
+    margin: 0.9rem auto 0;
+    color: rgb(var(--muted));
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+
+  .state-error-contact a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: rgb(var(--accent-bright));
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+
+  .state-error-contact a:hover {
+    color: rgb(var(--ink));
+  }
+
   @media (max-width: 639px) {
     .state-error {
       min-height: 100svh;
@@ -11973,4 +11994,35 @@ body:has(.admin-recovery-overlay) {
 
 [data-theme="dark"] .rank-chip {
   color: var(--rank-fg-dark);
+}
+
+/* Outage notice (components/shared/service-notice.tsx): a slim bar above the
+   page while the database is down. Static, so it never covers the header. */
+.service-notice {
+  position: relative;
+  z-index: 60;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid rgb(var(--warning) / 0.45);
+  background: rgb(var(--card));
+  color: rgb(var(--ink));
+  font-size: 0.875rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.service-notice p {
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.service-notice strong {
+  color: rgb(var(--warning));
+}
+
+.service-notice a {
+  color: rgb(var(--accent-bright));
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
 }

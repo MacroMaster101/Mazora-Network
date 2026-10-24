@@ -1,13 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageModule, FORUMS_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db/client";
 import { recordAudit } from "@/lib/audit-log";
-import { getPostForEdit } from "@/lib/data/forums";
+import { FORUM_BOARD_TAG, getPostForEdit } from "@/lib/data/forums";
 import { attachForumPostImages, removeForumPostImages } from "@/lib/forums/image-store";
 import { dispatchForumReplyNotification } from "@/lib/forums/notify";
 import { accountKey, rateLimitShared } from "@/lib/rate-limit";
@@ -139,6 +139,7 @@ export async function createTopicAction(formData: FormData): Promise<ForumAction
     await attachForumPostImages(postId, me.userId, attachments.files, attachments.urls);
 
     revalidatePath("/forums");
+    revalidateTag(FORUM_BOARD_TAG);
     revalidatePath(`/forums/${forum.slug}`);
     return { ok: true, message: "Topic posted.", topicId };
   } catch (error) {
@@ -262,6 +263,7 @@ export async function createPostAction(formData: FormData): Promise<ForumActionR
 
   revalidatePath(`/forums/topic/${topic.id}`);
   revalidatePath("/forums");
+  revalidateTag(FORUM_BOARD_TAG);
   return { ok: true, message: "Reply posted." };
 }
 
@@ -419,6 +421,7 @@ export async function deletePostAction(postId: string): Promise<ForumActionResul
 
     revalidatePath(`/forums/topic/${target.topicId}`);
     revalidatePath("/forums");
+    revalidateTag(FORUM_BOARD_TAG);
     if (isOpeningPost) revalidatePath(`/forums/${target.forumSlug}`);
     if (removedTopic) {
       return { ok: true, message: "Topic removed.", topicRemoved: true, forumSlug: target.forumSlug };

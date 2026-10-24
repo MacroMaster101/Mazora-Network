@@ -1,3 +1,4 @@
+import "server-only";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { isHttpsUrl } from "@/lib/net/safe-url";

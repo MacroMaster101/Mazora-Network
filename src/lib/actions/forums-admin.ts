@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { FORUM_BOARD_TAG } from "@/lib/data/forums";
 import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageModule, FORUMS_PERMISSION_KEY } from "@/lib/auth/permissions";
@@ -92,6 +93,7 @@ async function nextForumOrder(tx: Tx, categoryId: string): Promise<number> {
 
 function refresh() {
   revalidatePath("/forums");
+  revalidateTag(FORUM_BOARD_TAG);
   revalidatePath("/admin/forums");
 }
 
@@ -225,6 +227,7 @@ export async function updateCategoryAction(formData: FormData): Promise<ForumAdm
     if (!updated.length) return { ok: false, message: "Unknown category." };
     await audit(actor, "forums.category.update", "forum_category", categoryId, { name });
     revalidatePath("/forums");
+    revalidateTag(FORUM_BOARD_TAG);
     revalidatePath("/admin/forums");
     return { ok: true, message: `${name} updated.` };
   } catch {
@@ -252,6 +255,7 @@ export async function updateForumAction(formData: FormData): Promise<ForumAdminR
     if (!updated.length) return { ok: false, message: "Unknown forum." };
     await audit(actor, "forums.forum.update", "forum", forumId, { name });
     revalidatePath("/forums");
+    revalidateTag(FORUM_BOARD_TAG);
     revalidatePath("/admin/forums");
     return { ok: true, message: `${name} updated.` };
   } catch {
@@ -292,6 +296,7 @@ async function swapForumOrder(actor: Actor, forumId: string, direction: "up" | "
 
     await audit(actor, "forums.forum.reorder", "forum", forumId, { direction });
     revalidatePath("/forums");
+    revalidateTag(FORUM_BOARD_TAG);
     revalidatePath("/admin/forums");
     return { ok: true, message: "Order updated." };
   } catch {
@@ -334,6 +339,7 @@ async function swapCategoryOrder(actor: Actor, categoryId: string, direction: "u
 
     await audit(actor, "forums.category.reorder", "forum_category", categoryId, { direction });
     revalidatePath("/forums");
+    revalidateTag(FORUM_BOARD_TAG);
     revalidatePath("/admin/forums");
     return { ok: true, message: "Order updated." };
   } catch {
@@ -373,6 +379,7 @@ export async function setForumLockedAction(forumId: string, locked: boolean): Pr
     if (!updated.length) return { ok: false, message: "Unknown forum." };
     await audit(actor, locked ? "forums.forum.lock" : "forums.forum.unlock", "forum", forumId);
     revalidatePath("/forums");
+    revalidateTag(FORUM_BOARD_TAG);
     revalidatePath("/admin/forums");
     return { ok: true, message: locked ? "Forum locked." : "Forum unlocked." };
   } catch {

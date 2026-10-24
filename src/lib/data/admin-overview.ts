@@ -1,3 +1,4 @@
+import "server-only";
 /**
  * Data for the staff control room at /admin.
  *
@@ -8,7 +9,7 @@
  * because a fake 0 reads like a real, reassuring answer.
  */
 import "server-only";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, ne } from "drizzle-orm";
 import type { Role } from "@/lib/types";
 import { isRoleKey, isStaff, normalizeRoleKey } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db/client";
@@ -221,28 +222,45 @@ export interface AdminGalleryImage {
   createdAt: string;
 }
 
+/** Reviewed (published or rejected) images the admin gallery lists, newest first. */
+export const REVIEWED_GALLERY_LIMIT = 300;
+
+/**
+ * The moderation board: every pending image, however old, plus the newest
+ * REVIEWED_GALLERY_LIMIT already reviewed, so the page does not grow with every
+ * upload ever made.
+ */
 export async function getAdminGallery(): Promise<AdminGalleryImage[] | null> {
   const db = getDb();
   if (!db) return null;
   try {
-    const rows = await db
-      .select({
-        id: schema.galleryImages.id,
-        title: schema.galleryImages.title,
-        description: schema.galleryImages.description,
-        imageUrl: schema.galleryImages.imageUrl,
-        thumbnailUrl: schema.galleryImages.thumbnailUrl,
-        category: schema.galleryImages.category,
-        authorName: schema.galleryImages.authorName,
-        status: schema.galleryImages.status,
-        featured: schema.galleryImages.featured,
-        likesCount: schema.galleryImages.likesCount,
-        createdAt: schema.galleryImages.createdAt,
-        userMinecraft: schema.profiles.username,
-      })
-      .from(schema.galleryImages)
-      .leftJoin(schema.profiles, eq(schema.galleryImages.authorId, schema.profiles.userId))
-      .orderBy(desc(schema.galleryImages.createdAt));
+    const columns = {
+      id: schema.galleryImages.id,
+      title: schema.galleryImages.title,
+      description: schema.galleryImages.description,
+      imageUrl: schema.galleryImages.imageUrl,
+      thumbnailUrl: schema.galleryImages.thumbnailUrl,
+      category: schema.galleryImages.category,
+      authorName: schema.galleryImages.authorName,
+      status: schema.galleryImages.status,
+      featured: schema.galleryImages.featured,
+      likesCount: schema.galleryImages.likesCount,
+      createdAt: schema.galleryImages.createdAt,
+      userMinecraft: schema.profiles.username,
+    };
+    const pending = eq(schema.galleryImages.status, "pending");
+    const read = () =>
+      db
+        .select(columns)
+        .from(schema.galleryImages)
+        .leftJoin(schema.profiles, eq(schema.galleryImages.authorId, schema.profiles.userId));
+    const [waiting, reviewed] = await Promise.all([
+      read().where(pending).orderBy(desc(schema.galleryImages.createdAt)),
+      read().where(ne(schema.galleryImages.status, "pending")).orderBy(desc(schema.galleryImages.createdAt)).limit(REVIEWED_GALLERY_LIMIT),
+    ]);
+    const rows = [...waiting, ...reviewed].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
 
     return rows.map((r) => ({
       id: r.id,

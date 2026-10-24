@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import Link from "@/components/ui/app-link";
-import { Compass, Home, MapPinned, RefreshCw, ShieldAlert } from "lucide-react";
+import { Compass, Home, Mail, MapPinned, RefreshCw, ShieldAlert } from "lucide-react";
+import { supportEmail, supportMailto } from "@/lib/support-contact";
 
 export function ErrorScreen({
   error,
@@ -51,6 +52,15 @@ export function ErrorScreen({
         <h1>{title}</h1>
         <p>{copy}</p>
         {error?.digest && <span className="state-error-digest">Incident {error.digest}</span>}
+        {/* /support may be down with the rest of the site, so an error also
+            offers the inbox. Only the incident code goes in the email. */}
+        {kind === "error" && supportEmail && (
+          <p className="state-error-contact">
+            Still not working? Email{" "}
+            <a href={supportMailto(supportEmail, error?.digest)}><Mail size={14} aria-hidden="true" /> {supportEmail}</a>
+            {error?.digest ? " and include the incident code." : "."}
+          </p>
+        )}
         <div className="state-error-actions">
           {reset && <button type="button" onClick={reset} className="btn btn-primary"><RefreshCw size={16} /> Try again</button>}
           <Link href={returnHref} className="btn btn-ghost"><Home size={16} /> {returnLabel}</Link>

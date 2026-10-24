@@ -24,6 +24,14 @@ export const IDLE_AFTER_MS = 5 * 60 * 1000;
 export const HEARTBEAT_INTERVAL_MS = 2 * 60 * 1000;
 
 /**
+ * Regular heartbeats stop once the member has not touched any tab of the site
+ * for this long, so a tab left open overnight is not a request every couple of
+ * minutes until morning. They show as Idle until then and drop off the online
+ * lists one online window later; the next interaction calls in at once.
+ */
+export const HEARTBEAT_IDLE_CUTOFF_MS = 60 * 60 * 1000;
+
+/**
  * How stale a row must be before a heartbeat writes again. Shorter than the
  * interval, so a regular heartbeat never lands a moment too early and gets
  * dropped; and far shorter than the online window, so a member who keeps a tab

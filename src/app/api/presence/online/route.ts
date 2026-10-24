@@ -39,12 +39,22 @@ function currentRoster(): Promise<Roster> {
  * Rate limited per address. An open page asks about once a minute plus once
  * per status change nearby, so the limit leaves room for a whole household or
  * school behind one address, and a script polling it gets turned away.
+ *
+ * Cached at the edge for a few seconds. The roster is public and the same for
+ * everyone, and a status change otherwise made every open /forums page cost a
+ * function call at once; the pages spread their asks over a few seconds
+ * (PING_JITTER_MS), so most of them are served from the edge copy. A roster
+ * may therefore trail a change by up to EDGE_CACHE_SECONDS.
  */
+const EDGE_CACHE_SECONDS = 5;
+
 export async function GET(request: Request) {
   const limit = await rateLimitShared(clientKey(request, "presence-roster"), { limit: 120, windowMs: 60_000 });
   if (!limit.ok) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: retryAfterHeaders(limit.retryAfter) });
   }
 
-  return NextResponse.json(await currentRoster(), { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json(await currentRoster(), {
+    headers: { "Cache-Control": `public, max-age=0, s-maxage=${EDGE_CACHE_SECONDS}, stale-while-revalidate=${EDGE_CACHE_SECONDS}` },
+  });
 }

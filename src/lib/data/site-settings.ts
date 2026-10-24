@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { site } from "@/lib/site";
@@ -91,16 +92,48 @@ function mergeSettings(value: unknown): SiteGeneralSettings {
   };
 }
 
-export async function getSiteGeneralSettings(): Promise<SiteGeneralSettings> {
+/** Data-cache tag of the general settings row; updateSiteGeneralSettings purges it. */
+export const SITE_SETTINGS_TAG = "site-general-settings";
+const SITE_SETTINGS_TTL_SECONDS = 300;
+
+async function readStoredSettings(): Promise<unknown> {
+  const db = getDb();
+  if (!db) return null;
+  const [row] = await db
+    .select({ value: schema.siteSettings.settingValue })
+    .from(schema.siteSettings)
+    .where(eq(schema.siteSettings.settingKey, SITE_GENERAL_SETTINGS_KEY))
+    .limit(1);
+  return row?.value ?? null;
+}
+
+/*
+  Shared by every request and instance. The layout, header and most pages read
+  these settings, which was three or four queries per page view for a row that
+  changes when an admin saves the form. Saving purges the tag, so a change still
+  shows at once; the TTL only bounds how long a write made outside the form
+  (straight in the database) takes to appear. A failed read throws inside the
+  cached function, so unstable_cache never stores it.
+*/
+const readCachedSettings = unstable_cache(readStoredSettings, [SITE_SETTINGS_TAG], {
+  tags: [SITE_SETTINGS_TAG],
+  revalidate: SITE_SETTINGS_TTL_SECONDS,
+});
+
+/** The general settings, from the shared cache and once per request. */
+export const getSiteGeneralSettings = cache(async (): Promise<SiteGeneralSettings> => {
+  if (!getDb()) return { ...DEFAULT_SITE_SETTINGS };
   try {
-    const db = getDb();
-    if (!db) return { ...DEFAULT_SITE_SETTINGS };
-    const [row] = await db
-      .select({ value: schema.siteSettings.settingValue })
-      .from(schema.siteSettings)
-      .where(eq(schema.siteSettings.settingKey, SITE_GENERAL_SETTINGS_KEY))
-      .limit(1);
-    return mergeSettings(row?.value);
+    return mergeSettings(await readCachedSettings());
+  } catch {
+    return { ...DEFAULT_SITE_SETTINGS };
+  }
+});
+
+/** Straight from the database, for the admin form and the read-modify-write below. */
+export async function getFreshSiteGeneralSettings(): Promise<SiteGeneralSettings> {
+  try {
+    return mergeSettings(await readStoredSettings());
   } catch {
     return { ...DEFAULT_SITE_SETTINGS };
   }
@@ -109,7 +142,9 @@ export async function getSiteGeneralSettings(): Promise<SiteGeneralSettings> {
 export async function updateSiteGeneralSettings(newSettings: Partial<SiteGeneralSettings>): Promise<SiteGeneralSettings> {
   const db = getDb();
   if (!db) throw new Error("The database is not connected.");
-  const current = await getSiteGeneralSettings();
+  // Fresh, never cached: merging into a stale copy would undo a save another
+  // admin made in the last few minutes.
+  const current = await getFreshSiteGeneralSettings();
   const next: SiteGeneralSettings = {
     ...current,
     ...newSettings,
@@ -121,6 +156,7 @@ export async function updateSiteGeneralSettings(newSettings: Partial<SiteGeneral
       target: schema.siteSettings.settingKey,
       set: { settingValue: next, updatedAt: new Date() },
     });
+  revalidateTag(SITE_SETTINGS_TAG);
   return next;
 }
 
@@ -146,7 +182,7 @@ export const getServerAddresses = cache(async (): Promise<ServerAddresses> => {
 });
 
 /** One settings read shared by the per-request helpers above and below. */
-const settingsForRequest = cache(getSiteGeneralSettings);
+const settingsForRequest = getSiteGeneralSettings;
 
 /**
  * Whether the sign-in dialog offers "Sign in with a passkey". The root layout

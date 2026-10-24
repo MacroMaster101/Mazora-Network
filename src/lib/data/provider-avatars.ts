@@ -2,6 +2,7 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { providerAvatar } from "@/lib/avatar-source";
+import { isUuid, uuidArrayLiteral } from "@/lib/validation/id";
 
 /**
  * Sign-in provider photos for accounts that never chose a profile avatar.
@@ -26,22 +27,18 @@ export async function providerAvatarsFor(
   userIds: Array<string | null | undefined>,
 ): Promise<Map<string, string>> {
   const found = new Map<string, string>();
-  const ids = [...new Set(userIds.filter((id): id is string => Boolean(id)))];
+  // Only real UUIDs: the list is cast to uuid[] below.
+  const ids = [...new Set(userIds.filter((id): id is string => isUuid(id)))];
   if (!ids.length) return found;
 
   const db = getDb();
   if (!db) return found;
 
   try {
-    // Drizzle's `sql` template expands a JS array into one parameter PER item,
-    // so `= any(${ids})` compiles to the invalid `any($1, $2)`. Build the list
-    // explicitly instead — still fully parameterised, one placeholder per id.
-    const idList = sql.join(
-      ids.map((id) => sql`${id}`),
-      sql`, `,
-    );
+    // One array parameter, cast; never the column: `id::text in (...)`
+    // cannot use the auth.users primary key and read the whole table.
     const rows = (await db.execute(
-      sql`select id::text as id, raw_user_meta_data as meta from auth.users where id::text in (${idList})`,
+      sql`select id::text as id, raw_user_meta_data as meta from auth.users where id = any(${uuidArrayLiteral(ids)}::uuid[])`,
     )) as unknown as Array<{ id: string; meta: Record<string, unknown> | null }>;
 
     for (const row of rows ?? []) {
