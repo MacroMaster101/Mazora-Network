@@ -86,3 +86,11 @@ backups/
 # `--update` incremental, so they are worth keeping locally but not sharing:
 # they store absolute paths from whichever machine built the graph.
 graphify-out/
+
+# Local-only notes: assistant instructions, design scratch, and the copies of
+# the Supabase auth email templates (the live ones are edited in the Supabase
+# dashboard, which is the source of truth).
+/AGENTS.md
+/CLAUDE.md
+/docs/design/
+/supabase/templates/

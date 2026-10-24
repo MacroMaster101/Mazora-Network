@@ -113,6 +113,14 @@ export function getDb(): Database | null {
     // deliberately uses a smaller pool than serverless transaction pooling.
     max: maxConnections,
     idle_timeout: 20,
+    /*
+      postgres-js reads pg_type on every new connection to learn the array
+      types. Serverless workers open connections constantly, and that one
+      lookup was about a fifth of all database time in Supabase's query
+      report. No column this app reads is a Postgres array (ids go in as text
+      literals cast with ::uuid[]), so there is nothing for it to learn.
+    */
+    fetch_types: false,
     // A healthy pooler completes this in well under a second. Failing after
     // five seconds keeps a temporary Supabase outage from holding every page
     // request open for the 30 seconds seen in local development.
