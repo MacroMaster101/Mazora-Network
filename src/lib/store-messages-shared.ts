@@ -80,7 +80,7 @@ export const REQUIRED_TOKENS = {
 
 const TOKEN = /\{([a-z_]+)\}/g;
 
-export type StoreTokens = Record<string, string | null>;
+type StoreTokens = Record<string, string | null>;
 
 /**
  * Substitute `{token}` placeholders.
@@ -89,7 +89,7 @@ export type StoreTokens = Record<string, string | null>;
  * skipped; an order DM cannot — the buyer is owed a message either way — so an
  * unknown token collapses to nothing and the surrounding prose still sends.
  */
-export function renderStoreText(template: string, tokens: StoreTokens): string {
+function renderStoreText(template: string, tokens: StoreTokens): string {
   return template.replace(TOKEN, (_match, name: string) => tokens[name] ?? "").trim();
 }
 

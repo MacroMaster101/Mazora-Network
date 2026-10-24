@@ -89,7 +89,9 @@ export default async function StaffPage() {
     role,
     members: (members ?? []).filter((member) => member.role === role.key),
   })).filter((group) => group.members.length > 0);
-  const teamCount = members?.length ?? 0;
+  // Counted from the rendered groups: a member whose rank is hidden from the team
+  // page (showOnTeam off) is not on it, so they are not in the count either.
+  const teamCount = groups.reduce((total, group) => total + group.members.length, 0);
   const teamFaqs = [1, 2, 3].map((index) => ({
     question: copy[`faq${index}Question`],
     answer: copy[`faq${index}Answer`],

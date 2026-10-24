@@ -32,6 +32,39 @@ export function isOfficialCategory(category: string): boolean {
   return OFFICIAL_CATEGORIES.has(category);
 }
 
+/** Whether a notification or template reads as Mazora itself. */
+export function isOfficialNotification(notification: { sender?: string | null; category?: string | null }): boolean {
+  return Boolean(
+    (notification.sender && OFFICIAL_SENDERS.has(notification.sender)) ||
+      (notification.category && isOfficialCategory(notification.category)),
+  );
+}
+
+/**
+ * Why this actor may not edit, enable or disable this template, or null when
+ * they may.
+ *
+ * Checked against the STORED template: its text is what the auth flows send
+ * under the Mazora identity (the Session Verification notice fires on every
+ * unrecognised-device login), so below Owner a delegate could otherwise word
+ * it as a phishing lure or switch the security notice off. `next` covers a
+ * change that would make an ordinary template official.
+ */
+export function officialTemplateRefusal(
+  role: Role,
+  stored: { sender?: string | null; category?: string | null },
+  next: { sender?: string | null; category?: string | null } = {},
+): string | null {
+  if (canSendOfficialNotifications(role)) return null;
+  if (isOfficialNotification(stored)) {
+    return "Only owners can change a template sent as the Mazora Team or as a security notice.";
+  }
+  if (isOfficialNotification(next)) {
+    return "Only owners can make a template send as the Mazora Team or as a security notice.";
+  }
+  return null;
+}
+
 /**
  * Why this actor may not send this notification, or null when they may.
  * `href` has already passed isSafeLink (a site path or an https URL).

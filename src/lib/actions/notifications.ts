@@ -7,7 +7,7 @@ import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageModule, NOTIFICATIONS_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { listAccounts } from "@/lib/data/accounts";
 import type { BroadcastPriority } from "@/lib/data/notification-broadcasts";
-import { updateNotificationTemplate } from "@/lib/data/notification-templates";
+import { getNotificationTemplate, updateNotificationTemplate } from "@/lib/data/notification-templates";
 import { getDb, schema } from "@/lib/db/client";
 import { reportDatabaseReadFailure } from "@/lib/db/errors";
 import {
@@ -15,8 +15,13 @@ import {
   type NotificationAudience,
 } from "@/lib/notification-targeting";
 import { isSafeLink } from "@/lib/net/safe-url";
-import { canSendOfficialNotifications, officialNotificationRefusal } from "@/lib/notification-authority";
+import {
+  canSendOfficialNotifications,
+  officialNotificationRefusal,
+  officialTemplateRefusal,
+} from "@/lib/notification-authority";
 import { accountKey, rateLimitShared } from "@/lib/rate-limit";
+import type { Role } from "@/lib/types";
 
 export type NotificationCategory = "welcome" | "system" | "support" | "security" | "announcement" | "event";
 export type NotificationSender = "mazora" | "staff" | "system";
@@ -64,11 +69,26 @@ const broadcastEditSchema = z.object({
   category: z.enum(["welcome", "system", "support", "security", "announcement", "event"]),
 });
 
+const templateIdSchema = z.string().trim().min(1).max(64);
+
 const templateEditSchema = z.object({
-  id: z.string().trim().min(1).max(64),
+  id: templateIdSchema,
   title: z.string().trim().min(1).max(140),
   message: z.string().trim().min(1).max(2000),
 });
+
+const templateToggleSchema = z.object({ id: templateIdSchema, enabled: z.boolean() });
+
+/**
+ * Why this actor may not change the stored template, or null when they may.
+ * Only read below Owner, the same way the broadcast edit reads the stored row.
+ */
+async function storedTemplateRefusal(role: Role, id: string): Promise<string | null> {
+  if (canSendOfficialNotifications(role)) return null;
+  const stored = await getNotificationTemplate(id);
+  if (!stored) return "That template no longer exists.";
+  return officialTemplateRefusal(role, stored);
+}
 
 async function authorizeAdmin() {
   const [session, actorId] = await Promise.all([getSession(), getSessionUserId()]);
@@ -317,6 +337,19 @@ export async function deleteBroadcastNotificationAction(id: string): Promise<Res
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   try {
+    // Withdrawing an owner's official broadcast is as much an act of the
+    // Mazora Team identity as rewriting it, so the edit rule applies here too.
+    if (!canSendOfficialNotifications(auth.session.role)) {
+      const [existing] = await db
+        .select({ sender: schema.notificationBroadcasts.sender, category: schema.notificationBroadcasts.category })
+        .from(schema.notificationBroadcasts)
+        .where(eq(schema.notificationBroadcasts.id, id))
+        .limit(1);
+      if (!existing) return { ok: false, message: "That broadcast no longer exists." };
+      if (officialNotificationRefusal(auth.session.role, existing)) {
+        return { ok: false, message: "Only owners can withdraw a broadcast sent as the Mazora Team or as a security notice." };
+      }
+    }
     const [removed] = await db
       .delete(schema.notificationBroadcasts)
       .where(eq(schema.notificationBroadcasts.id, id))
@@ -352,6 +385,10 @@ export async function updateNotificationTemplateAction(input: {
   const parsed = templateEditSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "Check the template title and message." };
   try {
+    // Only the text is editable here, so a template cannot be turned official
+    // through this action; the stored sender and category are what decide.
+    const refusal = await storedTemplateRefusal(auth.session.role, parsed.data.id);
+    if (refusal) return { ok: false, message: refusal };
     const updated = await updateNotificationTemplate(parsed.data.id, {
       title: parsed.data.title,
       message: parsed.data.message,
@@ -380,19 +417,24 @@ export async function updateNotificationTemplateAction(input: {
 export async function setNotificationTemplateEnabledAction(id: string, enabled: boolean): Promise<Result> {
   const auth = await authorizeAdmin();
   if (!auth) return { ok: false, message: "Not authorized." };
-  if (!z.string().trim().min(1).max(64).safeParse(id).success) return { ok: false, message: "Invalid template." };
+  const parsed = templateToggleSchema.safeParse({ id, enabled });
+  if (!parsed.success) return { ok: false, message: "Invalid template." };
   try {
-    const updated = await updateNotificationTemplate(id, { enabled });
+    // Switching the Session Verification notice off is as consequential as
+    // rewriting it: unrecognised-device logins would stop being reported.
+    const refusal = await storedTemplateRefusal(auth.session.role, parsed.data.id);
+    if (refusal) return { ok: false, message: refusal };
+    const updated = await updateNotificationTemplate(parsed.data.id, { enabled: parsed.data.enabled });
     if (!updated) return { ok: false, message: "That template no longer exists." };
     await getDb()?.insert(schema.auditLogs).values({
       actorId: auth.actorId,
       action: "notifications.template.toggle",
       targetType: "template",
-      targetId: id,
-      metadata: { enabled, by: auth.session.username },
+      targetId: parsed.data.id,
+      metadata: { enabled: parsed.data.enabled, by: auth.session.username },
     });
     refreshNotificationPages();
-    return { ok: true, message: enabled ? "Template enabled." : "Template disabled." };
+    return { ok: true, message: parsed.data.enabled ? "Template enabled." : "Template disabled." };
   } catch (error) {
     console.error("Template toggle failed", error);
     return { ok: false, message: "Update failed. Make sure migration 037 has been applied." };

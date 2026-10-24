@@ -10,8 +10,7 @@ import { InvoiceBuilderDialog } from "@/components/admin/invoice-builder-dialog"
  *
  * Separate from OrdersBrowser because DashHeader is rendered by the page and
  * takes its action as a node — this keeps the builder's open state next to the
- * button that opens it rather than threading it through the order list, which
- * no longer has anything to do with creating invoices.
+ * button that opens it rather than threading it through the order list.
  */
 export function CreateInvoiceButton({ products }: { products: Product[] }) {
   const [open, setOpen] = useState(false);

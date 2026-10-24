@@ -24,7 +24,7 @@ function isYouTubeAvatarUrl(value: string): boolean {
 }
 
 /** Extract the public channel avatar from YouTube's server-rendered metadata. */
-export function youtubeAvatarFromHtml(html: string): string | null {
+function youtubeAvatarFromHtml(html: string): string | null {
   const meta = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i)
     ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
   const jsonAvatar = html.match(/["']avatar["']\s*:\s*\{\s*["']thumbnails["']\s*:\s*\[\s*\{\s*["']url["']\s*:\s*["']([^"']+)/i);

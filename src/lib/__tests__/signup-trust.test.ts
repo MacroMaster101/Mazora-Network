@@ -273,10 +273,10 @@ test("the lookup before a token is spent only speaks for the account that was ve
 });
 
 test("the neutral names are exactly the sign-up trigger's placeholders", () => {
-  const names = neutralProfileNames("ABCDEF01-0000-3000-8000-000000000001");
-  assert.equal(names.username, "player_abcdef01");
+  const names = neutralProfileNames("00000000-0000-3000-8000-0000000000AB");
+  assert.equal(names.username, "player_00000000");
   assert.equal(names.displayName, PLACEHOLDER_DISPLAY_NAME);
-  assert.equal(isPlaceholderUsername(names.username, "abcdef01-0000-3000-8000-000000000001"), true);
+  assert.equal(isPlaceholderUsername(names.username, "00000000-0000-3000-8000-0000000000ab"), true);
   assert.match(read("../../../supabase/migrations/031_derive_oauth_profile_names.sql"), /return 'player_' \|\| substr\(account_id::text, 1, 8\);/);
 });
 
@@ -503,7 +503,7 @@ test("a sign-up verification that did not just confirm the account changes nothi
   const codeBefore = code.indexOf("const before = await findAccountByEmail(parsed.data.email);");
   const codeVerify = code.indexOf("supabase.auth.verifyOtp(");
   assert.ok(codeBefore > 0 && codeBefore < codeVerify);
-  assert.match(code.slice(codeBefore, codeVerify), /if \(before\.status === "found" && emailStanding\(before\.account\) !== "pending"\) \{\s*return \{ ok: false, errors: \{ token: /);
+  assert.match(code.slice(codeBefore, codeVerify), /if \(before\.status === "found" && emailStanding\(before\.account\) !== "pending"\) \{\s*await notSoonerThan\(startedAt, CODE_ANSWER_FLOOR_MS\);\s*return \{ ok: false, errors: \{ token: /);
 
   // "email" stays an accepted type, with the reason it needs this written down.
   const validation = read("../validation/auth.ts");

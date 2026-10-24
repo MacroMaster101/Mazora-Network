@@ -289,6 +289,12 @@ export async function editPostAction(formData: FormData): Promise<ForumActionRes
   );
   if (!allowed) return { ok: false, message: "You cannot edit this post." };
 
+  const limit = await rateLimitShared(accountKey("forum-post-edit", me.userId), {
+    limit: 20,
+    windowMs: 10 * 60_000,
+  });
+  if (!limit.ok) return { ok: false, message: "You're editing too fast. Wait a moment and try again." };
+
   const db = getDb();
   if (!db) return { ok: false, message: "The database is not connected." };
   try {

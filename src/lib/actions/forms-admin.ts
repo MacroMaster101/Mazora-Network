@@ -45,6 +45,10 @@ export async function toggleFormStatusAction(
   if (!formIdSchema.safeParse(formId).success) {
     return { ok: false, message: "Unknown form." };
   }
+  // Written verbatim into the forms config, so a non-boolean must not get there.
+  if (!z.boolean().safeParse(enabled).success) {
+    return { ok: false, message: "Invalid form status." };
+  }
 
   const current = await getFormsConfig();
   const updated: Record<string, FormConfigItem> = {

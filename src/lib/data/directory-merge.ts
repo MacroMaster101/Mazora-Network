@@ -132,6 +132,26 @@ export function rosterDirectoryAccounts(roster: PublicRosterAccount[]): AccountI
   }));
 }
 
+/** One row of the public vote board before it is shown (lib/data/content getTopVoters). */
+export interface VoterNameSource {
+  userId: string;
+  minecraftUsername: string | null;
+  profileUsername: string | null;
+  email: string | null;
+}
+
+/**
+ * The name the vote board shows: the linked Minecraft name, else the site
+ * username by the roster's rule (never the email handle). The email is only
+ * compared against, never returned.
+ */
+export function publicVoterName({ userId, minecraftUsername, profileUsername, email }: VoterNameSource): string {
+  const minecraft = text(minecraftUsername);
+  if (minecraft) return minecraft;
+  const username = siteUsername({ profileUsername: text(profileUsername), email, userId });
+  return publicUsername({ username, email, userId });
+}
+
 export interface BuildDirectoryInput {
   online: OnlinePlayer[];
   players: PlayerRow[];
@@ -220,7 +240,13 @@ export function buildDirectory({ online, players, members, accounts = [] }: Buil
       }),
       // Role from auth's app_metadata (authoritative), falling back to "member" for linked accounts.
       role: account?.role ?? (isMember ? "member" : undefined),
-      siteAvatarUrl: account?.avatarUrl ?? null,
+      /*
+        Only a Minecraft head: it is the one kind the player card draws. A
+        provider photo (Discord, Google) was never shown, yet it went to the
+        browser with the whole directory and in the player-detail API, and a
+        Discord avatar URL carries the member's Discord id.
+      */
+      siteAvatarUrl: isMinecraftAvatarUrl(account?.avatarUrl) ? account?.avatarUrl ?? null : null,
       firstJoined: entry.row?.firstJoined,
       lastSeen: entry.row?.lastSeen,
       stats: entry.row

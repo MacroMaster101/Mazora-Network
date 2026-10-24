@@ -44,6 +44,7 @@ function signInFixture(providerAccepts = true) {
       "@/lib/auth/owner-grant": {},
       "@/lib/auth/owner-confirmation": {},
       "@/lib/auth/passkey-signin-grant": { issuePasskeySignInGrant: async () => { grants++; return true; } },
+      "@/lib/auth/login-lockout": { rememberLoginDevice: async () => {} },
       "@/lib/passkeys/assertion-schema": { passkeyAssertionSchema },
       "@/lib/passkeys/user-verified": { assertionUserVerified: (credential: unknown) => { flagInputs.push(credential); return assertionUserVerified(credential); } },
       "@/lib/supabase/config": { isSupabaseConfigured: () => true },

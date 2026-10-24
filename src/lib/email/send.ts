@@ -15,7 +15,7 @@ import "server-only";
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 /** Sender address. Must be on a domain verified in Resend. */
-export function mailFrom(): string | null {
+function mailFrom(): string | null {
   const configured = process.env.MAIL_FROM?.trim();
   return configured || null;
 }

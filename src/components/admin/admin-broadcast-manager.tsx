@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { cn, relativeTime } from "@/lib/utils";
-import { isOfficialCategory } from "@/lib/notification-authority";
+import { isOfficialCategory, isOfficialNotification } from "@/lib/notification-authority";
 import { MinecraftAvatar } from "@/components/shared";
 import { RankChip } from "@/components/admin/rank-chip";
 import type { Role } from "@/lib/types";
@@ -141,6 +141,8 @@ export interface BroadcastItem {
   priority: "normal" | "important" | "urgent";
   category: "announcement" | "system" | "event" | "security";
   sender: string;
+  /** Sent as the Mazora Team or as a security notice: owners only may edit or withdraw it. */
+  official: boolean;
   delivered: number;
   createdAt: string;
 }
@@ -154,6 +156,8 @@ export interface DefaultTemplate {
   category: "welcome" | "system" | "support" | "security";
   enabled: boolean;
   fixed?: boolean;
+  /** The stored sender; a Mazora or system template is owners-only to change. */
+  sender?: string;
   /** "website_email" earns the Website + Email badge. */
   delivery?: string;
 }
@@ -198,6 +202,7 @@ function toBroadcastItem(record: BroadcastRecord): BroadcastItem {
     priority: record.priority,
     category: record.category as BroadcastItem["category"],
     sender: record.actorName ?? "Mazora Team",
+    official: isOfficialNotification({ sender: record.sender, category: record.category }),
     delivered: record.delivered,
     createdAt: relativeTime(record.createdAt),
   };
@@ -213,6 +218,7 @@ function toTemplate(record: TemplateRecord): DefaultTemplate {
     category: record.category as DefaultTemplate["category"],
     enabled: record.enabled,
     fixed: record.fixed,
+    sender: record.sender,
     delivery: record.delivery,
   };
 }
@@ -787,12 +793,18 @@ export function AdminBroadcastManager({
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted font-medium mr-1">{item.createdAt}</span>
-                          <button type="button" onClick={() => startEditBroadcast(item)} className="px-2.5 py-1.5 rounded-xl border border-line bg-surface hover:bg-surface/80 text-ink text-xs font-bold flex items-center gap-1 transition-all" title="Edit broadcast details">
-                            <Edit3 size={13} /><span>Edit Details</span>
-                          </button>
-                          <button type="button" disabled={sending} onClick={() => void handleDelete(item.id)} title="Withdraw this broadcast from every recipient's feed" className="p-1.5 rounded-xl border border-transparent hover:border-red-500/40 hover:bg-red-500/10 text-muted hover:text-red-400 transition-all disabled:opacity-50">
-                            <Trash2 size={14} />
-                          </button>
+                          {/* An owner's official broadcast is refused below Owner on
+                              both edit and withdraw, so neither control is offered. */}
+                          {(canSendOfficial || !item.official) && (
+                            <>
+                              <button type="button" onClick={() => startEditBroadcast(item)} className="px-2.5 py-1.5 rounded-xl border border-line bg-surface hover:bg-surface/80 text-ink text-xs font-bold flex items-center gap-1 transition-all" title="Edit broadcast details">
+                                <Edit3 size={13} /><span>Edit Details</span>
+                              </button>
+                              <button type="button" disabled={sending} onClick={() => void handleDelete(item.id)} title="Withdraw this broadcast from every recipient's feed" className="p-1.5 rounded-xl border border-transparent hover:border-red-500/40 hover:bg-red-500/10 text-muted hover:text-red-400 transition-all disabled:opacity-50">
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                       <p className="text-sm text-ink/80 dark:text-muted font-medium leading-relaxed">{item.message}</p>
@@ -1145,36 +1157,48 @@ export function AdminBroadcastManager({
                         )}
 
                         {/* Fixed templates can be switched off too — that is what
-                            stops the auto-dispatch from firing on sign-in. */}
-                        <button
-                          type="button"
-                          disabled={sending}
-                          onClick={() => void toggleTemplateEnabled(tpl)}
-                          title={
-                            tpl.fixed
-                              ? tpl.enabled
-                                ? "Stop this default firing automatically on sign-in"
-                                : "Resume automatic delivery on sign-in"
-                              : undefined
-                          }
-                          className={cn(
-                            "px-3 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-50",
-                            tpl.enabled
-                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
-                              : "border-line bg-surface text-muted hover:text-ink"
-                          )}
-                        >
-                          {tpl.enabled ? "Disable" : "Enable"}
-                        </button>
+                            stops the auto-dispatch from firing on sign-in. A Mazora
+                            or security template is owners-only to toggle or edit. */}
+                        {canSendOfficial || !isOfficialNotification(tpl) ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={sending}
+                              onClick={() => void toggleTemplateEnabled(tpl)}
+                              title={
+                                tpl.fixed
+                                  ? tpl.enabled
+                                    ? "Stop this default firing automatically on sign-in"
+                                    : "Resume automatic delivery on sign-in"
+                                  : undefined
+                              }
+                              className={cn(
+                                "px-3 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-50",
+                                tpl.enabled
+                                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
+                                  : "border-line bg-surface text-muted hover:text-ink"
+                              )}
+                            >
+                              {tpl.enabled ? "Disable" : "Enable"}
+                            </button>
 
-                        <button
-                          type="button"
-                          onClick={() => startEditTemplate(tpl)}
-                          className="px-3 py-1.5 rounded-xl border border-line bg-surface hover:bg-surface/80 text-ink text-xs font-bold flex items-center gap-1 transition-all"
-                        >
-                          <Pencil size={13} />
-                          <span>Edit</span>
-                        </button>
+                            <button
+                              type="button"
+                              onClick={() => startEditTemplate(tpl)}
+                              className="px-3 py-1.5 rounded-xl border border-line bg-surface hover:bg-surface/80 text-ink text-xs font-bold flex items-center gap-1 transition-all"
+                            >
+                              <Pencil size={13} />
+                              <span>Edit</span>
+                            </button>
+                          </>
+                        ) : (
+                          <span
+                            title="Only owners can change a template sent as the Mazora Team or as a security notice."
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-line bg-surface text-muted text-xs font-bold"
+                          >
+                            <Lock size={12} /> Owners only
+                          </span>
+                        )}
                       </div>
                     </div>
 

@@ -4,7 +4,8 @@ import {
   incrementNewsArticleReadCount,
 } from "@/lib/data/news-visitors";
 import { getArticle } from "@/lib/data/content";
-import { claimOnce, clientKey, rateLimitShared, retryAfterHeaders } from "@/lib/rate-limit";
+import { claimOnce, rateLimitShared, retryAfterHeaders } from "@/lib/rate-limit";
+import { newsClientKey } from "../../_client-key";
 import {
   LEGACY_READ_COOKIE_PREFIX,
   NEWS_COOKIE_PATH,
@@ -29,7 +30,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  const limit = await rateLimitShared(clientKey(request, "news-read"), { limit: 30, windowMs: 60_000 });
+  const limit = await rateLimitShared(newsClientKey(request, "news-read"), { limit: 30, windowMs: 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many requests" },
@@ -73,7 +74,7 @@ export async function POST(
   // article is claimed in the shared store (never a raw IP); when the store
   // cannot answer, the cookie alone decides, as before.
   if (!alreadyCounted) {
-    const claim = await claimOnce(clientKey(request, `news-read-seen:${slug}`), READ_DEDUPE_TTL_MS);
+    const claim = await claimOnce(newsClientKey(request, `news-read-seen:${slug}`), READ_DEDUPE_TTL_MS);
     alreadyCounted = claim === "duplicate";
   }
 

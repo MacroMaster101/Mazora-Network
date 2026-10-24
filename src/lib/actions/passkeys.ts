@@ -7,6 +7,7 @@ import { getSession, getSessionUserId, isTwoFactorPending, landingPathFor, twoFa
 import { hasOwnerGrant } from "@/lib/auth/owner-grant";
 import { ownerGrantSubject } from "@/lib/auth/owner-confirmation";
 import { issuePasskeySignInGrant } from "@/lib/auth/passkey-signin-grant";
+import { rememberLoginDevice } from "@/lib/auth/login-lockout";
 import { assertionUserVerified } from "@/lib/passkeys/user-verified";
 import { passkeyAssertionSchema } from "@/lib/passkeys/assertion-schema";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -139,6 +140,8 @@ export async function finishPasskeySignInAction(input: {
   if (error || !signedIn?.user) {
     return { ok: false, message: errorCode(error) === "webauthn_challenge_expired" ? EXPIRED : SIGN_IN_FAILED };
   }
+  // A known device for this account from now on (lib/auth/login-lockout).
+  await rememberLoginDevice(signedIn.user.email);
 
   // Read once: both checks below must be about the same answer.
   const status = await accountStatusFor(signedIn.user.id);

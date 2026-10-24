@@ -106,6 +106,7 @@ export async function toggleVoteSiteAction(id: string, enabled: boolean): Promis
     return { ok: false, message: "Unauthorized staff action." };
   }
   if (!z.string().uuid().safeParse(id).success) return { ok: false, message: "Invalid vote site." };
+  if (typeof enabled !== "boolean") return { ok: false, message: "Invalid vote site status." };
 
   const db = getDb();
   if (!db) return { ok: false, message: "Database connection unavailable." };

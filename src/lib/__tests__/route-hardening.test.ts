@@ -28,7 +28,7 @@ test("news counters dedupe server-side by hashed address and use the shared limi
   for (const rel of ["../../app/api/news/visitors/route.ts", "../../app/api/news/[slug]/reads/route.ts"]) {
     const route = read(rel);
     assert.match(route, /await rateLimitShared\(/);
-    assert.match(route, /await claimOnce\(clientKey\(/);
+    assert.match(route, /await claimOnce\(newsClientKey\(/);
     assert.doesNotMatch(route, /x-forwarded-for/i);
   }
 });
@@ -52,7 +52,7 @@ test("logout rejects a foreign Origin", () => {
 
 test("next.config restricts remote image paths and adds isolation headers", () => {
   const config = read("../../../next.config.ts");
-  for (const host of ["api.dicebear.com", "cdn.discordapp.com", "media.discordapp.net", "lh3.googleusercontent.com"]) {
+  for (const host of ["api.dicebear.com", "cdn.discordapp.com", "lh3.googleusercontent.com"]) {
     const lines = config.split("\n").filter((line) => line.includes(`hostname: "${host}"`));
     assert.ok(lines.length > 0, host);
     for (const line of lines) assert.match(line, /pathname: "/, `${host} needs a pathname`);

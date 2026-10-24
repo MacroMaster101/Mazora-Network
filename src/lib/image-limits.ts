@@ -18,11 +18,12 @@ export const SHARP_INPUT = { limitInputPixels: MAX_IMAGE_PIXELS } as const;
 /**
  * With `animated: true` sharp counts limitInputPixels across ALL frames, not
  * per frame, so the still-image cap would refuse an ordinary animated banner
- * (800x450 at 150 frames is 54 megapixels). The animated limit is therefore the
- * sum over frames and set higher; it still stops a bomb, which needs orders of
- * magnitude more than this.
+ * (800x450 at 100 frames is 36 megapixels). The animated limit is therefore the
+ * sum over frames and set a little higher. It is kept low because every frame is
+ * held decoded: an 8 MB animated file at the old 120 MP ceiling could expand to
+ * roughly 480 MB of RGBA.
  */
-export const MAX_ANIMATED_IMAGE_PIXELS = 120_000_000;
+export const MAX_ANIMATED_IMAGE_PIXELS = 48_000_000;
 
 export const SHARP_ANIMATED_INPUT = {
   limitInputPixels: MAX_ANIMATED_IMAGE_PIXELS,

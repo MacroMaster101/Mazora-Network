@@ -126,14 +126,16 @@ const nextConfig: NextConfig = {
     */
     minimumCacheTTL: 2592000,
     remotePatterns: [
-      { protocol: "https", hostname: "mc-heads.net" },
+      // Only the default-skin placeholders; every other mc-heads image on the
+      // site renders `unoptimized`, so the optimiser is not an open proxy.
+      { protocol: "https", hostname: "mc-heads.net", pathname: "/avatar/MHF_Steve/*" },
+      { protocol: "https", hostname: "mc-heads.net", pathname: "/body/MHF_Steve/*" },
       // Paths are limited to what the app renders: avatars, not arbitrary files.
+      // News art is re-hosted into Supabase storage, so Discord attachments are not listed.
       { protocol: "https", hostname: "api.dicebear.com", pathname: "/*.x/**" },
       { protocol: "https", hostname: "cdn.discordapp.com", pathname: "/avatars/**" },
       { protocol: "https", hostname: "cdn.discordapp.com", pathname: "/embed/avatars/**" },
       { protocol: "https", hostname: "cdn.discordapp.com", pathname: "/guilds/*/users/*/avatars/**" },
-      { protocol: "https", hostname: "cdn.discordapp.com", pathname: "/attachments/**" },
-      { protocol: "https", hostname: "media.discordapp.net", pathname: "/attachments/**" },
       { protocol: "https", hostname: "lh3.googleusercontent.com", pathname: "/a/**" },
       { protocol: "https", hostname: "lh3.googleusercontent.com", pathname: "/a-/**" },
       ...(supabaseImagePattern ? [supabaseImagePattern] : []),

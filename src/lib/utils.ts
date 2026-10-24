@@ -3,11 +3,6 @@ export function cn(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
 }
 
-/** Compact number, e.g. 18432 -> "18.4K", 2400000 -> "2.4M". */
-export function compact(n: number): string {
-  return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n);
-}
-
 /** Full number with thousands separators. */
 export function withCommas(n: number): string {
   return new Intl.NumberFormat("en").format(n);

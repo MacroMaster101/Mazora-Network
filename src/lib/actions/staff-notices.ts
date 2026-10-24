@@ -23,6 +23,7 @@ import {
   MAX_OPENING_LENGTH,
   MAX_TITLE_LENGTH,
   renderStaffNotice,
+  staffNoticeAuthorityRefusal,
   staffNoticeText,
   validateStaffNotice,
   type StaffNoticeTemplate,
@@ -129,10 +130,10 @@ export async function sendStaffNotice(input: {
    */
   newRole?: Role;
   /**
-   * Per-send wording edits made in the composer's preview. Plain text with no
-   * authority attached — anyone who may send a notice may already write
-   * arbitrary text in the reason — so these are length-capped and trimmed, not
-   * permission-checked. The reply footer is not overridable.
+   * Per-send wording edits made in the composer's preview. Length-capped and
+   * trimmed; below Owner they may not carry a link or announce a termination,
+   * demotion or ban (staffNoticeAuthorityRefusal). The reply footer is not
+   * overridable.
    */
   titleOverride?: string;
   openingOverride?: string;
@@ -147,6 +148,12 @@ export async function sendStaffNotice(input: {
   if (input.template === "terminated" && !hasAtLeast(session.role, "owner")) {
     return { ok: false, message: "Only an owner can send a termination notice." };
   }
+  // Below Owner: no typed links, and no custom or edited wording that announces
+  // a termination, demotion or ban (lib/staff-notices). Refused before the rate
+  // limit and the Discord lookups, so a refused notice costs nothing.
+  const official = canSendOfficialNotifications(session.role);
+  const authorityRefusal = staffNoticeAuthorityRefusal(input, official);
+  if (authorityRefusal) return { ok: false, message: authorityRefusal };
 
   // A stuck button must not be able to spam someone's DMs.
   const limit = await rateLimitShared(accountKey("staff-notice", actorId), {
@@ -196,7 +203,7 @@ export async function sendStaffNotice(input: {
     titleOverride,
     openingOverride,
   };
-  const valid = validateStaffNotice(notice);
+  const valid = validateStaffNotice(notice, { official });
   if (!valid.ok) return { ok: false, message: valid.message };
 
   // botRequest (src/lib/discord.ts) is a raw fetch with AbortSignal.timeout and

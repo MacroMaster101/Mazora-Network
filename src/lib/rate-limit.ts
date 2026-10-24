@@ -163,6 +163,60 @@ export async function rateLimitShared(
   }
 }
 
+/** The in-process window for `key`, read without counting anything. */
+function peekLocal(key: string, limit: number): RateLimitVerdict {
+  const now = Date.now();
+  const existing = windows.get(key);
+  if (!existing || existing.resetAt <= now) return { ok: true, remaining: limit, retryAfter: 0 };
+  const ok = existing.count < limit;
+  return {
+    ok,
+    remaining: Math.max(0, limit - existing.count),
+    retryAfter: ok ? 0 : Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
+  };
+}
+
+/**
+ * Whether one more event fits in `key`'s current window, WITHOUT counting it.
+ * Same key layout and tiers as rateLimitShared, so a bucket that is only
+ * incremented on failure (rateLimitShared) can be checked before each attempt
+ * (this). `ok` is false once `limit` events have been counted.
+ */
+export async function peekRateLimitShared(
+  key: string,
+  {
+    limit,
+    windowMs,
+    failureMode = "local",
+  }: { limit: number; windowMs: number; failureMode?: "local" | "closed" },
+): Promise<RateLimitVerdict> {
+  if (!sharedStoreConfig()) {
+    warnSharedStoreMissing();
+    if (failureMode === "closed" && process.env.NODE_ENV === "production") return unavailableVerdict(windowMs);
+    return peekLocal(key, limit);
+  }
+
+  const now = Date.now();
+  try {
+    const raw = await redisCommand(["GET", `rl:${key}:${Math.floor(now / windowMs)}`]);
+    const count = raw === null ? 0 : Number(raw);
+    if (!Number.isFinite(count) || count < 0) throw new Error("rate-limit store returned no count");
+    const ok = count < limit;
+    return {
+      ok,
+      remaining: Math.max(0, limit - count),
+      retryAfter: ok ? 0 : Math.max(1, Math.ceil((windowMs - (now % windowMs)) / 1000)),
+    };
+  } catch (error) {
+    if (failureMode === "closed") {
+      console.error("Shared rate limit unavailable; refusing a security-sensitive request:", error);
+      return unavailableVerdict(windowMs);
+    }
+    console.error("Shared rate limit unavailable; using per-instance window:", error);
+    return peekLocal(key, limit);
+  }
+}
+
 /**
  * How many proxy hops in front of the app are trusted. `x-forwarded-for` is a
  * chain each proxy APPENDS to, so only the entries our own infrastructure added
@@ -278,9 +332,28 @@ export async function throttleAuthAction(
   const verdicts = await Promise.all(checks);
   const blocked = verdicts.filter((verdict) => !verdict.ok);
   if (blocked.length === 0) return null;
-  const retryAfter = Math.max(...blocked.map((verdict) => verdict.retryAfter));
+  return tooManyAttemptsMessage(Math.max(...blocked.map((verdict) => verdict.retryAfter)));
+}
+
+/** The one throttled answer, for any account or none. */
+export function tooManyAttemptsMessage(retryAfter: number): string {
   const minutes = Math.ceil(retryAfter / 60);
   return minutes > 1
     ? `Too many attempts. Try again in about ${minutes} minutes.`
     : "Too many attempts. Try again in about a minute.";
+}
+
+/**
+ * One allowance for every check of an account's current password: changing
+ * the password, "Confirm it's you" and deleting the account each keep their
+ * own bucket, but each is a way to test a guess, so together they could add up
+ * to three times the guesses. Every one of them also passes this.
+ */
+export async function throttleCurrentPasswordCheck(accountId: string): Promise<string | null> {
+  const verdict = await rateLimitShared(accountKey("current-password", accountId), {
+    limit: 10,
+    windowMs: 15 * 60_000,
+    failureMode: "closed",
+  });
+  return verdict.ok ? null : tooManyAttemptsMessage(verdict.retryAfter);
 }

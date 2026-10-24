@@ -11,6 +11,7 @@ import { safeNext } from "@/lib/safe-redirect";
 import { SUSPENDED_PATH } from "@/lib/auth/login-identifier";
 import { resolvePublicOrigin } from "@/lib/site";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
+import { rememberLoginDevice } from "@/lib/auth/login-lockout";
 
 /**
  * The origin used to build post-login redirects. In production this is the
@@ -51,6 +52,8 @@ export async function GET(request: NextRequest) {
     if (!error) {
       const { data } = await supabase.auth.getUser();
       if (data.user) {
+        // A known device for this account from now on (lib/auth/login-lockout).
+        await rememberLoginDevice(data.user.email);
         const profile = await ensureUserProfile(data.user);
         // The status could not be read at all, so nothing says this account is
         // not suspended (a failed profile read above is null too, which the

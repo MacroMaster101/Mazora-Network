@@ -41,7 +41,7 @@ function ownerCheck(account: { totp: number; hasPassword: boolean; passwordOk?: 
     mocks: {
       "@/lib/auth": { getSignInSessionId: async () => sessionId },
       "@/lib/auth/owner-proof-kind": ownerProofKindModule,
-      "@/lib/rate-limit": { throttleAuthAction: async () => null },
+      "@/lib/rate-limit": { throttleAuthAction: async () => null, throttleCurrentPasswordCheck: async () => null },
       "@/lib/auth/account-deletion-proof": {
         consumeEmailProofCode: async (...args: unknown[]) => {
           emailCodes.push(args);

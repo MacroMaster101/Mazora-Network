@@ -24,14 +24,10 @@ export function Providers({
 }) {
   return (
     /*
-      This used to be wrapped in <MotionConfig reducedMotion="user">, which was
-      the only thing making framer-motion honour prefers-reduced-motion. Both
-      animations it governed — Reveal and the cart drawer — are now plain CSS
-      transitions, so the media query applies to them directly and the runtime
-      (40 KB gzipped on every route) is gone. The reduced-motion behaviour is
-      unchanged and now lives beside each transition: see [data-reveal] and
-      .cart-drawer-layer in globals.css. Both still drop the transform and keep
-      the cross-fade, because motion is the accessibility problem and a fade is
+      Reveal and the cart drawer are plain CSS transitions, so
+      prefers-reduced-motion applies to them directly: see [data-reveal] and
+      .cart-drawer-layer in globals.css. Both drop the transform and keep the
+      cross-fade, because motion is the accessibility problem and a fade is
       not.
     */
     <ThemeProvider>

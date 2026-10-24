@@ -87,9 +87,9 @@ export function slugify(value: string): string {
   return baseSlugify(value).slice(0, 60).replace(/-+$/g, "");
 }
 
-export const TITLE_MIN = 3;
+const TITLE_MIN = 3;
 export const TITLE_MAX = 140;
-export const BODY_MIN = 1;
+const BODY_MIN = 1;
 export const BODY_MAX = 8000;
 
 /** Bounds are checked on the trimmed value — whitespace is not content. */

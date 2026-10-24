@@ -1,6 +1,6 @@
 import { getDb, schema } from "@/lib/db/client";
 import type { PatchUpdate } from "@/lib/types";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import {
   fetchChannelMessages,
   fetchGuildRoles,
@@ -9,7 +9,7 @@ import {
   type DiscordMessage,
   type DiscordRole,
 } from "@/lib/discord";
-import { profilesByBylineName } from "@/lib/data/content";
+import { profilesByBylineName, publicRoleLabel } from "@/lib/data/content";
 import { INTERNAL_ROLE } from "@/lib/auth/roles";
 
 function discordAvatarUrl(message: DiscordMessage, guildId?: string | null): string | undefined {
@@ -194,6 +194,9 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
         Postgres sorts NULLs first in DESC, so rows with no published_at
         outranked every dated one. coalesce matches how loadNews orders, and the
         limit keeps a growing archive from being read in full on every render.
+
+        A scheduled note stays hidden until its time, as in loadNews, and a
+        stored byline snapshot naming the internal rank is dropped like there.
       */
       const rows = await db
         .select()
@@ -201,6 +204,7 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
         .where(and(
           eq(schema.newsArticles.category, "Patch Notes"),
           eq(schema.newsArticles.status, "published"),
+          or(isNull(schema.newsArticles.publishedAt), lte(schema.newsArticles.publishedAt, new Date())),
         ))
         .orderBy(sql`coalesce(${schema.newsArticles.publishedAt}, ${schema.newsArticles.createdAt}) desc`)
         .limit(20);
@@ -220,7 +224,7 @@ export async function getPatchUpdates(customChannelId?: string): Promise<PatchUp
             targetMode,
             date: (r.publishedAt ?? r.createdAt).toISOString(),
             author: r.authorName || r.discordAuthor || "Mazora Team",
-            authorRole: r.authorRole || r.discordAuthorRole || "Owner",
+            authorRole: publicRoleLabel(r.authorRole) ?? publicRoleLabel(r.discordAuthorRole) ?? "Owner",
             authorAvatar: r.authorAvatarUrl || r.discordAuthorAvatarUrl || undefined,
             changes: changes.length > 0 ? changes : [r.excerpt || r.title],
             discordChannel: "#PATCH-UPDATE",

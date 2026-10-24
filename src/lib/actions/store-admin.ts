@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageStore } from "@/lib/auth/permissions";
+import { recordAudit } from "@/lib/audit-log";
 import { getDb, schema } from "@/lib/db/client";
 import { rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
@@ -514,6 +515,14 @@ export async function reorderStoreProductAction(formData: FormData): Promise<Sto
         await tx.update(schema.products).set({ sortOrder: newOrder, updatedAt: new Date() }).where(eq(schema.products.id, item.id));
       }
     }
+  });
+  await recordAudit({
+    action: "store.product.reorder",
+    actorId: await getSessionUserId(),
+    by: session.username,
+    targetType: "product",
+    targetId: product.id,
+    metadata: { gameModeSlug: product.gameModeSlug, category: product.category, from: index, to: targetIndex },
   });
 
   refreshStore(product.slug);

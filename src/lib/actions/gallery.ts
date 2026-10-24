@@ -142,16 +142,19 @@ export async function submitGalleryAction(formData: FormData): Promise<GalleryAc
     return { ok: false, message: "You must be logged in to submit an artwork." };
   }
 
+  const userId = await getSessionUserId();
+  if (!userId) return { ok: false, message: "You must be logged in to submit an artwork." };
+
   // Each submission resolves (and may re-host) an image, so an unthrottled
   // loop here is both a moderation-queue flood and outbound fetch amplification.
+  // Keyed on the account id: the username changes when the IGN is relinked.
   const throttled = await throttleAuthAction("gallery-submit", {
     limit: 5,
     windowMs: 10 * 60_000,
-    identity: session.username,
+    identity: userId,
   });
   if (throttled) return { ok: false, message: throttled };
 
-  const userId = await getSessionUserId();
   const db = getDb();
   if (!db) return NO_DB;
 
