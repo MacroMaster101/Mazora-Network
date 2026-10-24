@@ -87,7 +87,7 @@ export default async function StatusPage() {
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Reveal className="panel p-6">
             <h3 className="font-display font-bold" data-page-field="javaTitle">{copy.javaTitle}</h3>
-            <div className="mt-3 flex items-center justify-between">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <CopyIpButton ip={activeJavaIp} variant="inline" />
               <span className={`inline-flex items-center gap-2 text-sm ${status.java.online ? "text-success" : "text-muted"}`}>
                 <span className={status.java.online ? "dot" : "dot dot-off"} /> <span data-page-field={status.java.online ? "reachableLabel" : status.live ? "offlineLabel" : "unknownLabel"}>{status.java.online ? copy.reachableLabel : status.live ? copy.offlineLabel : copy.unknownLabel}</span>
@@ -96,7 +96,7 @@ export default async function StatusPage() {
           </Reveal>
           <Reveal delay={0.05} className="panel p-6">
             <h3 className="font-display font-bold" data-page-field="bedrockTitle">{copy.bedrockTitle}</h3>
-            <div className="mt-3 flex items-center justify-between">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <CopyIpButton ip={`${activeBedrockIp}:${activeBedrockPort}`} variant="inline" />
               <span className={`inline-flex items-center gap-2 text-sm ${status.bedrock.online ? "text-success" : "text-muted"}`}>
                 <span className={status.bedrock.online ? "dot" : "dot dot-off"} /> <span data-page-field={status.bedrock.online ? "reachableLabel" : status.live ? "offlineLabel" : "unknownLabel"}>{status.bedrock.online ? copy.reachableLabel : status.live ? copy.offlineLabel : copy.unknownLabel}</span>
