@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildWelcomeEmail, greetingFor } from "../email/welcome-email.js";
+import { greetingFor } from "../email/layout.js";
+import { buildWelcomeEmail } from "../email/welcome-email.js";
 
 test("greets by name when there is one, and still reads properly when there is not", () => {
   // Most members arrive through Google or Discord, where a display name is
@@ -21,8 +22,9 @@ test("a name from an OAuth profile cannot break the markup", () => {
     origin: "https://mazora.us",
   });
 
-  assert.ok(!mail.html.includes("<img"));
-  assert.ok(mail.html.includes("&lt;img"));
+  // The logo is a real <img>; the name's must not be.
+  assert.ok(!mail.html.includes("<img src=x"));
+  assert.ok(mail.html.includes("&lt;img src=x"));
   assert.ok(!mail.html.includes("onerror=\""));
 });
 

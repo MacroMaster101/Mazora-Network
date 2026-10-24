@@ -7,7 +7,8 @@
  * which can be typed by whoever added it, so it is escaped and shortened.
  */
 
-import { C, escapeHtml, greetingFor } from "./welcome-email";
+import { supportEmail } from "@/lib/support-contact";
+import { button, cleanOrigin, detailBox, detailRow, emailShell, escapeHtml, greetingFor, heading, paragraph, strong } from "./layout";
 
 export type SecurityAlertKind = "passkey" | "totp" | "webauthn" | "phone";
 
@@ -60,13 +61,19 @@ function itemLine(item: SecurityAlertItem): string {
   return `${ALERT_COPY[item.kind].noun}${label ? ` ("${label}")` : ""}, ${alertTime(item.at)}`;
 }
 
+const REASON =
+  "You are receiving this because it is about the security of your account. It is sent for every new sign-in method.";
+
 export function buildSecurityAlertEmail(input: {
   name: string | null;
   origin: string;
   items: SecurityAlertItem[];
+  /** Defaults to the configured public support address. */
+  support?: string | null;
 }): SecurityAlertEmail {
   const greeting = greetingFor(input.name);
-  const origin = input.origin.replace(/\/+$/, "");
+  const origin = cleanOrigin(input.origin);
+  const support = input.support === undefined ? supportEmail : input.support;
   const settingsUrl = `${origin}/dashboard/settings`;
   const items = input.items;
   const single = items.length === 1;
@@ -77,8 +84,9 @@ export function buildSecurityAlertEmail(input: {
   const lead = single
     ? "This was just added to your Mazora Network account:"
     : "These were just added to your Mazora Network account:";
-  const ifNotYou =
-    "If it wasn't you, open your security settings, remove it, then change your password; changing it signs every other device out. If you sign in without a password, contact staff through Discord support.";
+  const whatToDo =
+    "Open your security settings, remove it, then change your password; changing it signs every other device out. If you sign in without a password, contact staff through Discord support.";
+  const ifNotYou = `If it wasn't you, ${whatToDo.charAt(0).toLowerCase()}${whatToDo.slice(1)}`;
 
   const text = [
     greeting,
@@ -95,52 +103,37 @@ export function buildSecurityAlertEmail(input: {
     "",
     "— The Mazora Network team",
     "",
-    "You are receiving this because it is about the security of your account. It is sent for every new sign-in method.",
+    REASON,
+    ...(support ? [`Questions? ${support}`] : []),
   ].join("\n");
 
   const rows = items
-    .map(
-      (item, index) =>
-        `<tr><td style="padding:0 0 ${index === items.length - 1 ? "0" : "12px"};font-size:13px;color:${C.ink};"><strong>${escapeHtml(ALERT_COPY[item.kind].title)}</strong>${
-          alertLabel(item.label) ? ` &middot; &ldquo;${escapeHtml(alertLabel(item.label)!)}&rdquo;` : ""
-        }<br/><span style="color:${C.dim};font-size:12px;">${escapeHtml(alertTime(item.at))}</span></td></tr>`,
-    )
+    .map((item, index) => {
+      const label = alertLabel(item.label);
+      const value = `${escapeHtml(alertTime(item.at))}${label ? ` &middot; &ldquo;${escapeHtml(label)}&rdquo;` : ""}`;
+      return detailRow(escapeHtml(ALERT_COPY[item.kind].title), value, index === 0);
+    })
     .join("");
 
-  const html = `<div style="background:${C.page};padding:32px 12px;font-family:Segoe UI,Helvetica,Arial,sans-serif;">
-<!--[if mso]>
-<table role="presentation" width="560" align="center" cellpadding="0" cellspacing="0"><tr><td>
-<![endif]-->
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:${C.card};border:1px solid ${C.line};border-radius:18px;overflow:hidden;">
-    <tr>
-      <td style="padding:32px 30px;">
-        <div style="font-size:15px;font-weight:800;letter-spacing:1px;color:${C.ink};margin-bottom:22px;">MAZORA<span style="color:${C.purple};">NETWORK</span></div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:${C.accent};text-transform:uppercase;margin-bottom:10px;">&mdash; Account security</div>
-        <h1 style="margin:0 0 12px;font-size:22px;line-height:1.25;color:${C.ink};">${escapeHtml(single ? ALERT_COPY[items[0]!.kind].title : "New sign-in methods added")}</h1>
-        <p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:${C.muted};">${escapeHtml(greeting)} ${escapeHtml(lead.charAt(0).toLowerCase() + lead.slice(1))}</p>
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 20px;padding:18px 20px;background:${C.panel};border:1px solid ${C.line};border-radius:12px;">${rows}</table>
-        <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:${C.muted};">If this was you, there is nothing to do.</p>
-        <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:${C.ink};"><strong>${escapeHtml(ifNotYou)}</strong></p>
-        <table role="presentation" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="border-radius:10px;background:linear-gradient(115deg,${C.accent},${C.purple} 58%,#6F37E6);background-color:${C.purple};">
-              <a href="${settingsUrl}" style="display:inline-block;padding:14px 30px;font-size:14px;font-weight:700;color:${C.panel};text-decoration:none;">
-                Review security settings
-              </a>
-            </td>
-          </tr>
-        </table>
-        <p style="margin:28px 0 0;font-size:12px;line-height:1.6;color:${C.dim};">
-          You are receiving this because it is about the security of your account. It is sent for every new sign-in method.
-        </p>
-      </td>
-    </tr>
-  </table>
-<!--[if mso]>
-</td></tr></table>
-<![endif]-->
-  <p style="max-width:560px;margin:18px auto 0;text-align:center;font-size:12px;color:${C.footer};">Mazora Network &middot; mazora.us</p>
-</div>`;
+  const body = [
+    heading(escapeHtml(single ? ALERT_COPY[items[0]!.kind].title : "New sign-in methods added")),
+    paragraph(`${escapeHtml(greeting)} ${escapeHtml(lead.charAt(0).toLowerCase() + lead.slice(1))}`),
+    detailBox(rows),
+    paragraph(`${strong("Was this you?")} Then there is nothing to do.`, "22px 0 0"),
+    paragraph(`${strong("Wasn&rsquo;t you?")} ${escapeHtml(whatToDo)}`, "14px 0 24px"),
+    button(settingsUrl, "Review security settings"),
+  ].join("\n              ");
+
+  const html = emailShell({
+    title: subject,
+    preheader: single
+      ? `${ALERT_COPY[items[0]!.kind].noun} was just added to your Mazora Network account.`
+      : "New sign-in methods were just added to your Mazora Network account.",
+    origin,
+    body,
+    reason: REASON,
+    support,
+  });
 
   return { subject, html, text };
 }
