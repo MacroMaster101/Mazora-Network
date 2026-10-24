@@ -2,6 +2,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
   NOTIFICATION_TTL_MS,
+  UNREAD_NOTIFICATION_TTL_MS,
   selectExpiredNotifications,
   type RetainableNotification,
 } from "@/lib/notification-retention";
@@ -19,9 +20,16 @@ describe("selectExpiredNotifications", () => {
     assert.deepEqual(selectExpiredNotifications([old], NOW, NOTIFICATION_TTL_MS).map((n) => n.id), ["old"]);
   });
 
-  test("keeps an UNREAD notification no matter how old — age alone never deletes", () => {
+  test("keeps an UNREAD notification far past the read TTL", () => {
     const unread = row({ id: "unread", readAt: null, createdAt: ago(NOTIFICATION_TTL_MS * 10) });
     assert.deepEqual(selectExpiredNotifications([unread], NOW, NOTIFICATION_TTL_MS), []);
+  });
+
+  test("an unread notification is kept for a year, then expires", () => {
+    assert.ok(UNREAD_NOTIFICATION_TTL_MS >= NOTIFICATION_TTL_MS * 6, "unread outlives read by months");
+    const stale = row({ id: "stale", readAt: null, createdAt: ago(UNREAD_NOTIFICATION_TTL_MS + 1000) });
+    const fresh = row({ id: "fresh", readAt: null, createdAt: ago(UNREAD_NOTIFICATION_TTL_MS - 1000) });
+    assert.deepEqual(selectExpiredNotifications([stale, fresh], NOW, NOTIFICATION_TTL_MS).map((n) => n.id), ["stale"]);
   });
 
   test("keeps a read notification inside the TTL", () => {

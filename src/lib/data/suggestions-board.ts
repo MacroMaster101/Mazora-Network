@@ -89,11 +89,9 @@ function toIsoOrNull(value: Date | string | null): string | null {
 // Correlated scalar subqueries, one per suggestion row. Each subquery is
 // independent of the other (and of the `profiles` leftJoin above it), so
 // there is no shared join to fan out and no risk of one count inflating the
-// other the way a joined-then-grouped query could.
-const votesCountSql = sql<number>`cast((
-  select count(*) from ${schema.suggestionVotes}
-  where ${schema.suggestionVotes.suggestionId} = ${schema.suggestions.id}
-) as integer)`;
+// other the way a joined-then-grouped query could. Votes are not counted here:
+// suggestions.votes_count is kept by a trigger (migration 083), so "Top" sorts
+// on an indexed column instead of counting every vote of every suggestion.
 
 const repliesCountSql = sql<number>`cast((
   select count(*) from ${schema.suggestionReplies}
@@ -146,7 +144,7 @@ export async function listBoardSuggestions(opts: {
         authorUsername: schema.profiles.username,
         authorDisplayName: schema.profiles.displayName,
         authorAvatarUrl: schema.profiles.avatarUrl,
-        votesCount: votesCountSql,
+        votesCount: schema.suggestions.votesCount,
         repliesCount: repliesCountSql,
         imageCount: imageCountSql,
       })
@@ -155,7 +153,7 @@ export async function listBoardSuggestions(opts: {
       .where(conditions.length ? and(...conditions) : undefined);
 
     const rows = await (opts.sort === "top"
-      ? query.orderBy(desc(votesCountSql), desc(schema.suggestions.createdAt), desc(schema.suggestions.id))
+      ? query.orderBy(desc(schema.suggestions.votesCount), desc(schema.suggestions.createdAt), desc(schema.suggestions.id))
       : query.orderBy(desc(schema.suggestions.createdAt), desc(schema.suggestions.id))
     )
       .limit(limit)
@@ -247,7 +245,7 @@ export async function getSuggestionThread(
         authorUsername: schema.profiles.username,
         authorDisplayName: schema.profiles.displayName,
         authorAvatarUrl: schema.profiles.avatarUrl,
-        votesCount: votesCountSql,
+        votesCount: schema.suggestions.votesCount,
         repliesCount: repliesCountSql,
         imageCount: imageCountSql,
       })

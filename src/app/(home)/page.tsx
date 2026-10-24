@@ -10,7 +10,7 @@ import { SectionHeader } from "@/components/shared/section-header";
 import { DiscordIcon } from "@/components/shared/icon";
 import { NewsBoard } from "@/components/shared/news-board";
 import { LiveWorldMap } from "@/components/shared/live-world-map";
-import { getEvents, getNews } from "@/lib/data/content";
+import { getCurrentEvents, getLatestNews } from "@/lib/data/content";
 import { LeadEvent, RowEvent } from "@/components/events/events-board";
 import { getDiscordStats } from "@/lib/data/discord";
 import { getServerStatus } from "@/lib/data/status";
@@ -45,11 +45,12 @@ async function HomeContent({ previewNews, previewEmpty }: { previewNews: boolean
   const [status, discord, publishedNews, generalSettings, copy, featuredCreators, events, eventsCopy] = await Promise.all([
     getServerStatus(),
     getDiscordStats(),
-    getNews(),
+    // The board shows the five newest (NewsBoard's default).
+    getLatestNews(5),
     getSiteGeneralSettings(),
     getPageContent("home"),
     getPublicContentCreators({ featuredOnly: true }),
-    getEvents(),
+    getCurrentEvents(),
     getPageContent("events"),
   ]);
   // What's on: live events first, then the next to start (events arrive soonest first).

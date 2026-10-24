@@ -1,5 +1,6 @@
 import { CheckCircle2, CircleAlert, CircleHelp, Clock3, DatabaseBackup, ExternalLink, Loader } from "lucide-react";
 import { formatBackupAge, formatBackupSize, type BackupStatus } from "@/lib/data/backup-status";
+import { BackupRunButton } from "@/components/admin/backup-run-button";
 
 /**
  * Off-site backup health, shown on the settings page below the feature toggles.
@@ -11,10 +12,9 @@ import { formatBackupAge, formatBackupSize, type BackupStatus } from "@/lib/data
  * expires, someone deletes the schedule — and none of those produce a failure
  * anywhere a person would see. This makes the silence visible.
  *
- * Read-only by design. There is no trigger button, because triggering needs a
- * token that can *write* to that repository, and the card's whole value is
- * being able to see the state without this application holding any credential
- * that could change it.
+ * "Run backup now" starts the workflow on demand (lib/actions/backup), for a
+ * snapshot before a risky change. Shown when backups are connected; the token
+ * then needs Actions: Read and write, and a run only ever adds a backup.
  *
  * Server component: the GitHub token is read during render and never reaches
  * the browser.
@@ -82,11 +82,11 @@ const PRESENTATION = {
   likeliest cause — GitHub's 60-day rule — turns the card into an instruction.
 */
 const EXPLANATION: Record<BackupStatus["health"], string> = {
-  healthy: "The last scheduled backup completed and uploaded to Cloudflare R2.",
+  healthy: "The last backup completed and uploaded to Cloudflare R2. Backups run every day.",
   running: "A backup is in progress. This card will settle once it finishes.",
   late: "No successful backup recently. GitHub disables scheduled workflows after 60 days of repository inactivity — check the Actions tab is still enabled.",
   failed: "The last backup run did not succeed. Open the run to see which step failed.",
-  never: "The workflow exists but has never run. Trigger it once by hand to confirm the credentials work.",
+  never: "The workflow exists but has never run. Use Run backup now once to confirm the credentials work.",
   unconfigured: "Set GITHUB_BACKUP_TOKEN and GITHUB_BACKUP_REPO to show backup health here.",
 };
 
@@ -97,15 +97,17 @@ const EXPLANATION: Record<BackupStatus["health"], string> = {
 */
 const DELEGATED: Partial<Record<BackupStatus["health"], string>> = {
   failed: "The last backup run did not succeed. Ask Web Dev to open the run and see which step failed.",
-  never: "The workflow exists but has never run. Ask Web Dev to trigger it once and confirm the credentials work.",
 };
 
 export function BackupStatusCard({
   status,
   canOpenRun,
+  canRunNow,
 }: {
   status: BackupStatus;
   canOpenRun: boolean;
+  /** Backups are connected, so a run can be started from here. */
+  canRunNow: boolean;
 }) {
   const { Icon, label, tone, chip, well } = PRESENTATION[status.health];
   const spinning = status.health === "running";
@@ -192,6 +194,19 @@ export function BackupStatusCard({
               View the run on GitHub <ExternalLink size={13} />
             </a>
           )}
+
+          {canRunNow && <BackupRunButton disabled={spinning} />}
+
+          {/*
+            No restore button, on purpose: a restore needs the database's own
+            credentials, which this application never holds, and it goes into
+            a fresh project, never over the live one. Saying where it lives
+            stops anyone hunting for it here mid-incident.
+          */}
+          <p className="text-[12px] text-muted">
+            Restoring is not done from this page: Web Dev restores a backup into a fresh project from the
+            backups repository (<code>npm run restore</code>), then points the site at it.
+          </p>
         </div>
       </div>
     </section>

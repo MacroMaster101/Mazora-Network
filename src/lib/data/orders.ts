@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, not, or } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { toOrderStatus, type MemberOrder, type OrderStatus, type StoreOrder } from "@/lib/order-status";
 
@@ -72,16 +72,46 @@ async function attachItems(rows: OrderRow[]): Promise<StoreOrder[]> {
   return rows.map((row) => toOrder(row, byOrder.get(row.id) ?? []));
 }
 
-/** Every order, newest first. Admin only — callers must authorize first. */
+/** Closed (completed or rejected) orders the admin board lists, newest first. */
+export const CLOSED_ORDERS_LIMIT = 300;
+const CLOSED_ORDER_STATUSES = ["completed", "rejected"] as const;
+
+/**
+ * The admin board's orders, newest first: every open one (waiting on staff or
+ * the buyer, however old) plus the latest CLOSED_ORDERS_LIMIT closed ones, so
+ * the board and its line items do not grow with every sale ever made. Admin
+ * only — callers must authorize first.
+ */
 export async function getAllOrders(): Promise<StoreOrder[]> {
   const db = getDb();
   if (!db) return [];
   try {
-    const rows = await db.select().from(schema.orders).orderBy(desc(schema.orders.createdAt));
+    const closed = inArray(schema.orders.status, [...CLOSED_ORDER_STATUSES]);
+    const [open, recentClosed] = await Promise.all([
+      db.select().from(schema.orders).where(not(closed)).orderBy(desc(schema.orders.createdAt)),
+      db.select().from(schema.orders).where(closed).orderBy(desc(schema.orders.createdAt)).limit(CLOSED_ORDERS_LIMIT),
+    ]);
+    const rows = [...open, ...recentClosed].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
     return await attachItems(rows);
   } catch (error) {
     console.error("Failed to load orders:", error);
     return [];
+  }
+}
+
+/** One order by its reference (indexed), with its items. Admin only. */
+export async function getOrderByReference(reference: string): Promise<StoreOrder | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const rows = await db.select().from(schema.orders).where(eq(schema.orders.reference, reference)).limit(1);
+    const [order] = await attachItems(rows);
+    return order ?? null;
+  } catch (error) {
+    console.error("Failed to load an order:", error);
+    return null;
   }
 }
 

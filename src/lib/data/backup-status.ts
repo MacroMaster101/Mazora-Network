@@ -23,9 +23,12 @@ export * from "@/lib/backup-status";
  * access this card needs.
  *
  * The token is therefore a *different* credential from anything that touches
- * data: a fine-grained PAT with `Actions: read` on one repository. If this
- * application were compromised, that token reads workflow metadata. It cannot
- * reach the database, the dumps, or the bucket.
+ * data: a fine-grained PAT on that one repository with `Actions: Read and
+ * write`. Read shows the card; write lets owner and Web Dev start a run from it
+ * (dispatchBackup below). If this application were compromised, the most that
+ * token does is start, cancel or disable backup runs. It cannot read the
+ * repository's secrets, so it cannot reach the database, the dumps or the
+ * bucket. A run only ever adds a backup; it never changes or removes one.
  */
 
 const GITHUB_API = "https://api.github.com";
@@ -171,3 +174,43 @@ export const getBackupStatus = cache(async (): Promise<BackupStatus> => {
     };
   }
 });
+
+export type BackupDispatchResult = "started" | "already-running" | "unconfigured" | "no-write-access" | "failed";
+
+/** True when a token and repository are set, so the card offers "Run backup now". */
+export function canDispatchBackup(): boolean {
+  return config() !== null;
+}
+
+/**
+ * Starts the backup workflow now (GitHub's workflow_dispatch), on `main`.
+ *
+ * Refuses while a run is queued or in progress: the workflow's concurrency
+ * group would only queue a second one behind it, and two clicks should not
+ * become two backups. Callers check the role and the rate limit; this only
+ * talks to GitHub. GitHub answers 204 with no run id, so the card learns about
+ * the new run on its next render.
+ */
+export async function dispatchBackup(): Promise<BackupDispatchResult> {
+  const settings = config();
+  if (!settings) return "unconfigured";
+
+  try {
+    const latest = await fetchLatestRun(settings.token, settings.repo);
+    if (latest && latest.conclusion === null) return "already-running";
+
+    const response = await fetch(`${GITHUB_API}/repos/${settings.repo}/actions/workflows/${WORKFLOW_FILE}/dispatches`, {
+      method: "POST",
+      headers: { ...githubHeaders(settings.token), "Content-Type": "application/json" },
+      body: JSON.stringify({ ref: "main" }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    if (response.status === 204) return "started";
+    // A read-only token is answered 403 (fine-grained) or 404 (classic).
+    if (response.status === 403 || response.status === 404) return "no-write-access";
+    return "failed";
+  } catch {
+    return "failed";
+  }
+}

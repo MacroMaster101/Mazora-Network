@@ -1,3 +1,4 @@
+import "server-only";
 /**
  * Database client. Returns a Drizzle instance over the Supabase Postgres
  * database (via the postgres-js driver) when DATABASE_URL is set, otherwise
@@ -12,10 +13,18 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
 import { databaseUrlForRuntime, isTransactionPoolerUrl } from "./connection-url";
 import { hostMatches } from "@/lib/net/host-match";
+import { withQueueDeadline } from "./queue-deadline";
 
 export type Database = ReturnType<typeof drizzle<typeof schema>>;
 
 let cached: Database | null | undefined;
+
+/**
+ * How long a query may wait for a free pool connection before it is given up.
+ * Under statement_timeout (15s) plus the queue, inside maxDuration (30s), so a
+ * saturated pool answers with an error the caller handles instead of a hang.
+ */
+const QUEUE_DEADLINE_MS = 10_000;
 
 /*
   A direct Supabase connection (db.<ref>.supabase.co:5432) gives every
@@ -87,9 +96,11 @@ export function getDb(): Database | null {
     the browser reports as ERR_CONNECTION_RESET on every route sharing the pool.
 
     The driver exposes no queue timeout, so the bound is applied outside it:
-    `maxDuration` in vercel.json caps how long a hung request can pin a worker.
-    Raising `max` is NOT the fix on its own — it moves the exhaustion point from
-    this pool to Supabase's, unless DATABASE_URL is the transaction-mode pooler.
+    withQueueDeadline (./queue-deadline) cancels a query still waiting for a
+    slot after QUEUE_DEADLINE_MS, and `maxDuration` in vercel.json caps how long
+    anything else can pin a worker. Raising `max` is NOT the fix on its own — it
+    moves the exhaustion point from this pool to Supabase's, unless DATABASE_URL
+    is the transaction-mode pooler.
   */
   warnIfNotPooled(configuredUrl);
 
@@ -125,7 +136,7 @@ export function getDb(): Database | null {
       statement_timeout: 15_000,
     },
   });
-  cached = drizzle(sql, { schema });
+  cached = drizzle(withQueueDeadline(sql, QUEUE_DEADLINE_MS), { schema });
   return cached;
 }
 

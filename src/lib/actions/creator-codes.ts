@@ -1,12 +1,12 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { and, eq, ne } from "drizzle-orm";
 import { getProducts } from "@/lib/data/content";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { STORE_PAUSED } from "@/lib/store-order-rules";
-import { normaliseCode } from "@/lib/data/creator-codes";
+import { DISCOUNT_ALERTS_TAG, normaliseCode } from "@/lib/data/creator-codes";
 import { MAX_PERCENT_OFF } from "@/lib/store-discount";
 import { throttleAuthAction } from "@/lib/rate-limit";
 import { getSession, getSessionUserId } from "@/lib/auth";
@@ -347,7 +347,9 @@ export async function saveCreatorCode(
   revalidatePath("/admin/store/creator-codes/creators");
   revalidatePath("/admin/store/creator-codes/events");
   revalidatePath("/admin/store");
-  revalidatePath("/", "layout");
+  // The tag, not revalidatePath("/", "layout"): that would purge every cached
+  // read on the site (roster, forum board, settings) for one code change.
+  revalidateTag(DISCOUNT_ALERTS_TAG);
   return { ok: true, message: `Saved ${code}.` };
 }
 
@@ -418,6 +420,8 @@ export async function deleteCreatorCode(
   revalidatePath("/admin/store/creator-codes/creators");
   revalidatePath("/admin/store/creator-codes/events");
   revalidatePath("/admin/store");
-  revalidatePath("/", "layout");
+  // The tag, not revalidatePath("/", "layout"): that would purge every cached
+  // read on the site (roster, forum board, settings) for one code change.
+  revalidateTag(DISCOUNT_ALERTS_TAG);
   return { ok: true, message: "Code deleted." };
 }

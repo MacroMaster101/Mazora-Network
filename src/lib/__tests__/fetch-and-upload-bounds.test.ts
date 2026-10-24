@@ -181,7 +181,8 @@ test("middleware runs on page routes even when the last segment looks like an im
     "/news/some-article.webp",
     "/admin/orders/REF-1.jpg",
     "/dashboard/tickets/abc.svg",
-    "/api/minecraft/skin/Steve_42/body",
+    "/api/minecraft/players/Steve_42",
+    "/api/minecraft/skinx",
     "/imagesx",
   ]) {
     assert.equal(matcher.test(path), true, path);
@@ -197,6 +198,9 @@ test("middleware still skips real static assets", () => {
     "/icon.png",
     "/images/mazora-logo.webp",
     "/images/world/deep/backdrop.png",
+    // Avatar images: a directory page requests dozens of these at once.
+    "/api/minecraft/skin/Steve_42",
+    "/api/minecraft/skin/Steve_42/body",
   ]) {
     assert.equal(matcher.test(path), false, path);
   }

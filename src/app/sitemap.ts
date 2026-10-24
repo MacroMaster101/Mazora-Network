@@ -75,7 +75,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [modes, news, events, products, players] = await Promise.all([
     getGameModes(),
     getNews(),
-    getEvents(),
+    getEvents({ allPast: true }),
     getProducts(),
     getPlayers(),
   ]);

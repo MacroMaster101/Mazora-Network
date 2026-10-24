@@ -1,5 +1,5 @@
 import { Trophy } from "lucide-react";
-import { buildLeaderboard, getPlayers, leaderboardTabs, type LeaderboardEntry, type LeaderboardKey } from "@/lib/data/players";
+import { getLeaderboard, leaderboardTabs, type LeaderboardEntry, type LeaderboardKey } from "@/lib/data/players";
 import { EmptyState, FloatingBrandLogo, PageHero, Reveal } from "@/components/shared";
 import { RefreshButton } from "@/components/shared/refresh-button";
 import { LeaderboardExplorer } from "@/components/shared/leaderboard-explorer";
@@ -17,8 +17,10 @@ export const metadata = publicPageMetadata({
 export const dynamic = "force-dynamic";
 
 export default async function LeaderboardsPage() {
-  const [players, copy] = await Promise.all([getPlayers(), getPageContent("leaderboards")]);
-  const entries = leaderboardTabs.map((tab) => buildLeaderboard(players, tab.key));
+  const [entries, copy] = await Promise.all([
+    Promise.all(leaderboardTabs.map((tab) => getLeaderboard(tab.key))),
+    getPageContent("leaderboards"),
+  ]);
   const data: Record<string, LeaderboardEntry[]> = {};
   const labels: Record<string, string> = {};
   leaderboardTabs.forEach((t, i) => {

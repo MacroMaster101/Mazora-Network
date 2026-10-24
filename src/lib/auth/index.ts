@@ -334,6 +334,23 @@ export async function getSessionUserId(): Promise<string | null> {
 }
 
 /**
+ * The signed-in account's id for presence heartbeats: the same refusals as
+ * getSessionUserId (two-step code owed, suspended, deleted) plus an
+ * unconfirmed email sign-up, which getSession refuses too.
+ *
+ * Without getSession's profile upsert and role catalogue, which a heartbeat
+ * every couple of minutes from every open tab does not need. A member without
+ * a profile row writes nothing, and the roster lists active profiles only.
+ */
+export async function getPresenceUserId(): Promise<string | null> {
+  const user = await getAuthUser();
+  if (!user) return null;
+  const hasEmailIdentity = user.identities?.some((identity) => identity.provider === "email") ?? false;
+  if (hasEmailIdentity && !user.email_confirmed_at) return null;
+  return user.id;
+}
+
+/**
  * For actions that read supabase.auth.getUser() themselves: true only when
  * getSession would count this visitor as signed in too — code entered, email
  * confirmed, profile active. A suspended account keeps its Supabase cookie, so

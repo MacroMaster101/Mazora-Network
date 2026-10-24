@@ -77,14 +77,12 @@ Open [http://localhost:3000](http://localhost:3000). Environment variables and a
 | `npm test` | Run the tracked unit tests |
 | `npm run build` | Create and validate the production build |
 | `npm run start` | Serve a completed production build |
-| `npm run db:generate` | Generate SQL migrations from the Drizzle schema |
+| `npm run db:generate` | Draft SQL from the Drizzle schema into `drizzle/generated/` (copy what you need into a numbered migration) |
 | `npm run db:apply -- <file.sql>` | Apply a single SQL file using `DATABASE_URL` |
 | `npm run db:seed:store` | Load the storefront catalogue into `products` |
 | `npm run db:seed:rules` | Load the baseline community rulebook |
 | `npm run db:rehost:news-images` | Re-host expiring Discord CDN artwork into Supabase storage |
 | `npm run role:set -- <email> <role>` | Grant the first owner/Web Dev account |
-| `npm run backup` | Dump every table to `backups/<timestamp>/db` as newline-delimited JSON |
-| `npm run backup:storage` | Download every storage object into the same backup directory |
 
 A few one-off scripts have no npm alias and are run directly. They read `.env` through `tsx`, not `dotenv`:
 
@@ -120,6 +118,7 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `NEXT_PUBLIC_SITE_URL` | No | Canonical public URL. Defaults to `http://localhost:3000`. |
 | `NEXT_PUBLIC_DISCORD_INVITE_URL` | No | Public Discord invite override. The Mazora invite is used by default. |
 | `NEXT_PUBLIC_DISCORD_SUPPORT_TICKETS_URL` | No | Direct public Discord channel URL opened by support ticket buttons. |
+| `NEXT_PUBLIC_SUPPORT_EMAIL` | No | Public support address shown on the error pages and the outage notice. Unset hides the line. Set it in the environment, never in source; it is built into the page, so redeploy after changing it. |
 | `NEXT_PUBLIC_SERVER_MAP_URL` | No | HTTPS URL for Dynmap, BlueMap, or squaremap; otherwise the map preview remains in coming-soon mode. |
 | `MINECRAFT_STATUS_API_URL` | No | Custom Minecraft status JSON endpoint. The site otherwise queries mcsrvstat.us for the configured Java server address. |
 | `DISCORD_PRESENCE_HEALTH_URL` | No | Server-only health endpoint for the standalone Render presence bot. Site traffic sends a throttled background wake request. |
@@ -128,6 +127,8 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `NEXT_PUBLIC_SUPABASE_URL` | Production auth | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production auth | Browser-safe Supabase publishable key for new projects. |
 | `DISCORD_STORE_WEBHOOK_URL` | Manual store orders | Private webhook URL for the staff order channel. Never expose it as a public variable. |
+| `GITHUB_BACKUP_TOKEN` | Backup card | Fine-grained GitHub token on the private backups repository only, with Actions: Read and write. Shows backup health on Admin → Settings and lets owner and Web Dev start a run. |
+| `GITHUB_BACKUP_REPO` | Backup card | The backups repository as `owner/repo`. |
 | `DISCORD_STORE_STAFF_ROLE_ID` | Store orders | Role(s) permitted to action orders and read every ticket. Accepts one ID or several comma-separated (`<staff>,<management>,<owner>`); only the first is @mentioned on a new order. Order actions are refused entirely while this is unset. |
 | `DISCORD_STAFF_NOTICE_ROLE_ID` | `/staff-notice` | Discord role id(s) permitted to run `/staff-notice`, comma-separated for several. Deliberately not `DISCORD_STORE_STAFF_ROLE_ID` — confirming a store order and terminating a colleague are different levels of authority. The command refuses entirely while this is unset; the admin console page is unaffected. |
 | `DISCORD_BOT_TOKEN` | Order buttons, news sync | Bot token. Enables Confirm/Reject buttons, order tickets, buyer DMs, and the announcement importer. |

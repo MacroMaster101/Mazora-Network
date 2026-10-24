@@ -20,4 +20,5 @@ export { DiscordTicketGuide } from "./discord-ticket-guide";
 export { FloatingBrandLogo } from "./floating-brand-logo";
 export { RanksHelpPopover } from "./ranks-help-popover";
 export { FloatingDiscountAlert } from "./floating-discount-alert";
+export { ServiceNotice } from "./service-notice";
 export { StoreDetailDiscountCallout } from "./store-detail-discount-callout";

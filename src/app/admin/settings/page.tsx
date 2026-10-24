@@ -3,8 +3,8 @@ import { getSession } from "@/lib/auth";
 import { hasAtLeast } from "@/lib/auth/roles";
 import { SETTINGS_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
-import { getBackupStatus } from "@/lib/data/backup-status";
-import { getSiteGeneralSettings } from "@/lib/data/site-settings";
+import { canDispatchBackup, getBackupStatus } from "@/lib/data/backup-status";
+import { getFreshSiteGeneralSettings } from "@/lib/data/site-settings";
 import { DashHeader } from "@/components/dashboard/dash-ui";
 import { BackupStatusCard } from "@/components/admin/backup-status-card";
 import { SiteSettingsEditor } from "@/components/admin/site-settings-editor";
@@ -15,7 +15,7 @@ export const revalidate = 0;
 
 export default async function AdminSettingsPage() {
   await requireModuleAccess(SETTINGS_PERMISSION_KEY, "/admin/settings");
-  const settings = await getSiteGeneralSettings();
+  const settings = await getFreshSiteGeneralSettings();
 
   /*
     Backup health is owner and Web Dev only, a narrower gate than the settings page
@@ -49,7 +49,7 @@ export default async function AdminSettingsPage() {
 
       <SiteSettingsEditor initialSettings={settings} />
 
-      {backupStatus && <BackupStatusCard status={backupStatus} canOpenRun={canOpenRun} />}
+      {backupStatus && <BackupStatusCard status={backupStatus} canOpenRun={canOpenRun} canRunNow={canDispatchBackup()} />}
     </div>
   );
 }

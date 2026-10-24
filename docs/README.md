@@ -140,7 +140,12 @@ npm run db:generate
 npm run typecheck
 ```
 
-Review generated SQL before applying it, then apply it as a migration.
+`db:generate` writes to `drizzle/generated/` (git-ignored), never to
+`supabase/migrations`: that folder has no Drizzle journal, so Drizzle would treat the
+whole schema as new and write a migration that recreates every table. Read the
+generated SQL, copy only the statements for your change into the next numbered file
+in `supabase/migrations` (for example `083_<name>.sql`), make them idempotent, then
+apply it with `supabase db push`.
 
 `npm run db:push` no longer exists. The Drizzle schema mirrors the
 application-owned tables, columns, checks, foreign keys, and indexes after migration 029,

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ORDERS_PERMISSION_KEY } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/require-module";
-import { getAllOrders } from "@/lib/data/orders";
+import { getOrderByReference } from "@/lib/data/orders";
 import {
   buildInvoiceView,
   getInvoiceByNumber,
@@ -30,7 +30,7 @@ export default async function OrderInvoicePage({
     their references are what staff already have in front of them.
   */
   const decoded = decodeURIComponent(reference);
-  const order = (await getAllOrders()).find((o) => o.reference === decoded) ?? null;
+  const order = await getOrderByReference(decoded);
 
   const [invoice, details] = await Promise.all([
     order ? getOrderInvoice(order.id) : getInvoiceByNumber(decoded),

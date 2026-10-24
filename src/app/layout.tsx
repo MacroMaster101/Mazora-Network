@@ -12,7 +12,8 @@ import { pingDiscordPresence } from "@/lib/data/discord-presence-health";
 import { getRoleCatalogData } from "@/lib/data/roles";
 import { getActivePublicDiscountAlerts } from "@/lib/data/creator-codes";
 import { RoleCatalogBootstrap } from "@/components/auth/role-catalog-bootstrap";
-import { FloatingDiscountAlert } from "@/components/shared";
+import { FloatingDiscountAlert, ServiceNotice } from "@/components/shared";
+import { isDatabaseDown } from "@/lib/data/service-health";
 import "@/styles/globals.css";
 import "@/styles/world-themes.css";
 
@@ -116,11 +117,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Nonce is minted per request in middleware. Reading it here makes the root
   // layout dynamic, which is already true of nearly every route on this site.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
-  const [addresses, passkeysOffered, roleCatalog, discountAlerts] = await Promise.all([
+  const [addresses, passkeysOffered, roleCatalog, discountAlerts, databaseDown] = await Promise.all([
     getServerAddresses(),
     getPasskeySignInOffered(),
     getRoleCatalogData(),
     getActivePublicDiscountAlerts(),
+    isDatabaseDown(),
   ]);
 
   return (
@@ -155,6 +157,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           <RoleCatalogBootstrap roles={roleCatalog} />
           <ScrollResetOnReload />
+          {databaseDown && <ServiceNotice />}
           {children}
           <FloatingDiscountAlert alerts={discountAlerts} />
           <CookieConsent />

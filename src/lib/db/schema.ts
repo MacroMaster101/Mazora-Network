@@ -65,6 +65,7 @@ export const minecraftAccounts = pgTable(
   (t) => ({
     uuidIdx: uniqueIndex("mc_accounts_uuid_idx").on(t.minecraftUuid),
     userIdx: uniqueIndex("minecraft_accounts_user_idx").on(t.userId),
+    usernameLowerIdx: index("minecraft_accounts_username_lower_idx").on(sql`lower(${t.minecraftUsername})`),
   }),
 );
 
@@ -225,17 +226,29 @@ export const rules = pgTable("rules", {
   enabled: boolean("enabled").default(true).notNull(),
 }, (t) => ({ orderIdx: index("rules_order_idx").on(t.categoryId, t.sortOrder) }));
 
-export const suggestions = pgTable("suggestions", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  title: text("title").notNull(),
-  category: text("category").notNull().default("Gameplay"),
-  description: text("description").notNull(),
-  status: text("status").notNull().default("open"),
-  locked: boolean("locked").default(false).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const suggestions = pgTable(
+  "suggestions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    title: text("title").notNull(),
+    category: text("category").notNull().default("Gameplay"),
+    description: text("description").notNull(),
+    status: text("status").notNull().default("open"),
+    locked: boolean("locked").default(false).notNull(),
+    /** Kept by the suggestion_votes_count trigger (migration 083); never written by the app. */
+    votesCount: integer("votes_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    userIdx: index("suggestions_user_idx").on(t.userId),
+    feedIdx: index("suggestions_feed_idx").on(t.createdAt.desc(), t.id.desc()),
+    statusFeedIdx: index("suggestions_status_feed_idx").on(t.status, t.createdAt.desc(), t.id.desc()),
+    categoryFeedIdx: index("suggestions_category_feed_idx").on(t.category, t.createdAt.desc(), t.id.desc()),
+    topIdx: index("suggestions_top_idx").on(t.votesCount.desc(), t.createdAt.desc(), t.id.desc()),
+  }),
+);
 
 export const suggestionVotes = pgTable(
   "suggestion_votes",
@@ -245,7 +258,10 @@ export const suggestionVotes = pgTable(
     userId: uuid("user_id").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => ({ voterIdx: uniqueIndex("suggestion_votes_unique_voter").on(t.suggestionId, t.userId) }),
+  (t) => ({
+    voterIdx: uniqueIndex("suggestion_votes_unique_voter").on(t.suggestionId, t.userId),
+    userIdx: index("suggestion_votes_user_idx").on(t.userId),
+  }),
 );
 
 export const products = pgTable(
@@ -334,6 +350,7 @@ export const orderItems = pgTable("order_items", {
   price: numeric("price").notNull(),
 }, (t) => ({
   orderIdx: index("order_items_order_idx").on(t.orderId),
+  productIdx: index("order_items_product_idx").on(t.productId),
   quantityCheck: check("order_items_quantity_positive", sql`${t.quantity} > 0`),
   priceCheck: check("order_items_price_nonneg", sql`${t.price} >= 0`),
 }));
@@ -403,6 +420,7 @@ export const invoiceItems = pgTable("invoice_items", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({
   invoiceIdx: index("invoice_items_invoice_idx").on(t.invoiceId, t.sortOrder),
+  productIdx: index("invoice_items_product_idx").on(t.productId),
   quantityCheck: check("invoice_items_quantity_positive", sql`${t.quantity} > 0`),
   priceCheck: check("invoice_items_price_nonneg", sql`${t.unitPrice} >= 0`),
   discountCheck: check("invoice_items_discount_range", sql`${t.discountPercent} between 0 and 100`),
@@ -530,7 +548,10 @@ export const voteHistory = pgTable("vote_history", {
   userId: uuid("user_id").notNull(),
   voteSiteId: uuid("vote_site_id").notNull(),
   votedAt: timestamp("voted_at", { withTimezone: true }).defaultNow().notNull(),
-}, (t) => ({ ownerIdx: index("votes_owner_idx").on(t.userId, t.votedAt.desc()) }));
+}, (t) => ({
+  ownerIdx: index("votes_owner_idx").on(t.userId, t.votedAt.desc()),
+  siteIdx: index("vote_history_site_idx").on(t.voteSiteId),
+}));
 
 /**
  * The editable default notification templates shown on /admin/notifications.
@@ -592,6 +613,7 @@ export const notifications = pgTable(
     userCreatedIdx: index("notifications_user_created_idx").on(t.userId, t.createdAt.desc()),
     unreadIdx: index("notifications_unread_idx").on(t.userId, t.createdAt.desc()).where(sql`${t.readAt} is null`),
     broadcastIdx: index("notifications_broadcast_idx").on(t.broadcastId).where(sql`${t.broadcastId} is not null`),
+    createdIdx: index("notifications_created_idx").on(t.createdAt),
   }),
 );
 
@@ -647,7 +669,10 @@ export const galleryLikes = pgTable(
     userId: uuid("user_id").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => ({ userImageIdx: uniqueIndex("gallery_likes_user_image_idx").on(t.userId, t.imageId) })
+  (t) => ({
+    userImageIdx: uniqueIndex("gallery_likes_user_image_idx").on(t.userId, t.imageId),
+    imageIdx: index("gallery_likes_image_idx").on(t.imageId),
+  })
 );
 
 export const auditLogs = pgTable("audit_logs", {
@@ -658,7 +683,10 @@ export const auditLogs = pgTable("audit_logs", {
   targetId: text("target_id"),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (t) => ({ createdIdx: index("audit_logs_created_idx").on(t.createdAt.desc()) }));
+}, (t) => ({
+  createdIdx: index("audit_logs_created_idx").on(t.createdAt.desc()),
+  actorIdx: index("audit_logs_actor_idx").on(t.actorId),
+}));
 
 /** Hashed single-use two-step verification recovery codes (migration 073). */
 export const mfaRecoveryCodes = pgTable("mfa_recovery_codes", {
@@ -713,6 +741,7 @@ export const suggestionReplies = pgTable(
   (t) => ({
     threadIdx: index("suggestion_replies_thread_idx").on(t.suggestionId, t.createdAt),
     parentIdx: index("suggestion_replies_parent_idx").on(t.parentId).where(sql`${t.parentId} is not null`),
+    userIdx: index("suggestion_replies_user_idx").on(t.userId),
   }),
 );
 
@@ -750,6 +779,7 @@ export const suggestionImages = pgTable(
   (t) => ({
     suggestionIdx: index("suggestion_images_suggestion_idx").on(t.suggestionId, t.sortOrder).where(sql`${t.suggestionId} is not null`),
     replyIdx: index("suggestion_images_reply_idx").on(t.replyId, t.sortOrder).where(sql`${t.replyId} is not null`),
+    userIdx: index("suggestion_images_user_idx").on(t.userId),
   }),
 );
 
@@ -773,7 +803,10 @@ export const contentReports = pgTable(
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => ({ queueIdx: index("content_reports_queue_idx").on(t.status, t.createdAt.desc()) }),
+  (t) => ({
+    queueIdx: index("content_reports_queue_idx").on(t.status, t.createdAt.desc()),
+    reporterIdx: index("content_reports_reporter_idx").on(t.reporterId),
+  }),
 );
 
 export const forumCategories = pgTable("forum_categories", {
@@ -853,6 +886,7 @@ export const forumPosts = pgTable(
   (t) => ({
     topicIdx: index("forum_posts_topic_idx").on(t.topicId, t.createdAt),
     parentIdx: index("forum_posts_parent_idx").on(t.parentId, t.createdAt).where(sql`${t.parentId} is not null`),
+    userIdx: index("forum_posts_user_idx").on(t.userId),
   }),
 );
 
@@ -868,7 +902,10 @@ export const forumPostImages = pgTable(
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => ({ postIdx: index("forum_post_images_post_idx").on(t.postId, t.sortOrder) }),
+  (t) => ({
+    postIdx: index("forum_post_images_post_idx").on(t.postId, t.sortOrder),
+    userIdx: index("forum_post_images_user_idx").on(t.userId),
+  }),
 );
 
 /**
@@ -890,7 +927,7 @@ export const forumReports = pgTable("forum_reports", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   resolvedBy: uuid("resolved_by"),
-});
+}, (t) => ({ reporterIdx: index("forum_reports_reporter_idx").on(t.reporterId) }));
 
 /** One vote per member per forum post (migration 052). The auth.users FK is declared in SQL only. */
 export const forumPostVotes = pgTable(

@@ -3,6 +3,7 @@
  * cache. A secondary provider and the last successful reading keep a brief
  * upstream timeout from replacing a healthy player count with unavailable data.
  */
+import { unstable_cache } from "next/cache";
 import { site } from "@/lib/site";
 import { fetchWithDeadline } from "@/lib/data/upstream";
 import type { ServerAddresses } from "@/lib/data/site-settings";
@@ -196,12 +197,34 @@ export function selectPreferredStatus<T extends { online: boolean }>(statuses: A
   return reachable.find((status) => status.online) ?? reachable[0] ?? null;
 }
 
+/*
+  The providers' answer, shared by every instance through the Next data cache.
+  The process cache below is per instance, so each new or recycled instance
+  used to make a page wait up to the provider timeout while it asked two or
+  three providers itself, and the provider calls grew with the instance count.
+  The data cache serves its last answer while it refreshes in the background,
+  so only the very first reading ever waits. Outside a Next request (scripts,
+  tests) it is unavailable, and the providers are asked directly.
+*/
+const SHARED_STATUS_SECONDS = 20;
+const readSharedStatus = unstable_cache(fetchServerStatus, ["minecraft-server-status"], {
+  revalidate: SHARED_STATUS_SECONDS,
+});
+
+async function fetchSharedStatus(): Promise<ServerStatus> {
+  try {
+    return await readSharedStatus();
+  } catch {
+    return fetchServerStatus();
+  }
+}
+
 export async function getServerStatus(): Promise<ServerStatus> {
   const now = Date.now();
   if (cachedStatus && cachedStatus.expiresAt > now) return cachedStatus.value;
   if (pendingStatus) return pendingStatus;
 
-  pendingStatus = fetchServerStatus().then((freshValue) => {
+  pendingStatus = fetchSharedStatus().then((freshValue) => {
     let value = freshValue;
     let cacheMs = FAILURE_RETRY_MS;
 

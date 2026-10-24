@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSession, getSessionUserId } from "@/lib/auth";
+import { getPresenceUserId } from "@/lib/auth";
 import { recordActivity, recordLeaving } from "@/lib/data/presence";
-import { clientKey, rateLimitShared, retryAfterHeaders } from "@/lib/rate-limit";
+import { clientKey, rateLimit, retryAfterHeaders } from "@/lib/rate-limit";
 
 const noStore = { headers: { "Cache-Control": "no-store" } };
 
@@ -28,20 +28,22 @@ function tooMany(retryAfter: number) {
  * flood without a valid sign-in never reaches the auth lookup; then per
  * account, so one member's script cannot keep the database busy. An open tab
  * calls in a few times a minute at most; both limits sit well above that.
+ *
+ * Both are per instance, not shared. This is the most frequent request the
+ * site gets, nothing here is security-sensitive (the write is throttled in
+ * SQL either way), and the shared limiter costs a Redis round trip each. The
+ * session check is the light one for the same reason (getPresenceUserId).
  */
 export async function POST(request: Request) {
   // Taken before any await, so a leave is ordered against heartbeats by when it arrived.
   const receivedAt = new Date();
-  const byAddress = await rateLimitShared(clientKey(request, "presence-beat"), { limit: 120, windowMs: 60_000 });
+  const byAddress = rateLimit(clientKey(request, "presence-beat"), { limit: 120, windowMs: 60_000 });
   if (!byAddress.ok) return tooMany(byAddress.retryAfter);
 
-  const session = await getSession();
-  if (!session) return NextResponse.json({ tracked: false }, noStore);
-
-  const userId = await getSessionUserId();
+  const userId = await getPresenceUserId();
   if (!userId) return NextResponse.json({ tracked: false }, noStore);
 
-  const byAccount = await rateLimitShared(`presence-beat:${userId}`, { limit: 30, windowMs: 60_000 });
+  const byAccount = rateLimit(`presence-beat:${userId}`, { limit: 30, windowMs: 60_000 });
   if (!byAccount.ok) return tooMany(byAccount.retryAfter);
 
   let body: { idleMs?: unknown; active?: unknown; leaving?: unknown } = {};
@@ -55,7 +57,7 @@ export async function POST(request: Request) {
     // Leaving and coming back each ping every open roster, so a script looping
     // the two must not be able to keep every page re-reading. Keyed on the
     // account alone, so changing address does not reset it.
-    const limit = await rateLimitShared(`presence-leave:${userId}`, { limit: 10, windowMs: 60_000 });
+    const limit = rateLimit(`presence-leave:${userId}`, { limit: 10, windowMs: 60_000 });
     if (!limit.ok) return NextResponse.json({ tracked: true, written: false }, noStore);
     const written = await recordLeaving(userId, receivedAt);
     return NextResponse.json({ tracked: true, written }, noStore);

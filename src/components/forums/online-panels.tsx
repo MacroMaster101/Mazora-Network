@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import type { OnlineMember } from "@/lib/data/presence";
 import { PRESENCE_CHANNEL } from "@/lib/presence-rules";
 import { getRealtimeBrowserClient } from "@/lib/supabase/realtime-browser";
@@ -16,6 +17,13 @@ const FALLBACK_REFRESH_MS = 60_000;
 
 /** Several members changing at once should cost one re-read, not several. */
 const PING_DEBOUNCE_MS = 400;
+
+/**
+ * Up to this much extra wait, picked at random per ping, so every open /forums
+ * page does not ask for the roster in the same instant after a change. The
+ * endpoint is cached at the edge for a few seconds as well (see its route).
+ */
+const PING_JITTER_MS = 4_000;
 
 /**
  * Keeps the two online panels current without a page reload.
@@ -55,14 +63,19 @@ export function OnlinePanels({ initialStaff, initialMembers }: { initialStaff: O
     };
     const soon = () => {
       window.clearTimeout(debounce);
-      debounce = window.setTimeout(load, PING_DEBOUNCE_MS);
+      debounce = window.setTimeout(load, PING_DEBOUNCE_MS + Math.random() * PING_JITTER_MS);
     };
 
-    const client = getRealtimeBrowserClient();
-    const channel = client
-      ?.channel(PRESENCE_CHANNEL, { config: { private: true } })
-      .on("broadcast", { event: "changed" }, soon)
-      .subscribe();
+    let client: SupabaseClient | null = null;
+    let channel: RealtimeChannel | undefined;
+    void getRealtimeBrowserClient().then((loaded) => {
+      if (cancelled || !loaded) return;
+      client = loaded;
+      channel = loaded
+        .channel(PRESENCE_CHANNEL, { config: { private: true } })
+        .on("broadcast", { event: "changed" }, soon)
+        .subscribe();
+    });
 
     const timer = window.setInterval(load, FALLBACK_REFRESH_MS);
     document.addEventListener("visibilitychange", load);

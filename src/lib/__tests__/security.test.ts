@@ -23,7 +23,7 @@ import { resolvePublicOrigin } from "@/lib/site";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 import { visibleAdminNav, ALL_ADMIN_NAV_ACCESS, type AdminNavAccess } from "@/lib/admin-nav";
 import { EDITABLE_PAGE_PATHS } from "@/lib/page-paths";
-import { isSafeSupportHref } from "@/lib/data/support-settings";
+import { isSafeSupportHref } from "@/lib/support-href";
 
 describe("role ladder", () => {
   test("hasAtLeast is ordered by the documented ranking", () => {

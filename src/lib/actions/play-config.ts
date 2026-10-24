@@ -59,7 +59,6 @@ export async function savePlayConfigAction(
     revalidatePath("/admin/play");
     revalidatePath("/admin/pages");
     revalidatePath("/admin/settings");
-    revalidatePath("/", "layout");
     return { ok: true, message: "Play page configuration updated live on the website!" };
   } catch (err: unknown) {
     console.error("Play page config save failed:", err);

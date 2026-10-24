@@ -432,33 +432,47 @@ function toArticle(row: NewsRow, liveAuthor?: LiveAuthorProfile, { withBody = tr
 
 /** The columns a news listing reads: no ids, review state or Discord message refs. */
 const NEWS_LIST_COLUMNS =
-  "slug, title, excerpt, content, category, published_at, created_at, publisher_mode, author_id, author_name, author_role, author_avatar_url, discord_author, discord_author_role, team_avatar_url, read_time_minutes, featured_image";
+  "slug, title, excerpt, category, published_at, created_at, publisher_mode, author_id, author_name, author_role, author_avatar_url, discord_author, discord_author_role, team_avatar_url, read_time_minutes, featured_image";
 
 /**
- * Every published article, for the listings (home, /news, the sitemap, the
- * admin count). `body` is always empty here: only the article page renders the
- * text, and it reads its own row through getArticle.
+ * Every published article, for the listings (/news, the sitemap, the admin
+ * count). `body` is always empty here: only the article page renders the text,
+ * and it reads its own row through getArticle. The article text is not read at
+ * all, except for the few rows with no stored read time (see below).
  */
-export const getNews = cache(loadNews);
-async function loadNews(): Promise<NewsArticle[]> {
+export const getNews = cache(() => loadNews());
+
+/** The newest `limit` published articles, for the home page's news board. */
+export const getLatestNews = cache((limit: number) => loadNews(limit));
+
+async function loadNews(limit?: number): Promise<NewsArticle[]> {
   const admin = getSupabaseAdmin();
   if (admin) {
     try {
-      const { data, error } = await admin
+      // The service-role client bypasses RLS, so the application must apply
+      // the same publication embargo as the Drizzle path below, and in the
+      // query so a limit counts only public rows. A row is public only once
+      // its scheduled time arrives (null means publish now).
+      const nowIso = new Date().toISOString();
+      let query = admin
         .from("news_articles")
         .select(NEWS_LIST_COLUMNS)
         .eq("status", "published")
+        .or(`published_at.is.null,published_at.lte.${nowIso}`)
         .order("published_at", { ascending: false });
+      if (limit) query = query.limit(limit);
+      const { data, error } = await query;
       if (!error && data) {
-        // The service-role client bypasses RLS, so the application must apply
-        // the same publication embargo as the Drizzle path below. A row is
-        // public only once its scheduled time arrives (null means publish now).
-        const now = Date.now();
-        const publicRows = data.filter((row) => {
-          if (!row.published_at) return true;
-          const publishedAt = Date.parse(String(row.published_at));
-          return Number.isFinite(publishedAt) && publishedAt <= now;
-        });
+        const publicRows = data;
+        // A listing needs the text only to estimate a read time the editor did
+        // not set, so it is fetched for those rows alone rather than shipping
+        // every article body into every listing render.
+        const unestimated = publicRows.filter((row) => row.read_time_minutes == null).map((row) => String(row.slug));
+        const contentBySlug = new Map<string, string>();
+        if (unestimated.length) {
+          const { data: bodies } = await admin.from("news_articles").select("slug, content").in("slug", unestimated);
+          for (const row of bodies ?? []) contentBySlug.set(String(row.slug), String(row.content ?? ""));
+        }
         // Live profile lookup, same reasoning as toArticle: author_name/
         // author_avatar_url are a one-time snapshot that goes stale the
         // moment the author changes their photo, so the current profile wins
@@ -494,7 +508,7 @@ async function loadNews(): Promise<NewsArticle[]> {
           const liveProfile = liveById ?? (liveByName
             ? { avatar_url: liveByName.avatarUrl, display_name: liveByName.displayName, username: liveByName.username, role: liveByName.role }
             : undefined);
-          const content = String(row.content ?? "").replace(/\r\n?/g, "\n");
+          const content = (contentBySlug.get(String(row.slug)) ?? "").replace(/\r\n?/g, "\n");
           return {
             slug: String(row.slug),
             title: String(row.title),
@@ -532,7 +546,7 @@ async function loadNews(): Promise<NewsArticle[]> {
   const db = getDb();
   if (!db) return [];
   try {
-    const rows = await db
+    const listed = db
       .select({
         ...getTableColumns(schema.newsArticles),
         liveAvatarUrl: schema.profiles.avatarUrl,
@@ -547,6 +561,7 @@ async function loadNews(): Promise<NewsArticle[]> {
         or(isNull(schema.newsArticles.publishedAt), lte(schema.newsArticles.publishedAt, new Date())),
       ))
       .orderBy(sql`coalesce(${schema.newsArticles.publishedAt}, ${schema.newsArticles.createdAt}) desc`);
+    const rows = await (limit ? listed.limit(limit) : listed);
     // Same byline-name fallback as the Supabase path above, for the rows the
     // authorId join could not resolve (Discord imports).
     const byName = await profilesByBylineName(
@@ -679,22 +694,61 @@ function toEventItem(r: typeof schema.events.$inferSelect, joined: number): Even
   };
 }
 
-export async function getEvents(): Promise<EventItem[]> {
+/** Finished events a listing shows, newest first, so the page does not grow with every event ever held. */
+const PAST_EVENTS_LIMIT = 60;
+
+/**
+ * Events that may still be live or upcoming: not marked completed or
+ * cancelled, and not past their end (an event with no end stays live until
+ * staff complete it). effectiveEventStatus has the final word on each row.
+ */
+const notFinished = sql`${schema.events.status} not in ('completed', 'cancelled')
+  and (${schema.events.endAt} is null or ${schema.events.endAt} > now())`;
+
+/**
+ * Events for the listings, soonest first: every one not yet finished, plus the
+ * most recent PAST_EVENTS_LIMIT finished ones (all of them for the sitemap).
+ */
+export async function getEvents({ allPast = false }: { allPast?: boolean } = {}): Promise<EventItem[]> {
   const db = getDb();
   if (!db) return [];
   try {
-    const rows = await db
+    const finished = db
       .select()
       .from(schema.events)
-      .orderBy(asc(schema.events.startAt));
-    // Only statuses the admin form writes are published (see isKnownEventStatus).
-    const published = rows.filter((r) => isKnownEventStatus(r.status));
-    const joined = await getRegistrationCounts(published.map((r) => r.id));
-    return published.map((r) => toEventItem(r, joined.get(r.id) ?? 0));
+      .where(sql`not (${notFinished})`)
+      .orderBy(desc(schema.events.startAt));
+    const [current, past] = await Promise.all([
+      db.select().from(schema.events).where(notFinished).orderBy(asc(schema.events.startAt)),
+      allPast ? finished : finished.limit(PAST_EVENTS_LIMIT),
+    ]);
+    const rows = [...current, ...past].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+    return publishedEventItems(rows);
   } catch (error) {
     console.error("Failed to load events:", error);
     return [];
   }
+}
+
+/** Only events that may be live or upcoming, for the home page's "What's on". */
+export async function getCurrentEvents(): Promise<EventItem[]> {
+  const db = getDb();
+  if (!db) return [];
+  try {
+    return await publishedEventItems(
+      await db.select().from(schema.events).where(notFinished).orderBy(asc(schema.events.startAt)),
+    );
+  } catch (error) {
+    console.error("Failed to load events:", error);
+    return [];
+  }
+}
+
+async function publishedEventItems(rows: Array<typeof schema.events.$inferSelect>): Promise<EventItem[]> {
+  // Only statuses the admin form writes are published (see isKnownEventStatus).
+  const published = rows.filter((r) => isKnownEventStatus(r.status));
+  const joined = await getRegistrationCounts(published.map((r) => r.id));
+  return published.map((r) => toEventItem(r, joined.get(r.id) ?? 0));
 }
 
 export async function getEvent(slug: string): Promise<EventItem | null> {

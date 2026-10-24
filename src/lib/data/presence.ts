@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, gte, inArray, isNull, lt, lte, ne, or } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
+import { readProfileFlags } from "@/lib/data/account-status";
 import { providerAvatarsFor } from "@/lib/data/provider-avatars";
 import { announcePresenceChange } from "@/lib/presence/announce";
 import { isRoleKey, isStaff, normalizeRoleKey, publicRole } from "@/lib/auth/roles";
@@ -172,15 +173,10 @@ export async function recordLeaving(userId: string, receivedAt: Date): Promise<b
 
 /** The member's own chosen status, for their menu and settings. */
 export async function getPresenceChoice(userId: string): Promise<PresenceChoice> {
-  const db = getDb();
-  if (!db) return "online";
   try {
-    const [row] = await db
-      .select({ status: schema.profiles.presenceStatus })
-      .from(schema.profiles)
-      .where(eq(schema.profiles.userId, userId))
-      .limit(1);
-    return isPresenceChoice(row?.status) ? row.status : "online";
+    // The same per-request read as the account-status check.
+    const presence = (await readProfileFlags(userId))?.presence;
+    return isPresenceChoice(presence) ? presence : "online";
   } catch {
     return "online";
   }

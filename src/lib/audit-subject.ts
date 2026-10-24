@@ -45,6 +45,7 @@ export const TYPE_LABEL: Record<string, string> = {
   forum_post: "Forum post",
   discord_user: "Discord member",
   rule: "Rule",
+  backup: "Backup",
 };
 
 /** "survival-smp" → "Survival SMP": words capitalised, short ones (SMP, PvP) upper-cased. */
@@ -82,6 +83,7 @@ export function summarise(action: string, targetType: string | null, targetId: s
     const rank = str(meta?.deletedRole) ?? str(meta?.role);
     return person ? `${person}${rank ? ` (${rank})` : ""}` : `Deleted account${rank ? ` (${rank})` : ""}`;
   }
+  if (action === "backup.run_now") return "Manual backup started";
   if (action === "news.sync") {
     return `${meta?.imported ?? 0} imported, ${meta?.skipped ?? 0} skipped`;
   }

@@ -56,7 +56,7 @@ Variables** (Production and Preview) and your local `.env`, then **redeploy**.
 | `CRON_SECRET`, `BOT_CONFIG_SECRET` | Generate a new random value (32+ chars); also update the presence worker |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash console → the database → reset credentials |
 | `RESEND_API_KEY` | Resend → API Keys |
-| `GITHUB_BACKUP_TOKEN` | GitHub → Settings → Developer settings → fine-grained tokens |
+| `GITHUB_BACKUP_TOKEN` | GitHub → Settings → Developer settings → fine-grained tokens (only `mazora-backups`, Actions: Read and write) |
 
 Rotating the Supabase secret key also invalidates in-progress password resets
 and recovery-code sign-in passes (they are signed with a key derived from it);
@@ -81,9 +81,11 @@ members with two-step verification to generate new codes from Settings.
 - Note what was accessed or changed. If member data was exposed, list whose.
 
 ## 4. Recover
-- **Restore data** — backups run automatically off-site (the private
-  `mazora-backups` repository, to Cloudflare R2); the last run's status shows in
-  the admin panel. For a local snapshot before risky repairs: `npm run backup`.
+- **Restore data** — backups run daily off-site (the private `mazora-backups`
+  repository, to Cloudflare R2); the last run's status shows in the admin panel.
+  Before a risky repair, take a fresh one with **Run backup now** on Admin →
+  Settings. Restoring is `npm run restore` in `mazora-backups`, into a fresh
+  project only; its README has the steps.
 - Revert bad changes (admin boards, or `git revert` + redeploy for code).
 - Turn maintenance mode and registrations back on.
 
