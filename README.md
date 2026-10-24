@@ -386,7 +386,9 @@ Every table in `public` has RLS enabled. Public content (products, rules,
 world-readable; user-owned data (`profiles`, `minecraft_accounts`, `orders`, `order_items`,
 `suggestions`, `suggestion_votes`, `vote_history`) is self-read only, and `audit_logs` and
 `site_settings` are admin-only. Role checks use the `is_staff()` / `is_admin()` helpers,
-which read `profiles.role`.
+which read `profiles.role`. Since migration 084 these helpers, and the `mfa_satisfied()` /
+`account_usable()` gates, live in a `private` schema that the Data API does not serve, so
+new policies call them as `private.is_staff()`, `(select private.mfa_satisfied())` and so on.
 
 `profiles` is deliberately NOT world-readable. It was, until migration 029: the policy
 named no role, so it also granted `anon`, and since the anon key ships to every browser
