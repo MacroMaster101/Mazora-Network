@@ -108,7 +108,8 @@ test("an email-code sign-in alert says when, what to do, and escapes the name", 
   assert.ok(mail.text.includes(alertTime(at)));
   assert.ok(mail.html.includes(alertTime(at)));
   assert.ok(/turn off email codes/i.test(mail.text), "it must say how to stop it if it wasn't them");
-  assert.ok(mail.html.includes("https://example.com/dashboard/settings"));
+  // The button links to exactly this page on the site's own origin.
+  assert.match(mail.html, /href="https:\/\/example\.com\/dashboard\/settings"/);
   assert.ok(!mail.html.includes("<img src=x"));
   assert.ok(/receiving this because/i.test(mail.text));
 });
