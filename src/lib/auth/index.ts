@@ -171,7 +171,7 @@ const getAuthState = cache(async () => {
     token.amr.includes("passkey") &&
     (await hasPasskeySignInGrant({ userId: data.user.id, sessionId: token.sessionId }));
 
-  // Email is an explicitly enabled application fallback. It never changes
+  // Email is an application fallback, on by default with an authenticator. It never changes
   // the Supabase token or grants permission to replace/remove an authenticator.
   const emailSubject = emailTwoFactorSubject(data.user, token.sessionId);
   const emailVerified = hasAuthenticator && token.aal !== "aal2" && !recovered && !passkeyVerified &&

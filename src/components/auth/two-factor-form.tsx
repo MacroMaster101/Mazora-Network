@@ -134,8 +134,8 @@ const SWITCH_TO: Record<Method, { label: string; icon: typeof Smartphone }> = {
 
 /**
  * The second step of signing in: an authenticator code, with the other ways in
- * as links underneath. Email is offered only after the owner explicitly
- * enabled it in Settings.
+ * as links underneath. Email is offered unless the owner turned it off in
+ * Settings, or email delivery is not configured.
  */
 export function TwoFactorSignIn({ next, emailAvailable = false }: { next: string; emailAvailable?: boolean }) {
   const [method, setMethod] = useState<Method>("app");

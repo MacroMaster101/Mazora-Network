@@ -152,11 +152,13 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `AUTH_DEMO_MODE` | Local only | Set to `true` only for local UI previews without Supabase. Never enable in production. |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Production | Shared security store for global credential/submission limits, single-use Discord interaction claims, and session-bound account deletion codes. Missing production configuration or a store outage refuses security-sensitive requests. Local development keeps in-memory limits. The daily news cron also sends a read-only `PING`. |
 
-Optional email sign-in verification is off by default. With the app mailer and
-shared Redis store configured, enable it in Settings → Two-step verification →
-Email code (optional), confirming with an authenticator or recovery code. Codes
-expire after ten minutes, work once in the requesting browser session, and have
-resend and guessing limits. This application fallback does not issue a Supabase
+Email sign-in codes are on by default for every account with two-step
+verification and a confirmed email, once the app mailer and shared Redis store
+are configured. Members can turn them off (and back on) in Settings → Two-step
+verification → Email codes, confirming with an authenticator or recovery code.
+Codes expire after ten minutes, work once in the requesting browser session,
+and have resend and guessing limits. Every sign-in that uses one sends the
+member a security notification and email. This application fallback does not issue a Supabase
 AAL2 token; password resets and security-setting changes still require the
 authenticator or a recovery code. No database migration is needed.
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { alertLabel, alertTime, buildSecurityAlertEmail } from "@/lib/email/security-alert-email";
+import { alertLabel, alertTime, buildEmailCodeSignInEmail, buildSecurityAlertEmail } from "@/lib/email/security-alert-email";
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const migration = read("../../../supabase/migrations/079_security_alerts.sql");
@@ -100,4 +100,21 @@ test("alerts are sent after adding a passkey or app on the site, on sign-in, and
   const cron = read("../../app/api/cron/security-alerts/route.ts");
   assert.match(cron, /const denied = cronAuthError\(request\);/);
   assert.match(read("../../../vercel.json"), /"path": "\/api\/cron\/security-alerts"/);
+});
+
+test("an email-code sign-in alert says when, what to do, and escapes the name", () => {
+  const mail = buildEmailCodeSignInEmail({ name: '<img src=x onerror="alert(1)">', origin, at, support: null });
+  assert.equal(mail.subject, "You signed in to Mazora with an email code");
+  assert.ok(mail.text.includes(alertTime(at)));
+  assert.ok(mail.html.includes(alertTime(at)));
+  assert.ok(/turn off email codes/i.test(mail.text), "it must say how to stop it if it wasn't them");
+  assert.ok(mail.html.includes("https://example.com/dashboard/settings"));
+  assert.ok(!mail.html.includes("<img src=x"));
+  assert.ok(/receiving this because/i.test(mail.text));
+});
+
+test("every email-code sign-in is reported to its owner", () => {
+  assert.match(delivery, /export function scheduleEmailCodeSignInAlert\(/);
+  assert.match(delivery, /title: "Signed in with an email code"/);
+  assert.match(read("../actions/two-factor.ts"), /scheduleEmailCodeSignInAlert\(pending\.user\)/);
 });

@@ -16,13 +16,19 @@ const user = {
   factors: [factor], user_metadata: {}, aud: "authenticated", created_at: "2026-01-01T00:00:00Z",
 } satisfies User;
 
-test("email fallback is opt-in, ignores user metadata, and requires a confirmed inbox and authenticator", () => {
-  assert.ok(emailTwoFactorEnrollment(user));
-  assert.equal(emailTwoFactorEnrollment({ ...user, app_metadata: {} }), null);
-  assert.equal(emailTwoFactorEnrollment({ ...user, app_metadata: {}, user_metadata: user.app_metadata } as User), null);
+test("email fallback is on by default with an authenticator, off only by a server-side opt-out", () => {
+  assert.deepEqual(emailTwoFactorEnrollment(user), { email: "alex@example.com", version });
+  // Nothing saved: on, with a fixed default version.
+  assert.deepEqual(emailTwoFactorEnrollment({ ...user, app_metadata: {} }), { email: "alex@example.com", version: "default" });
+  // An explicit opt-out turns it off; the same shape in user-editable metadata does not.
+  const optedOut = { mfa_email_fallback: { enabled: false, version } };
+  assert.equal(emailTwoFactorEnrollment({ ...user, app_metadata: optedOut }), null);
+  assert.ok(emailTwoFactorEnrollment({ ...user, app_metadata: {}, user_metadata: optedOut } as User));
+  // Codes only ever go to the account's current, confirmed inbox.
+  assert.equal(emailTwoFactorEnrollment({ ...user, email: "steve@example.com" })?.email, "steve@example.com");
   assert.equal(emailTwoFactorEnrollment({ ...user, email_confirmed_at: undefined }), null);
+  // Two-step verification itself must be on.
   assert.equal(emailTwoFactorEnrollment({ ...user, factors: [] }), null);
-  assert.equal(emailTwoFactorEnrollment({ ...user, email: "steve@example.com" }), null);
   assert.equal(emailTwoFactorSubject(user, ""), null);
 });
 
@@ -66,8 +72,8 @@ test("email grants are secure cookies and cannot authorize owner confirmation or
   assert.equal(await grant.hasEmailTwoFactorGrant(subject), false);
 });
 
-function actionFixture({ optedIn = true, signedIn = true, secondStep = null as string | null, status = "active", consumed = true, sent = true, throttled = null as string | null, claim = "claimed", available = true } = {}) {
-  const account = optedIn ? user : { ...user, app_metadata: { role: "member" } };
+function actionFixture({ optedOut = false, signedIn = true, secondStep = null as string | null, status = "active", consumed = true, sent = true, throttled = null as string | null, claim = "claimed", available = true } = {}) {
+  const account = optedOut ? { ...user, app_metadata: { role: "member", mfa_email_fallback: { enabled: false, version } } } : user;
   const events: string[] = [];
   const messages: { to: string; purpose: string }[] = [];
   let updated: Record<string, unknown> | null = null;
@@ -85,7 +91,7 @@ function actionFixture({ optedIn = true, signedIn = true, secondStep = null as s
       "@/lib/supabase/server": { createSupabaseServerClient: async () => supabase },
       "@/lib/supabase/admin": { getSupabaseAdmin: () => ({ auth: { admin: { updateUserById: async (_id: string, data: Record<string, unknown>) => { events.push("update"); updated = data; return {}; } } } }) },
       "@/lib/audit-log": { recordAudit: async () => { events.push("audit"); } },
-      "@/lib/security-alerts": { scheduleSecurityAlerts() {} },
+      "@/lib/security-alerts": { scheduleSecurityAlerts() {}, scheduleEmailCodeSignInAlert: () => { events.push("alert"); } },
       "@/lib/rate-limit": { throttleAuthAction: async () => throttled, claimOnce: async () => claim },
       "@/lib/safe-redirect": { safeNext: (value?: string) => value?.startsWith("/") && !value.startsWith("//") ? value : "/" },
       "@/lib/auth/account-deletion-proof": {
@@ -108,8 +114,8 @@ function actionFixture({ optedIn = true, signedIn = true, secondStep = null as s
   return { actions, form, events, messages, updated: () => updated };
 }
 
-test("email delivery needs a pending opted-in account, uses its own inbox, and respects resend limits", async () => {
-  for (const options of [{ signedIn: false }, { optedIn: false }, { available: false }, { throttled: "Too many attempts" }, { claim: "duplicate" }, { claim: "unavailable" }]) {
+test("email delivery needs a pending account that has not opted out, uses its own inbox, and respects resend limits", async () => {
+  for (const options of [{ signedIn: false }, { optedOut: true }, { available: false }, { throttled: "Too many attempts" }, { claim: "duplicate" }, { claim: "unavailable" }]) {
     const f = actionFixture(options);
     assert.equal((await f.actions.requestTwoFactorEmailCodeAction({ ok: false }, f.form)).ok, false);
     assert.equal(f.messages.length, 0);
@@ -123,11 +129,12 @@ test("email delivery needs a pending opted-in account, uses its own inbox, and r
   assert.equal((await failure.actions.requestTwoFactorEmailCodeAction({ ok: false }, failure.form)).ok, false);
 });
 
-test("email codes never grant a sign-in on a wrong code, throttling, missing opt-in, or suspended account", async () => {
-  for (const options of [{ signedIn: false }, { optedIn: false }, { consumed: false }, { throttled: "Too many attempts" }]) {
+test("email codes never grant a sign-in on a wrong code, throttling, an opt-out, or a suspended account", async () => {
+  for (const options of [{ signedIn: false }, { optedOut: true }, { consumed: false }, { throttled: "Too many attempts" }]) {
     const f = actionFixture(options);
     assert.equal((await f.actions.verifyTwoFactorEmailCodeAction({ ok: false }, f.form)).ok, false);
     assert.equal(f.events.includes("grant"), false);
+    assert.equal(f.events.includes("alert"), false);
   }
   for (const status of ["suspended", "unreadable"]) {
     const f = actionFixture({ status });
@@ -138,9 +145,11 @@ test("email codes never grant a sign-in on a wrong code, throttling, missing opt
   const f = actionFixture();
   await assert.rejects(f.actions.verifyTwoFactorEmailCodeAction({ ok: false }, f.form), /redirect:\/dashboard/);
   assert.ok(f.events.indexOf("consume") < f.events.indexOf("grant"));
+  // The owner is told about every sign-in an email code completes.
+  assert.ok(f.events.indexOf("grant") < f.events.indexOf("alert"));
 });
 
-test("enabling email fallback needs fresh authenticator or recovery proof and preserves role metadata", async () => {
+test("turning email codes off or on needs fresh authenticator or recovery proof and preserves role metadata", async () => {
   const rejected = actionFixture({ secondStep: "Enter an authenticator code" });
   assert.equal((await rejected.actions.setTwoFactorEmailFallbackAction(rejected.form)).ok, false);
   assert.equal(rejected.updated(), null);
@@ -152,5 +161,6 @@ test("enabling email fallback needs fresh authenticator or recovery proof and pr
   assert.equal((metadata.mfa_email_fallback as Record<string, unknown>).email, "alex@example.com");
   f.form.set("emailFallback", "disable");
   assert.equal((await f.actions.setTwoFactorEmailFallbackAction(f.form)).ok, true);
-  assert.equal((f.updated()?.app_metadata as Record<string, unknown>).mfa_email_fallback, null);
+  // Off is saved explicitly: removing the setting would turn the default back on.
+  assert.equal(JSON.stringify((f.updated()?.app_metadata as Record<string, unknown>).mfa_email_fallback), JSON.stringify({ enabled: false, version }));
 });

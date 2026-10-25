@@ -7,15 +7,18 @@ import { sendEmail } from "@/lib/email/send";
 import {
   ALERT_COPY,
   alertLabel,
+  buildEmailCodeSignInEmail,
   buildSecurityAlertEmail,
   isSecurityAlertKind,
   type SecurityAlertItem,
 } from "@/lib/email/security-alert-email";
 import { resolvePublicOrigin } from "@/lib/site";
+import type { User } from "@supabase/supabase-js";
 
 /**
  * Tells a member when a passkey, authenticator app, security key or phone is
- * added to their account: a notification in the bell and an email.
+ * added to their account, and when an email code finishes a sign-in: a
+ * notification in the bell and an email.
  *
  * Migration 079 queues the alerts from triggers on Supabase's own tables, so a
  * method added straight through Supabase's API (with a stolen session, say)
@@ -125,6 +128,56 @@ export async function pruneSentSecurityAlerts(): Promise<number> {
   }
 }
 
+/** The name to greet the member by, from whatever their sign-in provider gave. */
+function displayNameOf(meta: Record<string, unknown> | undefined): string | null {
+  const m = meta ?? {};
+  return (
+    (typeof m.display_name === "string" && m.display_name) ||
+    (typeof m.full_name === "string" && m.full_name) ||
+    (typeof m.name === "string" && m.name) ||
+    null
+  );
+}
+
+/**
+ * An email code just finished a sign-in: a notification in the bell and an
+ * email, after the response so the sign-in is never slowed or failed by it.
+ */
+export function scheduleEmailCodeSignInAlert(user: Pick<User, "id" | "email" | "user_metadata">): void {
+  const at = new Date();
+  const run = () => notifyEmailCodeSignIn(user, at);
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
+}
+
+async function notifyEmailCodeSignIn(user: Pick<User, "id" | "email" | "user_metadata">, at: Date): Promise<void> {
+  const db = getDb();
+  if (db) {
+    try {
+      await db.insert(schema.notifications).values({
+        userId: user.id,
+        title: "Signed in with an email code",
+        message: "An email code was used to finish signing in. If this wasn't you, change your password and turn off email codes in Settings.",
+        category: "security",
+        href: "/dashboard/settings#two-step",
+      });
+    } catch (error) {
+      console.error("Email-code sign-in notification failed", error);
+    }
+  }
+
+  if (!user.email) return;
+  try {
+    const mail = buildEmailCodeSignInEmail({ name: displayNameOf(user.user_metadata), origin: resolvePublicOrigin(), at });
+    await sendEmail({ to: user.email, ...mail });
+  } catch (error) {
+    console.error("Email-code sign-in alert email failed", error);
+  }
+}
+
 async function notifyOwner(userId: string, items: SecurityAlertItem[]): Promise<void> {
   const db = getDb();
   if (!db) return;
@@ -154,13 +207,7 @@ async function notifyOwner(userId: string, items: SecurityAlertItem[]): Promise<
     const email = data?.user?.email;
     if (error || !email) return;
 
-    const meta = data.user.user_metadata ?? {};
-    const name =
-      (typeof meta.display_name === "string" && meta.display_name) ||
-      (typeof meta.full_name === "string" && meta.full_name) ||
-      (typeof meta.name === "string" && meta.name) ||
-      null;
-
+    const name = displayNameOf(data.user.user_metadata);
     await sendEmail({ to: email, ...buildSecurityAlertEmail({ name, origin: resolvePublicOrigin(), items }) });
   } catch (error) {
     console.error("Security alert email failed", error);
