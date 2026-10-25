@@ -5,10 +5,13 @@ import { deriveGrantKey, type ResetGrantSubject } from "@/lib/auth/reset-grant-c
 import { supabaseSecretKey } from "@/lib/supabase/secret-key";
 import { redisCommand } from "@/lib/redis";
 import { sendEmail } from "@/lib/email/send";
+import { buildCodeEmail } from "@/lib/email/code-email";
+import { resolvePublicOrigin } from "@/lib/site";
+import { supportEmail } from "@/lib/support-contact";
 
 /**
- * Single-use inbox proofs for account changes/deletion, and the explicitly
- * enabled email fallback at the second sign-in step. Callers enforce which
+ * Single-use inbox proofs for account changes/deletion, and the email
+ * fallback at the second sign-in step. Callers enforce which
  * proof an account may use; these purposes never substitute for one another.
  *
  * Each code is bound to the user, the requesting session and its purpose, so a
@@ -20,24 +23,6 @@ export type EmailProofPurpose = "account-deletion" | "account-change" | "two-fac
 const TTL_MS = 10 * 60_000;
 // Compare and delete in one command: concurrent requests cannot spend a code twice.
 const CONSUME = "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end";
-
-const MESSAGES: Record<EmailProofPurpose, (code: string) => { subject: string; text: string; html: string }> = {
-  "two-factor-sign-in": (code) => ({
-    subject: "Your Mazora sign-in verification code",
-    text: `Your Mazora sign-in verification code is ${code}. It expires in 10 minutes and works once, only in the browser session that requested it. If you did not try to sign in, do not share this code and secure your account.`,
-    html: `<p>Your Mazora sign-in verification code is <strong>${code}</strong>.</p><p>It expires in 10 minutes and works once, only in the browser session that requested it.</p><p>If you did not try to sign in, do not share this code and secure your account.</p>`,
-  }),
-  "account-deletion": (code) => ({
-    subject: "Confirm your account deletion",
-    text: `Your account deletion confirmation code is ${code}. It expires in 10 minutes and works only in the session that requested it. Deleting your account is permanent. If you did not request this, do not share or enter this code.`,
-    html: `<p>Your account deletion confirmation code is <strong>${code}</strong>.</p><p>It expires in 10 minutes and works only in the session that requested it. Deleting your account is permanent.</p><p>If you did not request this, do not share or enter this code.</p>`,
-  }),
-  "account-change": (code) => ({
-    subject: "Confirm it's you",
-    text: `Your Mazora confirmation code is ${code}. It expires in 10 minutes and works only in the session that requested it. It is needed to add a passkey, set a password, turn on two-step verification or connect a sign-in account. If you did not request this, do not share or enter this code, and sign out of devices you do not recognise.`,
-    html: `<p>Your Mazora confirmation code is <strong>${code}</strong>.</p><p>It expires in 10 minutes and works only in the session that requested it. It is needed to add a passkey, set a password, turn on two-step verification or connect a sign-in account.</p><p>If you did not request this, do not share or enter this code, and sign out of devices you do not recognise.</p>`,
-  }),
-};
 
 function proof(purpose: EmailProofPurpose, subject: ResetGrantSubject, code: string): { key: string; hash: string } | null {
   const secret = supabaseSecretKey();
@@ -56,7 +41,8 @@ export async function sendEmailProofCode(purpose: EmailProofPurpose, subject: Re
   if (!value) return false;
   try {
     if ((await redisCommand(["SET", value.key, value.hash, "PX", TTL_MS])) !== "OK") return false;
-    const sent = await sendEmail({ to: email, ...MESSAGES[purpose](code) });
+    const mail = buildCodeEmail({ purpose, code, origin: resolvePublicOrigin(), support: supportEmail });
+    const sent = await sendEmail({ to: email, ...mail });
     if (!sent) await redisCommand(["EVAL", CONSUME, 1, value.key, value.hash]);
     return sent;
   } catch {

@@ -80,15 +80,50 @@ function RecoveryCodeForm() {
   );
 }
 
+/*
+  Remembered for this tab only, so a refresh keeps the chosen method, the code
+  box and the resend countdown instead of making the member request (and use
+  up) another code. Storage can be blocked; the page then just starts fresh.
+*/
+const METHOD_KEY = "mz-two-factor-method";
+const EMAIL_SENT_KEY = "mz-two-factor-email-sent";
+const CODE_LIFETIME_MS = 10 * 60_000;
+const RESEND_WAIT_S = 60;
+
+function readTab(key: string): string | null {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeTab(key: string, value: string): void {
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    // Not remembered; nothing else depends on it.
+  }
+}
+
 function EmailCodeForm({ next }: { next: string }) {
   const [sendState, sendAction, sending] = useActionState(requestTwoFactorEmailCodeAction, initial);
   const [state, action, pending] = useActionState(verifyTwoFactorEmailCodeAction, initial);
   const [sent, setSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  // A code sent before a refresh is still valid for ten minutes.
+  useEffect(() => {
+    const sentAt = Number(readTab(EMAIL_SENT_KEY));
+    const elapsed = Date.now() - sentAt;
+    if (!sentAt || elapsed < 0 || elapsed >= CODE_LIFETIME_MS) return;
+    setSent(true);
+    setCooldown(Math.max(0, RESEND_WAIT_S - Math.floor(elapsed / 1000)));
+  }, []);
   useEffect(() => {
     if (!sendState.ok) return;
+    writeTab(EMAIL_SENT_KEY, String(Date.now()));
     setSent(true);
-    setCooldown(60);
+    setCooldown(RESEND_WAIT_S);
   }, [sendState]);
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -138,7 +173,15 @@ const SWITCH_TO: Record<Method, { label: string; icon: typeof Smartphone }> = {
  * Settings, or email delivery is not configured.
  */
 export function TwoFactorSignIn({ next, emailAvailable = false }: { next: string; emailAvailable?: boolean }) {
-  const [method, setMethod] = useState<Method>("app");
+  const [method, setMethodState] = useState<Method>("app");
+  useEffect(() => {
+    const saved = readTab(METHOD_KEY);
+    if (saved === "recovery" || (saved === "email" && emailAvailable)) setMethodState(saved);
+  }, [emailAvailable]);
+  const setMethod = (value: Method) => {
+    setMethodState(value);
+    writeTab(METHOD_KEY, value);
+  };
   const others = (["app", "email", "recovery"] as const).filter(
     (value) => value !== method && (value !== "email" || emailAvailable),
   );

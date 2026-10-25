@@ -100,7 +100,7 @@ function actionFixture({ optedOut = false, signedIn = true, secondStep = null as
       "@/lib/supabase/admin": { getSupabaseAdmin: () => ({ auth: { admin: { updateUserById: async (_id: string, data: Record<string, unknown>) => { events.push("update"); updated = data; return {}; } } } }) },
       "@/lib/audit-log": { recordAudit: async () => { events.push("audit"); } },
       "@/lib/security-alerts": { scheduleSecurityAlerts() {}, scheduleEmailCodeSignInAlert: () => { events.push("alert"); } },
-      "@/lib/rate-limit": { throttleAuthAction: async () => throttled, claimOnce: async () => claim },
+      "@/lib/rate-limit": { throttleAuthAction: async () => { events.push("throttle"); return throttled; }, claimOnce: async () => claim },
       "@/lib/safe-redirect": { safeNext: (value?: string) => value?.startsWith("/") && !value.startsWith("//") ? value : "/" },
       "@/lib/auth/account-deletion-proof": {
         sendEmailProofCode: async (purpose: string, _subject: unknown, to: string) => { messages.push({ to, purpose }); return sent; },
@@ -134,6 +134,10 @@ test("email delivery needs a pending account that has not opted out, uses its ow
   assert.equal((await f.actions.requestTwoFactorEmailCodeAction({ ok: false }, f.form)).ok, true);
   assert.equal(f.messages[0].to, "alex@example.com");
   assert.equal(f.messages[0].purpose, "two-factor-sign-in");
+  // A click turned away by the one-minute wait does not use up the send limit.
+  const waiting = actionFixture({ claim: "duplicate" });
+  await waiting.actions.requestTwoFactorEmailCodeAction({ ok: false }, waiting.form);
+  assert.equal(waiting.events.includes("throttle"), false);
   const failure = actionFixture({ sent: false });
   assert.equal((await failure.actions.requestTwoFactorEmailCodeAction({ ok: false }, failure.form)).ok, false);
 });
