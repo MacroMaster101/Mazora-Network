@@ -158,7 +158,9 @@ are configured. Members can turn them off (and back on) in Settings → Two-step
 verification → Email codes, confirming with an authenticator or recovery code.
 Codes expire after ten minutes, work once in the requesting browser session,
 and have resend and guessing limits. Every sign-in that uses one sends the
-member a security notification and email. This application fallback does not issue a Supabase
+member a security notification and email. They only finish a sign-in that
+started with a password, Google/Discord or a passkey: a session opened from an
+emailed reset code or link cannot use them. This application fallback does not issue a Supabase
 AAL2 token; password resets and security-setting changes still require the
 authenticator or a recovery code. No database migration is needed.
 

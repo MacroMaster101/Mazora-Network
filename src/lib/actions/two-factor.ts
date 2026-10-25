@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { randomUUID } from "node:crypto";
-import { getSession, getSignInSessionId, getTwoFactorPendingUser } from "@/lib/auth";
+import { getSession, getSignInSessionId, getTwoFactorPendingUser, isEmailTwoFactorAllowed } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordAudit } from "@/lib/audit-log";
 import { scheduleEmailCodeSignInAlert, scheduleSecurityAlerts } from "@/lib/security-alerts";
@@ -367,7 +367,7 @@ export async function requestTwoFactorEmailCodeAction(_previous: TwoFactorResult
   const pending = await pendingSignIn();
   if (!pending) return { ok: false, message: "Your session has expired. Sign in again." };
   const subject = emailTwoFactorSubject(pending.user, await getSignInSessionId());
-  if (!subject || !emailTwoFactorAvailable()) return { ok: false, message: "Email codes are not available for this account. Use your authenticator or a recovery code." };
+  if (!subject || !emailTwoFactorAvailable() || !(await isEmailTwoFactorAllowed())) return { ok: false, message: "Email codes are not available for this account. Use your authenticator or a recovery code." };
   const throttled = await throttleAuthAction("mfa-email-send", { limit: 3, windowMs: 15 * 60_000, identity: pending.user.id });
   if (throttled) return { ok: false, message: throttled };
   const claim = await claimOnce(`mfa-email-resend:${pending.user.id}`, 60_000);
@@ -382,7 +382,7 @@ export async function verifyTwoFactorEmailCodeAction(_previous: TwoFactorResult,
   const pending = await pendingSignIn();
   if (!pending) return { ok: false, message: "Your session has expired. Sign in again." };
   const subject = emailTwoFactorSubject(pending.user, await getSignInSessionId());
-  if (!subject) return { ok: false, message: "Email codes are not enabled for this account." };
+  if (!subject || !(await isEmailTwoFactorAllowed())) return { ok: false, message: "Email codes are not enabled for this account." };
   const code = readCode(formData);
   if (!code) return { ok: false, errors: { code: "Enter the six-digit code from your email." } };
   const throttled = await throttleAuthAction("mfa-email-verify", { limit: 5, windowMs: 15 * 60_000, identity: pending.user.id });
@@ -506,7 +506,10 @@ export async function disableTwoFactorAction(formData: FormData): Promise<TwoFac
   const stepError = await confirmSecondStep(actor, formData);
   if (stepError) return { ok: false, message: stepError };
 
-  if (actor.user.app_metadata?.mfa_email_fallback) {
+  // Clear an "on" setting with the factors, but keep an explicit opt-out: email
+  // codes are on by default, so dropping it would turn them back on unasked.
+  const emailFallback = actor.user.app_metadata?.mfa_email_fallback as { enabled?: unknown } | null | undefined;
+  if (emailFallback && emailFallback.enabled !== false) {
     const admin = getSupabaseAdmin();
     if (!admin) return { ok: false, message: UNAVAILABLE };
     const { error } = await admin.auth.admin.updateUserById(actor.user.id, {

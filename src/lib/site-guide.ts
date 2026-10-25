@@ -20,6 +20,8 @@ export interface SiteGuideStatus {
   discord: string | null;
   /** An authenticator app is set up (two-step verification is on). */
   twoFactor: boolean;
+  /** Email sign-in codes can be sent on this deployment (they come with two-step verification). */
+  emailCodes: boolean;
   /** Whether the member has a passkey; null while passkeys are switched off site-wide. */
   passkeys: boolean | null;
 }

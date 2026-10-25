@@ -181,7 +181,7 @@ export function SiteGuide({ autoOpen, username, displayName, avatarUrl, addresse
           <h2 id={titleId} className="site-guide-title">Protect your account</h2>
           <p className="site-guide-text">
             Turn on two-step verification so a leaked password alone can&apos;t get in. Sign-ins then also ask for a
-            code from an app on your phone, or one sent to your email if your phone isn&apos;t handy.
+            code from an app on your phone{status?.emailCodes ? ", or one sent to your email if your phone isn't handy" : ""}.
           </p>
           {status?.passkeys !== null && status?.passkeys !== undefined && (
             <ul className="site-guide-list">

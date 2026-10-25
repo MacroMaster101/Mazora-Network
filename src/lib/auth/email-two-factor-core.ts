@@ -21,6 +21,20 @@ export function emailTwoFactorEnrollment(user: EmailUser): { email: string; vers
   return { email: user.email.trim().toLowerCase(), version };
 }
 
+/** First steps that prove something other than the inbox: a password, a provider or a passkey. */
+const NON_EMAIL_FIRST_STEPS = new Set(["password", "oauth", "sso/saml", "passkey"]);
+/** Sessions opened from an emailed code or link: a reset, magic link, invite or confirmation. */
+const EMAIL_SESSIONS = new Set(["otp", "magiclink", "recovery", "invite", "email/signup", "email_change"]);
+
+/**
+ * An email code is a second factor only after a first step the inbox cannot
+ * give. A password-reset session is opened from the same inbox, so taking an
+ * email code there would let inbox access alone past two-step verification.
+ */
+export function emailTwoFactorAllowedForSignIn(amr: readonly string[]): boolean {
+  return amr.some((method) => NON_EMAIL_FIRST_STEPS.has(method)) && !amr.some((method) => EMAIL_SESSIONS.has(method));
+}
+
 /** Changing the inbox or toggling the option invalidates codes and sign-in passes. */
 export function emailTwoFactorSubject(user: EmailUser, sessionId: string | null): ResetGrantSubject | null {
   const enrollment = emailTwoFactorEnrollment(user);

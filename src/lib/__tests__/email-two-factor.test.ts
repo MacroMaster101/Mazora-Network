@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { User } from "@supabase/supabase-js";
-import { emailTwoFactorEnrollment, emailTwoFactorSubject } from "@/lib/auth/email-two-factor-core";
+import { emailTwoFactorAllowedForSignIn, emailTwoFactorEnrollment, emailTwoFactorSubject } from "@/lib/auth/email-two-factor-core";
 import * as grants from "@/lib/auth/reset-grant-core";
 import { loadServerModule } from "./helpers/server-module";
 import type * as Actions from "@/lib/actions/two-factor";
@@ -30,6 +30,14 @@ test("email fallback is on by default with an authenticator, off only by a serve
   // Two-step verification itself must be on.
   assert.equal(emailTwoFactorEnrollment({ ...user, factors: [] }), null);
   assert.equal(emailTwoFactorSubject(user, ""), null);
+});
+
+test("email codes finish only a password, provider or passkey sign-in, never an email-opened session", () => {
+  for (const amr of [["password"], ["oauth"], ["sso/saml"], ["passkey"]]) assert.equal(emailTwoFactorAllowedForSignIn(amr), true);
+  // A password reset, magic link, invite or confirmation link was opened from the same inbox.
+  for (const amr of [["recovery"], ["otp"], ["magiclink"], ["invite"], ["email/signup"], ["email_change"], ["password", "otp"], []]) {
+    assert.equal(emailTwoFactorAllowedForSignIn(amr), false);
+  }
 });
 
 test("a different session, email enrollment, or authenticator cannot reuse the same email pass", () => {
@@ -72,7 +80,7 @@ test("email grants are secure cookies and cannot authorize owner confirmation or
   assert.equal(await grant.hasEmailTwoFactorGrant(subject), false);
 });
 
-function actionFixture({ optedOut = false, signedIn = true, secondStep = null as string | null, status = "active", consumed = true, sent = true, throttled = null as string | null, claim = "claimed", available = true } = {}) {
+function actionFixture({ optedOut = false, signedIn = true, secondStep = null as string | null, status = "active", consumed = true, sent = true, throttled = null as string | null, claim = "claimed", available = true, emailSession = false } = {}) {
   const account = optedOut ? { ...user, app_metadata: { role: "member", mfa_email_fallback: { enabled: false, version } } } : user;
   const events: string[] = [];
   const messages: { to: string; purpose: string }[] = [];
@@ -87,7 +95,7 @@ function actionFixture({ optedOut = false, signedIn = true, secondStep = null as
       "next/cache": { revalidatePath() {} },
       "next/navigation": { redirect: (to: string) => { throw new Error(`redirect:${to}`); } },
       "node:crypto": { randomUUID: () => version },
-      "@/lib/auth": { getSession: async () => signedIn ? { username: "Alex_Builder" } : null, getSignInSessionId: async () => subject.sessionId, getTwoFactorPendingUser: async () => signedIn ? account : null },
+      "@/lib/auth": { getSession: async () => signedIn ? { username: "Alex_Builder" } : null, getSignInSessionId: async () => subject.sessionId, getTwoFactorPendingUser: async () => signedIn ? account : null, isEmailTwoFactorAllowed: async () => !emailSession },
       "@/lib/supabase/server": { createSupabaseServerClient: async () => supabase },
       "@/lib/supabase/admin": { getSupabaseAdmin: () => ({ auth: { admin: { updateUserById: async (_id: string, data: Record<string, unknown>) => { events.push("update"); updated = data; return {}; } } } }) },
       "@/lib/audit-log": { recordAudit: async () => { events.push("audit"); } },
@@ -101,8 +109,9 @@ function actionFixture({ optedOut = false, signedIn = true, secondStep = null as
       "@/lib/auth/email-two-factor": { emailTwoFactorAvailable: () => available },
       "@/lib/auth/email-two-factor-core": { emailTwoFactorSubject },
       "@/lib/auth/email-two-factor-grant": { clearEmailTwoFactorGrant: async () => { events.push("clear-email"); }, issueEmailTwoFactorGrant: async () => { events.push("grant"); return true; } },
-      "@/lib/auth/recovery-codes": {}, "@/lib/auth/two-factor-recovery": {},
-      "@/lib/auth/recovery-grant": { issueRecoveryGrant: async () => true },
+      "@/lib/auth/recovery-codes": { clearRecoveryCodes: async () => {} },
+      "@/lib/auth/two-factor-recovery": { removeAllFactors: async () => { events.push("remove-factors"); return true; } },
+      "@/lib/auth/recovery-grant": { issueRecoveryGrant: async () => true, clearRecoveryGrant: async () => {} },
       "@/lib/auth/replace-grant": {}, "@/lib/auth/owner-grant": {}, "@/lib/auth/owner-confirmation": {},
       "@/lib/auth/reauth": { confirmSecondStep: async () => { events.push("second-step"); return secondStep; } },
       "@/lib/data/account-status": { STATUS_UNREADABLE: "unreadable", accountStatusFor: async () => status },
@@ -115,7 +124,7 @@ function actionFixture({ optedOut = false, signedIn = true, secondStep = null as
 }
 
 test("email delivery needs a pending account that has not opted out, uses its own inbox, and respects resend limits", async () => {
-  for (const options of [{ signedIn: false }, { optedOut: true }, { available: false }, { throttled: "Too many attempts" }, { claim: "duplicate" }, { claim: "unavailable" }]) {
+  for (const options of [{ signedIn: false }, { optedOut: true }, { available: false }, { emailSession: true }, { throttled: "Too many attempts" }, { claim: "duplicate" }, { claim: "unavailable" }]) {
     const f = actionFixture(options);
     assert.equal((await f.actions.requestTwoFactorEmailCodeAction({ ok: false }, f.form)).ok, false);
     assert.equal(f.messages.length, 0);
@@ -130,7 +139,7 @@ test("email delivery needs a pending account that has not opted out, uses its ow
 });
 
 test("email codes never grant a sign-in on a wrong code, throttling, an opt-out, or a suspended account", async () => {
-  for (const options of [{ signedIn: false }, { optedOut: true }, { consumed: false }, { throttled: "Too many attempts" }]) {
+  for (const options of [{ signedIn: false }, { optedOut: true }, { emailSession: true }, { consumed: false }, { throttled: "Too many attempts" }]) {
     const f = actionFixture(options);
     assert.equal((await f.actions.verifyTwoFactorEmailCodeAction({ ok: false }, f.form)).ok, false);
     assert.equal(f.events.includes("grant"), false);
@@ -163,4 +172,14 @@ test("turning email codes off or on needs fresh authenticator or recovery proof 
   assert.equal((await f.actions.setTwoFactorEmailFallbackAction(f.form)).ok, true);
   // Off is saved explicitly: removing the setting would turn the default back on.
   assert.equal(JSON.stringify((f.updated()?.app_metadata as Record<string, unknown>).mfa_email_fallback), JSON.stringify({ enabled: false, version }));
+});
+
+test("turning two-step off keeps an explicit email-code opt-out, so turning it back on does not re-enable email", async () => {
+  const optedOut = actionFixture({ optedOut: true });
+  assert.equal((await optedOut.actions.disableTwoFactorAction(optedOut.form)).ok, true);
+  assert.equal(optedOut.events.includes("update"), false);
+  assert.ok(optedOut.events.includes("remove-factors"));
+  const on = actionFixture();
+  assert.equal((await on.actions.disableTwoFactorAction(on.form)).ok, true);
+  assert.equal((on.updated()?.app_metadata as Record<string, unknown>).mfa_email_fallback, null);
 });

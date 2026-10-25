@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LogOut, ShieldCheck } from "lucide-react";
-import { getSession, getTwoFactorPendingUser } from "@/lib/auth";
+import { getSession, getTwoFactorPendingUser, isEmailTwoFactorAllowed } from "@/lib/auth";
 import { safeNext } from "@/lib/safe-redirect";
 import { Logo } from "@/components/layout/logo";
 import { TwoFactorSignIn } from "@/components/auth/two-factor-form";
@@ -45,7 +45,7 @@ export default async function TwoFactorPage({ searchParams }: { searchParams: Pr
     redirect(`/login?next=${encodeURIComponent(next)}`);
   }
   const account = maskEmail(pendingUser.email);
-  const emailAvailable = Boolean(emailTwoFactorEnrollment(pendingUser) && emailTwoFactorAvailable());
+  const emailAvailable = Boolean(emailTwoFactorEnrollment(pendingUser) && emailTwoFactorAvailable() && await isEmailTwoFactorAllowed());
 
   return (
     <main id="main" className="relative isolate flex min-h-dvh flex-col overflow-x-hidden">
