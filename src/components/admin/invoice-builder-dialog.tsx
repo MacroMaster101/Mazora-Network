@@ -36,9 +36,14 @@ const EMPTY: InvoiceActionResult = { ok: false };
 let nextKey = 0;
 const makeKey = () => `line-${nextKey++}`;
 
-/** Today as "YYYY-MM-DD", matching the date input and the stored UTC date. */
+/**
+ * Today as "YYYY-MM-DD" on the admin's own calendar. The UTC date would still
+ * be yesterday for the first hours of the day east of UTC (until 05:30 in Sri Lanka).
+ */
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 export function InvoiceBuilderDialog({

@@ -51,8 +51,21 @@ test("a device name is escaped and shortened: whoever added it chose it", () => 
   assert.equal(alertLabel("   "), null);
 });
 
-test("times are given in UTC, since the server cannot know the reader's zone", () => {
+test("times are in the member's saved zone, and in UTC when none is saved or it is not a real zone", () => {
   assert.equal(alertTime(at), "Jan 2, 2026, 2:05 PM UTC");
+  assert.equal(alertTime(at, "Asia/Colombo"), "Jan 2, 2026, 7:35 PM GMT+5:30");
+  assert.equal(alertTime(at, "Not/A_Zone"), "Jan 2, 2026, 2:05 PM UTC");
+  assert.equal(alertTime(at, "<b>"), "Jan 2, 2026, 2:05 PM UTC");
+  const mail = buildEmailCodeSignInEmail({ name: null, origin, at, timeZone: "Asia/Colombo", support: null });
+  assert.ok(mail.text.includes("7:35 PM GMT+5:30"));
+  assert.ok(mail.html.includes("7:35 PM GMT+5:30"));
+});
+
+test("alert emails read the zone the member's browser saved", () => {
+  const alerts = read("../security-alerts.ts");
+  assert.match(alerts, /timeZone: savedTimeZone\(user\.user_metadata\)/);
+  assert.match(alerts, /const timeZone = savedTimeZone\(data\.user\.user_metadata\);/);
+  assert.match(read("../../components/layout/site-header.tsx"), /\{session && <TimeZoneSync \/>\}/);
 });
 
 /* -------------------------------------------------------------- migration */

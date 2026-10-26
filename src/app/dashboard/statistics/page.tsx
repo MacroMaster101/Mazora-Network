@@ -9,6 +9,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { DashHeader, StatTile } from "@/components/dashboard/dash-ui";
 import { usd } from "@/lib/utils";
+import { LocalDate } from "@/components/events/local-time";
 
 export const metadata: Metadata = { title: "Player Statistics" };
 
@@ -32,7 +33,7 @@ export default async function StatisticsPage() {
         .maybeSingle();
       if (data?.minecraft_username) {
         minecraftUsername = String(data.minecraft_username);
-        linkedAt = data.linked_at ? new Date(String(data.linked_at)).toLocaleDateString() : null;
+        linkedAt = data.linked_at ? String(data.linked_at) : null;
       }
     }
   }
@@ -85,7 +86,7 @@ export default async function StatisticsPage() {
                   <p className="font-bold text-sm text-ink">{minecraftUsername ? `@${minecraftUsername}` : "Not linked"}</p>
                 </div>
               </div>
-              {linkedAt && <p className="mt-2 text-[11px] text-muted">Linked since {linkedAt}</p>}
+              {linkedAt && <p className="mt-2 text-[11px] text-muted">Linked since <LocalDate iso={linkedAt} /></p>}
             </div>
 
             <div className="rounded-xl border border-line-strong bg-card/80 p-4">

@@ -16,7 +16,7 @@ export const metadata = publicPageMetadata({
   lib/consent-client alongside it, or every visitor who has already answered
   stays opted in to terms they never saw, for the rest of their 180 days.
 */
-const LAST_UPDATED = "2026-08-15";
+const LAST_UPDATED = "2026-10-26";
 
 export default function PrivacyPage() {
   const updated = new Date(LAST_UPDATED).toLocaleDateString("en", {
@@ -164,7 +164,9 @@ export default function PrivacyPage() {
                   cookie choice for 180 days. We also use your browser&apos;s local storage to remember
                   your theme, cart, in-app notification state, device-only notification preferences, and
                   support-card interactions, and session storage to hold an unfinished store request
-                  until you submit it. None of this is used for third-party advertising.
+                  until you submit it. When you are signed in, your browser&apos;s time zone is saved to
+                  your account so security emails show times in your local time. None of this is used
+                  for third-party advertising.
                 </p>
                 <p className="text-muted text-sm sm:text-base leading-relaxed mt-3">
                   Analytics are <strong className="text-ink">off until you accept them</strong> in the

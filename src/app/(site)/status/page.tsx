@@ -5,6 +5,7 @@ import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { site } from "@/lib/site";
 import { PageHero, CopyIpButton, Reveal, FloatingBrandLogo } from "@/components/shared";
 import { RefreshButton } from "@/components/shared/refresh-button";
+import { LocalClock } from "@/components/events/local-time";
 import { getPageContent } from "@/lib/data/page-content";
 
 export const metadata = publicPageMetadata({
@@ -66,7 +67,7 @@ export default async function StatusPage() {
                 {!status.live ? copy.statusUnavailable : online ? copy.serverOnline : copy.serverOffline}
               </p>
               <p className="telemetry text-sm text-muted">
-                <span data-page-field="lastUpdated">{copy.lastUpdated}</span> {new Date(status.lastUpdate).toLocaleTimeString("en", { timeZone: "UTC", timeZoneName: "short" })}
+                <span data-page-field="lastUpdated">{copy.lastUpdated}</span> <LocalClock iso={status.lastUpdate} />
               </p>
             </div>
           </div>

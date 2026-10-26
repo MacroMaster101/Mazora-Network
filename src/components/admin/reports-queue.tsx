@@ -5,7 +5,7 @@ import Link from "@/components/ui/app-link";
 import { AlertTriangle, Check, ExternalLink, Flag, Trash2, X } from "lucide-react";
 import { useToast } from "@/components/ui";
 import { MinecraftAvatar } from "@/components/shared";
-import { fmtDate, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { DashEmpty } from "@/components/dashboard/dash-ui";
 import type { ReportQueueItem } from "@/lib/data/reports";
 import { resolveReportAction, dismissReportAction } from "@/lib/actions/reports";
@@ -14,6 +14,7 @@ import { deleteSuggestionAction } from "@/lib/actions/suggestions-admin";
 import { REPORT_REASON_LABELS, type ReportReason } from "@/lib/report-rules";
 import { REPLY_TOMBSTONE } from "@/lib/suggestions-rules";
 import { ImageGallery } from "@/components/suggestions/image-gallery";
+import { LocalDate } from "@/components/events/local-time";
 
 function sameTarget(a: ReportQueueItem, b: ReportQueueItem): boolean {
   return a.target.kind === b.target.kind && a.target.id === b.target.id;
@@ -132,7 +133,7 @@ export function ReportsQueue({ initialReports }: { initialReports: ReportQueueIt
                   </span>
                 )}
               </div>
-              <span className="text-[11px] text-muted">{fmtDate(report.createdAt)}</span>
+              <span className="text-[11px] text-muted"><LocalDate iso={report.createdAt} /></span>
             </div>
 
             <div className="rounded-xl border border-line bg-ink/5 p-3 space-y-1.5">

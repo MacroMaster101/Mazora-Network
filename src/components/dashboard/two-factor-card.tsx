@@ -239,7 +239,7 @@ export function TwoFactorCard({
             detail={!enabled ? "Comes on with your authenticator: a backup way to finish signing in by email."
               : overview.emailFallbackEnabled
                 ? overview.emailFallbackAvailable
-                  ? "On. If you can't reach your phone, get a sign-in code at your confirmed email."
+                  ? "On. If you can't reach your phone after a password or passkey sign-in, get a code at your confirmed email."
                   : "On, but email delivery is unavailable right now. Your authenticator and recovery codes still work."
                 : overview.emailFallbackAvailable ? "Off. Only your authenticator or a recovery code finishes a sign-in."
                 : "Off. Email delivery is unavailable right now."}

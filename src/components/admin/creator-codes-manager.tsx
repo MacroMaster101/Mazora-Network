@@ -15,6 +15,7 @@ import { AdminTable, type Column } from "@/components/admin/admin-table";
 import { useExampleCreator } from "@/lib/example-names";
 import { FormRow, Input, Modal, Textarea, useToast } from "@/components/ui";
 import { usd } from "@/lib/utils";
+import { LocalDate } from "@/components/events/local-time";
 
 /**
  * Creator discount codes: issue a code to a vetted creator, pick exactly which
@@ -159,6 +160,20 @@ function PlatformPicker({
   );
 }
 
+/** "2026-09-01" for the local calendar day an instant falls on, for a date input. */
+function localDateInput(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** The last second of a picked day in the admin's own zone, as an exact instant. */
+function endOfLocalDay(day: string): string {
+  const end = new Date(`${day}T23:59:59`);
+  return Number.isNaN(end.getTime()) ? "" : end.toISOString();
+}
+
 function toDraft(code: CreatorCode): Draft {
   return {
     id: code.id,
@@ -171,13 +186,11 @@ function toDraft(code: CreatorCode): Draft {
     percentOff: String(code.percentOff),
     enabled: code.enabled,
     /*
-      Sliced from the stored ISO string, not re-rendered through
-      toLocaleDateString: that formatted the instant in the ADMIN's zone while
-      the server parsed the value back in its own (UTC on Vercel). A stored
-      2026-09-01T23:59:59Z showed as 2026-09-02 to an admin at UTC+5:30, so
-      re-saving an untouched date walked the expiry forward a day each time.
+      The expiry is the end of the picked day in the admin's own zone, sent as
+      an exact instant (see save). Reading it back as a local date gives the
+      same day, so re-saving an untouched date never moves it.
     */
-    expiresAt: code.expiresAt ? String(code.expiresAt).slice(0, 10) : "",
+    expiresAt: code.expiresAt ? localDateInput(code.expiresAt) : "",
     internalNote: code.internalNote ?? "",
     showPublicAlert: code.showPublicAlert ?? false,
     alertHeadline: code.alertHeadline ?? "",
@@ -275,7 +288,7 @@ export function CreatorCodesManager({
       calendar day in UTC, which is also how the editor reads it back above — so
       the value round-trips unchanged no matter where the admin is.
     */
-    data.append("expiresAt", draft.expiresAt ? `${draft.expiresAt}T23:59:59Z` : "");
+    data.append("expiresAt", draft.expiresAt ? endOfLocalDay(draft.expiresAt) : "");
     data.append("internalNote", draft.internalNote);
     data.append("showPublicAlert", draft.showPublicAlert ? "true" : "false");
     data.append("alertHeadline", draft.alertHeadline);
@@ -396,7 +409,7 @@ export function CreatorCodesManager({
             <span>
               <span className="block text-danger">Expired</span>
               <span className="block text-xs text-muted">
-                {new Date(code.expiresAt!).toLocaleDateString()}
+                <LocalDate iso={code.expiresAt!} />
               </span>
             </span>
           );
@@ -416,7 +429,7 @@ export function CreatorCodesManager({
               )}
             </button>
             <span className="block text-xs text-muted">
-              {code.expiresAt ? `until ${new Date(code.expiresAt).toLocaleDateString()}` : "no expiry"}
+              {code.expiresAt ? <>until <LocalDate iso={code.expiresAt} /></> : "no expiry"}
             </span>
           </span>
         );

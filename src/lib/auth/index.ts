@@ -174,7 +174,7 @@ const getAuthState = cache(async () => {
   // Email is an application fallback, on by default with an authenticator. It never changes
   // the Supabase token or grants permission to replace/remove an authenticator.
   const emailSubject = emailTwoFactorSubject(data.user, token.sessionId);
-  const emailAllowed = emailTwoFactorAllowedForSignIn(token.amr);
+  const emailAllowed = emailTwoFactorAllowedForSignIn(token.amr, data.user);
   const emailVerified = hasAuthenticator && token.aal !== "aal2" && !recovered && !passkeyVerified &&
     emailAllowed && emailSubject !== null && await hasEmailTwoFactorGrant(emailSubject);
   const aal: "aal1" | "aal2" = recovered || passkeyVerified || emailVerified ? "aal2" : token.aal;

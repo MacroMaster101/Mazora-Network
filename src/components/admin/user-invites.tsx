@@ -12,7 +12,7 @@ import {
 } from "@/lib/actions/user-admin";
 import { RankChip } from "@/components/admin/rank-chip";
 import { FormRow, Input, Modal, Select, useToast } from "@/components/ui";
-import { fmtDate } from "@/lib/utils";
+import { LocalDate } from "@/components/events/local-time";
 
 const initial: AdminActionResult = { ok: false, message: "" };
 
@@ -197,7 +197,7 @@ export function PendingInvites({ invites }: { invites: PendingInvite[] }) {
                   <RankChip role={invite.role} />
                   {invite.invitedAt && (
                     <span className="text-[11px] text-muted">
-                      Sent {fmtDate(invite.invitedAt)}
+                      Sent <LocalDate iso={invite.invitedAt} />
                     </span>
                   )}
                 </span>

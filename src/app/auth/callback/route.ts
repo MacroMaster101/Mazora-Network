@@ -77,8 +77,10 @@ export async function GET(request: NextRequest) {
         }
         // Social sign-in is a sign-in like any other, so the fixed default
         // templates fire here too. Both dispatches are deduplicated and never
-        // throw, so a failure cannot break the OAuth redirect.
-        await dispatchSignInNotifications(data.user.id);
+        // throw, so a failure cannot break the OAuth redirect. With two-step
+        // verification on, the sign-in is not finished yet: the /two-factor
+        // actions send them once the code is entered.
+        if (!hasFactor) await dispatchSignInNotifications(data.user.id);
       }
       // No explicit destination → home, for every role. An explicit `next`
       // (e.g. account linking) wins.

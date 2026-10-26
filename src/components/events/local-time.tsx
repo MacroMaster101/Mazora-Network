@@ -29,3 +29,42 @@ export function LocalTime({ iso, withTime = true, className }: { iso: string; wi
     </time>
   );
 }
+
+/**
+ * A date ("Oct 26, 2026") in the viewer's own time zone. Same approach as
+ * LocalTime: the server renders the UTC date, the browser swaps in its own.
+ */
+export function LocalDate({ iso, className }: { iso: string; className?: string }) {
+  const [text, setText] = useState<string | null>(null);
+
+  useEffect(() => {
+    const date = new Date(iso);
+    if (!Number.isNaN(date.getTime())) setText(date.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" }));
+  }, [iso]);
+
+  return (
+    <time dateTime={iso} className={className} suppressHydrationWarning>
+      {text ?? fmtDate(iso)}
+    </time>
+  );
+}
+
+const CLOCK = { hour: "numeric", minute: "2-digit", timeZoneName: "short" } as const;
+
+/** A time of day ("2:21 PM GMT+5:30") in the viewer's zone; UTC, labelled, until hydrated. */
+export function LocalClock({ iso, className }: { iso: string; className?: string }) {
+  const [text, setText] = useState<string | null>(null);
+
+  useEffect(() => {
+    const date = new Date(iso);
+    if (!Number.isNaN(date.getTime())) setText(date.toLocaleTimeString("en", CLOCK));
+  }, [iso]);
+
+  const date = new Date(iso);
+  const utc = Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString("en", { ...CLOCK, timeZone: "UTC" });
+  return (
+    <time dateTime={iso} className={className} suppressHydrationWarning>
+      {text ?? utc}
+    </time>
+  );
+}

@@ -8,6 +8,7 @@
  */
 
 import { supportEmail } from "@/lib/support-contact";
+import { validTimeZone } from "@/lib/time-zone";
 import { button, cleanOrigin, detailBox, detailRow, emailShell, escapeHtml, greetingFor, heading, paragraph, strong } from "./layout";
 
 export type SecurityAlertKind = "passkey" | "totp" | "webauthn" | "phone";
@@ -43,22 +44,26 @@ export function alertLabel(label: string | null | undefined): string | null {
   return trimmed.length > 60 ? `${trimmed.slice(0, 59)}…` : trimmed;
 }
 
-/** "Oct 6, 2026, 2:05 PM UTC": the server cannot know the reader's zone. */
-export function alertTime(at: Date): string {
-  return `${at.toLocaleString("en-US", {
-    timeZone: "UTC",
+/**
+ * "Oct 6, 2026, 7:35 PM GMT+5:30" in the member's saved zone, or
+ * "Oct 6, 2026, 2:05 PM UTC" when none is saved (see lib/time-zone).
+ */
+export function alertTime(at: Date, timeZone?: string | null): string {
+  return at.toLocaleString("en-US", {
+    timeZone: validTimeZone(timeZone) ?? "UTC",
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  })} UTC`;
+    timeZoneName: "short",
+  });
 }
 
 /** One line per added method: "A passkey ("Windows Hello"), Oct 6, 2026, 2:05 PM UTC". */
-function itemLine(item: SecurityAlertItem): string {
+function itemLine(item: SecurityAlertItem, timeZone: string | null | undefined): string {
   const label = alertLabel(item.label);
-  return `${ALERT_COPY[item.kind].noun}${label ? ` ("${label}")` : ""}, ${alertTime(item.at)}`;
+  return `${ALERT_COPY[item.kind].noun}${label ? ` ("${label}")` : ""}, ${alertTime(item.at, timeZone)}`;
 }
 
 const REASON =
@@ -68,6 +73,8 @@ export function buildSecurityAlertEmail(input: {
   name: string | null;
   origin: string;
   items: SecurityAlertItem[];
+  /** The member's saved time zone; UTC when missing. */
+  timeZone?: string | null;
   /** Defaults to the configured public support address. */
   support?: string | null;
 }): SecurityAlertEmail {
@@ -93,7 +100,7 @@ export function buildSecurityAlertEmail(input: {
     "",
     lead,
     "",
-    ...items.map((item) => `• ${itemLine(item)}`),
+    ...items.map((item) => `• ${itemLine(item, input.timeZone)}`),
     "",
     "If this was you, there is nothing to do.",
     "",
@@ -110,7 +117,7 @@ export function buildSecurityAlertEmail(input: {
   const rows = items
     .map((item, index) => {
       const label = alertLabel(item.label);
-      const value = `${escapeHtml(alertTime(item.at))}${label ? ` &middot; &ldquo;${escapeHtml(label)}&rdquo;` : ""}`;
+      const value = `${escapeHtml(alertTime(item.at, input.timeZone))}${label ? ` &middot; &ldquo;${escapeHtml(label)}&rdquo;` : ""}`;
       return detailRow(escapeHtml(ALERT_COPY[item.kind].title), value, index === 0);
     })
     .join("");
@@ -150,6 +157,8 @@ export function buildEmailCodeSignInEmail(input: {
   name: string | null;
   origin: string;
   at: Date;
+  /** The member's saved time zone; UTC when missing. */
+  timeZone?: string | null;
   /** Defaults to the configured public support address. */
   support?: string | null;
 }): SecurityAlertEmail {
@@ -164,7 +173,7 @@ export function buildEmailCodeSignInEmail(input: {
   const text = [
     greeting,
     "",
-    `An email code was just used to finish signing in to your Mazora Network account (${alertTime(input.at)}).`,
+    `An email code was just used to finish signing in to your Mazora Network account (${alertTime(input.at, input.timeZone)}).`,
     "",
     "If this was you, there is nothing to do.",
     "",
@@ -181,7 +190,7 @@ export function buildEmailCodeSignInEmail(input: {
   const body = [
     heading("Signed in with an email code"),
     paragraph(`${escapeHtml(greeting)} an email code was just used to finish signing in to your Mazora Network account.`),
-    detailBox(detailRow("Time", escapeHtml(alertTime(input.at)), true)),
+    detailBox(detailRow("Time", escapeHtml(alertTime(input.at, input.timeZone)), true)),
     paragraph(`${strong("Was this you?")} Then there is nothing to do.`, "22px 0 0"),
     paragraph(`${strong("Wasn&rsquo;t you?")} ${escapeHtml(whatToDo)}`, "14px 0 24px"),
     button(settingsUrl, "Review security settings"),

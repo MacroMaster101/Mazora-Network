@@ -32,12 +32,32 @@ test("email fallback is on by default with an authenticator, off only by a serve
   assert.equal(emailTwoFactorSubject(user, ""), null);
 });
 
+function identity(provider: string, email?: string) {
+  return {
+    id: `fake-${provider}-identity`, identity_id: `fake-${provider}-identity`, user_id: subject.userId, provider,
+    identity_data: email ? { email } : {}, created_at: "2026-01-01T00:00:00Z", last_sign_in_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+  };
+}
+
 test("email codes finish only a password, provider or passkey sign-in, never an email-opened session", () => {
-  for (const amr of [["password"], ["oauth"], ["sso/saml"], ["passkey"]]) assert.equal(emailTwoFactorAllowedForSignIn(amr), true);
+  const otherInbox = { ...user, identities: [identity("email", user.email), identity("discord", "alex.gamer@example.com")] };
+  for (const amr of [["password"], ["oauth"], ["sso/saml"], ["passkey"]]) assert.equal(emailTwoFactorAllowedForSignIn(amr, otherInbox), true);
   // A password reset, magic link, invite or confirmation link was opened from the same inbox.
   for (const amr of [["recovery"], ["otp"], ["magiclink"], ["invite"], ["email/signup"], ["email_change"], ["password", "otp"], []]) {
-    assert.equal(emailTwoFactorAllowedForSignIn(amr), false);
+    assert.equal(emailTwoFactorAllowedForSignIn(amr, otherInbox), false);
   }
+});
+
+test("a provider sign-in on the account's own address cannot finish with an email code", () => {
+  // Signing in with the Google account that is the mailbox, then reading the code in it, is one credential twice.
+  const sameInbox = { ...user, identities: [identity("google", "ALEX@example.com")] };
+  assert.equal(emailTwoFactorAllowedForSignIn(["oauth"], sameInbox), false);
+  // A provider that reports no address is treated as the same inbox.
+  assert.equal(emailTwoFactorAllowedForSignIn(["oauth"], { ...user, identities: [identity("discord")] }), false);
+  assert.equal(emailTwoFactorAllowedForSignIn(["oauth"], { ...user, email: undefined, identities: [] }), false);
+  // A password or passkey sign-in on the same account still may.
+  assert.equal(emailTwoFactorAllowedForSignIn(["password"], sameInbox), true);
+  assert.equal(emailTwoFactorAllowedForSignIn(["passkey"], sameInbox), true);
 });
 
 test("a different session, email enrollment, or authenticator cannot reuse the same email pass", () => {
@@ -100,6 +120,7 @@ function actionFixture({ optedOut = false, signedIn = true, secondStep = null as
       "@/lib/supabase/admin": { getSupabaseAdmin: () => ({ auth: { admin: { updateUserById: async (_id: string, data: Record<string, unknown>) => { events.push("update"); updated = data; return {}; } } } }) },
       "@/lib/audit-log": { recordAudit: async () => { events.push("audit"); } },
       "@/lib/security-alerts": { scheduleSecurityAlerts() {}, scheduleEmailCodeSignInAlert: () => { events.push("alert"); } },
+      "@/lib/notifications-auto": { dispatchSignInNotifications: async () => { events.push("notices"); } },
       "@/lib/rate-limit": { throttleAuthAction: async () => { events.push("throttle"); return throttled; }, claimOnce: async () => claim },
       "@/lib/safe-redirect": { safeNext: (value?: string) => value?.startsWith("/") && !value.startsWith("//") ? value : "/" },
       "@/lib/auth/account-deletion-proof": {
@@ -160,6 +181,8 @@ test("email codes never grant a sign-in on a wrong code, throttling, an opt-out,
   assert.ok(f.events.indexOf("consume") < f.events.indexOf("grant"));
   // The owner is told about every sign-in an email code completes.
   assert.ok(f.events.indexOf("grant") < f.events.indexOf("alert"));
+  // The sign-in notices go out once the second step is done, not at the password step.
+  assert.ok(f.events.indexOf("grant") < f.events.indexOf("notices"));
 });
 
 test("turning email codes off or on needs fresh authenticator or recovery proof and preserves role metadata", async () => {
