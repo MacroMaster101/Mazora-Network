@@ -7,7 +7,8 @@ import type { NewsArticle } from "@/lib/types";
 import { ArticleArt } from "./article-art";
 import { NewsCard } from "./news-card";
 import { NewsAuthor } from "./news-author";
-import { cn, fmtDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { LocalDate } from "@/components/events/local-time";
 
 const NEWS_PAGE_SIZE = 7;
 
@@ -99,7 +100,7 @@ export function NewsExplorer({ articles }: { articles: NewsArticle[] }) {
             <div className="newsroom-feature-copy">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="news-public-kicker">{featured.category}</span>
-                <span className="telemetry text-xs text-muted">{fmtDate(featured.date)}</span>
+                <span className="telemetry text-xs text-muted"><LocalDate iso={featured.date} /></span>
               </div>
               <h2 className="mt-5 text-balance font-display text-3xl font-black leading-[1.05] sm:text-4xl">
                 {featured.title}

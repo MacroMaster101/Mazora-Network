@@ -10,7 +10,7 @@ import { dismissForumReportAction, removeReportedPostAction } from "@/lib/action
 import { FORUM_REPORT_REASON_LABELS } from "@/lib/forums-rules";
 import { commentHref } from "@/lib/comments/tree";
 import type { ReportReason } from "@/lib/report-rules";
-import { fmtDate } from "@/lib/utils";
+import { LocalDate } from "@/components/events/local-time";
 
 /**
  * Staff review of reported forum posts. Reports on the same post are shown as
@@ -88,7 +88,7 @@ export function ForumReportsQueue({ initialReports }: { initialReports: ForumRep
             <div className="space-y-2 rounded-xl border border-line bg-ink/5 p-3">
               <p className="text-xs text-muted">
                 In <strong className="font-semibold text-ink">{topic.title}</strong> · by{" "}
-                <strong className="font-semibold text-ink">{post.author}</strong> · {fmtDate(post.createdAt)}
+                <strong className="font-semibold text-ink">{post.author}</strong> · <LocalDate iso={post.createdAt} />
               </p>
               {/* Plain text on purpose: staff see exactly what was written, markup included. */}
               <p className="whitespace-pre-line text-sm leading-relaxed text-ink/90">{post.body}</p>
@@ -114,7 +114,7 @@ export function ForumReportsQueue({ initialReports }: { initialReports: ForumRep
                     {FORUM_REPORT_REASON_LABELS[report.reason as ReportReason] ?? report.reason}
                   </span>
                   <span>
-                    <strong className="font-semibold text-ink">{report.reporter}</strong> · {fmtDate(report.createdAt)}
+                    <strong className="font-semibold text-ink">{report.reporter}</strong> · <LocalDate iso={report.createdAt} />
                     {report.note && <> — “{report.note}”</>}
                   </span>
                 </li>

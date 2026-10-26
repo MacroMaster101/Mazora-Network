@@ -2,9 +2,9 @@ import Link from "@/components/ui/app-link";
 import { Gift, Users } from "lucide-react";
 import type { EventItem } from "@/lib/types";
 import { EVENT_STATUS_LABEL } from "@/components/events/status";
-import { fmtDate } from "@/lib/utils";
 import { EventArt } from "./event-art";
 import { cn } from "@/lib/utils";
+import { LocalDate } from "@/components/events/local-time";
 
 const statusTone: Record<EventItem["status"], string> = {
   live: "border-danger/50 text-danger",
@@ -32,7 +32,7 @@ export function EventCard({ event }: { event: EventItem }) {
       </div>
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-center justify-between gap-3 text-xs text-muted">
-          <span>{fmtDate(event.startISO)}</span>
+          <span><LocalDate iso={event.startISO} /></span>
           <span className="chip">{event.mode}</span>
         </div>
         <h3 className="mt-2 font-display text-lg font-bold group-hover:text-accent-bright">{event.title}</h3>

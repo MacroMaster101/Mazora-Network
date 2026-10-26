@@ -115,6 +115,7 @@ function replacement(options: { fresh: boolean; ownerGrant: boolean }) {
       },
       "@/lib/audit-log": { recordAudit: async () => undefined },
       "@/lib/security-alerts": { scheduleSecurityAlerts() {} },
+      "@/lib/notifications-auto": { dispatchSignInNotifications: async () => {} },
       "@/lib/rate-limit": { throttleAuthAction: async () => null },
       "@/lib/safe-redirect": { safeNext: (value: string) => value },
       "@/lib/auth/recovery-codes": { clearRecoveryCodes: async () => undefined, issueRecoveryCodes: async () => [] },

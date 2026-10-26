@@ -13,6 +13,7 @@ import { PostImages } from "@/components/forums/post-images";
 import { ReplyForm } from "@/components/forums/reply-form";
 import { FloatingBrandLogo, PageHero } from "@/components/shared";
 import { publicPageMetadata } from "@/lib/seo";
+import { LocalDate } from "@/components/events/local-time";
 
 type PageProps = {
   params: Promise<{ topicId: string }>;
@@ -103,7 +104,7 @@ export default async function TopicPage({ params, searchParams }: PageProps) {
 
   const basePath = `/forums/topic/${topic.id}`;
   const canReplyHere = canReply({ locked: topic.forumLocked }, { locked: topic.locked, deletedAt: null }, actor);
-  const started = new Date(topic.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const started = new Date(topic.createdAt).toISOString();
 
   return (
     <>
@@ -111,7 +112,7 @@ export default async function TopicPage({ params, searchParams }: PageProps) {
         backLink={{ href: `/forums/${topic.forumSlug}`, label: `Back to ${topic.forumName}` }}
         eyebrow={`${topic.categoryName} · ${topic.forumName}`}
         title={topic.title}
-        lead={`Started by ${topic.author} on ${started}.${topic.locked ? " This topic is locked." : ""}`}
+        lead={<>Started by {topic.author} on <LocalDate iso={started} />.{topic.locked ? " This topic is locked." : ""}</>}
         illustration={<FloatingBrandLogo />}
       />
 

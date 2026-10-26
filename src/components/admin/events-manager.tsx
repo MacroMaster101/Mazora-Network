@@ -3,7 +3,8 @@
 import { useRef, useState, useTransition, useMemo } from "react";
 import { Plus, Calendar, Clock, Trophy, Users, Edit, Trash2, Search, X, ImagePlus, Upload, Link as LinkIcon } from "lucide-react";
 import { Modal, useToast } from "@/components/ui";
-import { fmtDate, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { LocalTime } from "@/components/events/local-time";
 import { saveEventAction, deleteEventAction } from "@/lib/actions/events-admin";
 import { effectiveEventStatus } from "@/lib/events/status";
 
@@ -219,12 +220,12 @@ export function EventsManager({
                 <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted pt-1">
                   <span className="flex items-center gap-1.5">
                     <Clock size={13} className="text-accent-bright" />
-                    Starts: {fmtDate(ev.startAt)}
+                    Starts: <LocalTime iso={ev.startAt} />
                   </span>
                   {ev.endAt && (
                     <span className="flex items-center gap-1.5">
                       <Calendar size={13} className="text-muted" />
-                      Ends: {fmtDate(ev.endAt)}
+                      Ends: <LocalTime iso={ev.endAt} />
                     </span>
                   )}
                   <span className="flex items-center gap-1.5">

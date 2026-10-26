@@ -1,9 +1,9 @@
 import Link from "@/components/ui/app-link";
 import { ArrowUpRight, Clock3 } from "lucide-react";
 import type { NewsArticle } from "@/lib/types";
-import { fmtDate } from "@/lib/utils";
 import { ArticleArt } from "./article-art";
 import { NewsAuthor } from "./news-author";
+import { LocalDate } from "@/components/events/local-time";
 
 export function NewsCard({ article }: { article: NewsArticle }) {
   return (
@@ -17,7 +17,7 @@ export function NewsCard({ article }: { article: NewsArticle }) {
       <div className="flex flex-1 flex-col p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <span className="news-public-kicker">{article.category}</span>
-          <span className="telemetry text-[11px] text-muted">{fmtDate(article.date)}</span>
+          <span className="telemetry text-[11px] text-muted"><LocalDate iso={article.date} /></span>
         </div>
         <h3 className="mt-4 text-balance font-display text-xl font-bold leading-snug transition-colors group-hover:text-accent-bright">
           {article.title}

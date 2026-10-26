@@ -1,6 +1,6 @@
 import { CalendarClock, Newspaper, Rss } from "lucide-react";
 import type { NewsSyncReport } from "@/lib/data/bot-console";
-import { fmtDate } from "@/lib/utils";
+import { LocalDate } from "@/components/events/local-time";
 
 type NewsResult = { ok: true; report: NewsSyncReport } | { ok: false; reason: string };
 
@@ -59,7 +59,7 @@ export function NewsSyncPanel({ news }: { news: NewsResult }) {
             <div className="flex items-center justify-between gap-3">
               <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted">Last imported article</p>
               {news.report.lastImportedAt && (
-                <p className="shrink-0 text-[11px] text-muted">{fmtDate(news.report.lastImportedAt)}</p>
+                <p className="shrink-0 text-[11px] text-muted"><LocalDate iso={news.report.lastImportedAt} /></p>
               )}
             </div>
 

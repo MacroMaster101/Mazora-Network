@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui";
 import { MinecraftAvatar } from "@/components/shared";
-import { fmtDate, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { AdminSuggestion, AdminReply } from "@/lib/data/suggestions";
 import {
   updateSuggestionStatusAction,
@@ -28,6 +28,7 @@ import {
 import { setSuggestionLockedAction, deleteSuggestionReplyAction } from "@/lib/actions/suggestions";
 import { REPLY_TOMBSTONE } from "@/lib/suggestions-rules";
 import { ImageGallery } from "@/components/suggestions/image-gallery";
+import { LocalDate } from "@/components/events/local-time";
 
 export function SuggestionsManager({
   initialSuggestions,
@@ -439,7 +440,7 @@ export function SuggestionsManager({
                     <div className="flex items-center gap-2 pt-1">
                       <MinecraftAvatar username={sug.authorUsername} size={20} />
                       <span className="text-[11px] text-muted">
-                        Submitted by <strong className="text-ink font-semibold">{sug.authorDisplayName || sug.authorUsername}</strong> • {fmtDate(sug.createdAt)}
+                        Submitted by <strong className="text-ink font-semibold">{sug.authorDisplayName || sug.authorUsername}</strong> • <LocalDate iso={sug.createdAt} />
                       </span>
                     </div>
 
@@ -544,7 +545,7 @@ export function SuggestionsManager({
                                   <strong className="text-ink font-semibold">
                                     {reply.authorDisplayName || reply.authorUsername}
                                   </strong>{" "}
-                                  • {fmtDate(reply.createdAt)}
+                                  • <LocalDate iso={reply.createdAt} />
                                   {reply.editedAt && !isDeleted ? " • edited" : ""}
                                 </div>
                                 <p

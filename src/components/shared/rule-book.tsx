@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import type { RuleCategory } from "@/lib/types";
 import { Icon } from "./icon";
-import { fmtDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { LocalDate } from "@/components/events/local-time";
 
 export function RuleBook({ categories }: { categories: RuleCategory[] }) {
   const [active, setActive] = useState(categories[0]?.slug);
@@ -63,7 +63,7 @@ export function RuleBook({ categories }: { categories: RuleCategory[] }) {
               <h2 className="flex items-center gap-2 font-display text-2xl font-bold">
                 <Icon name={cat.icon} size={20} className="text-accent-bright" /> {cat.name}
               </h2>
-              <span className="text-xs text-muted">Updated {fmtDate(cat.updated)}</span>
+              <span className="text-xs text-muted">Updated <LocalDate iso={cat.updated} /></span>
             </div>
             <div className="rule-book-list mt-4">
               {cat.items.map((item, i) => {

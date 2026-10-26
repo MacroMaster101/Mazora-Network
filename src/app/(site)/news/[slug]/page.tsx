@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { ArrowRight, BadgeCheck, CalendarDays, Clock3, Radio } from "lucide-react";
 import { getArticle, getRelatedArticles } from "@/lib/data/content";
 import { getNewsArticleReadCount } from "@/lib/data/news-visitors";
-import { fmtDate } from "@/lib/utils";
 import { ArticleArt, BackLink, NewsAuthor, NewsCard, Reveal } from "@/components/shared";
 import { NewsVisitorStat } from "@/components/shared/news-visitor-stat";
 import { ShareButtons } from "@/components/shared/share-buttons";
@@ -15,6 +14,7 @@ import { absoluteUrl, breadcrumbSchema, jsonLdGraph, newsArticleSchema } from "@
 // cascade order. Do not reshuffle.
 import "@/styles/news-pages.css";
 import "@/styles/news-article.css";
+import { LocalDate } from "@/components/events/local-time";
 
 // Per-request so an unknown slug returns a real 404 instead of a soft 200, and
 // so newly published articles are live immediately. See the store detail page
@@ -125,13 +125,13 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           <div className="news-detail-intro">
             <div className="news-detail-kicker-row">
               <span className="news-detail-kicker">{article.category}</span>
-              <span>{fmtDate(article.date)}</span>
+              <span><LocalDate iso={article.date} /></span>
             </div>
             <h1>{article.title}</h1>
             {article.excerpt && <p>{article.excerpt}</p>}
             <div className="news-detail-meta">
               <NewsAuthor article={article} compact />
-              <span><CalendarDays size={15} /> {fmtDate(article.date)}</span>
+              <span><CalendarDays size={15} /> <LocalDate iso={article.date} /></span>
               <ShareButtons />
             </div>
           </div>
@@ -173,7 +173,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 </p>
               </div>
               <dl>
-                <div><dt>Published</dt><dd>{fmtDate(article.date)}</dd></div>
+                <div><dt>Published</dt><dd><LocalDate iso={article.date} /></dd></div>
                 <div><dt>Category</dt><dd>{article.category}</dd></div>
                 <div><dt>Reading time</dt><dd>{article.readMinutes} min</dd></div>
               </dl>

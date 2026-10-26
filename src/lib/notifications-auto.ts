@@ -11,6 +11,7 @@ import { buildWelcomeEmail } from "@/lib/email/welcome-email";
 import { sendEmail } from "@/lib/email/send";
 import { resolvePublicOrigin } from "@/lib/site";
 import { scheduleSecurityAlerts } from "@/lib/security-alerts";
+import { claimOnce } from "@/lib/rate-limit";
 
 /**
  * Automatic delivery of the two fixed default templates.
@@ -182,6 +183,11 @@ export async function dispatchSessionVerificationNotification(userId: string): P
 
     // A device this account has used before is not news; say nothing.
     if (!(await isUnrecognisedSession(userId))) return;
+
+    // Two sign-ins landing together would both pass the read below and both
+    // insert. The shared store settles it atomically; if it is down, the
+    // database check still stops a later repeat.
+    if ((await claimOnce(`session-notice:${userId}`, SESSION_DEDUP_MS)) === "duplicate") return;
 
     const cutoff = new Date(Date.now() - SESSION_DEDUP_MS);
     const [recent] = await db

@@ -12,8 +12,8 @@ import { ReadOnlyBanner } from "@/components/admin/admin-ui";
 import { RankChip } from "@/components/admin/rank-chip";
 import { InviteUserButton, PendingInvites } from "@/components/admin/user-invites";
 import { UserAvatar } from "@/components/shared";
-import { fmtDate } from "@/lib/utils";
 import { StaffVisibilityToggle } from "@/components/admin/staff-visibility-toggle";
+import { LocalDate } from "@/components/events/local-time";
 
 export const metadata: Metadata = { title: "Staff · Admin" };
 
@@ -123,7 +123,7 @@ export default async function AdminStaffPage() {
                       <span className="block truncate text-xs text-muted">{member.email}</span>
                       {member.lastSignInAt && (
                         <span className="mt-1 block text-[11px] text-muted">
-                          Last seen {fmtDate(member.lastSignInAt)}
+                          Last seen <LocalDate iso={member.lastSignInAt} />
                         </span>
                       )}
                     </span>

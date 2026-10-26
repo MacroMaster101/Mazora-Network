@@ -33,6 +33,14 @@ function isOwnStorageUrl(url: string): boolean {
 export interface NewsActionResult {
   ok: boolean;
   message: string;
+  /** When a publish was scheduled: the time, so the editor can say it in the admin's own zone. */
+  scheduledFor?: string;
+}
+
+/** Labelled UTC on the server; the editor replaces it with the admin's local time. */
+function scheduledResult(publishAt: Date): NewsActionResult {
+  const when = publishAt.toLocaleString("en", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+  return { ok: true, message: `Article scheduled for ${when}.`, scheduledFor: publishAt.toISOString() };
 }
 
 const DENIED: NewsActionResult = { ok: false, message: "You do not have permission to manage news." };
@@ -275,12 +283,7 @@ async function publish(
   await audit(auditAction, id, { by });
   refreshArticle(row?.slug);
   const scheduled = publishAt.getTime() > Date.now() + 1_000;
-  return {
-    ok: true,
-    message: scheduled
-      ? `Article scheduled for ${publishAt.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}.`
-      : message,
-  };
+  return scheduled ? scheduledResult(publishAt) : { ok: true, message };
 }
 
 export async function approveArticleAction(formData: FormData): Promise<NewsActionResult> {
@@ -451,12 +454,7 @@ export async function createArticleAction(formData: FormData): Promise<NewsActio
       };
     }
     const scheduled = publishNow && publishAt && publishAt.getTime() > Date.now() + 1_000;
-    return {
-      ok: true,
-      message: scheduled
-        ? `Article scheduled for ${publishAt.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}.`
-        : publishNow ? "Article published." : "Draft saved.",
-    };
+    return scheduled ? scheduledResult(publishAt) : { ok: true, message: publishNow ? "Article published." : "Draft saved." };
   });
 }
 

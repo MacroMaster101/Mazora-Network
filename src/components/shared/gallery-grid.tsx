@@ -26,11 +26,11 @@ import {
   withLikeToggled,
 } from "@/lib/gallery-likes";
 import { coverGradient } from "./accent";
-import { fmtDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { playerHeadUrl } from "@/lib/minecraft/skin";
 import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 import { useToast } from "@/components/ui";
+import { LocalDate } from "@/components/events/local-time";
 
 /*
   Uploads are stored at full size (often multi-megabyte PNG screenshots), so
@@ -278,7 +278,7 @@ function GalleryCard({
             <AuthorAvatarThumb author={img.author} size={22} />
             <span>by {img.author}</span>
           </span>
-          <span className="text-xs text-muted">{fmtDate(img.createdAt)}</span>
+          <span className="text-xs text-muted"><LocalDate iso={img.createdAt} /></span>
         </div>
       </div>
     </div>
@@ -524,7 +524,7 @@ export function GalleryGrid({ images }: { images: GalleryImage[] }) {
 
                   <div className="flex items-center gap-2 text-xs text-muted pt-2 border-t border-line/60">
                     <Calendar size={13} />
-                    <span>Uploaded on {fmtDate(open.createdAt)}</span>
+                    <span>Uploaded on <LocalDate iso={open.createdAt} /></span>
                   </div>
                 </div>
               </div>

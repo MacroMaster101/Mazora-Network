@@ -11,6 +11,7 @@ import { ThemeCycleButton } from "@/components/theme/theme-toggle";
 import { ThemeHint } from "@/components/theme/theme-hint-tooltip";
 import { CartTrigger } from "@/components/shared/cart-trigger";
 import { PresenceBeacon } from "@/components/presence/presence-beacon";
+import { TimeZoneSync } from "@/components/presence/time-zone-sync";
 import { getPresenceChoice } from "@/lib/data/presence";
 
 export async function SiteHeader({ world = false, stable = false }: { world?: boolean; stable?: boolean }) {
@@ -41,6 +42,8 @@ export async function SiteHeader({ world = false, stable = false }: { world?: bo
       )}
       {/* Signed-in members only: the header is on every page, so presence stays current site-wide. */}
       {session && <PresenceBeacon />}
+      {/* So security emails can show times in the member's own zone. */}
+      {session && <TimeZoneSync />}
       <ScrollHeader world={world} stable={stable}>
         <div className="header-shell shell flex h-[4.85rem] items-center justify-between gap-4">
           {/* Left: Single unified Brand Logo (responsive sizing via CSS) */}

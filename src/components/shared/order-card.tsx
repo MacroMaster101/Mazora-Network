@@ -1,7 +1,8 @@
 import { CheckCircle2, Clock3, PackageCheck, UserPlus, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { orderStatusLabel, type MemberOrder, type OrderStatus, type StoreOrder } from "@/lib/order-status";
-import { cn, fmtDate, usd } from "@/lib/utils";
+import { cn, usd } from "@/lib/utils";
+import { LocalDate } from "@/components/events/local-time";
 
 /**
  * One store order, shared by the member purchase history and the staff order
@@ -47,7 +48,7 @@ export function OrderCard({ order, showBuyer = false, actions }: { order: StoreO
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="telemetry text-sm font-bold text-accent-bright">{order.reference}</p>
-          <p className="mt-1 text-xs text-muted">{fmtDate(order.createdAt)}</p>
+          <p className="mt-1 text-xs text-muted"><LocalDate iso={order.createdAt} /></p>
         </div>
         <OrderStatusPill status={order.status} />
       </div>
@@ -113,7 +114,7 @@ export function OrderCard({ order, showBuyer = false, actions }: { order: StoreO
         <p className="mt-3 text-xs text-muted">
           {order.status === "rejected" ? "Declined" : "Actioned"} by{" "}
           <strong className="text-fg">{order.handledBy}</strong>
-          {order.handledAt ? ` · ${fmtDate(order.handledAt)}` : ""}
+          {order.handledAt ? <> · <LocalDate iso={order.handledAt} /></> : null}
         </p>
       )}
 

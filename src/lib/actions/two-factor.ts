@@ -7,6 +7,7 @@ import { getSession, getSignInSessionId, getTwoFactorPendingUser, isEmailTwoFact
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordAudit } from "@/lib/audit-log";
 import { scheduleEmailCodeSignInAlert, scheduleSecurityAlerts } from "@/lib/security-alerts";
+import { dispatchSignInNotifications } from "@/lib/notifications-auto";
 import { claimOnce, throttleAuthAction } from "@/lib/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { consumeEmailProofCode, sendEmailProofCode } from "@/lib/auth/account-deletion-proof";
@@ -396,6 +397,7 @@ export async function verifyTwoFactorEmailCodeAction(_previous: TwoFactorResult,
   await recordAudit({ action: "auth.two_factor_email_used", actorId: pending.user.id, by: pending.user.id, targetType: "user", targetId: pending.user.id });
   // Tell the owner every time, so a sign-in from someone else who got into the inbox is noticed.
   scheduleEmailCodeSignInAlert(pending.user);
+  await dispatchSignInNotifications(pending.user.id);
   const nextValue = formData.get("next");
   redirect(safeNext(typeof nextValue === "string" ? nextValue : undefined));
 }
@@ -428,6 +430,8 @@ export async function verifyTwoFactorAction(_previous: TwoFactorResult, formData
   }
   if (!verified) return { ok: false, errors: { code: "That code is incorrect or has expired." } };
   await refuseIfSuspended(pending);
+  // The sign-in is finished only now, so its notices go out here, not at the password step.
+  await dispatchSignInNotifications(pending.user.id);
 
   const nextValue = formData.get("next");
   redirect(safeNext(typeof nextValue === "string" ? nextValue : undefined));
@@ -462,6 +466,7 @@ export async function redeemRecoveryCodeAction(_previous: TwoFactorResult, formD
   if (!sessionId || !(await issueRecoveryGrant({ userId: pending.user.id, sessionId }))) {
     return { ok: false, message: UNAVAILABLE };
   }
+  await dispatchSignInNotifications(pending.user.id);
 
   redirect("/dashboard/settings");
 }

@@ -7,7 +7,8 @@ import { X } from "lucide-react";
 import type { DirectoryPlayer, SkinSourceKind } from "@/lib/types";
 import { DEFAULT_SKIN_NAME, mcHeadsBodyUrl } from "@/lib/minecraft/skin";
 import { RankChip } from "@/components/admin/rank-chip";
-import { accentFor, cn, fmtDate, formatPlaytime, relative, usd } from "@/lib/utils";
+import { accentFor, cn, formatPlaytime, relative, usd } from "@/lib/utils";
+import { LocalDate } from "@/components/events/local-time";
 
 const focusableSelector = [
   "a[href]",
@@ -215,7 +216,7 @@ export function PlayerPanel({
                 {player.membership === "member" && (
                   <span className="font-bold text-accent dark:text-accent-bright">Mazora member</span>
                 )}
-                {player.firstJoined && <span>Joined {fmtDate(player.firstJoined)}</span>}
+                {player.firstJoined && <span>Joined <LocalDate iso={player.firstJoined} /></span>}
                 {!player.online && player.lastSeen && <span>Last seen {relative(player.lastSeen)}</span>}
               </div>
             </div>

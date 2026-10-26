@@ -44,6 +44,7 @@ import { Input, Select, Textarea, useToast } from "@/components/ui";
 import { DEFAULT_NEWS_CATEGORY, NEWS_CATEGORIES, normalizeCategory } from "@/lib/news/categories";
 import { cleanAndUnwrapImageUrl, cn } from "@/lib/utils";
 import { displayAvatarUrl } from "@/lib/minecraft/skin";
+import { LocalTime } from "@/components/events/local-time";
 
 type Runner = (action: (fd: FormData) => Promise<NewsActionResult>, formData: FormData) => void;
 type ImageUploader = (id: string, file: File) => Promise<NewsActionResult>;
@@ -99,14 +100,18 @@ function normalizePublicationTime(formData: FormData): FormData {
   return formData;
 }
 
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en", {
+/** The result's message, with a scheduled time said in the admin's own zone. */
+function resultMessage(res: { message: string; scheduledFor?: string }): string {
+  if (!res.scheduledFor) return res.message;
+  const when = new Date(res.scheduledFor).toLocaleString("en", {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZoneName: "short",
   });
+  return `Article scheduled for ${when}.`;
 }
 
 function PublisherAvatar({ src, name, team = false }: { src?: string | null; name: string; team?: boolean }) {
@@ -254,7 +259,7 @@ function ArticleRow({
             )}
           </span>
           <span className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-muted">
-            <span>{article.category}</span><span aria-hidden="true">•</span><span>{article.source === "discord" ? "Discord import" : "Staff article"}</span>{article.publishedAt && <><span aria-hidden="true">•</span><span>{fmtDateTime(article.publishedAt)}</span></>}
+            <span>{article.category}</span><span aria-hidden="true">•</span><span>{article.source === "discord" ? "Discord import" : "Staff article"}</span>{article.publishedAt && <><span aria-hidden="true">•</span><LocalTime iso={article.publishedAt} /></>}
           </span>
           <span className="mt-1 block truncate font-semibold leading-snug">{article.title}</span>
           <span className="mt-0.5 block truncate text-xs text-muted">{article.excerpt || "No summary yet"}</span>
@@ -320,7 +325,7 @@ function ArticleRow({
               <div>
                 <span>Original Discord post</span>
                 <strong>{article.discordAuthor ?? "Unknown poster"}</strong>
-                <small>{article.discordAuthorRole ?? "Discord Publisher"} · imported {fmtDateTime(article.createdAt)}</small>
+                <small>{article.discordAuthorRole ?? "Discord Publisher"} · imported <LocalTime iso={article.createdAt} /></small>
               </div>
             </div>
           )}
@@ -662,7 +667,7 @@ export function NewsEditor({
   const run: Runner = (action, formData) =>
     start(async () => {
       const res = await action(formData);
-      toast(res.message, res.ok ? "success" : "error");
+      toast(resultMessage(res), res.ok ? "success" : "error");
     });
 
   /** Uploads immediately on pick and resolves so the row can settle its preview. */
@@ -891,7 +896,7 @@ export function NewsEditor({
               action={(fd) =>
                 start(async () => {
                   const res = await createArticleAction(normalizePublicationTime(fd));
-                  toast(res.message, res.ok ? "success" : "error");
+                  toast(resultMessage(res), res.ok ? "success" : "error");
                   if (res.ok) closeComposer();
                 })
               }

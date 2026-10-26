@@ -14,6 +14,7 @@ import {
 } from "@/lib/email/security-alert-email";
 import { resolvePublicOrigin } from "@/lib/site";
 import type { User } from "@supabase/supabase-js";
+import { savedTimeZone } from "@/lib/time-zone";
 
 /**
  * Tells a member when a passkey, authenticator app, security key or phone is
@@ -171,7 +172,12 @@ async function notifyEmailCodeSignIn(user: Pick<User, "id" | "email" | "user_met
 
   if (!user.email) return;
   try {
-    const mail = buildEmailCodeSignInEmail({ name: displayNameOf(user.user_metadata), origin: resolvePublicOrigin(), at });
+    const mail = buildEmailCodeSignInEmail({
+      name: displayNameOf(user.user_metadata),
+      origin: resolvePublicOrigin(),
+      at,
+      timeZone: savedTimeZone(user.user_metadata),
+    });
     await sendEmail({ to: user.email, ...mail });
   } catch (error) {
     console.error("Email-code sign-in alert email failed", error);
@@ -208,7 +214,8 @@ async function notifyOwner(userId: string, items: SecurityAlertItem[]): Promise<
     if (error || !email) return;
 
     const name = displayNameOf(data.user.user_metadata);
-    await sendEmail({ to: email, ...buildSecurityAlertEmail({ name, origin: resolvePublicOrigin(), items }) });
+    const timeZone = savedTimeZone(data.user.user_metadata);
+    await sendEmail({ to: email, ...buildSecurityAlertEmail({ name, origin: resolvePublicOrigin(), items, timeZone }) });
   } catch (error) {
     console.error("Security alert email failed", error);
   }

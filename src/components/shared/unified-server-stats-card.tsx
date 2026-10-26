@@ -91,7 +91,9 @@ const buildTelemetryBars = (status: ServerStatus, samples: StatusSample[]): BarD
   for (const sample of samples) {
     const at = new Date(sample.hour);
     if (Number.isFinite(at.getTime())) {
-      at.setMinutes(0, 0, 0);
+      // Samples are recorded per UTC hour, so match them by UTC hour: in a
+      // half-hour zone such as UTC+5:30 a local hour would split two samples.
+      at.setUTCMinutes(0, 0, 0);
       byHour.set(at.toISOString(), sample);
     }
   }
@@ -99,8 +101,11 @@ const buildTelemetryBars = (status: ServerStatus, samples: StatusSample[]): BarD
   for (let i = 23; i >= 0; i--) {
     const time = new Date(now.getTime() - i * 60 * 60 * 1000);
     const bucket = new Date(time);
-    bucket.setMinutes(0, 0, 0);
-    const timeLabel = i === 0 ? "Right Now" : `${time.getHours().toString().padStart(2, "0")}:00`;
+    bucket.setUTCMinutes(0, 0, 0);
+    // Labelled with the local time the hour starts ("12:30" at UTC+5:30).
+    const timeLabel = i === 0
+      ? "Right Now"
+      : `${bucket.getHours().toString().padStart(2, "0")}:${bucket.getMinutes().toString().padStart(2, "0")}`;
 
     // The current hour is the one reading always held live.
     if (i === 0) {

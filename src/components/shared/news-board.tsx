@@ -7,7 +7,7 @@ import { ArticleArt } from "./article-art";
 import { CoverArt } from "./cover-art";
 import { NewsAuthor } from "./news-author";
 import { TonePill } from "@/components/ui/badge";
-import { fmtDate } from "@/lib/utils";
+import { LocalDate } from "@/components/events/local-time";
 
 const categoryIcon: Record<string, string> = {
   "Server Updates": "Sparkles",
@@ -31,7 +31,7 @@ function AuthorRow({ article }: { article: NewsArticle }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
       <NewsAuthor article={article} compact />
-      <span className="telemetry shrink-0 text-xs text-muted">{fmtDate(article.date)}</span>
+      <span className="telemetry shrink-0 text-xs text-muted"><LocalDate iso={article.date} /></span>
     </div>
   );
 }

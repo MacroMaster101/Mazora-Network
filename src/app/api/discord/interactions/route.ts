@@ -466,7 +466,8 @@ async function announcePurchase(
 
   const banner = getPurchaseBannerUrl();
   const rule = "━".repeat(22);
-  const date = new Date().toISOString().slice(0, 10);
+  // Discord shows <t:…:d> as a date in each reader's own time zone.
+  const date = `<t:${Math.floor(Date.now() / 1000)}:d>`;
 
   const details = [
     rule,
