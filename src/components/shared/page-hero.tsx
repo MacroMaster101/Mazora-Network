@@ -29,7 +29,7 @@ export function PageHero({
           </div>
         )}
         <div className="flex flex-col-reverse md:flex-row items-center md:items-center justify-between gap-6 md:gap-8">
-          <div className="max-w-2xl w-full">
+          <div className="page-hero-copy max-w-2xl w-full">
             {eyebrow && <p className="eyebrow mb-3" data-page-field={fieldIds?.eyebrow}>{eyebrow}</p>}
             <h1 className="text-balance text-3xl font-extrabold sm:text-4xl md:text-5xl" data-page-field={fieldIds?.title}>{title}</h1>
             {lead && <p className="mt-4 text-pretty text-base sm:text-lg text-muted" data-page-field={fieldIds?.lead}>{lead}</p>}

@@ -13,10 +13,10 @@ import { primaryNav, site } from "@/lib/site";
 import type { Session } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { THEME_HINT_MENU_EVENT } from "@/components/theme/theme-hint";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { UserAvatarWithPresence } from "@/components/shared/user-avatar-with-presence";
 import { RankChip } from "@/components/admin/rank-chip";
 import { StatusSection } from "@/components/presence/status-section";
-import { PresenceDot, PresencePill } from "@/components/presence/presence-dot";
+import { PresencePill } from "@/components/presence/presence-dot";
 import type { PresenceChoice } from "@/lib/presence-rules";
 import { cn } from "@/lib/utils";
 import { NavIcon } from "./nav-icon";
@@ -311,14 +311,7 @@ export function MobileMenu({
                         )}
                       >
                         <div className="flex items-center gap-3.5 min-w-0">
-                          <span className="relative shrink-0">
-                            <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={38} />
-                            <PresenceDot
-                              status={status}
-                              decorative
-                              className="absolute -bottom-0.5 -right-0.5 h-3 w-3 border-2 border-white dark:border-[#0c0618]"
-                            />
-                          </span>
+                          <UserAvatarWithPresence username={session.username} avatarUrl={session.avatarUrl} size={38} rounded="rounded-full" status={status} decorative />
                           <div className="min-w-0 flex-1">
                             <p className="font-bold text-xs text-ink truncate leading-tight">
                               {session.displayName || session.username}

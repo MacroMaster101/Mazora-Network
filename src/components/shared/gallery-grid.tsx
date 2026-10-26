@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import {
   ArrowRight,
   Calendar,
@@ -28,7 +29,18 @@ import { coverGradient } from "./accent";
 import { fmtDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { playerHeadUrl } from "@/lib/minecraft/skin";
+import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 import { useToast } from "@/components/ui";
+
+/*
+  Uploads are stored at full size (often multi-megabyte PNG screenshots), so
+  they go through the image optimiser, which serves AVIF or WebP at the size
+  shown. Only our own storage is allowed there (next.config remotePatterns);
+  anything else, such as an older row's external link, loads directly.
+*/
+function optimizable(src: string): boolean {
+  return isSupabaseStorageObjectUrl(src, process.env.NEXT_PUBLIC_SUPABASE_URL);
+}
 
 function GalleryCardImage({ img }: { img: GalleryImage }) {
   const [error, setError] = useState(false);
@@ -52,16 +64,17 @@ function GalleryCardImage({ img }: { img: GalleryImage }) {
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src={img.imageUrl}
       alt={img.title}
+      fill
+      // Three columns from lg, two from sm, one on phones (see the grids below).
+      sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
+      quality={75}
+      unoptimized={!optimizable(img.imageUrl)}
       onError={() => setError(true)}
-      // A gallery renders far more tiles than fit on screen; without this the
-      // browser fetches every screenshot in the grid on first paint.
-      loading="lazy"
-      decoding="async"
-      className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+      // Lazy by default: a gallery renders far more tiles than fit on screen.
+      className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
     />
   );
 }
@@ -126,12 +139,18 @@ function LightboxImage({ src, alt }: { src: string; alt: string }) {
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src={src}
       alt={alt}
+      // The real size is unknown here; these only reserve a 16:10 box, and the
+      // classes let the image keep its own proportions inside it.
+      width={1600}
+      height={1000}
+      sizes="(min-width: 896px) 896px, 100vw"
+      quality={90}
+      unoptimized={!optimizable(src)}
       onError={() => setError(true)}
-      className="max-h-[80vh] w-full object-contain"
+      className="h-auto max-h-[80vh] w-full object-contain"
     />
   );
 }
@@ -341,6 +360,7 @@ export function GalleryGrid({ images }: { images: GalleryImage[] }) {
               key={key}
               type="button"
               onClick={() => setActive(key)}
+              aria-pressed={active === key}
               className={cn(
                 "rounded-xl px-4 py-2 text-xs font-extrabold tracking-wide transition-all duration-200 border select-none outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
                 active === key
@@ -389,7 +409,7 @@ export function GalleryGrid({ images }: { images: GalleryImage[] }) {
                       <div className={cn("gallery-category-icon flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border backdrop-blur-xl shadow-lg", sec.badgeBg)}>
                         <Icon size={22} className={sec.iconColor} />
                       </div>
-                      <div>
+                      <div className="gallery-category-heading">
                         <div className="flex items-center gap-2.5">
                           <h2 className="font-display text-xl sm:text-2xl font-extrabold text-ink tracking-tight">{sec.title}</h2>
                           <span className="rounded-full bg-card text-ink border border-line-strong px-3 py-0.5 text-xs font-mono font-bold shadow-inner">

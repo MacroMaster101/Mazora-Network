@@ -146,11 +146,19 @@ Copy `.env.example` to `.env` or `.env.local` when overrides are needed. Never c
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Legacy auth | Legacy browser-safe anonymous key; used only when no publishable key is set. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Admin features | Server-only Supabase service key used for user, invitation, staff, and avatar administration, and to sign the `mz_pw_reset` grant that lets a verified password-reset session set a new password. Password reset fails without it. Never expose it publicly. |
 | `BOT_CONFIG_SECRET` | Presence worker | Shared secret the standalone Render presence bot presents to read its rotation config from `/api/bot/presence-config`. Must be identical in Vercel and Render. The endpoint refuses every request while this is unset. |
-| `RESEND_API_KEY` | Welcome email and deletion confirmation | Resend API key for the app's own sender, separate from Supabase SMTP. Required for the email code before deleting an account without a password or authenticator. Missing configuration refuses that deletion flow; welcome email remains optional. |
-| `MAIL_FROM` | Welcome email and deletion confirmation | Sender address, e.g. `noreply@mail.example.com`, on a domain verified in Resend. Required alongside `RESEND_API_KEY`. |
+| `RESEND_API_KEY` | App email and optional sign-in codes | Resend API key for the app's own sender, separate from Supabase SMTP. Required for email confirmation codes and optional two-step email fallback. Missing configuration makes email fallback unavailable; authenticator and recovery codes keep working. Welcome email remains optional. |
+| `MAIL_FROM` | App email and optional sign-in codes | Sender address, e.g. `noreply@mail.example.com`, on a domain verified in Resend. Required alongside `RESEND_API_KEY`. |
 | `TRUSTED_PROXY_HOPS` | No | How many proxy hops to count in from the right of `x-forwarded-for` when resolving a caller's IP for rate limiting. Defaults to `1`. Raise it only if you add another trusted proxy in front of the app. |
 | `AUTH_DEMO_MODE` | Local only | Set to `true` only for local UI previews without Supabase. Never enable in production. |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Production | Shared security store for global credential/submission limits, single-use Discord interaction claims, and session-bound account deletion codes. Missing production configuration or a store outage refuses security-sensitive requests. Local development keeps in-memory limits. The daily news cron also sends a read-only `PING`. |
+
+Optional email sign-in verification is off by default. With the app mailer and
+shared Redis store configured, enable it in Settings → Two-step verification →
+Email code (optional), confirming with an authenticator or recovery code. Codes
+expire after ten minutes, work once in the requesting browser session, and have
+resend and guessing limits. This application fallback does not issue a Supabase
+AAL2 token; password resets and security-setting changes still require the
+authenticator or a recovery code. No database migration is needed.
 
 The live integrations fail safely:
 

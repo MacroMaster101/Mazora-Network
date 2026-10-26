@@ -19,7 +19,7 @@ export function SectionHeader({
   fieldIds?: { eyebrow?: string; title?: string; copy?: string; action?: string };
 }) {
   return (
-    <div className={center ? "mx-auto max-w-2xl text-center" : "flex flex-wrap items-end justify-between gap-4"}>
+    <div className={center ? "section-heading mx-auto max-w-2xl text-center" : "section-heading flex flex-wrap items-end justify-between gap-4"}>
       <div className={center ? "" : "max-w-2xl"}>
         {eyebrow && <p className="eyebrow mb-3" data-page-field={fieldIds?.eyebrow}>{eyebrow}</p>}
         <h2 className="text-balance text-3xl font-bold sm:text-4xl" data-page-field={fieldIds?.title}>{title}</h2>

@@ -6,6 +6,7 @@ export { EmptyState } from "./empty-state";
 export { CopyIpButton } from "./copy-ip-button";
 export { MinecraftAvatar } from "./minecraft-avatar";
 export { UserAvatar } from "./user-avatar";
+export { UserAvatarWithPresence } from "./user-avatar-with-presence";
 export { RoleBadge } from "./role-badge";
 export { ArticleArt } from "./article-art";
 export { GameModeCard } from "./game-mode-card";

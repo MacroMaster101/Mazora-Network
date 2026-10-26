@@ -19,7 +19,7 @@ export function FloatingDiscountAlert({ alerts, alert }: FloatingDiscountAlertPr
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const [minimized, setMinimized] = useState(false);
+  const [minimized, setMinimized] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showEligibleModal, setShowEligibleModal] = useState(false);
   const [consentAnswered, setConsentAnswered] = useState(false);
@@ -80,14 +80,14 @@ export function FloatingDiscountAlert({ alerts, alert }: FloatingDiscountAlertPr
         setDismissed(true);
         return;
       }
-      const isMin = sessionStorage.getItem("mazora_alert_minimized") === "true";
-      if (isMin) {
-        setMinimized(true);
-      }
+      const savedMinimized = sessionStorage.getItem("mazora_alert_minimized");
+      // Start compact so promotions do not cover the page being read.
+      // An explicit preference still wins when moving between pages.
+      setMinimized(savedMinimized !== null ? savedMinimized === "true" : true);
     } catch {
-      // Storage access blocked / private mode
+      setMinimized(true);
     }
-  }, [currentAlert]);
+  }, [currentAlert, pathname]);
 
   // Gentle delay for entrance animation once consent has been answered
   useEffect(() => {

@@ -16,6 +16,7 @@ import { FloatingDiscountAlert, ServiceNotice } from "@/components/shared";
 import { isDatabaseDown } from "@/lib/data/service-health";
 import "@/styles/globals.css";
 import "@/styles/world-themes.css";
+import "@/styles/light-theme.css";
 
 /*
   The brand faces. These set the --font-* custom properties that globals.css

@@ -33,6 +33,8 @@ test("codes, orders and invoices read as their own reference", () => {
 test("security events say what happened", () => {
   assert.equal(summarise("auth.two_factor_enabled", "mfa_factor", "id", { by: "Steve_42" }), "Authenticator app enabled");
   assert.equal(summarise("auth.two_factor_recovery_used", "user", "id", { remaining: 9 }), "Recovery code used (9 left)");
+  assert.equal(summarise("auth.two_factor_email_enabled", "user", "id", {}), "Email sign-in codes enabled");
+  assert.equal(summarise("auth.two_factor_email_used", "user", "id", {}), "Email sign-in codes used");
   assert.equal(summarise("auth.passkey_added", "user", "id", { passkeyId: "x" }), "Passkey added");
 });
 

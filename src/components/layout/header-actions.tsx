@@ -10,10 +10,10 @@ import { accountMenuFor, type AccountMenuIcon as AccountMenuIconName } from "@/l
 import { openSiteGuide } from "@/lib/site-guide";
 import { openStaffGuide } from "@/lib/staff-guide";
 import { AuthDialogTrigger } from "@/components/auth/auth-dialog-provider";
-import { UserAvatar } from "@/components/shared/user-avatar";
-import { PresenceDot, PresencePill } from "@/components/presence/presence-dot";
+import { UserAvatarWithPresence } from "@/components/shared/user-avatar-with-presence";
+import { PresencePill } from "@/components/presence/presence-dot";
 import { StatusSection } from "@/components/presence/status-section";
-import type { PresenceChoice } from "@/lib/presence-rules";
+import { PRESENCE_LABELS, type PresenceChoice } from "@/lib/presence-rules";
 import { RankChip } from "@/components/admin/rank-chip";
 import { cn } from "@/lib/utils";
 
@@ -419,31 +419,17 @@ export function HeaderActions({ session, presence = "online" }: { session: Sessi
           }}
           aria-expanded={open}
           aria-label={`Open account menu for ${session.displayName}`}
-          title={session.displayName}
-          className="flex items-center gap-1.5 p-1.5 rounded-2xl hover:bg-ink/5 dark:hover:bg-white/5 transition-colors"
+          title={`${session.displayName} · ${PRESENCE_LABELS[status]}`}
+          className="header-account-trigger"
         >
-          <span className="relative">
-            <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={36} />
-            <PresenceDot
-              status={status}
-              decorative
-              className="absolute -bottom-0.5 -right-0.5 h-3 w-3 border-2 border-white dark:border-[#0c0618]"
-            />
-          </span>
+          <UserAvatarWithPresence username={session.username} avatarUrl={session.avatarUrl} size={36} rounded="rounded-full" status={status} decorative />
           <ChevronDown size={14} className="account-chevron text-muted transition-transform" aria-hidden="true" />
         </button>
 
         {open && (
           <div className="account-menu animate-fade-up absolute right-0 top-[calc(100%+10px)] z-[90] w-72 max-w-[calc(100vw-1.5rem)] overflow-hidden">
             <div className="account-menu-header flex items-center gap-3.5 p-4 border-b border-slate-200/80 dark:border-purple-900/40">
-              <div className="relative shrink-0">
-                <UserAvatar username={session.username} avatarUrl={session.avatarUrl} size={44} />
-                <PresenceDot
-                  status={status}
-                  decorative
-                  className="absolute -bottom-1 -right-1 h-3.5 w-3.5 border-2 border-white shadow-sm dark:border-[#0c0618]"
-                />
-              </div>
+              <UserAvatarWithPresence username={session.username} avatarUrl={session.avatarUrl} size={44} rounded="rounded-full" status={status} decorative />
               <div className="min-w-0 flex-1">
                 <p className="account-menu-name text-sm font-extrabold text-slate-900 dark:text-white truncate leading-tight">
                   {session.displayName}

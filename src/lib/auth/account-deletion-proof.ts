@@ -7,22 +7,26 @@ import { redisCommand } from "@/lib/redis";
 import { sendEmail } from "@/lib/email/send";
 
 /**
- * Single-use email codes for accounts with no password and no authenticator
- * (Google or Discord only): the one secret such an account can still prove
- * is its inbox. Used before deleting the account, and for "Confirm it's you"
- * before a sign-in change (lib/auth/owner-confirmation).
+ * Single-use inbox proofs for account changes/deletion, and the explicitly
+ * enabled email fallback at the second sign-in step. Callers enforce which
+ * proof an account may use; these purposes never substitute for one another.
  *
  * Each code is bound to the user, the requesting session and its purpose, so a
  * code sent for one cannot be spent on the other, nor from another browser.
  * Only a keyed digest is stored, for ten minutes.
  */
-export type EmailProofPurpose = "account-deletion" | "account-change";
+export type EmailProofPurpose = "account-deletion" | "account-change" | "two-factor-sign-in";
 
 const TTL_MS = 10 * 60_000;
 // Compare and delete in one command: concurrent requests cannot spend a code twice.
 const CONSUME = "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end";
 
 const MESSAGES: Record<EmailProofPurpose, (code: string) => { subject: string; text: string; html: string }> = {
+  "two-factor-sign-in": (code) => ({
+    subject: "Your Mazora sign-in verification code",
+    text: `Your Mazora sign-in verification code is ${code}. It expires in 10 minutes and works once, only in the browser session that requested it. If you did not try to sign in, do not share this code and secure your account.`,
+    html: `<p>Your Mazora sign-in verification code is <strong>${code}</strong>.</p><p>It expires in 10 minutes and works once, only in the browser session that requested it.</p><p>If you did not try to sign in, do not share this code and secure your account.</p>`,
+  }),
   "account-deletion": (code) => ({
     subject: "Confirm your account deletion",
     text: `Your account deletion confirmation code is ${code}. It expires in 10 minutes and works only in the session that requested it. Deleting your account is permanent. If you did not request this, do not share or enter this code.`,

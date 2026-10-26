@@ -92,6 +92,9 @@ export function summarise(action: string, targetType: string | null, targetId: s
     return person ? `${person}${template ? `: ${template}` : ""}` : template;
   }
   if (action.startsWith("auth.two_factor")) {
+    if (action.startsWith("auth.two_factor_email_")) {
+      return `Email sign-in codes ${action.slice("auth.two_factor_email_".length)}`;
+    }
     if (action === "auth.two_factor_recovery_used") {
       const left = typeof meta?.remaining === "number" ? meta.remaining : null;
       return `Recovery code used${left !== null ? ` (${left} left)` : ""}`;

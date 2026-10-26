@@ -83,6 +83,7 @@ function CreatorRibbonRow({
   const secondFrameRef = useRef<number | null>(null);
   const normalizationFrameRef = useRef<number | null>(null);
   const [manualSlide, setManualSlide] = useState<{ index: number; x: number; snap?: boolean } | null>(null);
+  const [resumeDelay, setResumeDelay] = useState(0);
   const animated = row.length > 1;
   const groupCount = 3;
 
@@ -95,6 +96,13 @@ function CreatorRibbonRow({
   }, []);
 
   const resumeAutomaticRotation = () => {
+    const track = viewportRef.current?.querySelector<HTMLElement>(".creator-ribbon-track");
+    if (track?.classList.contains("is-manual")) {
+      const x = new DOMMatrixReadOnly(getComputedStyle(track).transform).m41;
+      const groupWidth = track.scrollWidth / groupCount;
+      const progress = ((-x % groupWidth) + groupWidth) % groupWidth / groupWidth;
+      setResumeDelay(-(rowIndex % 2 === 1 ? 1 - progress : progress) * Math.max(24, row.length * 8));
+    }
     if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
     if (loopTimerRef.current) clearTimeout(loopTimerRef.current);
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
@@ -172,6 +180,7 @@ function CreatorRibbonRow({
   const trackStyle = animated
     ? ({
       animationDuration: `${Math.max(24, row.length * 8)}s`,
+      animationDelay: `${resumeDelay}s`,
       "--creator-ribbon-groups": groupCount,
       ...(manualSlide ? { transform: `translate3d(${manualSlide.x}px, 0, 0)` } : {}),
     } as CSSProperties)

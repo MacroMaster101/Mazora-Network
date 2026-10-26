@@ -5,6 +5,8 @@ import { getSession, getTwoFactorPendingUser } from "@/lib/auth";
 import { safeNext } from "@/lib/safe-redirect";
 import { Logo } from "@/components/layout/logo";
 import { TwoFactorSignIn } from "@/components/auth/two-factor-form";
+import { emailTwoFactorEnrollment } from "@/lib/auth/email-two-factor-core";
+import { emailTwoFactorAvailable } from "@/lib/auth/email-two-factor";
 
 export const metadata: Metadata = {
   title: "Two-step verification",
@@ -43,6 +45,7 @@ export default async function TwoFactorPage({ searchParams }: { searchParams: Pr
     redirect(`/login?next=${encodeURIComponent(next)}`);
   }
   const account = maskEmail(pendingUser.email);
+  const emailAvailable = Boolean(emailTwoFactorEnrollment(pendingUser) && emailTwoFactorAvailable());
 
   return (
     <main id="main" className="relative isolate flex min-h-dvh flex-col overflow-x-hidden">
@@ -97,12 +100,14 @@ export default async function TwoFactorPage({ searchParams }: { searchParams: Pr
           ) : null}
 
           <div className="w-full">
-            <TwoFactorSignIn next={next} />
+            <TwoFactorSignIn next={next} emailAvailable={emailAvailable} />
           </div>
 
           <div className="mt-8 w-full border-t border-line-strong pt-6 [@media(max-height:820px)]:mt-5 [@media(max-height:820px)]:pt-4">
             <p className="text-xs leading-relaxed text-ink/70">
-              No phone and no recovery codes? Ask Mazora staff on Discord to reset it.
+              {emailAvailable
+                ? "Can't use any of these? Ask Mazora staff on Discord to reset it."
+                : "No phone and no recovery codes? Ask Mazora staff on Discord to reset it."}
             </p>
             <form action="/logout" method="post" className="mt-4 [@media(max-height:820px)]:mt-3">
               <button type="submit" className="btn btn-ghost btn-sm mx-auto">

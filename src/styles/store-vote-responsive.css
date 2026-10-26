@@ -69,7 +69,7 @@
 .vote-filter-menu[open] > summary > svg:last-child { transform: rotate(180deg); }
 .vote-filter-current { min-width: 0; }
 .vote-filter-current small, .vote-filter-current strong { display: block; }
-.vote-filter-current small { color: rgb(235 227 244 / 0.38); font-size: 0.48rem; font-weight: 850; letter-spacing: 0.14em; text-transform: uppercase; }
+.vote-filter-current small { color: rgb(var(--muted)); font-size: 0.6875rem; font-weight: 850; letter-spacing: 0.14em; text-transform: uppercase; }
 .vote-filter-current strong { overflow: hidden; margin-top: 0.12rem; font-size: 0.65rem; text-overflow: ellipsis; white-space: nowrap; }
 .vote-filter-options {
   position: absolute;

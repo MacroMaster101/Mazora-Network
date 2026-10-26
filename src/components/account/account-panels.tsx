@@ -30,6 +30,8 @@ import { ownerProofKind } from "@/lib/auth/owner-proof-kind";
 import { accountHasPassword } from "@/lib/auth/reauth";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { remainingRecoveryCodes } from "@/lib/auth/recovery-codes";
+import { emailTwoFactorEnrollment } from "@/lib/auth/email-two-factor-core";
+import { emailTwoFactorAvailable } from "@/lib/auth/email-two-factor";
 import { ProfileForm } from "@/components/dashboard/profile-form";
 import { ProfileAvatarEditor } from "@/components/dashboard/profile-avatar-editor";
 import { DangerZone } from "@/components/dashboard/danger-zone";
@@ -109,6 +111,8 @@ export async function AccountSettings({ loginNext = "/dashboard/settings" }: { l
           enrolledAt: authenticator?.created_at ?? null,
           codesRemaining: authenticator ? await remainingRecoveryCodes(data.user.id) : 0,
           recovered: Boolean(session.recoveredSignIn),
+          emailFallbackEnabled: Boolean(emailTwoFactorEnrollment(data.user)),
+          emailFallbackAvailable: Boolean(data.user.email_confirmed_at && data.user.email && emailTwoFactorAvailable()),
         };
         const accountStore = getSupabaseAdmin() ?? supabase;
         const { data: minecraftAccount } = await accountStore

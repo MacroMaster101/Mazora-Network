@@ -2,11 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { randomUUID } from "node:crypto";
 import { getSession, getSignInSessionId, getTwoFactorPendingUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordAudit } from "@/lib/audit-log";
 import { scheduleSecurityAlerts } from "@/lib/security-alerts";
-import { throttleAuthAction } from "@/lib/rate-limit";
+import { claimOnce, throttleAuthAction } from "@/lib/rate-limit";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { consumeEmailProofCode, sendEmailProofCode } from "@/lib/auth/account-deletion-proof";
+import { emailTwoFactorAvailable } from "@/lib/auth/email-two-factor";
+import { emailTwoFactorSubject } from "@/lib/auth/email-two-factor-core";
+import { clearEmailTwoFactorGrant, issueEmailTwoFactorGrant } from "@/lib/auth/email-two-factor-grant";
 import { safeNext } from "@/lib/safe-redirect";
 import { clearRecoveryCodes, issueRecoveryCodes } from "@/lib/auth/recovery-codes";
 import { redeemRecoveryCode, removeAllFactors, removeFactor } from "@/lib/auth/two-factor-recovery";
@@ -24,8 +30,8 @@ import { SUSPENDED_PATH } from "@/lib/auth/login-identifier";
  *
  * Turned on from Settings by enrolling an authenticator app. From then on it
  * is a login gate: getSession() treats a sign-in as signed out until it
- * reaches assurance level aal2, which only a verified code produces. Recovery
- * codes (lib/auth/recovery-codes) cover a lost phone. Turning it off, replacing
+ * completes its second step. Recovery codes cover a lost phone; email is an
+ * explicit opt-in fallback for sign-in only. Turning it off, replacing
  * the authenticator and regenerating codes all need a completed sign-in —
  * which, with two-step verification on, means one that entered its code — and
  * turning it off or regenerating codes asks for a code again (confirmSecondStep).
@@ -310,6 +316,81 @@ async function refuseIfSuspended(pending: NonNullable<Awaited<ReturnType<typeof 
   redirect(status === "suspended" ? SUSPENDED_PATH : "/login?error=auth_unavailable");
 }
 
+/** Opt in only after proving the existing second factor, never from email alone. */
+export async function setTwoFactorEmailFallbackAction(formData: FormData): Promise<TwoFactorResult> {
+  const actor = await signedIn();
+  if (!actor) return { ok: false, message: "Your session has expired. Sign in again." };
+  const preference = formData.get("emailFallback");
+  if (preference !== "enable" && preference !== "disable") return { ok: false, message: "Choose whether to enable or turn off email codes." };
+  const enabled = preference === "enable";
+  if (enabled && (!actor.user.email || !actor.user.email_confirmed_at || !emailTwoFactorAvailable())) {
+    return { ok: false, message: "Email codes require a confirmed account email and available email delivery." };
+  }
+  const throttled = await throttleAuthAction("mfa-email-settings", { limit: 5, windowMs: 15 * 60_000, identity: actor.user.id });
+  if (throttled) return { ok: false, message: throttled };
+  const { data: factors, error } = await actor.supabase.auth.mfa.listFactors();
+  if (error || !factors?.totp.length) return { ok: false, message: "Set up your authenticator app first." };
+  const stepError = await confirmSecondStep(actor, formData);
+  if (stepError) return { ok: false, message: stepError };
+  const admin = getSupabaseAdmin();
+  if (!admin) return { ok: false, message: UNAVAILABLE };
+  const { error: updateError } = await admin.auth.admin.updateUserById(actor.user.id, {
+    app_metadata: {
+      ...actor.user.app_metadata,
+      mfa_email_fallback: enabled ? { enabled: true, email: actor.user.email!.trim().toLowerCase(), version: randomUUID() } : null,
+    },
+  });
+  if (updateError) return { ok: false, message: "Your email-code preference could not be saved. Please try again." };
+  await clearEmailTwoFactorGrant();
+  // A recovery code was just spent to confirm this change. Preserve this
+  // browser's completed sign-in when revoking its old email fallback pass.
+  if (!readCode(formData) && String(formData.get("recoveryCode") ?? "").trim()) {
+    const sessionId = await getSignInSessionId();
+    if (sessionId) await issueRecoveryGrant({ userId: actor.user.id, sessionId });
+  }
+  await recordAudit({
+    action: enabled ? "auth.two_factor_email_enabled" : "auth.two_factor_email_disabled",
+    actorId: actor.user.id, by: actor.username, targetType: "user", targetId: actor.user.id,
+  });
+  refreshSettings();
+  return { ok: true, message: enabled ? "Email codes are available as an optional sign-in method." : "Email sign-in codes are turned off." };
+}
+
+/** Email only the confirmed inbox that this account previously opted into. */
+export async function requestTwoFactorEmailCodeAction(_previous: TwoFactorResult, _formData: FormData): Promise<TwoFactorResult> {
+  const pending = await pendingSignIn();
+  if (!pending) return { ok: false, message: "Your session has expired. Sign in again." };
+  const subject = emailTwoFactorSubject(pending.user, await getSignInSessionId());
+  if (!subject || !emailTwoFactorAvailable()) return { ok: false, message: "Email codes are not available for this account. Use your authenticator or a recovery code." };
+  const throttled = await throttleAuthAction("mfa-email-send", { limit: 3, windowMs: 15 * 60_000, identity: pending.user.id });
+  if (throttled) return { ok: false, message: throttled };
+  const claim = await claimOnce(`mfa-email-resend:${pending.user.id}`, 60_000);
+  if (claim !== "claimed") return { ok: false, message: claim === "duplicate" ? "Wait a minute before requesting another code." : UNAVAILABLE };
+  const sent = await sendEmailProofCode("two-factor-sign-in", subject, pending.user.email!);
+  return sent
+    ? { ok: true, message: "We sent a six-digit code to your account email. It expires in 10 minutes. Only the newest code works." }
+    : { ok: false, message: "The email could not be sent. Try again in a minute, or use your authenticator or a recovery code." };
+}
+
+export async function verifyTwoFactorEmailCodeAction(_previous: TwoFactorResult, formData: FormData): Promise<TwoFactorResult> {
+  const pending = await pendingSignIn();
+  if (!pending) return { ok: false, message: "Your session has expired. Sign in again." };
+  const subject = emailTwoFactorSubject(pending.user, await getSignInSessionId());
+  if (!subject) return { ok: false, message: "Email codes are not enabled for this account." };
+  const code = readCode(formData);
+  if (!code) return { ok: false, errors: { code: "Enter the six-digit code from your email." } };
+  const throttled = await throttleAuthAction("mfa-email-verify", { limit: 5, windowMs: 15 * 60_000, identity: pending.user.id });
+  if (throttled) return { ok: false, message: throttled };
+  if (!(await consumeEmailProofCode("two-factor-sign-in", subject, code))) {
+    return { ok: false, errors: { code: "That code is incorrect, expired, or already used. Only the newest code works." } };
+  }
+  await refuseIfSuspended(pending);
+  if (!(await issueEmailTwoFactorGrant(subject))) return { ok: false, message: UNAVAILABLE };
+  await recordAudit({ action: "auth.two_factor_email_used", actorId: pending.user.id, by: pending.user.id, targetType: "user", targetId: pending.user.id });
+  const nextValue = formData.get("next");
+  redirect(safeNext(typeof nextValue === "string" ? nextValue : undefined));
+}
+
 /** Sign-in step 2: the code from the authenticator app. Success completes the sign-in. */
 export async function verifyTwoFactorAction(_previous: TwoFactorResult, formData: FormData): Promise<TwoFactorResult> {
   const pending = await pendingSignIn();
@@ -417,6 +498,15 @@ export async function disableTwoFactorAction(formData: FormData): Promise<TwoFac
   const stepError = await confirmSecondStep(actor, formData);
   if (stepError) return { ok: false, message: stepError };
 
+  if (actor.user.app_metadata?.mfa_email_fallback) {
+    const admin = getSupabaseAdmin();
+    if (!admin) return { ok: false, message: UNAVAILABLE };
+    const { error } = await admin.auth.admin.updateUserById(actor.user.id, {
+      app_metadata: { ...actor.user.app_metadata, mfa_email_fallback: null },
+    });
+    if (error) return { ok: false, message: UNAVAILABLE };
+  }
+
   // The service role removes the factors, so this also works from a sign-in
   // that used a recovery code (not aal2, which the member's own client needs).
   if (!(await removeAllFactors(actor.user.id))) {
@@ -424,6 +514,7 @@ export async function disableTwoFactorAction(formData: FormData): Promise<TwoFac
   }
   await clearRecoveryCodes(actor.user.id);
   await clearRecoveryGrant();
+  await clearEmailTwoFactorGrant();
 
   await recordAudit({
     action: "auth.two_factor_disabled",

@@ -13,6 +13,8 @@ import { clearRecoveryGrant, hasRecoveryGrant } from "@/lib/auth/recovery-grant"
 import { clearOwnerGrant } from "@/lib/auth/owner-grant";
 import { clearPasskeySignInGrant, hasPasskeySignInGrant } from "@/lib/auth/passkey-signin-grant";
 import { clearReplaceGrant } from "@/lib/auth/replace-grant";
+import { emailTwoFactorSubject } from "@/lib/auth/email-two-factor-core";
+import { clearEmailTwoFactorGrant, hasEmailTwoFactorGrant } from "@/lib/auth/email-two-factor-grant";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { SESSION_ONLY_COOKIE } from "@/lib/supabase/session-cookie";
 import {
@@ -169,9 +171,13 @@ const getAuthState = cache(async () => {
     token.amr.includes("passkey") &&
     (await hasPasskeySignInGrant({ userId: data.user.id, sessionId: token.sessionId }));
 
-  // `aal` is the level this sign-in counts as: aal2 by code, by recovery pass, or by verified passkey.
-  const aal: "aal1" | "aal2" = recovered || passkeyVerified ? "aal2" : token.aal;
-  return { user: data.user, aal, hasAuthenticator, recovered, passkeyVerified, sessionId: token.sessionId };
+  // Email is an explicitly enabled application fallback. It never changes
+  // the Supabase token or grants permission to replace/remove an authenticator.
+  const emailSubject = emailTwoFactorSubject(data.user, token.sessionId);
+  const emailVerified = hasAuthenticator && token.aal !== "aal2" && !recovered && !passkeyVerified &&
+    emailSubject !== null && await hasEmailTwoFactorGrant(emailSubject);
+  const aal: "aal1" | "aal2" = recovered || passkeyVerified || emailVerified ? "aal2" : token.aal;
+  return { user: data.user, aal, hasAuthenticator, recovered, passkeyVerified, emailVerified, sessionId: token.sessionId };
 });
 
 /** The Supabase session id of the current sign-in, for binding session-scoped passes. */
@@ -216,6 +222,11 @@ const getAuthUser = cache(async () => {
 export async function isTwoFactorPending(): Promise<boolean> {
   const state = await getAuthState();
   return Boolean(state && needsTwoFactor(state.aal, state.hasAuthenticator));
+}
+
+/** Email completes sign-in only; password resets still need the stronger proof. */
+export async function isEmailTwoFactorSignIn(): Promise<boolean> {
+  return Boolean((await getAuthState())?.emailVerified);
 }
 
 /** The user owing a code, for the /two-factor page and its actions only. */
@@ -461,4 +472,5 @@ export async function destroySession(): Promise<void> {
   await clearOwnerGrant();
   await clearPasskeySignInGrant();
   await clearReplaceGrant();
+  await clearEmailTwoFactorGrant();
 }

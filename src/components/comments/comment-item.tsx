@@ -5,8 +5,7 @@ import Link from "@/components/ui/app-link";
 import { useRouter } from "next/navigation";
 import { CornerDownRight, MessageSquare, Minus, Pencil, Plus, Trash2 } from "lucide-react";
 import { RankChip } from "@/components/admin/rank-chip";
-import { PresenceDot } from "@/components/presence/presence-dot";
-import { UserAvatar } from "@/components/shared";
+import { UserAvatarWithPresence } from "@/components/shared";
 import { useToast } from "@/components/ui";
 import { commentHref, MAX_VISIBLE_DEPTH, type CommentNode, type CommentSort } from "@/lib/comments/tree";
 import { cn, fmtDate, relative } from "@/lib/utils";
@@ -112,16 +111,7 @@ export function CommentItem({
           {removed ? (
             <div className="h-8 w-8 shrink-0 rounded-full bg-ink/[0.06]" aria-hidden="true" />
           ) : (
-            <span className="relative shrink-0">
-              <UserAvatar username={comment.authorUsername} avatarUrl={comment.authorAvatar ?? undefined} size={32} rounded="rounded-full" />
-              {/* Only when they are around: an absent dot reads as offline, which is also what Invisible looks like. */}
-              {comment.authorStatus && (
-                <PresenceDot
-                  status={comment.authorStatus}
-                  className="absolute -bottom-0.5 -right-0.5 h-3 w-3 border-2 border-[rgb(var(--card))]"
-                />
-              )}
-            </span>
+            <UserAvatarWithPresence username={comment.authorUsername} avatarUrl={comment.authorAvatar} size={32} rounded="rounded-full" status={comment.authorStatus} />
           )}
           {children.length > 0 && (
             <button

@@ -8,8 +8,7 @@ import { RoleManager } from "@/components/admin/role-manager";
 import { DeleteUserButton } from "@/components/admin/delete-user";
 import { SuspendUserButton } from "@/components/admin/suspend-user";
 import { adminReleaseMinecraftUsernameAction, type AdminActionResult } from "@/lib/actions/user-admin";
-import { UserAvatar } from "@/components/shared";
-import { PresenceDot } from "@/components/presence/presence-dot";
+import { UserAvatarWithPresence } from "@/components/shared";
 import type { PresenceShown } from "@/lib/presence-rules";
 import { Input, useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -50,15 +49,7 @@ const initialAdminState: AdminActionResult = { ok: false, message: "" };
 function Identity({ row }: { row: DirectoryRow }) {
   return (
     <span className="flex items-center gap-3">
-      <span className="relative shrink-0">
-        <UserAvatar username={row.username} avatarUrl={row.avatarUrl} size={32} />
-        {row.status && (
-          <PresenceDot
-            status={row.status}
-            className="absolute -bottom-0.5 -right-0.5 h-3 w-3 border-2 border-[rgb(var(--card))]"
-          />
-        )}
-      </span>
+      <UserAvatarWithPresence username={row.username} avatarUrl={row.avatarUrl} size={32} status={row.status} />
       <span className="min-w-0">
         <strong className="block truncate font-semibold">{row.username}</strong>
         {row.displayName && <span className="block truncate text-xs text-ink/70">{row.displayName}</span>}

@@ -49,7 +49,7 @@ export function UserAvatar({
 
   return (
     <span
-      className={cn("relative inline-grid shrink-0 place-items-center overflow-hidden", rounded, className)}
+      className={cn("user-avatar relative inline-grid shrink-0 place-items-center overflow-hidden align-middle border border-line-strong", rounded, className)}
       style={{ width: size, height: size, background: `${bg}22` }}
       aria-hidden
     >

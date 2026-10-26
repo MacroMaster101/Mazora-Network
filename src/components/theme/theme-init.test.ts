@@ -27,7 +27,7 @@ test("saved preference wins over the OS and preloads only the matching world", (
 });
 
 test("mobile and trailing slash use the same asset as responsive CSS", () => {
-  assert.equal(initialize(null, true, true, "/vote/").links[0].href, "/images/worlds/vote-hero-light-mobile.webp");
+  assert.equal(initialize(null, true, true, "/vote/").links[0].href, "/images/worlds/vote-hero-light-mobile-v3.webp");
   assert.equal(initialize("dark", false, false, "/store").links[0].href, "/images/worlds/store-hero-dark.webp");
 });
 
