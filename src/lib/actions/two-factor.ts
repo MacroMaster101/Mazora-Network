@@ -368,10 +368,11 @@ export async function requestTwoFactorEmailCodeAction(_previous: TwoFactorResult
   if (!pending) return { ok: false, message: "Your session has expired. Sign in again." };
   const subject = emailTwoFactorSubject(pending.user, await getSignInSessionId());
   if (!subject || !emailTwoFactorAvailable() || !(await isEmailTwoFactorAllowed())) return { ok: false, message: "Email codes are not available for this account. Use your authenticator or a recovery code." };
-  const throttled = await throttleAuthAction("mfa-email-send", { limit: 3, windowMs: 15 * 60_000, identity: pending.user.id });
-  if (throttled) return { ok: false, message: throttled };
+  // The one-minute resend wait comes first, so clicks it turns away do not use up the send limit.
   const claim = await claimOnce(`mfa-email-resend:${pending.user.id}`, 60_000);
   if (claim !== "claimed") return { ok: false, message: claim === "duplicate" ? "Wait a minute before requesting another code." : UNAVAILABLE };
+  const throttled = await throttleAuthAction("mfa-email-send", { limit: 5, windowMs: 15 * 60_000, identity: pending.user.id });
+  if (throttled) return { ok: false, message: throttled };
   const sent = await sendEmailProofCode("two-factor-sign-in", subject, pending.user.email!);
   return sent
     ? { ok: true, message: "We sent a six-digit code to your account email. It expires in 10 minutes. Only the newest code works." }
