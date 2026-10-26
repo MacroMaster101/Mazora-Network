@@ -94,6 +94,7 @@ function replacement(options: { fresh: boolean; ownerGrant: boolean }) {
         getSession: async () => ({ username: "Steve_42", recoveredSignIn: true }),
         getSignInSessionId: async () => sessionId,
         getTwoFactorPendingUser: async () => null,
+        isEmailTwoFactorAllowed: async () => false,
       },
       "@/lib/supabase/server": {
         createSupabaseServerClient: async () => ({

@@ -22,8 +22,8 @@ const blockedStorage = {
   setItem: () => { throw new Error("Storage disabled"); },
 };
 
-test("the guide has the five agreed slides and no vote slide", () => {
-  assert.deepEqual([...SITE_GUIDE_STEPS], ["welcome", "ign", "discord", "join", "explore"]);
+test("the guide has the six agreed slides and no vote slide", () => {
+  assert.deepEqual([...SITE_GUIDE_STEPS], ["welcome", "ign", "discord", "join", "security", "explore"]);
 });
 
 test("a member who has not seen the guide gets it automatically", () => {

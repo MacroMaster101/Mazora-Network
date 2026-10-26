@@ -13,7 +13,7 @@ import { clearRecoveryGrant, hasRecoveryGrant } from "@/lib/auth/recovery-grant"
 import { clearOwnerGrant } from "@/lib/auth/owner-grant";
 import { clearPasskeySignInGrant, hasPasskeySignInGrant } from "@/lib/auth/passkey-signin-grant";
 import { clearReplaceGrant } from "@/lib/auth/replace-grant";
-import { emailTwoFactorSubject } from "@/lib/auth/email-two-factor-core";
+import { emailTwoFactorAllowedForSignIn, emailTwoFactorSubject } from "@/lib/auth/email-two-factor-core";
 import { clearEmailTwoFactorGrant, hasEmailTwoFactorGrant } from "@/lib/auth/email-two-factor-grant";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { SESSION_ONLY_COOKIE } from "@/lib/supabase/session-cookie";
@@ -171,13 +171,14 @@ const getAuthState = cache(async () => {
     token.amr.includes("passkey") &&
     (await hasPasskeySignInGrant({ userId: data.user.id, sessionId: token.sessionId }));
 
-  // Email is an explicitly enabled application fallback. It never changes
+  // Email is an application fallback, on by default with an authenticator. It never changes
   // the Supabase token or grants permission to replace/remove an authenticator.
   const emailSubject = emailTwoFactorSubject(data.user, token.sessionId);
+  const emailAllowed = emailTwoFactorAllowedForSignIn(token.amr);
   const emailVerified = hasAuthenticator && token.aal !== "aal2" && !recovered && !passkeyVerified &&
-    emailSubject !== null && await hasEmailTwoFactorGrant(emailSubject);
+    emailAllowed && emailSubject !== null && await hasEmailTwoFactorGrant(emailSubject);
   const aal: "aal1" | "aal2" = recovered || passkeyVerified || emailVerified ? "aal2" : token.aal;
-  return { user: data.user, aal, hasAuthenticator, recovered, passkeyVerified, emailVerified, sessionId: token.sessionId };
+  return { user: data.user, aal, hasAuthenticator, recovered, passkeyVerified, emailVerified, emailAllowed, sessionId: token.sessionId };
 });
 
 /** The Supabase session id of the current sign-in, for binding session-scoped passes. */
@@ -227,6 +228,11 @@ export async function isTwoFactorPending(): Promise<boolean> {
 /** Email completes sign-in only; password resets still need the stronger proof. */
 export async function isEmailTwoFactorSignIn(): Promise<boolean> {
   return Boolean((await getAuthState())?.emailVerified);
+}
+
+/** Whether this sign-in may finish with an email code (never a reset or email-link session). */
+export async function isEmailTwoFactorAllowed(): Promise<boolean> {
+  return Boolean((await getAuthState())?.emailAllowed);
 }
 
 /** The user owing a code, for the /two-factor page and its actions only. */

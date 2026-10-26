@@ -3,15 +3,36 @@ import type { ResetGrantSubject } from "./reset-grant-core";
 
 type EmailUser = Pick<User, "id" | "email" | "email_confirmed_at" | "app_metadata" | "factors">;
 
-/** Only server-managed opt-in metadata and a confirmed, unchanged inbox count. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Email codes are on by default for every account with a verified
+ * authenticator and a confirmed inbox, the way Epic and Steam Guard offer them.
+ * Only an explicit opt-out saved in server-managed app_metadata turns them off.
+ * The version changes on every toggle, so a pass issued before it stops working.
+ */
 export function emailTwoFactorEnrollment(user: EmailUser): { email: string; version: string } | null {
-  const saved: unknown = user.app_metadata?.mfa_email_fallback;
-  if (!saved || typeof saved !== "object" || !user.email || !user.email_confirmed_at) return null;
+  if (!user.email || !user.email_confirmed_at) return null;
   if (!user.factors?.some((factor) => factor.factor_type === "totp" && factor.status === "verified")) return null;
-  const value = saved as Record<string, unknown>;
-  const email = user.email.trim().toLowerCase();
-  if (value.enabled !== true || value.email !== email || typeof value.version !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.version)) return null;
-  return { email, version: value.version };
+  const saved: unknown = user.app_metadata?.mfa_email_fallback;
+  const value = saved && typeof saved === "object" ? (saved as Record<string, unknown>) : null;
+  if (value?.enabled === false) return null;
+  const version = typeof value?.version === "string" && UUID.test(value.version) ? value.version : "default";
+  return { email: user.email.trim().toLowerCase(), version };
+}
+
+/** First steps that prove something other than the inbox: a password, a provider or a passkey. */
+const NON_EMAIL_FIRST_STEPS = new Set(["password", "oauth", "sso/saml", "passkey"]);
+/** Sessions opened from an emailed code or link: a reset, magic link, invite or confirmation. */
+const EMAIL_SESSIONS = new Set(["otp", "magiclink", "recovery", "invite", "email/signup", "email_change"]);
+
+/**
+ * An email code is a second factor only after a first step the inbox cannot
+ * give. A password-reset session is opened from the same inbox, so taking an
+ * email code there would let inbox access alone past two-step verification.
+ */
+export function emailTwoFactorAllowedForSignIn(amr: readonly string[]): boolean {
+  return amr.some((method) => NON_EMAIL_FIRST_STEPS.has(method)) && !amr.some((method) => EMAIL_SESSIONS.has(method));
 }
 
 /** Changing the inbox or toggling the option invalidates codes and sign-in passes. */

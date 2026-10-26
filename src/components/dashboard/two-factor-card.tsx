@@ -235,18 +235,20 @@ export function TwoFactorCard({
           />
           <Row
             icon={<Mail size={18} aria-hidden="true" />}
-            title="Email code (optional)"
-            detail={overview.emailFallbackEnabled
-              ? "On. Receive a sign-in code at your confirmed account email."
-              : !enabled ? "Set up your authenticator first, then choose email as an optional backup."
-              : overview.emailFallbackAvailable ? "Off. Allow a code sent to your confirmed email when signing in."
-              : "Email codes are unavailable right now. Your authenticator and recovery codes still work."}
+            title="Email codes"
+            detail={!enabled ? "Comes on with your authenticator: a backup way to finish signing in by email."
+              : overview.emailFallbackEnabled
+                ? overview.emailFallbackAvailable
+                  ? "On. If you can't reach your phone, get a sign-in code at your confirmed email."
+                  : "On, but email delivery is unavailable right now. Your authenticator and recovery codes still work."
+                : overview.emailFallbackAvailable ? "Off. Only your authenticator or a recovery code finishes a sign-in."
+                : "Off. Email delivery is unavailable right now."}
             action={
               <button type="button" className={actionButton}
                 disabled={!enabled || (!overview.emailFallbackEnabled && !overview.emailFallbackAvailable)}
                 onClick={() => setDialog(overview.emailFallbackEnabled ? "email-disable" : "email-enable")}
               >
-                {overview.emailFallbackEnabled ? "Turn off" : "Enable"}
+                {overview.emailFallbackEnabled ? "Turn off" : "Turn on"}
               </button>
             }
           />
@@ -341,7 +343,7 @@ export function TwoFactorCard({
       <Modal
         open={dialog !== null}
         onClose={closeDialog}
-        label={emailDialog ? `${emailEnabling ? "Enable" : "Turn off"} email sign-in codes` : dialog === "disable" ? "Turn off two-step verification" : "Regenerate recovery codes"}
+        label={emailDialog ? `${emailEnabling ? "Turn on" : "Turn off"} email sign-in codes` : dialog === "disable" ? "Turn off two-step verification" : "Regenerate recovery codes"}
       >
         <form
           onSubmit={(event) => {
@@ -353,13 +355,13 @@ export function TwoFactorCard({
           className={`panel mx-auto max-w-md p-6 sm:p-7 ${dialog === "disable" ? "border-danger/40" : ""}`}
         >
           <h2 className={`font-display text-xl font-bold ${dialog === "disable" ? "text-danger" : "text-ink"}`}>
-            {emailDialog ? `${emailEnabling ? "Enable" : "Turn off"} email sign-in codes?` : dialog === "disable" ? "Turn off two-step verification?" : newCodes ? "Your new recovery codes" : "Regenerate recovery codes?"}
+            {emailDialog ? `${emailEnabling ? "Turn on" : "Turn off"} email sign-in codes?` : dialog === "disable" ? "Turn off two-step verification?" : newCodes ? "Your new recovery codes" : "Regenerate recovery codes?"}
           </h2>
           <p className="mt-2 text-sm text-muted">
             {emailDialog
               ? emailEnabling
-                ? "Email codes provide another way to finish signing in. Anyone who can access your inbox could use this option, so protect your email account too. Confirm with your authenticator or a recovery code."
-                : "Email will no longer be offered at sign-in. Your authenticator app and recovery codes will keep working. Confirm with your authenticator or a recovery code."
+                ? "Email codes give you another way to finish signing in. Anyone who can get into your inbox and knows your password could use them, so keep your email account secure too. Confirm with your authenticator or a recovery code."
+                : "Email will no longer be offered at sign-in, so only your authenticator app or a recovery code can finish it. Confirm with your authenticator or a recovery code."
               : dialog === "disable"
               ? "Signing in will only need your password again. The Mazora code in your authenticator app and your recovery codes stop working for good — turning it back on later means scanning a new QR code."
               : newCodes
@@ -436,7 +438,7 @@ export function TwoFactorCard({
                   ) : (
                     <KeyRound size={14} aria-hidden="true" />
                   )}
-                  {emailDialog ? (busy ? "Saving…" : emailEnabling ? "Enable email codes" : "Turn off email codes")
+                  {emailDialog ? (busy ? "Saving…" : emailEnabling ? "Turn on email codes" : "Turn off email codes")
                     : dialog === "disable" ? (busy ? "Turning off…" : "Turn off") : busy ? "Creating…" : "Regenerate codes"}
                 </button>
               </>

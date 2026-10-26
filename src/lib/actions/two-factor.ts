@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { randomUUID } from "node:crypto";
-import { getSession, getSignInSessionId, getTwoFactorPendingUser } from "@/lib/auth";
+import { getSession, getSignInSessionId, getTwoFactorPendingUser, isEmailTwoFactorAllowed } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordAudit } from "@/lib/audit-log";
-import { scheduleSecurityAlerts } from "@/lib/security-alerts";
+import { scheduleEmailCodeSignInAlert, scheduleSecurityAlerts } from "@/lib/security-alerts";
 import { claimOnce, throttleAuthAction } from "@/lib/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { consumeEmailProofCode, sendEmailProofCode } from "@/lib/auth/account-deletion-proof";
@@ -30,8 +30,8 @@ import { SUSPENDED_PATH } from "@/lib/auth/login-identifier";
  *
  * Turned on from Settings by enrolling an authenticator app. From then on it
  * is a login gate: getSession() treats a sign-in as signed out until it
- * completes its second step. Recovery codes cover a lost phone; email is an
- * explicit opt-in fallback for sign-in only. Turning it off, replacing
+ * completes its second step. Recovery codes cover a lost phone; email codes are
+ * a sign-in-only fallback, on by default and switchable off in Settings. Turning it off, replacing
  * the authenticator and regenerating codes all need a completed sign-in —
  * which, with two-step verification on, means one that entered its code — and
  * turning it off or regenerating codes asks for a code again (confirmSecondStep).
@@ -316,7 +316,10 @@ async function refuseIfSuspended(pending: NonNullable<Awaited<ReturnType<typeof 
   redirect(status === "suspended" ? SUSPENDED_PATH : "/login?error=auth_unavailable");
 }
 
-/** Opt in only after proving the existing second factor, never from email alone. */
+/**
+ * Email codes are on by default with an authenticator (see email-two-factor-core).
+ * Turning them off or back on needs the existing second factor, never email alone.
+ */
 export async function setTwoFactorEmailFallbackAction(formData: FormData): Promise<TwoFactorResult> {
   const actor = await signedIn();
   if (!actor) return { ok: false, message: "Your session has expired. Sign in again." };
@@ -337,7 +340,10 @@ export async function setTwoFactorEmailFallbackAction(formData: FormData): Promi
   const { error: updateError } = await admin.auth.admin.updateUserById(actor.user.id, {
     app_metadata: {
       ...actor.user.app_metadata,
-      mfa_email_fallback: enabled ? { enabled: true, email: actor.user.email!.trim().toLowerCase(), version: randomUUID() } : null,
+      // A fresh version either way, so passes issued before the change stop working.
+      mfa_email_fallback: enabled
+        ? { enabled: true, email: actor.user.email!.trim().toLowerCase(), version: randomUUID() }
+        : { enabled: false, version: randomUUID() },
     },
   });
   if (updateError) return { ok: false, message: "Your email-code preference could not be saved. Please try again." };
@@ -353,15 +359,15 @@ export async function setTwoFactorEmailFallbackAction(formData: FormData): Promi
     actorId: actor.user.id, by: actor.username, targetType: "user", targetId: actor.user.id,
   });
   refreshSettings();
-  return { ok: true, message: enabled ? "Email codes are available as an optional sign-in method." : "Email sign-in codes are turned off." };
+  return { ok: true, message: enabled ? "Email codes are back on as a sign-in option." : "Email sign-in codes are turned off." };
 }
 
-/** Email only the confirmed inbox that this account previously opted into. */
+/** Email only the account's own confirmed inbox, and only while email codes are on for it. */
 export async function requestTwoFactorEmailCodeAction(_previous: TwoFactorResult, _formData: FormData): Promise<TwoFactorResult> {
   const pending = await pendingSignIn();
   if (!pending) return { ok: false, message: "Your session has expired. Sign in again." };
   const subject = emailTwoFactorSubject(pending.user, await getSignInSessionId());
-  if (!subject || !emailTwoFactorAvailable()) return { ok: false, message: "Email codes are not available for this account. Use your authenticator or a recovery code." };
+  if (!subject || !emailTwoFactorAvailable() || !(await isEmailTwoFactorAllowed())) return { ok: false, message: "Email codes are not available for this account. Use your authenticator or a recovery code." };
   const throttled = await throttleAuthAction("mfa-email-send", { limit: 3, windowMs: 15 * 60_000, identity: pending.user.id });
   if (throttled) return { ok: false, message: throttled };
   const claim = await claimOnce(`mfa-email-resend:${pending.user.id}`, 60_000);
@@ -376,7 +382,7 @@ export async function verifyTwoFactorEmailCodeAction(_previous: TwoFactorResult,
   const pending = await pendingSignIn();
   if (!pending) return { ok: false, message: "Your session has expired. Sign in again." };
   const subject = emailTwoFactorSubject(pending.user, await getSignInSessionId());
-  if (!subject) return { ok: false, message: "Email codes are not enabled for this account." };
+  if (!subject || !(await isEmailTwoFactorAllowed())) return { ok: false, message: "Email codes are not enabled for this account." };
   const code = readCode(formData);
   if (!code) return { ok: false, errors: { code: "Enter the six-digit code from your email." } };
   const throttled = await throttleAuthAction("mfa-email-verify", { limit: 5, windowMs: 15 * 60_000, identity: pending.user.id });
@@ -387,6 +393,8 @@ export async function verifyTwoFactorEmailCodeAction(_previous: TwoFactorResult,
   await refuseIfSuspended(pending);
   if (!(await issueEmailTwoFactorGrant(subject))) return { ok: false, message: UNAVAILABLE };
   await recordAudit({ action: "auth.two_factor_email_used", actorId: pending.user.id, by: pending.user.id, targetType: "user", targetId: pending.user.id });
+  // Tell the owner every time, so a sign-in from someone else who got into the inbox is noticed.
+  scheduleEmailCodeSignInAlert(pending.user);
   const nextValue = formData.get("next");
   redirect(safeNext(typeof nextValue === "string" ? nextValue : undefined));
 }
@@ -498,7 +506,10 @@ export async function disableTwoFactorAction(formData: FormData): Promise<TwoFac
   const stepError = await confirmSecondStep(actor, formData);
   if (stepError) return { ok: false, message: stepError };
 
-  if (actor.user.app_metadata?.mfa_email_fallback) {
+  // Clear an "on" setting with the factors, but keep an explicit opt-out: email
+  // codes are on by default, so dropping it would turn them back on unasked.
+  const emailFallback = actor.user.app_metadata?.mfa_email_fallback as { enabled?: unknown } | null | undefined;
+  if (emailFallback && emailFallback.enabled !== false) {
     const admin = getSupabaseAdmin();
     if (!admin) return { ok: false, message: UNAVAILABLE };
     const { error } = await admin.auth.admin.updateUserById(actor.user.id, {

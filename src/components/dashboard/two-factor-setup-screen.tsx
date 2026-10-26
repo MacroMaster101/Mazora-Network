@@ -100,13 +100,13 @@ export function TwoFactorSetupScreen({
     { title: "Get an authenticator app", body: "Google Authenticator, Microsoft Authenticator, 1Password, Authy — any app that shows six-digit codes." },
     { title: "Scan the QR code", body: "Or type the setup key into the app by hand." },
     { title: "Enter the code it shows", body: "Codes change every 30 seconds; enter the current one." },
-    ...(replacing ? [] : [{ title: "Save your recovery codes", body: "Your way back in if you ever lose your phone." }]),
+    ...(replacing ? [] : [{ title: "Save your recovery codes", body: "Your way back in if you ever lose your phone. A code by email works too, unless you turn it off." }]),
   ];
   const activeStep = step === "codes" ? 3 : enrollment?.ok ? 1 : 0;
   const needsConfirm = Boolean(enrollment?.needsConfirm);
   const intro =
     step === "codes"
-      ? "Two-step verification is on. If you ever lose your phone, one of these codes signs you in. Each works once, and this is the only time they are shown."
+      ? "Two-step verification is on. If you ever lose your phone, one of these codes signs you in, and so does a code sent to your email (you can turn that off in Settings). Each recovery code works once, and this is the only time they are shown."
       : replacing
         ? "Link your new phone. Your current authenticator keeps working until the new one is confirmed."
         : "After your password, signing in will also ask for a code from an app on your phone — so a leaked password alone can never get into your account. Had it on before? Delete the old Mazora entry from your app first; this QR code replaces it."

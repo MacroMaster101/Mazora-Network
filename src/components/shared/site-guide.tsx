@@ -10,8 +10,10 @@ import {
   Compass,
   Gamepad2,
   LayoutDashboard,
+  Fingerprint,
   LifeBuoy,
   Server,
+  ShieldCheck,
   ShoppingBag,
 } from "lucide-react";
 import Link from "@/components/ui/app-link";
@@ -22,6 +24,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { getSiteGuideStatus, markSiteGuideSeen } from "@/lib/actions/site-guide";
 import type { ServerAddresses } from "@/lib/data/site-settings";
 import { site } from "@/lib/site";
+import { isPlaceholderUsername } from "@/lib/auth/placeholder";
 import {
   SITE_GUIDE_OPEN_EVENT,
   SITE_GUIDE_STEPS,
@@ -39,7 +42,7 @@ interface SiteGuideProps {
 }
 
 /**
- * Five-slide welcome guide for signed-in members. Opens by itself once per
+ * Six-slide welcome guide for signed-in members. Opens by itself once per
  * account — after the splash and any unanswered cookie banner, so a newcomer is
  * never shown three things at once — and again whenever the account menu's
  * "Site guide" item asks. Any way of closing it counts as seen.
@@ -59,7 +62,7 @@ export function SiteGuide({ autoOpen, username, displayName, avatarUrl, addresse
     },
   });
 
-  // Refresh IGN / Discord state every time it opens: they may have just linked one.
+  // Refresh IGN / Discord / security state every time it opens: they may have just set one up.
   useEffect(() => {
     if (!open) return;
     let live = true;
@@ -107,6 +110,10 @@ export function SiteGuide({ autoOpen, username, displayName, avatarUrl, addresse
           <h2 id={titleId} className="site-guide-title">Set your Minecraft name</h2>
           <p className="site-guide-text">
             Add your in-game name (IGN) to your profile. Java, Bedrock and offline accounts all work.
+            {/* Accounts without a name of their own get a generated one; the IGN replaces it. */}
+            {!status?.ign && isPlaceholderUsername(username)
+              ? ` It also becomes your username here, instead of ${username}.`
+              : null}
           </p>
           <ul className="site-guide-list">
             <li><Check size={15} aria-hidden="true" /> Your skin on your profile and in the Players list</li>
@@ -164,6 +171,43 @@ export function SiteGuide({ autoOpen, username, displayName, avatarUrl, addresse
               Full join guide <ArrowRight size={15} aria-hidden="true" />
             </Link>
           </div>
+        </div>
+      );
+      break;
+    case "security":
+      body = (
+        <div className="site-guide-centered">
+          <span className="site-guide-icon" aria-hidden="true"><ShieldCheck size={22} /></span>
+          <h2 id={titleId} className="site-guide-title">Protect your account</h2>
+          <p className="site-guide-text">
+            Turn on two-step verification so a leaked password alone can&apos;t get in. Sign-ins then also ask for a
+            code from an app on your phone{status?.emailCodes ? ", or one sent to your email if your phone isn't handy" : ""}.
+          </p>
+          {status?.passkeys !== null && status?.passkeys !== undefined && (
+            <ul className="site-guide-list">
+              <li><Check size={15} aria-hidden="true" /> Passkeys sign you in with your fingerprint, face or device PIN instead of a password.</li>
+            </ul>
+          )}
+          {status?.twoFactor ? (
+            <p className="site-guide-status"><CircleCheck size={16} aria-hidden="true" /> Two-step verification is on</p>
+          ) : null}
+          {status?.passkeys ? (
+            <p className="site-guide-status"><CircleCheck size={16} aria-hidden="true" /> You have a passkey</p>
+          ) : null}
+          {status && (!status.twoFactor || status.passkeys === false) ? (
+            <div className="site-guide-actions">
+              {!status.twoFactor && (
+                <Link href="/dashboard/settings#two-step" onClick={pause} className="btn btn-primary">
+                  Turn on two-step <ArrowRight size={16} aria-hidden="true" />
+                </Link>
+              )}
+              {status.passkeys === false && (
+                <Link href="/dashboard/settings#passkeys" onClick={pause} className="btn btn-ghost">
+                  <Fingerprint size={16} aria-hidden="true" /> Add a passkey
+                </Link>
+              )}
+            </div>
+          ) : null}
         </div>
       );
       break;

@@ -4,7 +4,7 @@
  */
 
 /** Slide order. Vote was left out on purpose. */
-export const SITE_GUIDE_STEPS = ["welcome", "ign", "discord", "join", "explore"] as const;
+export const SITE_GUIDE_STEPS = ["welcome", "ign", "discord", "join", "security", "explore"] as const;
 export type SiteGuideStep = (typeof SITE_GUIDE_STEPS)[number];
 
 /** Fired by the account menu's "Site guide" item to reopen the guide. */
@@ -18,6 +18,12 @@ export const SITE_GUIDE_ACTIVE_ATTR = "data-site-guide";
 export interface SiteGuideStatus {
   ign: string | null;
   discord: string | null;
+  /** An authenticator app is set up (two-step verification is on). */
+  twoFactor: boolean;
+  /** Email sign-in codes can be sent on this deployment (they come with two-step verification). */
+  emailCodes: boolean;
+  /** Whether the member has a passkey; null while passkeys are switched off site-wide. */
+  passkeys: boolean | null;
 }
 
 /**

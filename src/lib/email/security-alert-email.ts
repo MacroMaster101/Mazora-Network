@@ -137,3 +137,64 @@ export function buildSecurityAlertEmail(input: {
 
   return { subject, html, text };
 }
+
+const EMAIL_CODE_REASON =
+  "You are receiving this because it is about the security of your account. It is sent every time an email code is used to sign in.";
+
+/**
+ * "You signed in with an email code" — sent every time one finishes a sign-in.
+ * Email codes are on by default, so this is how a member notices someone else
+ * who got into their inbox and knew their password.
+ */
+export function buildEmailCodeSignInEmail(input: {
+  name: string | null;
+  origin: string;
+  at: Date;
+  /** Defaults to the configured public support address. */
+  support?: string | null;
+}): SecurityAlertEmail {
+  const greeting = greetingFor(input.name);
+  const origin = cleanOrigin(input.origin);
+  const support = input.support === undefined ? supportEmail : input.support;
+  const settingsUrl = `${origin}/dashboard/settings`;
+  const subject = "You signed in to Mazora with an email code";
+  const whatToDo =
+    "Change your password and your email account's password, then turn off email codes in your security settings.";
+
+  const text = [
+    greeting,
+    "",
+    `An email code was just used to finish signing in to your Mazora Network account (${alertTime(input.at)}).`,
+    "",
+    "If this was you, there is nothing to do.",
+    "",
+    `If it wasn't you, ${whatToDo.charAt(0).toLowerCase()}${whatToDo.slice(1)}`,
+    "",
+    `Security settings: ${settingsUrl}`,
+    "",
+    "— The Mazora Network team",
+    "",
+    EMAIL_CODE_REASON,
+    ...(support ? [`Questions? ${support}`] : []),
+  ].join("\n");
+
+  const body = [
+    heading("Signed in with an email code"),
+    paragraph(`${escapeHtml(greeting)} an email code was just used to finish signing in to your Mazora Network account.`),
+    detailBox(detailRow("Time", escapeHtml(alertTime(input.at)), true)),
+    paragraph(`${strong("Was this you?")} Then there is nothing to do.`, "22px 0 0"),
+    paragraph(`${strong("Wasn&rsquo;t you?")} ${escapeHtml(whatToDo)}`, "14px 0 24px"),
+    button(settingsUrl, "Review security settings"),
+  ].join("\n              ");
+
+  const html = emailShell({
+    title: subject,
+    preheader: "An email code was just used to sign in to your Mazora Network account.",
+    origin,
+    body,
+    reason: EMAIL_CODE_REASON,
+    support,
+  });
+
+  return { subject, html, text };
+}
