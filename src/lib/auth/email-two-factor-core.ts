@@ -21,8 +21,8 @@ export function emailTwoFactorEnrollment(user: EmailUser): { email: string; vers
   return { email: user.email.trim().toLowerCase(), version };
 }
 
-/** First steps that prove something other than the inbox: a password or a passkey. */
-const NON_EMAIL_FIRST_STEPS = new Set(["password", "sso/saml", "passkey"]);
+/** First steps that prove something other than the inbox: a passkey or a password. */
+const NON_EMAIL_FIRST_STEPS = new Set(["sso/saml", "passkey", "password"]);
 /** Sessions opened from an emailed code or link: a reset, magic link, invite or confirmation. */
 const EMAIL_SESSIONS = new Set(["otp", "magiclink", "recovery", "invite", "email/signup", "email_change"]);
 
