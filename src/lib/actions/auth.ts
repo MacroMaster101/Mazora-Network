@@ -994,7 +994,13 @@ export async function requestPasswordResetAction(_previous: AuthResult, formData
     // (verified via verifyResetCodeAction below), plus a fallback link built
     // from {{ .TokenHash }} pointing at /confirm-email — not .ConfirmationURL,
     // so redirectTo here no longer affects anything and is intentionally omitted.
-    await supabase.auth.resetPasswordForEmail(parsed.data.email);
+    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email);
+    if (error) {
+      // Same answer either way, so this does not reveal whether the address has
+      // an account. Logged so a refused send (Supabase's email rate limit, the
+      // per-address cooldown, an SMTP failure) is visible instead of silent.
+      console.error("Password reset email failed:", { status: error.status, code: error.code, message: error.message });
+    }
   } else if (!isDemoAuthEnabled()) {
     return { ok: false, message: "Authentication has not been configured yet." };
   }
