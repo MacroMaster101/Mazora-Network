@@ -78,10 +78,14 @@ export async function registerForEventAction(input: { eventId: string }): Promis
       if (already) return { ok: true, message: "You're already registered.", slug: event.slug } as const;
 
       if (event.maxParticipants) {
+        // Counted the way the event page counts them (getRegistrationCounts):
+        // a member who unlinked Minecraft or was suspended holds no place.
         const [taken] = await tx
           .select({ total: count() })
           .from(schema.eventRegistrations)
-          .where(eq(schema.eventRegistrations.eventId, input.eventId));
+          .innerJoin(schema.minecraftAccounts, eq(schema.minecraftAccounts.userId, schema.eventRegistrations.userId))
+          .innerJoin(schema.profiles, eq(schema.profiles.userId, schema.eventRegistrations.userId))
+          .where(and(eq(schema.eventRegistrations.eventId, input.eventId), eq(schema.profiles.accountStatus, "active")));
         if (Number(taken?.total ?? 0) >= event.maxParticipants) {
           return { ok: false, message: "This event is full." } as const;
         }

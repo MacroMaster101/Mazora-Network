@@ -23,8 +23,11 @@ export function fmtDate(iso: string): string {
   });
 }
 
-/** "3 days ago" / "just now" style relative time. */
-export function relative(iso: string): string {
+/**
+ * "3 days ago" / "just now" style relative time. Older than 30 days it shows a
+ * date; RelativeTime passes the viewer's own date formatter for that.
+ */
+export function relative(iso: string, formatOld: (iso: string) => string = fmtDate): string {
   if (iso === "now") return "online now";
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.round(diff / 60000);
@@ -34,7 +37,7 @@ export function relative(iso: string): string {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.round(hrs / 24);
   if (days < 30) return `${days}d ago`;
-  return fmtDate(iso);
+  return formatOld(iso);
 }
 
 /**

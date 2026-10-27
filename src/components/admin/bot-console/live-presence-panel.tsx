@@ -1,7 +1,7 @@
 import type { BotPresenceConfig } from "@/lib/data/bot-presence-config";
 import type { PresenceHealth } from "@/lib/data/discord-presence-health";
 import { resolveStatusText, type PresenceTokens } from "@/lib/presence-template";
-import { relative } from "@/lib/utils";
+import { RelativeTime } from "@/components/events/local-time";
 import { PresenceRotator } from "@/components/admin/bot-console/presence-rotator";
 
 type PresenceResult = { ok: true; health: PresenceHealth } | { ok: false; reason: string };
@@ -51,11 +51,11 @@ export function LivePresencePanel({
           <dl className="mt-4 grid gap-1 text-xs text-muted">
             <div className="flex justify-between">
               <dt>Connected since</dt>
-              <dd>{presence.health.connectedAt ? relative(presence.health.connectedAt) : "unknown"}</dd>
+              <dd>{presence.health.connectedAt ? <RelativeTime iso={presence.health.connectedAt} /> : "unknown"}</dd>
             </div>
             <div className="flex justify-between">
               <dt>Last snapshot</dt>
-              <dd>{presence.health.lastSnapshotAt ? relative(presence.health.lastSnapshotAt) : "unknown"}</dd>
+              <dd>{presence.health.lastSnapshotAt ? <RelativeTime iso={presence.health.lastSnapshotAt} /> : "unknown"}</dd>
             </div>
           </dl>
           {rows.length > 0 && (

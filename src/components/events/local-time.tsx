@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fmtDate } from "@/lib/utils";
+import { fmtDate, relative } from "@/lib/utils";
 
 /**
  * An event time in the viewer's own time zone ("Sat 10 Oct, 5:30 AM GMT+5:30").
@@ -39,12 +39,39 @@ export function LocalDate({ iso, className }: { iso: string; className?: string 
 
   useEffect(() => {
     const date = new Date(iso);
-    if (!Number.isNaN(date.getTime())) setText(date.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" }));
+    if (!Number.isNaN(date.getTime())) setText(date.toLocaleDateString("en", DAY));
   }, [iso]);
 
   return (
     <time dateTime={iso} className={className} suppressHydrationWarning>
       {text ?? fmtDate(iso)}
+    </time>
+  );
+}
+
+const DAY = { month: "short", day: "numeric", year: "numeric" } as const;
+
+function localDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("en", DAY);
+}
+
+/**
+ * "5m ago", or after 30 days a date, in the viewer's zone. The server's render
+ * is a moment older than the browser's, so the text is swapped in after
+ * hydration; hovering shows the full local date and time.
+ */
+export function RelativeTime({ iso, className }: { iso: string; className?: string }) {
+  const [view, setView] = useState<{ text: string; title: string } | null>(null);
+
+  useEffect(() => {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return;
+    setView({ text: relative(iso, localDay), title: date.toLocaleString("en", { ...DAY, hour: "numeric", minute: "2-digit", timeZoneName: "short" }) });
+  }, [iso]);
+
+  return (
+    <time dateTime={iso} className={className} title={view?.title} suppressHydrationWarning>
+      {view?.text ?? relative(iso)}
     </time>
   );
 }

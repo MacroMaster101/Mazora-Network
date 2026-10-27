@@ -4,8 +4,8 @@ import { Award, Trophy } from "lucide-react";
 import { getPlayer } from "@/lib/data/players";
 import { publicPageMetadata } from "@/lib/seo";
 import { BackLink, MinecraftAvatar, RoleBadge, Reveal } from "@/components/shared";
-import { kd, playtime, relative, withCommas } from "@/lib/utils";
-import { LocalDate } from "@/components/events/local-time";
+import { kd, playtime, withCommas } from "@/lib/utils";
+import { LocalDate, RelativeTime } from "@/components/events/local-time";
 
 // Per-request so an unknown player returns a real 404 instead of a soft 200,
 // and so profiles reflect current data. See the store detail page for the full
@@ -70,7 +70,7 @@ export default async function PlayerProfile({ params }: { params: Promise<{ user
               <p className="telemetry mt-2 text-sm text-muted">UUID {player.uuid}</p>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
                 <span>Joined <LocalDate iso={player.firstJoined} /></span>
-                <span>{online ? "Online now" : `Last seen ${relative(player.lastSeen)}`}</span>
+                <span>{online ? "Online now" : <>Last seen <RelativeTime iso={player.lastSeen} /></>}</span>
                 <span>Playing {player.currentMode}</span>
               </div>
             </div>

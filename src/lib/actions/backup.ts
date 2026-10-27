@@ -5,7 +5,7 @@ import { getSession, getSessionUserId } from "@/lib/auth";
 import { hasAtLeast } from "@/lib/auth/roles";
 import { recordAudit } from "@/lib/audit-log";
 import { dispatchBackup } from "@/lib/data/backup-status";
-import { accountKey, peekRateLimitShared, rateLimit, rateLimitShared } from "@/lib/rate-limit";
+import { accountKey, claimOnce, peekRateLimitShared, rateLimit, rateLimitShared, releaseClaim } from "@/lib/rate-limit";
 
 export interface BackupActionResult {
   ok: boolean;
@@ -53,9 +53,19 @@ export async function runBackupNow(): Promise<BackupActionResult> {
     return { ok: false, message: `A backup was started in the last half hour. Try again in about ${minutes} minute${minutes === 1 ? "" : "s"}.` };
   }
 
-  const result = await dispatchBackup();
-  if (result !== "started") return { ok: false, message: MESSAGES[result] };
-  await rateLimitShared(MANUAL_BACKUP_KEY, window);
+  // Two owners clicking together would both read an empty window above; only
+  // one may be starting a run at a time.
+  const starting = `${MANUAL_BACKUP_KEY}:starting`;
+  if ((await claimOnce(starting, 60_000)) !== "claimed") {
+    return { ok: false, message: "A backup is already being started. Refresh in a moment." };
+  }
+  try {
+    const result = await dispatchBackup();
+    if (result !== "started") return { ok: false, message: MESSAGES[result] };
+    await rateLimitShared(MANUAL_BACKUP_KEY, window);
+  } finally {
+    await releaseClaim(starting);
+  }
 
   await recordAudit({
     action: "backup.run_now",

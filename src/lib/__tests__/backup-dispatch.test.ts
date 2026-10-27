@@ -76,7 +76,10 @@ describe("Run backup now", () => {
     const peek = action.indexOf("await peekRateLimitShared(MANUAL_BACKUP_KEY");
     const dispatch = action.indexOf("await dispatchBackup()");
     const count = action.indexOf("await rateLimitShared(MANUAL_BACKUP_KEY");
-    assert.ok(peek > 0 && peek < dispatch && dispatch < count, "peek, then dispatch, then count");
+    const claim = action.indexOf("await claimOnce(starting, 60_000)");
+    const release = action.indexOf("await releaseClaim(starting)");
+    assert.ok(peek > 0 && peek < claim && claim < dispatch && dispatch < count && count < release, "peek, claim, dispatch, count, release");
+    assert.match(action, /\} finally \{\s*await releaseClaim\(starting\);/, "two clicks at once cannot both start a run");
     assert.match(action, /failureMode: "closed"/);
     assert.match(action, /MANUAL_BACKUP_WINDOW_MS = 30 \* 60 \* 1000/);
   });

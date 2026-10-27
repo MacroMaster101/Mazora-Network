@@ -291,12 +291,9 @@ export async function deleteRoleAction(key: string, destinationKey: string): Pro
   }
   let moved = 0;
   for (const row of holders as Array<{ id: string }>) {
-    // The update replaces app_metadata wholesale, so a failed read must stop
-    // here rather than write back {role} alone and drop the account's other keys.
-    const { data, error: readError } = await admin.auth.admin.getUserById(row.id);
-    const { error } = readError || !data?.user
-      ? { error: readError ?? new Error("Role holder not found") }
-      : await admin.auth.admin.updateUserById(row.id, { app_metadata: { ...(data.user.app_metadata ?? {}), role: destination!.key } });
+    // The auth server merges top-level app_metadata keys, so only the role is
+    // sent and the account's other keys stay as they are.
+    const { error } = await admin.auth.admin.updateUserById(row.id, { app_metadata: { role: destination!.key } });
     if (error) {
       console.error("deleteRoleAction: could not move a member off the role being deleted", error);
       return {

@@ -294,7 +294,13 @@ export async function confirmTwoFactorSetupAction(_previous: TwoFactorResult, fo
   refreshSettings();
   return {
     ok: true,
-    message: replacing ? "Your new authenticator app is set up." : "Two-step verification is on.",
+    // The authenticator is already on, so the switch stands; without codes a lost
+    // phone would lock the member out, so they are told to make them now.
+    message: replacing
+      ? "Your new authenticator app is set up."
+      : recoveryCodes
+        ? "Two-step verification is on."
+        : "Two-step verification is on, but your recovery codes could not be created. Choose Regenerate next to Recovery codes now.",
     recoveryCodes,
   };
 }
@@ -339,8 +345,9 @@ export async function setTwoFactorEmailFallbackAction(formData: FormData): Promi
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false, message: UNAVAILABLE };
   const { error: updateError } = await admin.auth.admin.updateUserById(actor.user.id, {
+    // Only this key: the auth server merges top-level keys, and the copy read at
+    // the start could write back a role or setting changed since.
     app_metadata: {
-      ...actor.user.app_metadata,
       // A fresh version either way, so passes issued before the change stop working.
       mfa_email_fallback: enabled
         ? { enabled: true, email: actor.user.email!.trim().toLowerCase(), version: randomUUID() }
@@ -519,7 +526,8 @@ export async function disableTwoFactorAction(formData: FormData): Promise<TwoFac
     const admin = getSupabaseAdmin();
     if (!admin) return { ok: false, message: UNAVAILABLE };
     const { error } = await admin.auth.admin.updateUserById(actor.user.id, {
-      app_metadata: { ...actor.user.app_metadata, mfa_email_fallback: null },
+      // null removes the key (the auth server merges top-level keys).
+      app_metadata: { mfa_email_fallback: null },
     });
     if (error) return { ok: false, message: UNAVAILABLE };
   }

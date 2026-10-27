@@ -161,6 +161,20 @@ test("the pass cookie is httpOnly, Lax, Secure in production and lasts 180 days"
 
 /* ------------------------------------------------------------ the lockout */
 
+test("only one sign-in per account and address is checked at a time", async () => {
+  const { lockout, from } = lockoutFixture();
+  from("203.0.113.10");
+  const release = await lockout.holdLoginAttempt("steve_42@example.com");
+  assert.ok(release, "the first attempt holds it");
+  assert.equal(await lockout.holdLoginAttempt("steve_42@example.com"), null, "a parallel guess waits");
+  assert.ok(await lockout.holdLoginAttempt("alex_builder@example.com"), "another account is not held");
+  from("198.51.100.20");
+  assert.ok(await lockout.holdLoginAttempt("steve_42@example.com"), "the owner elsewhere is not held");
+  from("203.0.113.10");
+  await release!();
+  assert.ok(await lockout.holdLoginAttempt("steve_42@example.com"), "free again once the attempt ends");
+});
+
 test("wrong passwords lock an account for that address, not for its owner elsewhere", async () => {
   const { lockout, from } = lockoutFixture();
   const account = "steve_42@example.com";
@@ -231,12 +245,15 @@ test("sign-in checks the counts first and counts only a wrong password", () => {
   assert.doesNotMatch(login, /throttleAuthAction\("login", \{[^}]*identity/, "nor against what was typed");
 
   const peek = login.indexOf("await loginLockedOut(lockoutIdentity)");
+  const hold = login.indexOf("const release = await holdLoginAttempt(lockoutIdentity);");
   const attempt = login.indexOf("supabase.auth.signInWithPassword(");
-  const record = login.indexOf('if (classifyPasswordProbe(error) === "wrong") await recordLoginFailure(lockoutIdentity);');
+  const record = login.indexOf('if (error && classifyPasswordProbe(error) === "wrong") await recordLoginFailure(lockoutIdentity);');
+  const released = login.indexOf("await release();");
   const unconfirmed = login.indexOf("if (isUnconfirmedEmailError(error)) {");
   const failed = login.indexOf("return { ok: false, message: SIGN_IN_FAILED };");
   const remember = login.indexOf("await rememberLoginDevice(loginEmail);");
-  assert.ok(peek > 0 && attempt > peek && record > attempt && unconfirmed > record && failed > unconfirmed && remember > failed);
+  assert.ok(peek > 0 && hold > peek && attempt > hold && record > attempt && released > record && unconfirmed > released && failed > unconfirmed && remember > failed);
+  assert.match(login, /\} finally \{\s*await release\(\);/, "the hold is released however the attempt ends");
   assert.equal((login.match(/recordLoginFailure\(/g) ?? []).length, 1, "counted in one place only");
 });
 

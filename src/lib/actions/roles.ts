@@ -100,8 +100,9 @@ export async function changeUserRole(input: {
   const wasPublicStaff = wasStaff && (roleDef(currentRole)?.showOnTeam ?? false);
   const becomesPublicStaff = becomesStaff && newShowsOnTeam;
   const authUpdate = {
+    // Only the keys being changed: the auth server merges top-level keys, and a
+    // copy read earlier could write back an old value set since (another change).
     app_metadata: {
-      ...target.user.app_metadata,
       role: newRole,
       // A first promotion onto the staff ladder automatically publishes the
       // member. Later staff-to-staff rank changes preserve their chosen state.
@@ -146,7 +147,7 @@ export async function changeUserRole(input: {
       await db.update(schema.profiles).set({ role: newRole }).where(eq(schema.profiles.userId, input.userId));
     } catch {
       await admin.auth.admin.updateUserById(input.userId, {
-        app_metadata: { ...target.user.app_metadata, role: currentRole },
+        app_metadata: { role: currentRole },
       });
       return { ok: false, message: "Failed to update role. No changes were kept." };
     }

@@ -16,6 +16,7 @@ import { clearReplaceGrant } from "@/lib/auth/replace-grant";
 import { emailTwoFactorAllowedForSignIn, emailTwoFactorSubject } from "@/lib/auth/email-two-factor-core";
 import { clearEmailTwoFactorGrant, hasEmailTwoFactorGrant } from "@/lib/auth/email-two-factor-grant";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
+import { checkLinkedLogins } from "@/lib/auth/linked-logins";
 import { SESSION_ONLY_COOKIE } from "@/lib/supabase/session-cookie";
 import {
   assignableRoles,
@@ -133,6 +134,11 @@ const getAuthState = cache(async () => {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
 
+  // A Google or Discord login added without the site (straight through
+  // Supabase's API with a copied session, say) is removed and the account
+  // signed out everywhere; this request is not signed in (lib/auth/linked-logins).
+  if ((await checkLinkedLogins(data.user)) === "removed") return null;
+
   /*
     The assurance level lives in the access token's `aal` claim. getUser() above
     has just had the auth server validate that exact token, so decoding it here
@@ -174,7 +180,7 @@ const getAuthState = cache(async () => {
   // Email is an application fallback, on by default with an authenticator. It never changes
   // the Supabase token or grants permission to replace/remove an authenticator.
   const emailSubject = emailTwoFactorSubject(data.user, token.sessionId);
-  const emailAllowed = emailTwoFactorAllowedForSignIn(token.amr, data.user);
+  const emailAllowed = emailTwoFactorAllowedForSignIn(token.amr);
   const emailVerified = hasAuthenticator && token.aal !== "aal2" && !recovered && !passkeyVerified &&
     emailAllowed && emailSubject !== null && await hasEmailTwoFactorGrant(emailSubject);
   const aal: "aal1" | "aal2" = recovered || passkeyVerified || emailVerified ? "aal2" : token.aal;

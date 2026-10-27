@@ -15,7 +15,7 @@ import { commentHref, MAX_VISIBLE_DEPTH, type CommentNode, type CommentSort } fr
 import type { Role } from "@/lib/types";
 import { viewerSubject, type CommentView } from "@/components/comments/types";
 import { UserAvatar } from "@/components/shared";
-import { fmtDate, relative } from "@/lib/utils";
+import { RelativeTime } from "@/components/events/local-time";
 import { CategoryChip, StatusPill } from "./suggestion-meta";
 import { VoteButton } from "./vote-button";
 import { SuggestionComments } from "./suggestion-comments";
@@ -162,7 +162,7 @@ export function ThreadView({
           <UserAvatar username={thread.author.username} avatarUrl={thread.author.avatarUrl} size={44} rounded="rounded-2xl" className="ring-2 ring-line" />
           <div>
             <p className="text-sm font-semibold">{displayName}</p>
-            <p className="text-xs text-muted">@{thread.author.username} · <time dateTime={thread.createdAt} title={fmtDate(thread.createdAt)}>{relative(thread.createdAt)}</time></p>
+            <p className="text-xs text-muted">@{thread.author.username} · <RelativeTime iso={thread.createdAt} /></p>
           </div>
         </div>
       </aside>

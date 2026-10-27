@@ -24,6 +24,7 @@ import type { ServerStatus, PatchUpdate } from "@/lib/types";
 import type { StatusSample } from "@/lib/data/status-telemetry";
 import { Modal } from "@/components/ui/modal";
 import { RefreshButton } from "./refresh-button";
+import { LocalDate } from "@/components/events/local-time";
 import { displayAvatarUrl } from "@/lib/minecraft/skin";
 
 interface BarData {
@@ -180,15 +181,6 @@ function UpdatedStamp({ iso }: { iso?: string | null }) {
   // Until the effect runs, show UTC and say so, so the label is never wrong —
   // only less local than it is about to be.
   return <>Updated {local ?? `${utc} UTC`}</>;
-}
-
-function formatPatchDate(date: string): string {
-  return new Date(date).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
 }
 
 export function UnifiedServerStatsCard({
@@ -712,7 +704,6 @@ export function UnifiedServerStatsCard({
           {/* Nothing from Discord or the news table: say so rather than show placeholder notes. */}
           {patches.length === 0 && <p className="text-sm text-muted">No updates posted yet.</p>}
           {visiblePatches.map((patch) => {
-            const dateStr = formatPatchDate(patch.date);
             const previewChanges = patch.changes.slice(0, 3);
 
             return (
@@ -737,7 +728,7 @@ export function UnifiedServerStatsCard({
                       <PatchAuthorAvatar name={patch.author} avatarUrl={patch.authorAvatar} size={22} /> {patch.author} <span className="font-normal text-muted">({patch.authorRole || "Owner"})</span>
                     </span>
                     <span className="flex items-center gap-1">
-                      <Calendar size={12} /> {dateStr}
+                      <Calendar size={12} /> <LocalDate iso={patch.date} />
                     </span>
                   </div>
                 </div>
@@ -796,7 +787,7 @@ export function UnifiedServerStatsCard({
                 </div>
               </div>
               <span className="inline-flex items-center gap-2 text-sm font-medium text-muted">
-                <Calendar size={15} /> {formatPatchDate(selectedPatch.date)}
+                <Calendar size={15} /> <LocalDate iso={selectedPatch.date} />
               </span>
             </div>
 

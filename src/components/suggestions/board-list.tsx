@@ -4,7 +4,8 @@ import { ArrowRight, Eye, Image as ImageIcon, Lightbulb, Lock, MessageCircle, Sl
 import type { BoardSuggestion } from "@/lib/data/suggestions-board";
 import type { SuggestionSort } from "@/lib/suggestions-rules";
 import { EmptyState, UserAvatar } from "@/components/shared";
-import { cn, fmtDate, relative } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { RelativeTime } from "@/components/events/local-time";
 import { CategoryChip, SUGGESTION_STATUSES, StatusPill, statusLabel } from "./suggestion-meta";
 import type { SuggestionFormSettings } from "@/lib/data/suggestion-form-settings";
 import { NewSuggestionDialog } from "./new-suggestion-dialog";
@@ -146,7 +147,7 @@ export function BoardList({
                   <div className="flex flex-wrap items-center gap-2"><StatusPill status={s.status} /><CategoryChip category={s.category} />{s.locked && <span className="chip gap-1.5 text-warning"><Lock size={11} /> Locked</span>}</div>
                   <h3 className="mt-2 line-clamp-1 font-display text-lg font-bold transition group-hover:text-accent-bright">{s.title}</h3>
                   <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted">{s.description}</p>
-                  <p className="mt-3 text-xs text-muted"><strong className="font-semibold text-ink">{s.author.displayName || s.author.username}</strong> <span className="opacity-70">@{s.author.username}</span> · <time dateTime={s.createdAt} title={fmtDate(s.createdAt)}>{relative(s.createdAt)}</time></p>
+                  <p className="mt-3 text-xs text-muted"><strong className="font-semibold text-ink">{s.author.displayName || s.author.username}</strong> <span className="opacity-70">@{s.author.username}</span> · <RelativeTime iso={s.createdAt} /></p>
                 </div>
                 <div className="flex items-center gap-2 sm:flex-col sm:items-stretch">
                   <span className={cn("chip justify-center gap-1.5", s.hasVoted && "border-accent bg-accent/10 text-accent-bright")}><ThumbsUp size={13} /> {s.votesCount}</span>

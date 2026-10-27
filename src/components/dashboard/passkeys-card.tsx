@@ -15,7 +15,8 @@ import { ownerConfirmationStatusAction } from "@/lib/actions/owner-confirmation"
 import type { OwnerProof } from "@/lib/auth/owner-proof-kind";
 import { createPasskeyCredential, passkeyErrorMessage, passkeysSupported } from "@/lib/passkeys/webauthn-json";
 import type { PasskeySummary } from "@/lib/data/passkeys";
-import { cn, relative } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { RelativeTime } from "@/components/events/local-time";
 
 /** How "Add a passkey" confirms it is the account owner (lib/auth/owner-confirmation). */
 export type PasskeyProof = OwnerProof;
@@ -98,10 +99,9 @@ export function PasskeysCard({ passkeys, proof }: { passkeys: PasskeySummary[] |
             </span>
             <span className="min-w-0 flex-1">
               <strong className="block truncate text-sm text-ink">{passkey.name}</strong>
-              {/* Relative times read the viewer's clock, so the server's render may differ by a minute. */}
-              <span className="block text-xs text-muted" suppressHydrationWarning>
-                Added {relative(passkey.createdAt)}
-                {passkey.lastUsedAt ? `, last used ${relative(passkey.lastUsedAt)}` : ", not used to sign in yet"}
+              <span className="block text-xs text-muted">
+                Added <RelativeTime iso={passkey.createdAt} />
+                {passkey.lastUsedAt ? <>, last used <RelativeTime iso={passkey.lastUsedAt} /></> : ", not used to sign in yet"}
               </span>
             </span>
             <span className="flex gap-2">

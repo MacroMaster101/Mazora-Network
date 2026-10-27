@@ -26,34 +26,18 @@ const NON_EMAIL_FIRST_STEPS = new Set(["sso/saml", "passkey", "password"]);
 /** Sessions opened from an emailed code or link: a reset, magic link, invite or confirmation. */
 const EMAIL_SESSIONS = new Set(["otp", "magiclink", "recovery", "invite", "email/signup", "email_change"]);
 
-type IdentityUser = Pick<User, "email" | "identities">;
-
-/**
- * A provider sign-in (Google, Discord) on the account's own address. The
- * Google account is the mailbox, and a Discord account can be recovered from
- * it, so that first step and an email code would be one credential used twice.
- */
-function providerSharesInbox(user: IdentityUser): boolean {
-  const inbox = user.email?.trim().toLowerCase();
-  if (!inbox) return true;
-  return (user.identities ?? []).some((identity) => {
-    if (identity.provider === "email" || identity.provider === "phone") return false;
-    const data = identity.identity_data as Record<string, unknown> | undefined;
-    const address = typeof data?.email === "string" ? data.email : null;
-    return !address || address.trim().toLowerCase() === inbox;
-  });
-}
-
 /**
  * An email code is a second factor only after a first step the inbox cannot
  * give. A password-reset session is opened from the same inbox, so taking an
  * email code there would let inbox access alone past two-step verification.
- * A provider sign-in counts only when the provider is on a different address.
+ *
+ * A Google or Discord sign-in never counts. The Google account may be the
+ * mailbox itself, and someone holding the inbox can attach a provider login
+ * (Supabase links one with the same verified address, and its address can be
+ * changed afterwards), so no check of the provider's address makes it safe.
  */
-export function emailTwoFactorAllowedForSignIn(amr: readonly string[], user: IdentityUser): boolean {
-  if (amr.some((method) => EMAIL_SESSIONS.has(method))) return false;
-  if (amr.some((method) => NON_EMAIL_FIRST_STEPS.has(method))) return true;
-  return amr.includes("oauth") && !providerSharesInbox(user);
+export function emailTwoFactorAllowedForSignIn(amr: readonly string[]): boolean {
+  return amr.some((method) => NON_EMAIL_FIRST_STEPS.has(method)) && !amr.some((method) => EMAIL_SESSIONS.has(method));
 }
 
 /** Changing the inbox or toggling the option invalidates codes and sign-in passes. */

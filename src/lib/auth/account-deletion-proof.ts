@@ -40,11 +40,11 @@ export async function sendEmailProofCode(purpose: EmailProofPurpose, subject: Re
   const value = proof(purpose, subject, code);
   if (!value) return false;
   try {
-    if ((await redisCommand(["SET", value.key, value.hash, "PX", TTL_MS])) !== "OK") return false;
+    // Stored only once the email has gone: a failed resend leaves the code the
+    // member already has working, instead of replacing it with one never sent.
     const mail = buildCodeEmail({ purpose, code, origin: resolvePublicOrigin(), support: supportEmail });
-    const sent = await sendEmail({ to: email, ...mail });
-    if (!sent) await redisCommand(["EVAL", CONSUME, 1, value.key, value.hash]);
-    return sent;
+    if (!(await sendEmail({ to: email, ...mail }))) return false;
+    return (await redisCommand(["SET", value.key, value.hash, "PX", TTL_MS])) === "OK";
   } catch {
     return false;
   }

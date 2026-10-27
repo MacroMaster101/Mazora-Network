@@ -14,6 +14,9 @@ const loginErrors: Record<string, string> = {
   // Set by auth/callback when the account's status could not be read; the
   // wording matches loginAction's message for the same case.
   auth_unavailable: "Authentication is temporarily unavailable. Please try again.",
+  // Set by auth/callback when a login added without the site was removed (lib/auth/linked-logins).
+  login_removed:
+    "That login was connected to the account without going through Mazora, so it was removed and the account was signed out everywhere. The owner has been emailed.",
 };
 
 export function LoginPanel({ next, error }: { next?: string; error?: string }) {

@@ -8,6 +8,7 @@ import {
   ALERT_COPY,
   alertLabel,
   buildEmailCodeSignInEmail,
+  buildLinkedLoginRemovedEmail,
   buildSecurityAlertEmail,
   isSecurityAlertKind,
   type SecurityAlertItem,
@@ -15,6 +16,7 @@ import {
 import { resolvePublicOrigin } from "@/lib/site";
 import type { User } from "@supabase/supabase-js";
 import { savedTimeZone } from "@/lib/time-zone";
+import { providerName } from "@/lib/auth/linked-logins-core";
 
 /**
  * Tells a member when a passkey, authenticator app, security key or phone is
@@ -72,9 +74,9 @@ export async function deliverSecurityAlerts(userId?: string): Promise<{ ok: bool
         -- Its name now, not when it was queued: the site renames a new passkey
         -- right after Supabase saves it. Falls back once it has been removed.
         coalesce(
-          case when kind = 'passkey'
-            then (select w.friendly_name from auth.webauthn_credentials w where w.id = source_id)
-            else (select f.friendly_name from auth.mfa_factors f where f.id = source_id)
+          case
+            when kind = 'passkey' then (select w.friendly_name from auth.webauthn_credentials w where w.id = source_id)
+            when kind in ('totp', 'webauthn', 'phone') then (select f.friendly_name from auth.mfa_factors f where f.id = source_id)
           end,
           label
         ) as label,
@@ -181,6 +183,49 @@ async function notifyEmailCodeSignIn(user: Pick<User, "id" | "email" | "user_met
     await sendEmail({ to: user.email, ...mail });
   } catch (error) {
     console.error("Email-code sign-in alert email failed", error);
+  }
+}
+
+/**
+ * A provider login nobody added through the site was removed and the account
+ * signed out everywhere (lib/auth/linked-logins): a notification for the next
+ * sign-in and an email now. Best-effort, like the rest of this file.
+ */
+export async function notifyLinkedLoginRemoved(userId: string, providers: string[]): Promise<void> {
+  const at = new Date();
+  const names = providers.map(providerName).join(" and ") || "provider";
+  const db = getDb();
+  if (db) {
+    try {
+      await db.insert(schema.notifications).values({
+        userId,
+        title: `Unrecognised ${names} login removed`,
+        message:
+          "A login was connected to your account without going through the site, so it was removed and you were signed out everywhere. Change your password and check your security settings.",
+        category: "security",
+        href: "/dashboard/settings",
+      });
+    } catch (error) {
+      console.error("Linked-login removal notification failed", error);
+    }
+  }
+
+  try {
+    const admin = getSupabaseAdmin();
+    if (!admin) return;
+    const { data, error } = await admin.auth.admin.getUserById(userId);
+    const email = data?.user?.email;
+    if (error || !email) return;
+    const mail = buildLinkedLoginRemovedEmail({
+      name: displayNameOf(data.user.user_metadata),
+      origin: resolvePublicOrigin(),
+      providers,
+      at,
+      timeZone: savedTimeZone(data.user.user_metadata),
+    });
+    await sendEmail({ to: email, ...mail });
+  } catch (error) {
+    console.error("Linked-login removal email failed", error);
   }
 }
 

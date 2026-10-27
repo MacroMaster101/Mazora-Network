@@ -27,7 +27,8 @@ export async function saveTimeZoneAction(value: string): Promise<{ ok: boolean }
     if (error || !data.user) return { ok: false };
     if (savedTimeZone(data.user.user_metadata) === timeZone) return { ok: true };
     const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
-      user_metadata: { ...data.user.user_metadata, time_zone: timeZone },
+      // Merged by the auth server, so only this key is sent.
+      user_metadata: { time_zone: timeZone },
     });
     return { ok: !updateError };
   } catch (error) {

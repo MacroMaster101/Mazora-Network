@@ -4,6 +4,8 @@
  * rows and looks up ids lives in src/lib/data/audit.ts.
  */
 
+import { providerName } from "@/lib/auth/linked-logins-core";
+
 type Meta = Record<string, unknown> | null;
 
 export function asRecord(value: unknown): Record<string, unknown> | null {
@@ -103,6 +105,10 @@ export function summarise(action: string, targetType: string | null, targetId: s
     return `Authenticator app ${verb}`;
   }
   if (action.startsWith("auth.passkey")) return action.endsWith("removed") ? "Passkey removed" : "Passkey added";
+  if (action === "auth.linked_login_removed") {
+    const providers = Array.isArray(meta?.providers) ? meta.providers.filter((p): p is string => typeof p === "string") : [];
+    return `Unrecognised ${providers.length ? providers.map(providerName).join(" and ") : "provider"} login removed`;
+  }
   if (targetType === "creator_code") {
     const code = str(meta?.code);
     const creator = str(meta?.creatorName);

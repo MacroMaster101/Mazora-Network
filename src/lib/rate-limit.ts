@@ -102,6 +102,19 @@ export async function claimOnce(key: string, ttlMs: number): Promise<"claimed" |
   return "unavailable";
 }
 
+/** Ends a claimOnce early, for a claim that holds work in progress. Best-effort: the TTL ends it anyway. */
+export async function releaseClaim(key: string): Promise<void> {
+  if (!sharedStoreConfig()) {
+    windows.delete(`claim:${key}`);
+    return;
+  }
+  try {
+    await redisCommand(["DEL", `claim:${key}`]);
+  } catch {
+    // Left to expire.
+  }
+}
+
 /**
  * Fixed-window verdict backed by the shared store, falling back to the
  * in-process window only when the caller allows it (or in local development).
