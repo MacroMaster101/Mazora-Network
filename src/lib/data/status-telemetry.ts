@@ -57,10 +57,10 @@ export interface StatusSample {
   totalProbes: number;
 }
 
-/** Truncates to the start of the containing hour. */
+/** Truncates to the start of the containing UTC hour (the same on every host, even in a half-hour zone). */
 function hourKey(date: Date): string {
   const truncated = new Date(date);
-  truncated.setMinutes(0, 0, 0);
+  truncated.setUTCMinutes(0, 0, 0);
   return truncated.toISOString();
 }
 

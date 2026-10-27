@@ -17,9 +17,9 @@ import { defaultSkin, fetchMojangSkin } from "@/lib/minecraft/mojang-skin-fetch"
  * A name with no Mojang account (an offline-mode player), an account on the
  * default skin, an invalid name and the "Steve" placeholder all get Mojang's
  * default Steve, drawn the same way. Only when Mojang cannot be reached is the
- * request handed to mc-heads, as before. Drawn heads are also cached at the
- * edge for signed-out visitors; middleware marks responses to signed-in ones
- * private.
+ * request handed to mc-heads, as before. A head is the same for every
+ * visitor and holds nothing about them, so it is cached at the edge for
+ * everyone (middleware skips this route).
  */
 
 const IGN_PATTERN = /^[A-Za-z0-9_]{3,16}$/;

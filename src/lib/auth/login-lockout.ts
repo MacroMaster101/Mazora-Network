@@ -7,8 +7,10 @@ import { deriveGrantKey } from "@/lib/auth/reset-grant-core";
 import {
   accountKey,
   actionClientKey,
+  claimOnce,
   peekRateLimitShared,
   rateLimitShared,
+  releaseClaim,
   tooManyAttemptsMessage,
 } from "@/lib/rate-limit";
 
@@ -55,6 +57,20 @@ export async function loginLockedOut(identity: string): Promise<string | null> {
   const blocked = [pair, ...(knownDevice ? [] : [account])].filter((verdict) => !verdict.ok);
   if (blocked.length === 0) return null;
   return tooManyAttemptsMessage(Math.max(...blocked.map((verdict) => verdict.retryAfter)));
+}
+
+/**
+ * Holds this account's sign-in from this address while its password is
+ * checked. The counts above are read before an attempt and written after it,
+ * so without this a burst of parallel guesses would all read the same count
+ * and all be tried. Returns the release, or null when another attempt is still
+ * running (or the store is down, which refuses like the lockout does). The
+ * hold expires on its own if the request dies.
+ */
+export async function holdLoginAttempt(identity: string): Promise<(() => Promise<void>) | null> {
+  const key = `login-attempt:${await pairKey(identity)}`;
+  if ((await claimOnce(key, 15_000)) !== "claimed") return null;
+  return () => releaseClaim(key);
 }
 
 /** Call only when the auth server said the password is wrong. */

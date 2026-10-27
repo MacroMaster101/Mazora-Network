@@ -12,6 +12,7 @@ import { SUSPENDED_PATH } from "@/lib/auth/login-identifier";
 import { resolvePublicOrigin } from "@/lib/site";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { rememberLoginDevice } from "@/lib/auth/login-lockout";
+import { checkLinkedLogins, settlePendingLink } from "@/lib/auth/linked-logins";
 
 /**
  * The origin used to build post-login redirects. In production this is the
@@ -52,6 +53,16 @@ export async function GET(request: NextRequest) {
     if (!error) {
       const { data } = await supabase.auth.getUser();
       if (data.user) {
+        // A link the site started comes back here: trust the login it added.
+        // Then any login nobody added through the site is removed, every
+        // session ended, and this sign-in refused (lib/auth/linked-logins).
+        await settlePendingLink(data.user);
+        if ((await checkLinkedLogins(data.user)) === "removed") {
+          await supabase.auth.signOut({ scope: "local" });
+          const refused = new URL("/login", origin);
+          refused.searchParams.set("error", "login_removed");
+          return NextResponse.redirect(refused);
+        }
         // A known device for this account from now on (lib/auth/login-lockout).
         await rememberLoginDevice(data.user.email);
         const profile = await ensureUserProfile(data.user);

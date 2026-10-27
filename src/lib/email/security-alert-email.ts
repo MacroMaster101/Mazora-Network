@@ -9,9 +9,10 @@
 
 import { supportEmail } from "@/lib/support-contact";
 import { validTimeZone } from "@/lib/time-zone";
+import { providerName } from "@/lib/auth/linked-logins-core";
 import { button, cleanOrigin, detailBox, detailRow, emailShell, escapeHtml, greetingFor, heading, paragraph, strong } from "./layout";
 
-export type SecurityAlertKind = "passkey" | "totp" | "webauthn" | "phone";
+export type SecurityAlertKind = "passkey" | "totp" | "webauthn" | "phone" | "google" | "discord" | "identity";
 
 export interface SecurityAlertItem {
   kind: SecurityAlertKind;
@@ -31,6 +32,10 @@ export const ALERT_COPY: Record<SecurityAlertKind, { title: string; noun: string
   totp: { title: "Authenticator app added", noun: "An authenticator app" },
   webauthn: { title: "Security key added", noun: "A security key" },
   phone: { title: "Phone added for sign-in codes", noun: "A phone number for sign-in codes" },
+  // A provider login linked to the account (migration 085), labelled with its address.
+  google: { title: "Google login connected", noun: "A Google login" },
+  discord: { title: "Discord login connected", noun: "A Discord login" },
+  identity: { title: "Login connected", noun: "A provider login" },
 };
 
 export function isSecurityAlertKind(value: string): value is SecurityAlertKind {
@@ -142,6 +147,68 @@ export function buildSecurityAlertEmail(input: {
     support,
   });
 
+  return { subject, html, text };
+}
+
+const REMOVED_REASON =
+  "You are receiving this because it is about the security of your account. It is sent whenever the site removes a login it did not add.";
+
+/**
+ * "We removed a Google login we didn't recognise" — a provider login was
+ * linked to the account without going through the site (lib/auth/linked-logins),
+ * so it was removed and every device signed out. Nothing here is typed by the
+ * member; the provider names come from a fixed list.
+ */
+export function buildLinkedLoginRemovedEmail(input: {
+  name: string | null;
+  origin: string;
+  providers: string[];
+  at: Date;
+  timeZone?: string | null;
+  support?: string | null;
+}): SecurityAlertEmail {
+  const greeting = greetingFor(input.name);
+  const origin = cleanOrigin(input.origin);
+  const support = input.support === undefined ? supportEmail : input.support;
+  const settingsUrl = `${origin}/dashboard/settings`;
+  const names = input.providers.map(providerName);
+  const several = names.length > 1;
+  const what = names.length ? `${names.join(" and ")} login${several ? "s" : ""}` : "login";
+  const subject = `We removed ${several ? "" : "a "}${what} from your Mazora account`;
+  const lead = several
+    ? `${what} were connected to your Mazora Network account without going through the site, so we removed them and signed your account out on every device.`
+    : `A ${what} was connected to your Mazora Network account without going through the site, so we removed it and signed your account out on every device.`;
+  const advice =
+    "Someone may have a copy of a signed-in session. Sign in again, change your password, and check your passkeys and two-step verification in your security settings.";
+
+  const text = [
+    greeting,
+    "",
+    lead,
+    "",
+    `When: ${alertTime(input.at, input.timeZone)}`,
+    "",
+    advice,
+    "",
+    `Security settings: ${settingsUrl}`,
+    "",
+    "— The Mazora Network team",
+    "",
+    REMOVED_REASON,
+    ...(support ? [`Questions? ${support}`] : []),
+  ].join("\n");
+
+  const body = [
+    heading(escapeHtml(`Unrecognised ${what} removed`)),
+    // Own paragraph: the lead may start with a provider's name, which stays capitalised.
+    paragraph(escapeHtml(greeting), "0 0 8px"),
+    paragraph(escapeHtml(lead)),
+    detailBox(detailRow("When", escapeHtml(alertTime(input.at, input.timeZone)), true)),
+    paragraph(`${strong("What to do")} ${escapeHtml(advice)}`, "22px 0 24px"),
+    button(settingsUrl, "Review security settings"),
+  ].join("\n              ");
+
+  const html = emailShell({ title: subject, preheader: lead, origin, body, reason: REMOVED_REASON, support });
   return { subject, html, text };
 }
 

@@ -32,32 +32,19 @@ test("email fallback is on by default with an authenticator, off only by a serve
   assert.equal(emailTwoFactorSubject(user, ""), null);
 });
 
-function identity(provider: string, email?: string) {
-  return {
-    id: `fake-${provider}-identity`, identity_id: `fake-${provider}-identity`, user_id: subject.userId, provider,
-    identity_data: email ? { email } : {}, created_at: "2026-01-01T00:00:00Z", last_sign_in_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
-  };
-}
-
-test("email codes finish only a password, provider or passkey sign-in, never an email-opened session", () => {
-  const otherInbox = { ...user, identities: [identity("email", user.email), identity("discord", "alex.gamer@example.com")] };
-  for (const amr of [["password"], ["oauth"], ["sso/saml"], ["passkey"]]) assert.equal(emailTwoFactorAllowedForSignIn(amr, otherInbox), true);
+test("email codes finish only a password or passkey sign-in, never an email-opened session", () => {
+  for (const amr of [["password"], ["sso/saml"], ["passkey"]]) assert.equal(emailTwoFactorAllowedForSignIn(amr), true);
   // A password reset, magic link, invite or confirmation link was opened from the same inbox.
   for (const amr of [["recovery"], ["otp"], ["magiclink"], ["invite"], ["email/signup"], ["email_change"], ["password", "otp"], []]) {
-    assert.equal(emailTwoFactorAllowedForSignIn(amr, otherInbox), false);
+    assert.equal(emailTwoFactorAllowedForSignIn(amr), false);
   }
 });
 
-test("a provider sign-in on the account's own address cannot finish with an email code", () => {
-  // Signing in with the Google account that is the mailbox, then reading the code in it, is one credential twice.
-  const sameInbox = { ...user, identities: [identity("google", "ALEX@example.com")] };
-  assert.equal(emailTwoFactorAllowedForSignIn(["oauth"], sameInbox), false);
-  // A provider that reports no address is treated as the same inbox.
-  assert.equal(emailTwoFactorAllowedForSignIn(["oauth"], { ...user, identities: [identity("discord")] }), false);
-  assert.equal(emailTwoFactorAllowedForSignIn(["oauth"], { ...user, email: undefined, identities: [] }), false);
-  // A password or passkey sign-in on the same account still may.
-  assert.equal(emailTwoFactorAllowedForSignIn(["password"], sameInbox), true);
-  assert.equal(emailTwoFactorAllowedForSignIn(["passkey"], sameInbox), true);
+test("a Google or Discord sign-in cannot finish with an email code", () => {
+  // The Google account may be the mailbox, and whoever holds the inbox can attach a provider
+  // login and then change its address, so a provider sign-in never counts as the first step.
+  assert.equal(emailTwoFactorAllowedForSignIn(["oauth"]), false);
+  assert.equal(emailTwoFactorAllowedForSignIn(["oauth", "otp"]), false);
 });
 
 test("a different session, email enrollment, or authenticator cannot reuse the same email pass", () => {
@@ -185,7 +172,7 @@ test("email codes never grant a sign-in on a wrong code, throttling, an opt-out,
   assert.ok(f.events.indexOf("grant") < f.events.indexOf("notices"));
 });
 
-test("turning email codes off or on needs fresh authenticator or recovery proof and preserves role metadata", async () => {
+test("turning email codes off or on needs fresh authenticator or recovery proof and sends only that setting", async () => {
   const rejected = actionFixture({ secondStep: "Enter an authenticator code" });
   assert.equal((await rejected.actions.setTwoFactorEmailFallbackAction(rejected.form)).ok, false);
   assert.equal(rejected.updated(), null);
@@ -193,7 +180,8 @@ test("turning email codes off or on needs fresh authenticator or recovery proof 
   assert.equal((await f.actions.setTwoFactorEmailFallbackAction(f.form)).ok, true);
   assert.ok(f.events.indexOf("second-step") < f.events.indexOf("update"));
   const metadata = f.updated()?.app_metadata as Record<string, unknown>;
-  assert.equal(metadata.role, "member");
+  // The auth server merges top-level keys, so the role is kept without being sent back.
+  assert.deepEqual(Object.keys(metadata), ["mfa_email_fallback"]);
   assert.equal((metadata.mfa_email_fallback as Record<string, unknown>).email, "alex@example.com");
   f.form.set("emailFallback", "disable");
   assert.equal((await f.actions.setTwoFactorEmailFallbackAction(f.form)).ok, true);

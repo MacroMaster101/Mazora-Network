@@ -18,7 +18,7 @@ import {
 import { Input, Modal, useToast } from "@/components/ui";
 import { OtpInput } from "@/components/auth/auth-forms";
 import { disableTwoFactorAction, regenerateRecoveryCodesAction, setTwoFactorEmailFallbackAction } from "@/lib/actions/two-factor";
-import { relative } from "@/lib/utils";
+import { RelativeTime } from "@/components/events/local-time";
 import { RecoveryCodesView } from "./recovery-codes-view";
 import { TwoFactorSetupScreen } from "./two-factor-setup-screen";
 
@@ -226,7 +226,7 @@ export function TwoFactorCard({
           <Row
             icon={<Smartphone size={18} aria-hidden="true" />}
             title="Authenticator app"
-            detail={enabled ? `Set up${enrolledAt ? ` ${relative(enrolledAt)}` : ""}` : "Use a code from an app like Google Authenticator."}
+            detail={enabled ? <>Set up{enrolledAt ? <> <RelativeTime iso={enrolledAt} /></> : null}</> : "Use a code from an app like Google Authenticator."}
             action={
               <button type="button" onClick={() => setSetup(enabled ? "replace" : "setup")} className={actionButton}>
                 {enabled ? "Replace" : "Set up"}

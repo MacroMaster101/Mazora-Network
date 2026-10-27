@@ -45,7 +45,7 @@ test("a member-written user_metadata flag never says the account has a password"
   const panels = read("../../components/account/account-panels.tsx");
   assert.match(panels, /hasPassword = accountHasPassword\(data\.user\);/);
   assert.doesNotMatch(panels, /user_metadata\?\.has_password/);
-  assert.doesNotMatch(read("../actions/auth.ts"), /data: \{ has_password: true \}/);
+  assert.doesNotMatch(read("../actions/auth.ts"), /\bdata: \{ has_password: true \}/);
 });
 
 test("the email identity and the service-role flag still say yes, and an explicit no wins", () => {

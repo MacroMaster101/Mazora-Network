@@ -53,6 +53,25 @@ test("codes expire after ten minutes and resending invalidates the old code", as
   assert.equal(await proof.consumeAccountDeletionCode(subject, "123457"), false);
 });
 
+test("a resend that fails to send keeps the code already sent working", async () => {
+  let sent = true;
+  const store = fakeRedis(() => 0);
+  const proof = loadServerModule<typeof Proof>(new URL("../auth/account-deletion-proof.ts", import.meta.url), {
+    mocks: {
+      "node:crypto": { ...crypto, randomInt: (() => { let next = 123_456; return () => next++; })() },
+      "@/lib/auth/reset-grant-core": grants,
+      "@/lib/supabase/secret-key": { supabaseSecretKey: () => "fake-server-secret" },
+      "@/lib/redis": { redisCommand: store.command },
+      "@/lib/email/send": { sendEmail: async () => sent },
+    },
+  });
+  assert.equal(await proof.sendAccountDeletionCode(subject, "alex@example.com"), true);
+  sent = false;
+  assert.equal(await proof.sendAccountDeletionCode(subject, "alex@example.com"), false);
+  assert.equal(await proof.consumeAccountDeletionCode(subject, "123457"), false, "the unsent code never works");
+  assert.equal(await proof.consumeAccountDeletionCode(subject, "123456"), true, "the first code still does");
+});
+
 test("mail failure and missing signing secrets cannot authorize deletion", async () => {
   const failed = fixture(false);
   assert.equal(await failed.proof.sendAccountDeletionCode(subject, "alex@example.com"), false);

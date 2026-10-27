@@ -537,7 +537,7 @@ test("the password is blanked in the database, with the admin API only as a fall
   // ...and choosing a password turns it back, by a second route if the first fails.
   const auth = read("../actions/auth.ts");
   const mark = between(auth, "async function markHasPassword", "\n}\n");
-  assert.match(mark, /app_metadata: \{ \.\.\.\(data\?\.user\?\.app_metadata \?\? \{\}\), has_password: true \},/);
+  assert.match(mark, /app_metadata: \{ has_password: true \},/);
   assert.match(mark, /if \(!error\) return;[\s\S]*await recordPasswordSet\(userId\);/);
 });
 

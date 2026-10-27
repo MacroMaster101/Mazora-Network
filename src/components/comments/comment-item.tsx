@@ -8,7 +8,8 @@ import { RankChip } from "@/components/admin/rank-chip";
 import { UserAvatarWithPresence } from "@/components/shared";
 import { useToast } from "@/components/ui";
 import { commentHref, MAX_VISIBLE_DEPTH, type CommentNode, type CommentSort } from "@/lib/comments/tree";
-import { cn, fmtDate, relative } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { RelativeTime } from "@/components/events/local-time";
 import { CommentMenu } from "./comment-menu";
 import { ShareButton } from "./share-button";
 import type { CommentAdapter, CommentView } from "./types";
@@ -97,7 +98,7 @@ export function CommentItem({
         </button>
         <span className="text-xs text-muted">
           <strong className="font-semibold text-ink">{removed ? "Removed comment" : comment.authorName}</strong> ·{" "}
-          {relative(comment.createdAt)}
+          <RelativeTime iso={comment.createdAt} />
           {descendantCount > 0 && ` · ${descendantCount} ${descendantCount === 1 ? "reply" : "replies"}`}
         </span>
       </li>
@@ -139,9 +140,7 @@ export function CommentItem({
               </>
             )}
             <span className="text-muted">·</span>
-            <time className="text-muted" dateTime={comment.createdAt} title={fmtDate(comment.createdAt)}>
-              {relative(comment.createdAt)}
-            </time>
+            <RelativeTime iso={comment.createdAt} className="text-muted" />
             {comment.editedAt && !removed && <span className="italic text-muted">edited</span>}
             <button type="button" aria-label="Collapse comment" onClick={() => setCollapsed(true)} className="comment-action ml-auto px-1.5 sm:ml-0">
               <Minus size={14} aria-hidden="true" />

@@ -1,6 +1,6 @@
 import { CheckCircle2, KeyRound, Monitor, ShieldAlert, TriangleAlert } from "lucide-react";
 import { methodLabel, type SecurityState, type SignInMethod } from "@/lib/auth/session-security";
-import { relative } from "@/lib/utils";
+import { RelativeTime } from "@/components/events/local-time";
 
 /** Provider tint, so the chips read at a glance rather than by their text. */
 const METHOD_TINT: Record<SignInMethod, string> = {
@@ -79,9 +79,7 @@ export function SecurityCard({ state }: { state: SecurityState | null }) {
 
       {state.lastSignInAt && (
         <Row label="Last sign-in">
-          <time dateTime={state.lastSignInAt} className="text-muted">
-            {relative(state.lastSignInAt)}
-          </time>
+          <RelativeTime iso={state.lastSignInAt} className="text-muted" />
         </Row>
       )}
 

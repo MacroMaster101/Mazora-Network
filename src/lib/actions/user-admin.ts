@@ -204,7 +204,6 @@ export async function inviteUserAction(
     data.user.id,
     {
       app_metadata: {
-        ...data.user.app_metadata,
         role,
         ...(isStaff(role) ? { staff_public: roleDef(role)?.showOnTeam ?? false } : {}),
       },
@@ -271,7 +270,7 @@ export async function setStaffPublicVisibilityAction(
   }
 
   const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
-    app_metadata: { ...target.user.app_metadata, staff_public: visible },
+    app_metadata: { staff_public: visible },
   });
   if (updateError) return { ok: false, message: "Could not update public team visibility." };
 

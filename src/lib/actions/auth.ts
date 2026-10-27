@@ -17,7 +17,9 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { ignAvailability, linkMinecraftIgn } from "@/lib/minecraft/link";
 import { dispatchSignInNotifications } from "@/lib/notifications-auto";
 import { throttleAuthAction, throttleCurrentPasswordCheck } from "@/lib/rate-limit";
-import { loginLockedOut, recordLoginFailure, rememberLoginDevice } from "@/lib/auth/login-lockout";
+import { safeNext } from "@/lib/safe-redirect";
+import { holdLoginAttempt, loginLockedOut, recordLoginFailure, rememberLoginDevice } from "@/lib/auth/login-lockout";
+import { markLinkPending } from "@/lib/auth/linked-logins";
 import { SIGN_IN_FAILED, SUSPENDED_PATH, UNRESOLVED_IDENTIFIER, looksLikeEmail } from "@/lib/auth/login-identifier";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { accountHasPassword, passwordMatchesCurrent } from "@/lib/auth/reauth";
@@ -95,21 +97,6 @@ function isUnconfirmedEmailError(error: { code?: string; message?: string } | nu
   if (!error) return false;
   if (error.code === "email_not_confirmed") return true;
   return /email not confirmed/i.test(error.message ?? "");
-}
-
-/**
- * Restricts a post-auth redirect target to a same-origin path. Checking only
- * for a leading "//" is not enough: browsers strip ASCII tab/CR/LF anywhere
- * in a URL and treat a backslash the same as a forward slash before
- * resolving it (WHATWG URL spec), so "/\evil.com" or "/\t/evil.com" both
- * look like safe same-origin paths to a naive check but actually resolve to
- * "https://evil.com" once the browser follows the redirect. Normalizing the
- * same way before checking closes that open-redirect bypass.
- */
-function safeNext(value: string | undefined, fallback = "/"): string {
-  if (!value) return fallback;
-  const normalized = value.replace(/[\t\r\n]/g, "").replace(/\\/g, "/");
-  return normalized.startsWith("/") && !normalized.startsWith("//") ? normalized : fallback;
 }
 
 /**
@@ -405,15 +392,26 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
     const lockedOut = await loginLockedOut(lockoutIdentity);
     if (lockedOut) return { ok: false, message: lockedOut };
 
-    const { data: signedIn, error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: parsed.data.password,
-    });
-    if (error) {
+    // One attempt at a time per account and address, so the counts just read
+    // are still current when this one is counted (parallel guesses all saw 0).
+    const release = await holdLoginAttempt(lockoutIdentity);
+    if (!release) return { ok: false, message: "Another sign-in is still being checked. Try again in a moment." };
+    let attempt: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+    try {
+      attempt = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: parsed.data.password,
+      });
+      const { error } = attempt;
       // Counted only when the auth server says the password is wrong (an
       // unknown account gets that same answer). Not for "email not confirmed",
       // which means it matched, and not for an outage or the server's own limit.
-      if (classifyPasswordProbe(error) === "wrong") await recordLoginFailure(lockoutIdentity);
+      if (error && classifyPasswordProbe(error) === "wrong") await recordLoginFailure(lockoutIdentity);
+    } finally {
+      await release();
+    }
+    const { data: signedIn, error } = attempt;
+    if (error) {
       if (isUnconfirmedEmailError(error)) {
         // The auth server only says "not confirmed" once the password has
         // matched, so this browser has just proved it knows the pending
@@ -734,6 +732,11 @@ export async function oauthAction(_previous: AuthResult, formData: FormData): Pr
       return { ok: false, needsOwnerConfirm: true, message: CONFIRM_OWNER };
     }
 
+    // The login this adds is trusted only when the callback finds it waiting
+    // here; one linked any other way is removed (lib/auth/linked-logins).
+    if (!(await markLinkPending(existingUser.user.id, provider))) {
+      return { ok: false, message: "The account could not be connected. Please try again." };
+    }
     const { data, error } = await supabase.auth.linkIdentity({ provider, options: oauthOptions });
     if (error || !data.url) {
       const reason = error?.message?.toLowerCase() ?? "";
@@ -1176,11 +1179,14 @@ async function passResetTwoFactor(
 
   if (!/^\d{6}$/.test(mfaCode)) return ask({ errors: { mfaCode: "Enter the six-digit code from your authenticator app." } });
   const { data: factors } = await supabase.auth.mfa.listFactors();
-  const factor = factors?.totp[0];
-  if (!factor) return ask({ message: "Two-step verification is unavailable right now. Please try again." });
-  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code: mfaCode });
-  if (error) return ask({ errors: { mfaCode: "That code is incorrect or has expired." } });
-  return "code";
+  if (!factors?.totp.length) return ask({ message: "Two-step verification is unavailable right now. Please try again." });
+  // Every authenticator, as sign-in does: a replacement that could not remove
+  // the old one leaves two, and the code may come from either.
+  for (const factor of factors.totp) {
+    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code: mfaCode });
+    if (!error) return "code";
+  }
+  return ask({ errors: { mfaCode: "That code is incorrect or has expired." } });
 }
 
 /** Record "this account has a password" where only the service role can write it. */
@@ -1188,11 +1194,10 @@ async function markHasPassword(userId: string | undefined) {
   if (!userId) return;
   const admin = getSupabaseAdmin();
   if (admin) {
-    const { data } = await admin.auth.admin.getUserById(userId);
-    // Spread the existing app_metadata: role lives here too, and replacing the
-    // object wholesale would strip it.
+    // Only this key: the auth server merges top-level app_metadata keys, so
+    // the role and everything else stay as they are now, not as read earlier.
     const { error } = await admin.auth.admin.updateUserById(userId, {
-      app_metadata: { ...(data?.user?.app_metadata ?? {}), has_password: true },
+      app_metadata: { has_password: true },
     });
     if (!error) return;
     console.error("Could not record the new password through the admin API:", error.message);
@@ -1368,6 +1373,10 @@ export async function switchDiscordAction(_previous: AuthResult): Promise<AuthRe
   // oauthAction's linking does. Checked before the current one is unlinked.
   if (!(await hasOwnerGrant(await ownerGrantSubject(data.user.id)))) {
     return { ok: false, needsOwnerConfirm: true, message: CONFIRM_OWNER };
+  }
+  // The new Discord login is trusted only through this (lib/auth/linked-logins).
+  if (!(await markLinkPending(data.user.id, "discord"))) {
+    return { ok: false, message: "Discord could not be prepared for switching. Please try again." };
   }
 
   const { error: unlinkError } = await supabase.auth.unlinkIdentity(discordIdentity);

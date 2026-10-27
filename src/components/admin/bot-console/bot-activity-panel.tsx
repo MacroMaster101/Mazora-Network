@@ -2,7 +2,7 @@ import Link from "@/components/ui/app-link";
 import type { ComponentType } from "react";
 import { ArrowUpDown, History, Receipt, Send, Shield, TriangleAlert } from "lucide-react";
 import type { BotActivityEntry } from "@/lib/data/bot-console";
-import { relative } from "@/lib/utils";
+import { RelativeTime } from "@/components/events/local-time";
 
 type ActivityResult = { ok: true; entries: BotActivityEntry[] } | { ok: false; reason: string };
 
@@ -101,9 +101,7 @@ export function BotActivityPanel({
                   {entry.actor && <p className="mt-0.5 text-[11px] text-muted">by {entry.actor}</p>}
                 </div>
 
-                <time className="shrink-0 pt-0.5 text-[11px] text-muted" dateTime={entry.at}>
-                  {relative(entry.at)}
-                </time>
+                <RelativeTime iso={entry.at} className="shrink-0 pt-0.5 text-[11px] text-muted" />
               </li>
             );
           })}
