@@ -230,6 +230,34 @@ describe("scaling: migration 083", () => {
   });
 });
 
+describe("scaling: migration 087", () => {
+  const migration = read("../../../supabase/migrations/087_remaining_foreign_key_indexes.sql");
+  const schema = read("../db/schema.ts");
+  const indexes: Array<[name: string, table: string, column: string]> = [
+    ["content_creators_created_by_idx", "content_creators", "created_by"],
+    ["content_reports_suggestion_idx", "content_reports", "suggestion_id"],
+    ["content_reports_reply_idx", "content_reports", "reply_id"],
+    ["content_reports_resolved_by_idx", "content_reports", "resolved_by"],
+    ["creator_codes_created_by_idx", "creator_codes", "created_by"],
+    ["forum_reports_resolved_by_idx", "forum_reports", "resolved_by"],
+    ["news_articles_author_idx", "news_articles", "author_id"],
+    ["notification_broadcasts_actor_idx", "notification_broadcasts", "actor_id"],
+  ];
+
+  test("indexes every foreign key the linter listed, idempotently and in one transaction", () => {
+    for (const [name, table, column] of indexes) {
+      assert.match(migration, new RegExp(`create index if not exists ${name} on public\\.${table} \\(${column}\\);`), name);
+    }
+    assert.match(migration, /^begin;$/m);
+    assert.match(migration, /^commit;$/m);
+    assert.doesNotMatch(migration.replace(/--.*$/gm, ""), /concurrently/i);
+  });
+
+  test("the schema mirrors each new index", () => {
+    for (const [name] of indexes) assert.match(schema, new RegExp(`index\\("${name}"\\)`), name);
+  });
+});
+
 describe("scaling: caching and revalidation", () => {
   const srcRoot = fileURLToPath(new URL("../../", import.meta.url));
 
