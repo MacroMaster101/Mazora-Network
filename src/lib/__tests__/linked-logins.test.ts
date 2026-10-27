@@ -212,3 +212,9 @@ test("migration 085 alerts on added logins, never raises, and keeps existing lis
   assert.match(sql, /'google', 'discord', 'identity'/);
   assert.match(sql, /where \(u\.raw_app_meta_data -> 'trusted_identities'\) is null/);
 });
+
+test("migration 086 takes the identity alert trigger function away from the API roles", () => {
+  // Supabase grants EXECUTE to anon and authenticated directly, so `public` alone is not enough.
+  const sql = read("../../../supabase/migrations/086_identity_alert_grants.sql").replace(/--[^\n]*/g, "");
+  assert.match(sql, /revoke execute on function public\.queue_identity_alert\(\) from public, anon, authenticated;/);
+});
