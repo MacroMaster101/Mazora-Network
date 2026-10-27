@@ -135,6 +135,7 @@ export const newsArticles = pgTable(
     slugIdx: uniqueIndex("news_slug_idx").on(t.slug),
     discordMessageIdx: uniqueIndex("news_discord_message_idx").on(t.discordMessageId).where(sql`${t.discordMessageId} is not null`),
     statusIdx: index("news_status_idx").on(t.status),
+    authorIdx: index("news_articles_author_idx").on(t.authorId),
     categoryIdx: index("news_articles_category_idx").on(t.category, t.publishedAt.desc()),
     publishedOrderIdx: index("news_articles_pub_order_idx").on(sql`coalesce(${t.publishedAt}, ${t.createdAt}) desc`).where(sql`${t.status} = 'published'`),
     statusCheck: check("news_articles_status_check", sql`${t.status} in ('draft', 'pending', 'published', 'hidden', 'rejected')`),
@@ -465,6 +466,7 @@ export const creatorCodes = pgTable(
   (t) => ({
     codeIdx: uniqueIndex("creator_codes_code_idx").on(t.code),
     typeIdx: index("creator_codes_type_idx").on(t.codeType, t.createdAt.desc()),
+    createdByIdx: index("creator_codes_created_by_idx").on(t.createdBy),
     publicAlertIdx: index("creator_codes_public_alert_idx").on(t.showPublicAlert, t.enabled).where(sql`${t.showPublicAlert} = true`),
     percentCheck: check("creator_codes_percent_range", sql`${t.percentOff} between 1 and 90`),
     typeCheck: check("creator_codes_type_check", sql`${t.codeType} in ('creator', 'event')`),
@@ -503,6 +505,7 @@ export const contentCreators = pgTable(
     publicIdx: index("content_creators_public_idx")
       .on(t.featuredOnHome.desc(), t.sortOrder, t.createdAt.desc())
       .where(sql`${t.publicVisible} = true`),
+    createdByIdx: index("content_creators_created_by_idx").on(t.createdBy),
     nameLengthCheck: check("content_creators_name_length", sql`char_length(${t.name}) between 1 and 80`),
     bioLengthCheck: check("content_creators_bio_length", sql`${t.bio} is null or char_length(${t.bio}) <= 180`),
   }),
@@ -591,7 +594,10 @@ export const notificationBroadcasts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => ({ createdIdx: index("notification_broadcasts_created_idx").on(t.createdAt.desc()) }),
+  (t) => ({
+    createdIdx: index("notification_broadcasts_created_idx").on(t.createdAt.desc()),
+    actorIdx: index("notification_broadcasts_actor_idx").on(t.actorId),
+  }),
 );
 
 export const notifications = pgTable(
@@ -806,6 +812,9 @@ export const contentReports = pgTable(
   (t) => ({
     queueIdx: index("content_reports_queue_idx").on(t.status, t.createdAt.desc()),
     reporterIdx: index("content_reports_reporter_idx").on(t.reporterId),
+    suggestionIdx: index("content_reports_suggestion_idx").on(t.suggestionId),
+    replyIdx: index("content_reports_reply_idx").on(t.replyId),
+    resolvedByIdx: index("content_reports_resolved_by_idx").on(t.resolvedBy),
   }),
 );
 
@@ -927,7 +936,10 @@ export const forumReports = pgTable("forum_reports", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   resolvedBy: uuid("resolved_by"),
-}, (t) => ({ reporterIdx: index("forum_reports_reporter_idx").on(t.reporterId) }));
+}, (t) => ({
+  reporterIdx: index("forum_reports_reporter_idx").on(t.reporterId),
+  resolvedByIdx: index("forum_reports_resolved_by_idx").on(t.resolvedBy),
+}));
 
 /** One vote per member per forum post (migration 052). The auth.users FK is declared in SQL only. */
 export const forumPostVotes = pgTable(
