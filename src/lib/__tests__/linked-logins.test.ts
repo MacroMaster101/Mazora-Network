@@ -154,6 +154,12 @@ test("the audit log names the removed provider", () => {
   assert.equal(summarise("auth.linked_login_removed", "user", "id", {}), "Unrecognised provider login removed");
 });
 
+test("the audit log says when a login could not be removed", () => {
+  const summary = summarise("auth.linked_login_stuck", "user", "id", { providers: ["google"] }) ?? "";
+  assert.match(summary, /Unrecognised Google login is the only one left/);
+  assert.match(summary, /staff action needed/);
+});
+
 /* --------------------------------------------------------------- wiring */
 
 test("every signed-in request checks the account's logins before trusting the session", () => {
@@ -161,6 +167,30 @@ test("every signed-in request checks the account's logins before trusting the se
   const check = source.indexOf("checkLinkedLogins(data.user)");
   assert.ok(check > 0, "getAuthState calls checkLinkedLogins");
   assert.ok(check < source.indexOf("accessTokenClaims(", check), "before the session's claims are read");
+});
+
+test("a login that cannot be removed is reported as stuck, not as removed", () => {
+  const source = read("../auth/linked-logins.ts");
+  const nothingRemoved = source.indexOf("if (providers.length === 0)");
+  const stuck = source.indexOf('action: "auth.linked_login_stuck"');
+  const removed = source.indexOf('action: "auth.linked_login_removed"');
+  assert.ok(nothingRemoved > 0, "an empty removal is handled on its own");
+  assert.ok(nothingRemoved < stuck && stuck < removed, "the stuck report comes first");
+  const branch = source.slice(nothingRemoved, removed);
+  assert.match(branch, /return "removed"/, "the session is still refused");
+  assert.doesNotMatch(branch, /notifyLinkedLoginRemoved/, "the owner is not told it was removed");
+  assert.match(branch, /claimOnce\(`linked-login-stuck:/, "and the report is rate limited");
+});
+
+test("a removed login's queued alert is closed without being able to stop the removal", () => {
+  const source = read("../auth/linked-logins.ts");
+  const close = source.slice(source.indexOf("async function closeQueuedAlerts"), source.indexOf("async function removeLogins"));
+  assert.match(close, /update public\.security_alerts/);
+  assert.match(close, /sent_at is null/, "an alert already sent is left as it was");
+  assert.match(close, /catch \(error\)/, "a failure stays here");
+  const remove = source.slice(source.indexOf("async function removeLogins"), source.indexOf("export async function checkLinkedLogins"));
+  assert.match(remove, /closeQueuedAlerts\(userId, /);
+  assert.match(remove, /returning i\.id, i\.provider/, "only the logins actually removed");
 });
 
 test("the callback trusts the site's own link before checking, and refuses a removed login", () => {

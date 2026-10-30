@@ -109,6 +109,10 @@ export function summarise(action: string, targetType: string | null, targetId: s
     const providers = Array.isArray(meta?.providers) ? meta.providers.filter((p): p is string => typeof p === "string") : [];
     return `Unrecognised ${providers.length ? providers.map(providerName).join(" and ") : "provider"} login removed`;
   }
+  if (action === "auth.linked_login_stuck") {
+    const providers = Array.isArray(meta?.providers) ? meta.providers.filter((p): p is string => typeof p === "string") : [];
+    return `Unrecognised ${providers.length ? providers.map(providerName).join(" and ") : "provider"} login is the only one left: sign-ins refused, staff action needed`;
+  }
   if (targetType === "creator_code") {
     const code = str(meta?.code);
     const creator = str(meta?.creatorName);
