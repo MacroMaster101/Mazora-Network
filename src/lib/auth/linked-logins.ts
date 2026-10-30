@@ -22,6 +22,9 @@ import {
 
 type Account = LinkedLoginUser & { id: string };
 
+/** How often a login that cannot be removed is reported to the audit log. */
+const STUCK_REPORT_MS = 24 * 60 * 60_000;
+
 /** The trusted list's ids as a JSON array, or [] when the stored value is not one. */
 const TRUSTED = sql`case when jsonb_typeof(raw_app_meta_data -> 'trusted_identities') = 'array'
   then raw_app_meta_data -> 'trusted_identities' else '[]'::jsonb end`;
@@ -55,6 +58,26 @@ async function addTrusted(userId: string, ids: string[], clearPending = false): 
 }
 
 /**
+ * A removed login's queued "login connected" alert would tell the owner to
+ * remove something already gone; the removal notice replaces it. Only a nicety,
+ * so a failure here must not stop the removal from ending the sessions.
+ */
+async function closeQueuedAlerts(userId: string, ids: string[]): Promise<void> {
+  const db = getDb();
+  if (!db || ids.length === 0) return;
+  try {
+    await db.execute(sql`
+      update public.security_alerts
+      set sent_at = now()
+      where user_id = ${userId}::uuid
+        and sent_at is null
+        and source_id::text in (select jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb))`);
+  } catch (error) {
+    console.error("A removed login's queued alert could not be closed", error);
+  }
+}
+
+/**
  * Removes the logins and signs the account out everywhere. Never the account's
  * last way in, and never its email or phone. Returns the providers removed.
  */
@@ -69,7 +92,8 @@ async function removeLogins(userId: string, ids: string[]): Promise<string[]> {
       and exists (select 1 from auth.identities o
                    where o.user_id = i.user_id
                      and o.id::text not in (select jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb)))
-    returning i.provider`)) as unknown as Array<{ provider: string }>;
+    returning i.id, i.provider`)) as unknown as Array<{ id: string; provider: string }>;
+  await closeQueuedAlerts(userId, (removed ?? []).map((row) => row.id));
   // Keep app_metadata.providers as the auth server would after an unlink.
   await db.execute(sql`
     update auth.users u
@@ -110,16 +134,33 @@ export async function checkLinkedLogins(user: Account): Promise<"ok" | "removed"
     try {
       const providers = await removeLogins(user.id, review.remove.map((login) => login.id));
       await endAllSessions(user.id);
-      if (claim !== "claimed" && providers.length === 0) return "removed";
+      if (providers.length === 0) {
+        // Another request removed it, or it is the account's only login, which
+        // is never deleted. The session is still refused: a stolen session can
+        // link a login and then unlink the owner's. Staff have to step in, so
+        // this reports what is true, once a day, and sends no "we removed it".
+        if (claim === "claimed" && (await claimOnce(`linked-login-stuck:${user.id}`, STUCK_REPORT_MS)) === "claimed") {
+          console.error("An unrecognised login is the account's only login and could not be removed");
+          await recordAudit({
+            action: "auth.linked_login_stuck",
+            actorId: user.id,
+            by: "system",
+            targetType: "user",
+            targetId: user.id,
+            metadata: { providers: review.remove.map((login) => login.provider) },
+          });
+        }
+        return "removed";
+      }
       await recordAudit({
         action: "auth.linked_login_removed",
         actorId: user.id,
         by: "system",
         targetType: "user",
         targetId: user.id,
-        metadata: { providers: providers.length ? providers : review.remove.map((login) => login.provider) },
+        metadata: { providers },
       });
-      await notifyLinkedLoginRemoved(user.id, providers.length ? providers : review.remove.map((login) => login.provider));
+      await notifyLinkedLoginRemoved(user.id, providers);
     } catch (error) {
       console.error("An unrecognised linked login could not be removed", error);
     }
