@@ -106,13 +106,23 @@
   height: 0.45rem;
   border-radius: 999px;
   background: #f87171;
-  box-shadow: 0 0 0 0 rgb(248 113 113 / 0.6);
+  position: relative;
+}
+
+/* A growing copy of the dot rather than an animated box-shadow, which repaints
+   every frame; transform and opacity run on the compositor. */
+.event-cover-live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #f87171;
   animation: event-live-pulse 1.8s ease-out infinite;
 }
 
 @keyframes event-live-pulse {
-  70% { box-shadow: 0 0 0 0.45rem rgb(248 113 113 / 0); }
-  100% { box-shadow: 0 0 0 0 rgb(248 113 113 / 0); }
+  0% { opacity: 0.6; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(3); }
 }
 
 .event-cover-card .event-cover-title {
