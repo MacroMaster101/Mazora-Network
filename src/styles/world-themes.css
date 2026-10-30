@@ -27,6 +27,17 @@
   --world-dim: none;
 }
 
+@media (max-width: 640px) {
+  :root { --world-news-hero: url("/images/worlds/news-hero-dark-mobile.webp"); }
+  :root[data-theme="light"] {
+    --world-news-hero: url("/images/worlds/news-hero-light-mobile-v3.webp");
+    --world-valley: url("/images/worlds/valley-light-mobile-v3.webp");
+    --world-store-body: url("/images/worlds/store-body-light-mobile-v3.webp");
+    --world-vote-body: url("/images/worlds/vote-body-light-mobile-v3.webp");
+    --world-news-body: url("/images/worlds/news-body-light-mobile-v3.webp");
+  }
+}
+
 /* Only the public frame's art layer is a pseudo-element; the account area
    paints its art on the element itself, where a filter would dim the content. */
 :root[data-theme="light"] body .site-world-frame::before { filter: var(--world-dim); }

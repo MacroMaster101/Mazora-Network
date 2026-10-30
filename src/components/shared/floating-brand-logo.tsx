@@ -8,13 +8,16 @@
  * the browser's LCP measurement window closes. The image still loads eagerly
  * via `priority` (which sets fetchpriority="high" on the `<img>`) but doesn't
  * emit a `<link rel="preload">` for the optimizer URL.
+ *
+ * Skipping the optimizer also means no srcset, so this points at the 640px copy:
+ * twice the widest size shown here, a seventh of the full wordmark's weight.
  */
 export function FloatingBrandLogo() {
   return (
     <div className="group relative p-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/images/mazora-logo.webp"
+        src="/images/mazora-logo-640.webp"
         alt="Mazora Network Logo"
         width={310}
         height={207}

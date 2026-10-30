@@ -28,11 +28,11 @@ export function LoadingScreen() {
           <i className="initial-loader-orbit initial-loader-orbit-outer" />
           <i className="initial-loader-orbit initial-loader-orbit-inner" />
           <div className="initial-loader-logo-wrap">
-            {/* Keep this temporary splash asset low priority so it cannot
-                compete with the page hero for LCP bandwidth. */}
+            {/* Keep this temporary splash asset low priority and small so it
+                cannot compete with the page hero for LCP bandwidth. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/images/mazora-logo.webp"
+              src="/images/mazora-logo-640.webp"
               alt="Mazora Network"
               width={270}
               height={180}

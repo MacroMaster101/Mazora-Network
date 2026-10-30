@@ -2,6 +2,7 @@ import Image from "next/image";
 import { BookOpenText, Newspaper, Radio, Sparkles } from "lucide-react";
 import { getNews } from "@/lib/data/content";
 import { EmptyState, Reveal } from "@/components/shared";
+import { HeroArtPreload } from "@/components/theme/world-backdrop";
 import { NewsExplorer } from "@/components/shared/news-explorer";
 import { NewsVisitorStat } from "@/components/shared/news-visitor-stat";
 import { getPreviewNews } from "@/lib/news/preview-fixtures";
@@ -40,6 +41,10 @@ export default async function NewsPage({
   return (
     <div className="newsroom-page">
       <section className="newsroom-hero">
+        <HeroArtPreload
+          light={{ phone: "/images/worlds/news-hero-light-mobile-v3.webp", wider: "/images/worlds/news-hero-light-v3.webp" }}
+          dark={{ phone: "/images/worlds/news-hero-dark-mobile.webp", wider: "/images/newsroom-signal-realm-v1.webp" }}
+        />
         <div className="newsroom-hero-backdrop" aria-hidden="true" />
         <div className="shell newsroom-hero-shell">
           <div className="newsroom-live-pill"><Radio size={13} /> <span data-page-field="heroEyebrow">{copy.heroEyebrow}</span></div>

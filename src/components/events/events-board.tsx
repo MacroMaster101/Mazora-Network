@@ -171,18 +171,20 @@ export function LeadEvent({ event, copy }: { event: EventItem; copy: EventCardCo
         <h3 className="event-lead-title">{event.title}</h3>
         {event.description && <p className="line-clamp-3 text-base leading-relaxed text-muted">{event.description}</p>}
         <dl className="grid gap-2 text-sm">
-          <div className="flex items-center gap-2.5">
+          <div>
             <dt className="sr-only">Starts</dt>
-            <CalendarDays size={16} className="shrink-0 text-accent-bright" />
-            <dd className="font-semibold text-ink">
-              <LocalTime iso={event.startISO} />
+            <dd className="flex items-center gap-2.5 font-semibold text-ink">
+              <CalendarDays size={16} className="shrink-0 text-accent-bright" />
+              <span><LocalTime iso={event.startISO} /></span>
             </dd>
           </div>
           {event.rewards[0] && (
-            <div className="flex items-center gap-2.5">
+            <div>
               <dt className="sr-only">Reward</dt>
-              <Gift size={16} className="shrink-0 text-gold" />
-              <dd className="text-ink">{event.rewards[0]}</dd>
+              <dd className="flex items-center gap-2.5 text-ink">
+                <Gift size={16} className="shrink-0 text-gold" />
+                <span>{event.rewards[0]}</span>
+              </dd>
             </div>
           )}
         </dl>
