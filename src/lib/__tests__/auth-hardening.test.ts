@@ -29,7 +29,7 @@ function reauth() {
     mocks: {
       "@supabase/supabase-js": { createClient() {} },
       "@/lib/supabase/config": { getSupabaseConfig: () => null },
-      "@/lib/rate-limit": { throttleAuthAction: async () => null },
+      "@/lib/auth/second-step-lockout": { throttleSecondStepCode: async () => null, rememberSecondStepDevice: async () => {} },
       "@/lib/auth/two-factor-recovery": { redeemRecoveryCode: async () => ({ ok: false }) },
     },
   });
@@ -142,6 +142,7 @@ function replacement(options: { fresh: boolean; ownerGrant: boolean }) {
       },
       "@/lib/auth/owner-confirmation": { ownerGrantSubject: async (id: string) => ({ userId: id, sessionId }) },
       "@/lib/auth/reauth": { confirmSecondStep: async () => null },
+      "@/lib/auth/second-step-lockout": { throttleSecondStepCode: async () => null, rememberSecondStepDevice: async () => {} },
       "@/lib/data/account-status": { STATUS_UNREADABLE: "unreadable", accountStatusFor: async () => "active" },
       "@/lib/auth/login-identifier": { SUSPENDED_PATH: "/account-suspended" },
     },

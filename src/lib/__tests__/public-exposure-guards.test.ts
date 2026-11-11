@@ -24,12 +24,32 @@ test("the public sees Web Dev as a member and every other rank as itself", () =>
   }
 });
 
-test("every public loader that carries a rank passes it through publicRole", () => {
-  for (const path of ["../data/forums.ts", "../data/suggestions-board.ts"]) {
-    assert.match(read(path), /return isRoleKey\(role\) \? publicRole\(role\) : "member";/, path);
+test("staff hidden from Our Team read as a member; everyone else keeps their rank", () => {
+  for (const role of ["owner", "administrator", "moderator", "helper"]) {
+    assert.equal(publicRole(role, true), "member", role);
+    assert.equal(publicRole(role, false), role, role);
   }
-  assert.match(read("../data/presence.ts"), /const role = isRoleKey\(storedRole\) \? publicRole\(storedRole\) : "member";/);
-  assert.match(read("../data/directory-merge.ts"), /role: publicRole\(account\.role\),/);
+  // The flag only ever takes a staff rank away: it changes nothing for the rest.
+  assert.equal(publicRole("vip", true), "vip");
+  assert.equal(publicRole("member", true), "member");
+  assert.equal(publicRole("web_dev", false), "member");
+});
+
+test("every public loader that carries a rank passes it through publicRole, with the hidden flag", () => {
+  for (const path of ["../data/forums.ts", "../data/suggestions-board.ts"]) {
+    const source = read(path);
+    assert.match(source, /return isRoleKey\(role\) \? publicRole\(role, staffHidden\) : "member";/, path);
+    // The flag is read beside the role, from the same app_metadata, and handed on.
+    assert.match(source, /authorStaffHidden: sql<boolean \| null>`\(select \(u\.raw_app_meta_data -> 'staff_public'\) = 'false'::jsonb/, path);
+    assert.match(source, /authorRole: storedRole\(\w+\?\.authorRole, \w+\?\.authorStaffHidden === true\),/, path);
+  }
+  const presence = read("../data/presence.ts");
+  assert.match(presence, /\(u\.raw_app_meta_data -> 'staff_public'\) = 'false'::jsonb as "staffHidden"/);
+  assert.match(
+    presence,
+    /const role = isRoleKey\(storedRole\) \? publicRole\(storedRole, row\.staffHidden === true\) : "member";/,
+  );
+  assert.match(read("../data/directory-merge.ts"), /role: publicRole\(account\.role, !account\.publicStaffVisible\),/);
   assert.match(read("../data/accounts.ts"), /account\.role !== INTERNAL_ROLE &&/);
 });
 

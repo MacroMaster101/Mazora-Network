@@ -17,6 +17,7 @@ import { emailTwoFactorAllowedForSignIn, emailTwoFactorSubject } from "@/lib/aut
 import { clearEmailTwoFactorGrant, hasEmailTwoFactorGrant } from "@/lib/auth/email-two-factor-grant";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { checkLinkedLogins } from "@/lib/auth/linked-logins";
+import { checkTrustedPasskeys } from "@/lib/auth/trusted-passkeys";
 import { SESSION_ONLY_COOKIE } from "@/lib/supabase/session-cookie";
 import {
   assignableRoles,
@@ -138,6 +139,8 @@ const getAuthState = cache(async () => {
   // Supabase's API with a copied session, say) is removed and the account
   // signed out everywhere; this request is not signed in (lib/auth/linked-logins).
   if ((await checkLinkedLogins(data.user)) === "removed") return null;
+  // The same for a passkey registered without the site (lib/auth/trusted-passkeys).
+  if ((await checkTrustedPasskeys(data.user)) === "removed") return null;
 
   /*
     The assurance level lives in the access token's `aal` claim. getUser() above

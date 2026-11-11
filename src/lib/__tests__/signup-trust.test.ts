@@ -3,6 +3,8 @@ import test from "node:test";
 import { existsSync, readFileSync } from "node:fs";
 import {
   JUST_CONFIRMED_MARGIN_MS,
+  PENDING_SIGNUP_COOKIE,
+  PROVIDER_CONFIRMED_TOGETHER_MS,
   SIGNUP_LINK_ELSEWHERE,
   UNPROVEN_SIGNUP_MESSAGE,
   UNPROVEN_SIGNUP_UNSECURED,
@@ -14,6 +16,7 @@ import {
   mayReplacePending,
   neutralProfileNames,
   planRegistration,
+  providerConfirmedPendingSignup,
   resetConfirmedTheEmail,
   resetMayResetNames,
   signupLinkStanding,
@@ -377,9 +380,109 @@ test("registration looks the address up first and replaces a stale pending accou
   const profile = register.indexOf("if (data.user && admin && !(await ensureUserProfile(data.user))) {");
   assert.ok(profile > signUp);
   assert.match(register.slice(profile, check), /await replacePendingSignup\(admin, data\.user\.id, parsed\.data\.email\);\s*return \{ ok: false,/);
-  // No second cookie, and the marker is set for a confirmed address and an invite too.
-  assert.equal((auth.match(/const [A-Z_]+_COOKIE = /g) ?? []).length, 1);
-  assert.equal((register.match(/await markPendingSignup\(randomUUID\(\)\);\s*return \{ ok: true \};/g) ?? []).length, 2);
+  // No second cookie: the actions define none, and the one marker is named
+  // where the OAuth callback can read it too. It is set for a confirmed
+  // address and an invite as well, and both then wait for the same floor.
+  assert.equal((auth.match(/const [A-Z_]+_COOKIE = /g) ?? []).length, 0);
+  assert.equal(PENDING_SIGNUP_COOKIE, "mz_pending_signup");
+  assert.equal((read("../auth/signup-trust-core.ts").match(/const [A-Z_]+_COOKIE = /g) ?? []).length, 1);
+  assert.equal(
+    (register.match(/await markPendingSignup\(randomUUID\(\)\);\s*await notSoonerThan\(startedAt, REGISTER_ANSWER_FLOOR_MS\);\s*return \{ ok: true \};/g) ?? []).length,
+    2,
+  );
+});
+
+test("every registration that answers ok takes at least the same time", () => {
+  const auth = read("../actions/auth.ts");
+  const register = between(auth, "export async function registerAction", "export async function oauthAction");
+  const started = register.indexOf("const startedAt = Date.now();");
+  const lookup = register.indexOf("const lookup = await findAccountByEmail(parsed.data.email);");
+  assert.ok(started > 0 && started < lookup, "timed from before anything is asked about the address");
+  assert.equal((register.match(/const startedAt = Date\.now\(\);/g) ?? []).length, 1);
+  // Same for every address, so not part of what is timed.
+  assert.ok(register.indexOf("await isPasswordBreached(parsed.data.password)") < started);
+
+  // A confirmed address, an invite, a resumed registration and a new one: all four.
+  const oks = register.match(/return \{ ok: true[^}]*\};/g) ?? [];
+  assert.equal(oks.length, 4);
+  assert.equal(
+    (register.match(/await notSoonerThan\(startedAt, REGISTER_ANSWER_FLOOR_MS\);\s*return \{ ok: true[^}]*\};/g) ?? []).length,
+    4,
+    "none answers without waiting",
+  );
+  assert.match(auth, /const REGISTER_ANSWER_FLOOR_MS = 2_500;/);
+});
+
+/* ------------------------------------------- an email a provider confirmed */
+
+const T0 = Date.parse("2026-08-20T10:00:00Z");
+const at = (offsetMs: number) => new Date(T0 + offsetMs).toISOString();
+/** Registered by password a day ago, confirmed by a Google sign-in a few seconds ago. */
+const takenOver = {
+  confirmationSentAt: at(-24 * 60 * 60_000),
+  invitedAt: null,
+  emailConfirmedAt: at(-3_000),
+  providerLoginsCreatedAt: [at(-3_050)],
+  nowMs: T0,
+};
+
+test("a provider sign-in that confirmed someone's pending registration is recognised", () => {
+  assert.equal(providerConfirmedPendingSignup(takenOver), true);
+  // The registration may be minutes old; what matters is that the provider confirmed it.
+  assert.equal(providerConfirmedPendingSignup({ ...takenOver, confirmationSentAt: at(-60_000) }), true);
+  // Either provider, and another login on the account does not hide it.
+  assert.equal(providerConfirmedPendingSignup({ ...takenOver, providerLoginsCreatedAt: [undefined, at(-2_000)] }), true);
+});
+
+test("an account that registered and confirmed normally keeps its names when it adds a provider", () => {
+  // Confirmed by its code two minutes ago; Google connected just now.
+  const normal = { ...takenOver, emailConfirmedAt: at(-120_000), providerLoginsCreatedAt: [at(-1_000)] };
+  assert.equal(providerConfirmedPendingSignup(normal), false);
+  // Just outside the tolerance is already "afterwards".
+  const edge = { ...takenOver, emailConfirmedAt: at(-10_000) };
+  assert.equal(providerConfirmedPendingSignup({ ...edge, providerLoginsCreatedAt: [at(-10_000 + PROVIDER_CONFIRMED_TOGETHER_MS)] }), true);
+  assert.equal(providerConfirmedPendingSignup({ ...edge, providerLoginsCreatedAt: [at(-10_000 + PROVIDER_CONFIRMED_TOGETHER_MS + 1)] }), false);
+  // No provider login at all (a password sign-up confirmed moments ago).
+  assert.equal(providerConfirmedPendingSignup({ ...takenOver, providerLoginsCreatedAt: [] }), false);
+});
+
+test("a new or returning provider member, and a staff invite, are never matched", () => {
+  // Created by the provider: no sign-up email was ever sent, however fresh it is.
+  assert.equal(providerConfirmedPendingSignup({ ...takenOver, confirmationSentAt: null }), false);
+  assert.equal(providerConfirmedPendingSignup({ ...takenOver, confirmationSentAt: undefined }), false);
+  assert.equal(providerConfirmedPendingSignup({ ...takenOver, invitedAt: at(-60_000) }), false);
+  // The same account signing in again later: its names are its owner's by now.
+  assert.equal(providerConfirmedPendingSignup({ ...takenOver, nowMs: T0 + JUST_CONFIRMED_MARGIN_MS }), false);
+  assert.equal(providerConfirmedPendingSignup({ ...takenOver, nowMs: T0 + 30 * 24 * 60 * 60_000 }), false);
+  // Times that cannot be read match nothing: a wrongly reset name is the owner's loss.
+  assert.equal(providerConfirmedPendingSignup({ ...takenOver, emailConfirmedAt: null }), false);
+  assert.equal(providerConfirmedPendingSignup({ ...takenOver, emailConfirmedAt: "not a time" }), false);
+  assert.equal(providerConfirmedPendingSignup({ ...takenOver, providerLoginsCreatedAt: ["not a time", null] }), false);
+});
+
+test("the callback resets a stranger's names, keeps the registrant's own, and does it once", () => {
+  const helper = between(read("../auth/signup-trust.ts"), "export async function settleProviderConfirmation", "\n}\n");
+  const rule = helper.indexOf("providerConfirmedPendingSignup({");
+  const stop = helper.indexOf("if (!confirmedNow) return;");
+  const own = helper.indexOf("if (signupProvenHere(store.get(PENDING_SIGNUP_COOKIE)?.value, user.id)) {");
+  const once = helper.indexOf('claimOnce(`provider-confirmed-names:${user.id}`, 2 * JUST_CONFIRMED_MARGIN_MS)) === "duplicate") return;');
+  const reset = helper.indexOf("await resetUnprovenNames(user.id);");
+  assert.ok(rule > 0 && stop > rule && own > stop && once > own && reset > once);
+  assert.equal((helper.match(/resetUnprovenNames\(/g) ?? []).length, 1);
+  // Read from what the auth server says about the account, never from metadata a member can write.
+  assert.match(helper, /confirmationSentAt: user\.confirmation_sent_at,/);
+  assert.match(helper, /identity\.provider !== "email" && identity\.provider !== "phone"/);
+  assert.doesNotMatch(helper, /user_metadata/);
+  // This browser registered the account: nothing is reset, and the marker is spent.
+  assert.match(helper.slice(own, once), /store\.delete\(PENDING_SIGNUP_COOKIE\);\s*return;/);
+  // It can never stop a sign-in.
+  assert.match(helper, /\} catch \(error\) \{\s*console\.error\("A provider-confirmed sign-up could not be settled", error\);/);
+
+  const callback = read("../../app/auth/callback/route.ts");
+  const settle = callback.indexOf("await settleProviderConfirmation(data.user);");
+  assert.ok(settle > callback.indexOf("const profile = await ensureUserProfile(data.user);"), "once there is a profile row to reset");
+  assert.ok(settle > callback.indexOf('=== "removed"'), "and only for a sign-in that was not refused");
+  assert.equal((callback.match(/settleProviderConfirmation\(/g) ?? []).length, 1);
 });
 
 test("the deletion is the cleanup's own, after reading the account again", () => {

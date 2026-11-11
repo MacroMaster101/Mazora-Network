@@ -127,7 +127,8 @@ export function rosterDirectoryAccounts(roster: PublicRosterAccount[]): AccountI
     username: account.username,
     minecraftUsername: account.minecraftUsername,
     minecraftSkinUrl: account.minecraftSkinUrl,
-    role: publicRole(account.role),
+    // Staff hidden from Our Team read as Member here too.
+    role: publicRole(account.role, !account.publicStaffVisible),
     avatarUrl: account.avatarUrl,
   }));
 }

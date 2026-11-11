@@ -143,6 +143,39 @@ export async function getOrdersForUser(userId: string): Promise<MemberOrder[]> {
 }
 
 /**
+ * Whether a member already has an order no staff member has decided on yet.
+ * The store uses it to ping the staff role once per waiting member rather than
+ * once per request: the checkout limit is per Discord id, so one member could
+ * otherwise ping the role five times every ten minutes.
+ *
+ * Only `pending` counts. `awaiting_discord_join` is an order staff already
+ * confirmed that is waiting on the buyer to join the server, and a buyer who can
+ * reach checkout has joined, so a ping then is what tells staff to confirm it.
+ *
+ * Matched on the account and on the Discord id, so a second site account linked
+ * to the same Discord account does not get a fresh ping. Any failure answers
+ * false: a missed ping costs staff an order, an extra one only a notification.
+ */
+export async function hasOrderAwaitingStaff(owner: { userId: string | null; discordId: string }): Promise<boolean> {
+  const db = getDb();
+  if (!db || !owner.discordId) return false;
+  try {
+    const ownedBy = owner.userId
+      ? or(eq(schema.orders.userId, owner.userId), eq(schema.orders.discordId, owner.discordId))
+      : eq(schema.orders.discordId, owner.discordId);
+    const [row] = await db
+      .select({ id: schema.orders.id })
+      .from(schema.orders)
+      .where(and(eq(schema.orders.status, "pending"), ownedBy))
+      .limit(1);
+    return Boolean(row);
+  } catch (error) {
+    console.error("Failed to check for a waiting order:", error);
+    return false;
+  }
+}
+
+/**
  * Strips the direct identifiers from a member's order history ahead of account
  * deletion, keeping the commercial record itself.
  *

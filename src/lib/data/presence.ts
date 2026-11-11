@@ -210,7 +210,8 @@ export async function getOnlineMembers(): Promise<OnlineMember[]> {
         p.presence_status                    as "choice",
         p.last_seen_at                       as "lastSeenAt",
         p.last_active_at                     as "lastActiveAt",
-        u.raw_app_meta_data ->> 'role'       as "role"
+        u.raw_app_meta_data ->> 'role'       as "role",
+        (u.raw_app_meta_data -> 'staff_public') = 'false'::jsonb as "staffHidden"
       from profiles p
       join auth.users u on u.id = p.user_id
       where p.last_seen_at is not null
@@ -241,8 +242,10 @@ export async function getOnlineMembers(): Promise<OnlineMember[]> {
       if (status === "offline") continue;
       // normalizeRoleKey: legacy key read as web_dev until migration 055 (removable after).
       const storedRole = normalizeRoleKey(row.role);
-      // The roster is public (/forums, /api/presence/online): Web Dev reads as Member.
-      const role = isRoleKey(storedRole) ? publicRole(storedRole) : "member";
+      // The roster is public (/forums, /api/presence/online): Web Dev reads as
+      // Member, and so does staff hidden from Our Team, which keeps them out of
+      // the Online Staff panel as well.
+      const role = isRoleKey(storedRole) ? publicRole(storedRole, row.staffHidden === true) : "member";
       members.push({
         username: String(row.username),
         displayName: typeof row.displayName === "string" ? row.displayName : null,

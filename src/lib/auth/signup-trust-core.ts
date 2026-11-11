@@ -14,6 +14,13 @@ import { PLACEHOLDER_DISPLAY_NAME } from "@/lib/auth/placeholder";
  * and the owner chooses one through "Forgot password", which needs the inbox.
  */
 
+/**
+ * The cookie that marks the browser whose registration produced an account,
+ * holding that account's id (set and explained in actions/auth). Named here so
+ * the OAuth callback reads the same one.
+ */
+export const PENDING_SIGNUP_COOKIE = "mz_pending_signup";
+
 /** A sign-up link opened where nothing was registered. The link is not spent, so it still works. */
 export const SIGNUP_LINK_ELSEWHERE =
   "Open this link in the browser you registered in, or type the 6-digit code from the email there.";
@@ -276,6 +283,58 @@ export function confirmedBeforeVerifying(
  */
 export function resetMayResetNames(confirmedBefore: boolean | null): boolean {
   return confirmedBefore === false;
+}
+
+/**
+ * How far apart the auth server may stamp a provider login and the email
+ * confirmation it caused. Both are written while it handles one provider
+ * callback, so they are moments apart; nobody confirms by code and then
+ * finishes a Google or Discord sign-in inside this.
+ */
+export const PROVIDER_CONFIRMED_TOGETHER_MS = 2_000;
+
+/**
+ * Whether a Google or Discord sign-in is what confirmed a self sign-up nobody
+ * had confirmed, read from the account as it is after the code exchange.
+ *
+ * Someone can register a stranger's address with names of their own choosing.
+ * When the owner later signs in with a provider on that address, the auth
+ * server confirms the email and drops the unconfirmed password by itself, but
+ * the profile keeps the names. That all happens on the auth server before the
+ * callback runs, so there is no "before" to look up; these are the marks it
+ * leaves, and all of them are needed:
+ *
+ * - a sign-up confirmation email was once sent, and it is not a staff
+ *   invitation: the account began as a password registration. An account a
+ *   provider created has neither, so a new or returning OAuth member never
+ *   matches;
+ * - a provider login was created at the moment the email was confirmed: the
+ *   provider confirmed it. An account confirmed by its code or link and
+ *   connected to a provider afterwards has the two apart;
+ * - the confirmation is recent, within the same margin a reset uses. Later
+ *   sign-ins on such an account stop matching, so names the owner has since
+ *   chosen are not reset again.
+ *
+ * A time that is missing or unreadable matches nothing: unlike a password, a
+ * name wrongly reset is the owner's loss, so this errs towards leaving it.
+ * Whose names they are is the caller's question (signupProvenHere).
+ */
+export function providerConfirmedPendingSignup(input: {
+  confirmationSentAt: string | null | undefined;
+  invitedAt: string | null | undefined;
+  emailConfirmedAt: string | null | undefined;
+  /** When each Google/Discord login on the account was created. */
+  providerLoginsCreatedAt: ReadonlyArray<string | null | undefined>;
+  nowMs: number;
+}): boolean {
+  if (!input.confirmationSentAt || input.invitedAt) return false;
+  const confirmedAt = input.emailConfirmedAt ? Date.parse(input.emailConfirmedAt) : Number.NaN;
+  if (!Number.isFinite(confirmedAt)) return false;
+  if (Math.abs(input.nowMs - confirmedAt) > JUST_CONFIRMED_MARGIN_MS) return false;
+  return input.providerLoginsCreatedAt.some((createdAt) => {
+    const linkedAt = createdAt ? Date.parse(createdAt) : Number.NaN;
+    return Number.isFinite(linkedAt) && Math.abs(linkedAt - confirmedAt) <= PROVIDER_CONFIRMED_TOGETHER_MS;
+  });
 }
 
 /**

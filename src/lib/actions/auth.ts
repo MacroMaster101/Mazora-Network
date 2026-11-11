@@ -57,6 +57,7 @@ import {
   resetUnprovenNames,
 } from "@/lib/auth/signup-trust";
 import {
+  PENDING_SIGNUP_COOKIE,
   SIGNUP_LINK_ELSEWHERE,
   UNPROVEN_SIGNUP_MESSAGE,
   UNPROVEN_SIGNUP_UNSECURED,
@@ -73,6 +74,7 @@ import {
 } from "@/lib/auth/signup-trust-core";
 import { classifyPasswordUpdateError, normaliseReauthCode } from "@/lib/auth/password-reauth";
 import { redeemRecoveryCode } from "@/lib/auth/two-factor-recovery";
+import { rememberSecondStepDevice, throttleSecondStepCode } from "@/lib/auth/second-step-lockout";
 import type { User } from "@supabase/supabase-js";
 
 export interface AuthResult {
@@ -130,22 +132,6 @@ async function linkVerifiedRegistration(user: User | null, linkIgn: boolean): Pr
 }
 
 /**
- * Marks the browser whose registration produced an account, holding that
- * account's id. It decides two things at confirmation (lib/auth/signup-trust):
- *
- * - whose password the account keeps. Anyone can register a stranger's address
- *   with a password of their own; only a confirmation from the browser that
- *   created that exact account keeps the password on it.
- * - who is signed in. Anyone can mail a victim the link to their OWN pending
- *   account; without this, one "Confirm" click signed the victim into the
- *   sender's account — the same login CSRF the magiclink type was dropped for
- *   (lib/validation/auth).
- *
- * Lasts as long as the link does.
- */
-const PENDING_SIGNUP_COOKIE = "mz_pending_signup";
-
-/**
  * One answer for a reset link opened where no matching reset was asked for.
  * Never says whose account it was. It does not point at the emailed code: a
  * code can only be typed after asking for a reset, and asking again replaces it.
@@ -162,6 +148,22 @@ const USERNAME_TAKEN = "That Minecraft username is already taken. Please choose 
 /** One answer for an emailed link that cannot be used, whatever the reason. */
 const LINK_INVALID = "This link is invalid or has expired. Request a new one from the login page.";
 
+/**
+ * Marks the browser whose registration produced an account, holding that
+ * account's id. It decides two things at confirmation (lib/auth/signup-trust):
+ *
+ * - whose password the account keeps. Anyone can register a stranger's address
+ *   with a password of their own; only a confirmation from the browser that
+ *   created that exact account keeps the password on it.
+ * - who is signed in. Anyone can mail a victim the link to their OWN pending
+ *   account; without this, one "Confirm" click signed the victim into the
+ *   sender's account — the same login CSRF the magiclink type was dropped for
+ *   (lib/validation/auth).
+ *
+ * Lasts as long as the link does. The cookie's name, PENDING_SIGNUP_COOKIE,
+ * lives in lib/auth/signup-trust-core: the OAuth callback reads it too, for an
+ * email that Google or Discord confirms instead.
+ */
 async function markPendingSignup(userId: string): Promise<void> {
   const store = await cookies();
   store.set(PENDING_SIGNUP_COOKIE, userId, { ...sessionOnlyMarkerOptions(), maxAge: 24 * 60 * 60 });
@@ -483,6 +485,32 @@ export async function loginAction(_previous: AuthResult, formData: FormData): Pr
   redirect(landingPathFor(session.role));
 }
 
+/**
+ * The least time a registration takes to answer once the address is looked up.
+ *
+ * A confirmed address, an invite, a pending one and a new one all get the same
+ * body, but not the same work: a confirmed address costs one sign-up call,
+ * while a new one also sends the confirmation email, writes the profile and
+ * tries the password, and replacing a stale pending account deletes it first.
+ * Without a floor the answer's timing told the addresses apart. Sized to sit
+ * above the slowest of those on an ordinary day, and short enough that the
+ * form, which shows "check your inbox" next, does not feel stuck.
+ */
+const REGISTER_ANSWER_FLOOR_MS = 2_500;
+
+/**
+ * The same for asking for a reset: the auth server sends mail for an address
+ * with an account and returns at once for one without. One call, so a shorter
+ * floor covers it.
+ */
+const RESET_REQUEST_ANSWER_FLOOR_MS = 1_500;
+
+/** Resolve once at least `ms` have passed since `startedAt`. */
+async function notSoonerThan(startedAt: number, ms: number): Promise<void> {
+  const left = ms - (Date.now() - startedAt);
+  if (left > 0) await new Promise((resolve) => setTimeout(resolve, left));
+}
+
 export async function registerAction(_previous: AuthResult, formData: FormData): Promise<AuthResult> {
   const siteSettings = await getSiteGeneralSettings();
   if (!siteSettings.registrationEnabled) {
@@ -527,7 +555,12 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
       visitor's password, a new account id and a confirmation email that works.
 
       Fail closed: with no answer, nothing is created.
+
+      Timed from here: everything above is the same for every address, and
+      every answer below that says "ok" waits for REGISTER_ANSWER_FLOOR_MS.
+      The refusals do not: each already says in words what happened.
     */
+    const startedAt = Date.now();
     const lookup = await findAccountByEmail(parsed.data.email);
     if (lookup.status === "unreadable") return { ok: false, message: REGISTRATION_UNFINISHED };
 
@@ -555,6 +588,7 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
     // or changed. The answer is the one a confirmed address gets.
     if (plan.step === "neutral") {
       await markPendingSignup(randomUUID());
+      await notSoonerThan(startedAt, REGISTER_ANSWER_FLOOR_MS);
       return { ok: true };
     }
 
@@ -563,6 +597,7 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
     // that side effect and has its own stricter rate limit.
     if (plan.step === "resume") {
       await markPendingSignup(plan.userId);
+      await notSoonerThan(startedAt, REGISTER_ANSWER_FLOOR_MS);
       return { ok: true, message: "Your pending registration was found. Enter the code to continue." };
     }
 
@@ -617,6 +652,7 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
     // so its presence does not tell a new address from a confirmed one.
     if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
       await markPendingSignup(randomUUID());
+      await notSoonerThan(startedAt, REGISTER_ANSWER_FLOOR_MS);
       return { ok: true };
     }
 
@@ -659,6 +695,7 @@ export async function registerAction(_previous: AuthResult, formData: FormData):
     // even mount, flashing the root loading splash. RegisterForm instead
     // swaps to the "check your inbox" state locally once it sees ok: true —
     // an instant client-side transition, same as the forgot-password steps.
+    await notSoonerThan(startedAt, REGISTER_ANSWER_FLOOR_MS);
     return { ok: true };
   }
 
@@ -862,12 +899,6 @@ export async function confirmEmailAction(_previous: AuthResult, formData: FormDa
 /** Comfortably above a typical lookup plus the auth server's verify round trip. */
 const CODE_ANSWER_FLOOR_MS = 1_200;
 
-/** Resolve once at least `ms` have passed since `startedAt`. */
-async function notSoonerThan(startedAt: number, ms: number): Promise<void> {
-  const left = ms - (Date.now() - startedAt);
-  if (left > 0) await new Promise((resolve) => setTimeout(resolve, left));
-}
-
 /**
  * Confirms a new account from the 6-digit code emailed at signup (the
  * {{ .Token }} in the "Confirm signup" template), typed on the "check your
@@ -986,6 +1017,9 @@ export async function requestPasswordResetAction(_previous: AuthResult, formData
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, message: "Authentication is temporarily unavailable." };
+    // The answer below is the same for every address; this makes its timing
+    // the same too (RESET_REQUEST_ANSWER_FLOOR_MS).
+    const startedAt = Date.now();
     // Marks this browser as the one that asked, for the emailed link (see
     // lib/auth/reset-request). Before the request and whatever its outcome, so
     // the cookie is the same for an address with no account.
@@ -1001,6 +1035,7 @@ export async function requestPasswordResetAction(_previous: AuthResult, formData
       // per-address cooldown, an SMTP failure) is visible instead of silent.
       console.error("Password reset email failed:", { status: error.status, code: error.code, message: error.message });
     }
+    await notSoonerThan(startedAt, RESET_REQUEST_ANSWER_FLOOR_MS);
   } else if (!isDemoAuthEnabled()) {
     return { ok: false, message: "Authentication has not been configured yet." };
   }
@@ -1106,6 +1141,16 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
       const step = await passResetTwoFactor(supabase, userData.user, formData);
       if (typeof step === "object") return step;
       viaRecoveryCode = step === "recovery";
+    } else if ((await getSession())?.recoveredSignIn) {
+      // Nothing is owed because this reset session already went through
+      // /two-factor with a recovery code: any page behind requireSession sends
+      // a reset session there, and the code leaves a signed pass for exactly
+      // this user and session (lib/auth/recovery-grant). The second step is
+      // passed, but the session is still aal1, the same as when the code is
+      // typed on this form, so the service role has to make the change below.
+      // Left as false, the member's own client was refused (insufficient_aal)
+      // and the reset ended in "could not be updated".
+      viaRecoveryCode = true;
     }
 
     // Suspended from the Users board: no new password. Checked only after every
@@ -1142,7 +1187,12 @@ export async function finishPasswordResetAction(_previous: AuthResult, formData:
     const { error } = admin
       ? await admin.auth.admin.updateUserById(userData.user.id, { password: parsed.data.password })
       : await supabase.auth.updateUser({ password: parsed.data.password });
-    if (error) return { ok: false, message: "The password could not be updated. Request a new code and try again." };
+    if (error) {
+      // The code only, never the message: enough to tell a dashboard setting
+      // refusing the reset from an expired session.
+      console.error("Password reset could not set the new password:", error.code ?? "unknown");
+      return { ok: false, message: "The password could not be updated. Request a new code and try again." };
+    }
     await markHasPassword(userData?.user?.id);
 
     await clearResetGrant();
@@ -1174,12 +1224,14 @@ async function passResetTwoFactor(
     return ask({ message: "This account has two-step verification on. Enter the code from your authenticator app to finish." });
   }
 
-  const throttled = await throttleAuthAction("mfa-verify", { limit: 5, windowMs: 15 * 60_000, identity: user.id });
+  // The sign-in page's guess limit, shared (lib/auth/second-step-lockout).
+  const throttled = await throttleSecondStepCode(user.id);
   if (throttled) return ask({ message: throttled });
 
   if (recoveryCode) {
     const outcome = await redeemRecoveryCode(user, recoveryCode, "password-reset");
     if (!outcome.ok) return ask({ errors: { recoveryCode: "That recovery code is incorrect or has already been used." } });
+    await rememberSecondStepDevice(user.id);
     return "recovery";
   }
 
@@ -1190,7 +1242,10 @@ async function passResetTwoFactor(
   // the old one leaves two, and the code may come from either.
   for (const factor of factors.totp) {
     const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code: mfaCode });
-    if (!error) return "code";
+    if (!error) {
+      await rememberSecondStepDevice(user.id);
+      return "code";
+    }
   }
   return ask({ errors: { mfaCode: "That code is incorrect or has expired." } });
 }
@@ -1259,6 +1314,8 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       authenticator code, or a code emailed to the account (owner pass).
     */
     const hasPassword = accountHasPassword(userData?.user);
+    // Kept for the update itself: see the current_password note below.
+    let provenCurrentPassword: string | null = null;
     if (hasPassword) {
       const currentPassword = String(formData.get("currentPassword") ?? "");
       if (!currentPassword) {
@@ -1270,6 +1327,7 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       if (!(await passwordMatchesCurrent(email, currentPassword))) {
         return { ok: false, errors: { currentPassword: "That is not your current password." } };
       }
+      provenCurrentPassword = currentPassword;
     } else if (!userData?.user || !(await hasOwnerGrant(await ownerGrantSubject(userData.user.id)))) {
       return { ok: false, needsOwnerConfirm: true, message: CONFIRM_OWNER };
     }
@@ -1292,8 +1350,17 @@ export async function updatePasswordAction(_previous: AuthResult, formData: Form
       return { ok: false, needsCode: true, errors: { nonce: "Enter the code from the email." } };
     }
 
+    /*
+      The current password goes to Supabase as well. With "Require current
+      password when updating" on in the dashboard, Supabase refuses a change
+      that does not carry it, which is what stops a copied session from
+      changing the password straight through Supabase's API, around the check
+      above. With the setting off the field is ignored, so sending it is safe
+      either way.
+    */
     let { error } = await supabase.auth.updateUser({
       password: parsed.data.password,
+      ...(provenCurrentPassword ? { current_password: provenCurrentPassword } : {}),
       ...(nonce ? { nonce } : {}),
     });
 

@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { redisCommand, sharedStoreConfig } from "@/lib/redis";
+import { normalizeClientIp } from "@/lib/net/client-ip";
 
 /**
  * Fixed-window rate limiting with two tiers:
@@ -249,6 +250,10 @@ function trustedProxyHops(): number {
  * a caller send their own `X-Forwarded-For` and mint unlimited distinct
  * rate-limit buckets, defeating the per-IP limit. Falls back to `x-real-ip`
  * (platform-set, not client-forwarded) and finally `"unknown"`.
+ *
+ * An IPv6 address is reduced to its /64 (normalizeClientIp): a client that
+ * rotates through the addresses of its own /64 would otherwise get a fresh
+ * allowance on every per-address limit, the discount-code check included.
  */
 function clientIpFrom(get: (name: string) => string | null): string {
   const chain = (get("x-forwarded-for") ?? "")
@@ -257,9 +262,9 @@ function clientIpFrom(get: (name: string) => string | null): string {
     .filter(Boolean);
   if (chain.length > 0) {
     const index = Math.max(0, chain.length - trustedProxyHops());
-    return chain[index] ?? "unknown";
+    return normalizeClientIp(chain[index] ?? "unknown");
   }
-  return get("x-real-ip")?.trim() || "unknown";
+  return normalizeClientIp(get("x-real-ip")?.trim() || "unknown");
 }
 
 /**

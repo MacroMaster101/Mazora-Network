@@ -3,8 +3,14 @@ import test from "node:test";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as linkedLoginsCore from "@/lib/auth/linked-logins-core";
+import * as resetGrantCore from "@/lib/auth/reset-grant-core";
+import { loadServerModule } from "./helpers/server-module";
+import type * as LinkedLogins from "@/lib/auth/linked-logins";
+import type * as LinkPendingGrant from "@/lib/auth/link-pending-grant";
 import {
   LINK_PENDING_MS,
+  pendingLinkNonce,
   pendingLinkProvider,
   pendingLinkToTrust,
   providerName,
@@ -116,6 +122,192 @@ test("two new logins of the pending provider means neither is trusted", () => {
 test("a pending link is never trusted before the account has a list", () => {
   const user = account({ link_pending: { provider: "google", until: NOW + 60_000 } }, [emailLogin, identity("google", GOOGLE_ID)]);
   assert.equal(pendingLinkToTrust(user, NOW), null);
+});
+
+test("a pending link carries its nonce only while it may still arrive", () => {
+  const live = { link_pending: { provider: "discord", until: NOW + 60_000, nonce: "fake-nonce-1" } };
+  assert.equal(pendingLinkNonce(live, NOW), "fake-nonce-1");
+  assert.equal(pendingLinkNonce({ link_pending: { ...live.link_pending, until: NOW } }, NOW), null, "expired");
+  // One written without a nonce names no browser, so it lets nobody's login be trusted.
+  assert.equal(pendingLinkNonce({ link_pending: { provider: "discord", until: NOW + 60_000 } }, NOW), null);
+  assert.equal(pendingLinkNonce({ link_pending: { provider: "discord", until: NOW + 60_000, nonce: 7 } }, NOW), null);
+  assert.equal(pendingLinkNonce({ link_pending: { provider: "discord", until: NOW + 60_000, nonce: "" } }, NOW), null);
+  assert.equal(pendingLinkNonce({}, NOW), null);
+  assert.equal(pendingLinkNonce(undefined, NOW), null);
+});
+
+/* ------------------------------------------- the browser that started it */
+
+const OWNER_ID = "00000000-0000-3000-8000-000000000099";
+const OTHER_ACCOUNT_ID = "00000000-0000-3000-8000-000000000098";
+const LINK_COOKIE = "mz_link_pending";
+
+/** The real link flow with a fake cookie jar and a database that only records. */
+function linkFixture(env: Record<string, string> = { NODE_ENV: "development" }) {
+  const jar = new Map<string, string>();
+  const sets: Array<{ name: string; options: Record<string, unknown> }> = [];
+  const deleted: unknown[] = [];
+  const cookieStore = {
+    get: (name: string) => (jar.has(name) ? { value: jar.get(name) } : undefined),
+    set: (name: string, value: string, options: Record<string, unknown>) => {
+      jar.set(name, value);
+      sets.push({ name, options });
+    },
+    delete: (target: string | { name: string; path?: string }) => {
+      deleted.push(target);
+      jar.delete(typeof target === "string" ? target : target.name);
+    },
+  };
+  let writes = 0;
+  const grant = loadServerModule<typeof LinkPendingGrant>(new URL("../auth/link-pending-grant.ts", import.meta.url), {
+    env,
+    mocks: {
+      "next/headers": { cookies: async () => cookieStore },
+      "@/lib/supabase/secret-key": { supabaseSecretKey: () => "fake-secret-for-tests" },
+      "@/lib/auth/reset-grant-core": resetGrantCore,
+      "@/lib/auth/linked-logins-core": linkedLoginsCore,
+    },
+  });
+  const links = loadServerModule<typeof LinkedLogins>(new URL("../auth/linked-logins.ts", import.meta.url), {
+    env,
+    mocks: {
+      "@/lib/db/client": { getDb: () => ({ execute: async () => { writes += 1; return []; } }) },
+      "@/lib/rate-limit": { claimOnce: async () => "claimed" },
+      "@/lib/data/account-status": { endAllSessions: async () => {} },
+      "@/lib/audit-log": { recordAudit: async () => {} },
+      "@/lib/security-alerts": { notifyLinkedLoginRemoved: async () => {} },
+      "@/lib/auth/linked-logins-core": linkedLoginsCore,
+      "@/lib/auth/link-pending-grant": grant,
+    },
+  });
+  /** The nonce the cookie was signed for: what markLinkPending wrote into the pending link. */
+  const nonceInCookie = () => JSON.parse(Buffer.from(jar.get(LINK_COOKIE)!.split(".")[0], "base64url").toString("utf8")).s as string;
+  /** The account as the callback reads it: a pending Discord link and one new Discord login. */
+  const arriving = (nonce: string | undefined, id = OWNER_ID) => ({
+    id,
+    ...account({ trusted_identities: [], link_pending: { provider: "discord", until: Date.now() + 60_000, ...(nonce ? { nonce } : {}) } }, [
+      emailLogin,
+      identity("discord", DISCORD_ID),
+    ]),
+  });
+  // A plain copy: a list made inside the module sandbox has its prototypes.
+  const trustedOn = (user: { app_metadata: unknown }) => [...(user.app_metadata as { trusted_identities: string[] }).trusted_identities];
+  return { links, grant, jar, sets, deleted, writes: () => writes, nonceInCookie, arriving, trustedOn };
+}
+
+test("starting a link leaves a signed, short-lived cookie that only the callback receives", async () => {
+  const { links, sets, writes, nonceInCookie } = linkFixture({ NODE_ENV: "production" });
+  assert.equal(await links.markLinkPending(OWNER_ID, "discord"), true);
+  assert.equal(writes(), 1, "the pending link is written with it");
+  assert.equal(sets.length, 1);
+  assert.equal(sets[0].name, LINK_COOKIE);
+  // Lax, not Strict: it must come back on the redirect from the provider.
+  assert.deepEqual(JSON.parse(JSON.stringify(sets[0].options)), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true,
+    path: "/auth/callback",
+    maxAge: LINK_PENDING_MS / 1000,
+  });
+  assert.ok(nonceInCookie().length >= 22, "an unguessable nonce");
+
+  const second = linkFixture();
+  await second.links.markLinkPending(OWNER_ID, "discord");
+  assert.notEqual(second.nonceInCookie(), nonceInCookie(), "a new one for every link");
+});
+
+test("the callback trusts the new login only in the browser that started the link", async () => {
+  const { links, jar, deleted, writes, nonceInCookie, arriving, trustedOn } = linkFixture();
+  await links.markLinkPending(OWNER_ID, "discord");
+  const nonce = nonceInCookie();
+  const ownerCookie = jar.get(LINK_COOKIE)!;
+  const before = writes();
+
+  // A copied session reaches the callback first, from a browser that started nothing.
+  jar.delete(LINK_COOKIE);
+  const stranger = arriving(nonce);
+  await links.settlePendingLink(stranger);
+  assert.deepEqual(trustedOn(stranger), [], "its login is not trusted");
+  assert.equal(writes(), before, "and nothing is written: the pending link stays for the owner");
+
+  // Knowing the nonce (it is readable in the session's app_metadata) is not enough:
+  // a cookie signed for it with any other key does not verify.
+  const wrongKey = resetGrantCore.deriveGrantKey("fake-secret-for-tests", "owner-confirmed");
+  jar.set(LINK_COOKIE, resetGrantCore.signSessionGrant({ userId: OWNER_ID, sessionId: nonce }, wrongKey, Math.floor(Date.now() / 1000), 600));
+  await links.settlePendingLink(stranger);
+  assert.deepEqual(trustedOn(stranger), []);
+  jar.set(LINK_COOKIE, "not-a-cookie");
+  await links.settlePendingLink(stranger);
+  assert.deepEqual(trustedOn(stranger), []);
+  assert.equal(writes(), before);
+
+  // The owner's cookie proves nothing for another link, another account, or a link with no nonce.
+  jar.set(LINK_COOKIE, ownerCookie);
+  for (const user of [arriving("fake-nonce-of-a-later-link"), arriving(nonce, OTHER_ACCOUNT_ID), arriving(undefined)]) {
+    await links.settlePendingLink(user);
+    assert.deepEqual(trustedOn(user), []);
+  }
+  assert.equal(writes(), before);
+
+  // The owner's own callback.
+  const owner = arriving(nonce);
+  await links.settlePendingLink(owner);
+  assert.deepEqual(trustedOn(owner), [DISCORD_ID]);
+  assert.equal(writes(), before + 1, "trusted, and the pending link ended");
+  assert.equal(jar.has(LINK_COOKIE), false, "the cookie is spent");
+  assert.deepEqual(JSON.parse(JSON.stringify(deleted[deleted.length - 1])), { name: LINK_COOKIE, path: "/auth/callback" });
+});
+
+test("with the owner's cookie, two new logins of the pending provider are still both left untrusted", async () => {
+  const { links, writes, nonceInCookie, arriving, trustedOn } = linkFixture();
+  await links.markLinkPending(OWNER_ID, "discord");
+  const user = arriving(nonceInCookie());
+  user.identities = [...(user.identities ?? []), identity("discord", OTHER_DISCORD_ID)];
+  const before = writes();
+  await links.settlePendingLink(user);
+  assert.deepEqual(trustedOn(user), []);
+  assert.equal(writes(), before);
+});
+
+test("a link that cannot be bound to the browser does not start", async () => {
+  const jar = new Map<string, string>();
+  const grant = loadServerModule<typeof LinkPendingGrant>(new URL("../auth/link-pending-grant.ts", import.meta.url), {
+    mocks: {
+      "next/headers": { cookies: async () => ({ get: () => undefined, set: (name: string, value: string) => jar.set(name, value), delete() {} }) },
+      // No signing secret configured.
+      "@/lib/supabase/secret-key": { supabaseSecretKey: () => undefined },
+      "@/lib/auth/reset-grant-core": resetGrantCore,
+      "@/lib/auth/linked-logins-core": linkedLoginsCore,
+    },
+  });
+  assert.equal(await grant.issueLinkNonce(OWNER_ID), null);
+  assert.equal(jar.size, 0);
+  assert.equal(await grant.holdsLinkNonce(OWNER_ID, "fake-nonce-1"), false);
+
+  const source = read("../auth/linked-logins.ts");
+  const mark = source.slice(source.indexOf("export async function markLinkPending"), source.indexOf("export async function settlePendingLink"));
+  const issue = mark.indexOf("const nonce = await issueLinkNonce(userId);");
+  const refuse = mark.indexOf("return false;", issue);
+  const write = mark.indexOf("update auth.users");
+  assert.ok(issue > 0 && refuse > issue && write > refuse, "no pending link is written without the cookie");
+  assert.match(mark, /'nonce', \$\{nonce\}::text/);
+});
+
+test("the cookie has its own purpose key and the check comes before anything is trusted", () => {
+  const grant = read("../auth/link-pending-grant.ts");
+  assert.match(grant, /deriveGrantKey\(secret, "link-pending"\)/);
+  assert.match(grant, /signSessionGrant\(\{ userId, sessionId: nonce \}, k, nowSeconds\(\), TTL_SECONDS\)/);
+  assert.match(grant, /verifySessionGrant\(\(await cookies\(\)\)\.get\(COOKIE\)\?\.value, \{ userId, sessionId: nonce \}, k, nowSeconds\(\)\)/);
+  assert.doesNotMatch(grant, /^["']use server["'];?\s*$/m, "not a server-action file");
+
+  const source = read("../auth/linked-logins.ts");
+  const settle = source.slice(source.indexOf("export async function settlePendingLink"));
+  const held = settle.indexOf("await holdsLinkNonce(user.id, pendingLinkNonce(");
+  const stop = settle.indexOf("if (!startedHere) return;");
+  const which = settle.indexOf("pendingLinkToTrust(user, now)");
+  const trust = settle.indexOf("await addTrusted(user.id, [id], true);");
+  assert.ok(held > 0 && stop > held && which > stop && trust > which);
+  assert.equal((source.match(/addTrusted\(user\.id, \[id\], true\)/g) ?? []).length, 1, "the only place a pending link is trusted");
 });
 
 test("provider names are readable and never carry markup", () => {

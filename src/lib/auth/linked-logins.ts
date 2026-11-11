@@ -6,8 +6,10 @@ import { claimOnce } from "@/lib/rate-limit";
 import { endAllSessions } from "@/lib/data/account-status";
 import { recordAudit } from "@/lib/audit-log";
 import { notifyLinkedLoginRemoved } from "@/lib/security-alerts";
+import { clearLinkNonce, holdsLinkNonce, issueLinkNonce } from "@/lib/auth/link-pending-grant";
 import {
   LINK_PENDING_MS,
+  pendingLinkNonce,
   pendingLinkToTrust,
   reviewLinkedLogins,
   type LinkedLoginUser,
@@ -168,15 +170,30 @@ export async function checkLinkedLogins(user: Account): Promise<"ok" | "removed"
   return "removed";
 }
 
-/** oauthAction, just before sending the member to link a provider. */
+/**
+ * oauthAction, just before sending the member to link a provider.
+ *
+ * The pending link carries a nonce, and this browser gets the signed cookie
+ * for it (lib/auth/link-pending-grant), so the callback can tell the browser
+ * that started the link from any other one signed in to the same account.
+ * False when either half could not be written: the link does not start.
+ */
 export async function markLinkPending(userId: string, provider: string): Promise<boolean> {
   const db = getDb();
   if (!db) return false;
   try {
+    const nonce = await issueLinkNonce(userId);
+    if (!nonce) {
+      console.error("A pending link could not be bound to this browser");
+      return false;
+    }
     await db.execute(sql`
       update auth.users
       set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || jsonb_build_object(
-        'link_pending', jsonb_build_object('provider', ${provider}::text, 'until', ${Date.now() + LINK_PENDING_MS}::bigint))
+        'link_pending', jsonb_build_object(
+          'provider', ${provider}::text,
+          'until', ${Date.now() + LINK_PENDING_MS}::bigint,
+          'nonce', ${nonce}::text))
       where id = ${userId}::uuid`);
     return true;
   } catch (error) {
@@ -185,9 +202,23 @@ export async function markLinkPending(userId: string, provider: string): Promise
   }
 }
 
-/** The callback, once the link comes back: trust the login it added and end the pending link. */
+/**
+ * The callback, once the link comes back: trust the login it added and end the
+ * pending link. Only in the browser that started the link. A callback reached
+ * from anywhere else during those ten minutes (a copied session that linked a
+ * login of its own through Supabase's API) gets nothing trusted and leaves the
+ * pending link as it is, for the owner's own callback.
+ */
 export async function settlePendingLink(user: Account): Promise<void> {
-  const id = pendingLinkToTrust(user, Date.now());
+  const now = Date.now();
+  let startedHere = false;
+  try {
+    startedHere = await holdsLinkNonce(user.id, pendingLinkNonce(user.app_metadata as Record<string, unknown> | undefined, now));
+  } catch (error) {
+    console.error("The pending link's browser could not be checked", error);
+  }
+  if (!startedHere) return;
+  const id = pendingLinkToTrust(user, now);
   if (!id) return;
   try {
     await addTrusted(user.id, [id], true);
@@ -195,6 +226,7 @@ export async function settlePendingLink(user: Account): Promise<void> {
     const meta = (user.app_metadata ?? {}) as Record<string, unknown>;
     const trusted = Array.isArray(meta.trusted_identities) ? meta.trusted_identities : [];
     user.app_metadata = { ...meta, trusted_identities: [...trusted, id] };
+    await clearLinkNonce();
   } catch (error) {
     console.error("The new linked login could not be trusted", error);
   }

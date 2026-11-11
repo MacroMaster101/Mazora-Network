@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from "react";
 import Link from "@/components/ui/app-link";
-import { AlertTriangle, ExternalLink, Flag, Trash2, X } from "lucide-react";
+import { AlertTriangle, ExternalLink, Flag, History, Trash2, X } from "lucide-react";
 import { useToast } from "@/components/ui";
 import { DashEmpty } from "@/components/dashboard/dash-ui";
 import type { ForumReportItem } from "@/lib/data/forum-reports";
 import { dismissForumReportAction, removeReportedPostAction } from "@/lib/actions/forums-admin";
 import { FORUM_REPORT_REASON_LABELS } from "@/lib/forums-rules";
+import { textsChangedSinceReported } from "@/lib/forums/report-snapshot";
 import { commentHref } from "@/lib/comments/tree";
 import type { ReportReason } from "@/lib/report-rules";
 import { LocalDate } from "@/components/events/local-time";
@@ -59,6 +60,9 @@ export function ForumReportsQueue({ initialReports }: { initialReports: ForumRep
       {[...byPost.values()].map((postReports) => {
         const [first] = postReports;
         const { post, topic, forum } = first;
+        // What reporters flagged that the post no longer says: the author can
+        // edit after a report, and the decision has to be about what was reported.
+        const reportedTexts = textsChangedSinceReported(postReports, post.body);
         return (
           <article key={post.id} className="panel space-y-4 p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -106,6 +110,24 @@ export function ForumReportsQueue({ initialReports }: { initialReports: ForumRep
               )}
               {post.removed && <p className="text-xs font-semibold text-muted">Already removed from the forum.</p>}
             </div>
+
+            {reportedTexts.length > 0 && (
+              <div className="space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                  <History size={12} aria-hidden="true" /> Edited since it was reported. The text that was reported:
+                </p>
+                {reportedTexts.map((reported) => (
+                  <div key={`${reported.reportedAt}-${reported.reporters.join(",")}`} className="space-y-1">
+                    <p className="text-xs text-muted">
+                      As reported by <strong className="font-semibold text-ink">{reported.reporters.join(", ")}</strong> ·{" "}
+                      <LocalDate iso={reported.reportedAt} />
+                    </p>
+                    {/* Plain text, like the post above: never rendered as markup. */}
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-ink/90">{reported.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <ul className="space-y-1.5">
               {postReports.map((report) => (

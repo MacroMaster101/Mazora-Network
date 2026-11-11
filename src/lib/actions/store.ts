@@ -17,6 +17,7 @@ import {
   isGuildMember,
   sendBotChannelMessage,
 } from "@/lib/discord";
+import { hasOrderAwaitingStaff } from "@/lib/data/orders";
 import { getSiteGeneralSettings } from "@/lib/data/site-settings";
 import { throttleAuthAction } from "@/lib/rate-limit";
 import {
@@ -262,7 +263,15 @@ export async function submitStoreRequest(
   // are allowed to action orders; @mentioning all of them on every request
   // would turn a permission grant into a notification storm.
   const staffRoleId = getStoreStaffRoleId();
-  const mention = staffRoleId ? `<@&${staffRoleId}>` : undefined;
+  // And only for a member's first order still waiting on staff. Later requests
+  // while that one is pending are posted the same way, buttons included, just
+  // without the ping, so a member cannot turn the five-per-ten-minutes limit
+  // into five pings of the staff role. Asked only when there is a role to ping.
+  const alreadyWaiting = staffRoleId
+    ? await hasOrderAwaitingStaff({ userId: await getSessionUserId(), discordId: discord.id })
+    : false;
+  const pingRoleId = staffRoleId && !alreadyWaiting ? staffRoleId : null;
+  const mention = pingRoleId ? `<@&${pingRoleId}>` : undefined;
   const itemLines = orderItems
     .map((item) => `**${item.quantity}× ${item.name}** — ${usd(item.lineTotal)} (${usd(item.price)} each)`)
     .join("\n")
@@ -298,7 +307,7 @@ export async function submitStoreRequest(
 
   const basePayload = {
     content: mention,
-    allowed_mentions: staffRoleId ? { roles: [staffRoleId] } : { parse: [] },
+    allowed_mentions: pingRoleId ? { roles: [pingRoleId] } : { parse: [] },
     embeds: [embed],
   };
 

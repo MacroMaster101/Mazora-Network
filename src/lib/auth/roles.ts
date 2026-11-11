@@ -36,9 +36,17 @@ export const INTERNAL_ROLE: Role = "web_dev";
  * The rank the public sees. Web Dev reads as Member on every public surface:
  * the player list, rank chips on forum and suggestion posts, the online
  * roster and bylines. The team page leaves its holders out altogether.
+ *
+ * So does a staff member hidden from Our Team (app_metadata.staff_public is
+ * false: the owner switched them off, or their role is not shown on the team
+ * page). Hidden means not publicly identified as staff anywhere, so pass
+ * `staffHidden` wherever the account is known and they read as Member too.
+ * Without it the Online Staff panel and the rank chip on their posts named
+ * the very people the team page was told to leave out.
  */
-export function publicRole(role: Role): Role {
-  return role === INTERNAL_ROLE ? "member" : role;
+export function publicRole(role: Role, staffHidden = false): Role {
+  if (role === INTERNAL_ROLE) return "member";
+  return staffHidden && isStaff(role) ? "member" : role;
 }
 
 /**

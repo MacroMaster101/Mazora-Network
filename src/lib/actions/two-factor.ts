@@ -22,6 +22,7 @@ import { clearReplaceGrant, hasReplaceGrant, issueReplaceGrant } from "@/lib/aut
 import { hasOwnerGrant, issueOwnerGrant } from "@/lib/auth/owner-grant";
 import { ownerGrantSubject } from "@/lib/auth/owner-confirmation";
 import { confirmSecondStep as confirmSecondStepFor } from "@/lib/auth/reauth";
+import { rememberSecondStepDevice, throttleSecondStepCode } from "@/lib/auth/second-step-lockout";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { SUSPENDED_PATH } from "@/lib/auth/login-identifier";
 
@@ -235,7 +236,8 @@ export async function confirmTwoFactorSetupAction(_previous: TwoFactorResult, fo
   const code = readCode(formData);
   if (!code) return { ok: false, errors: { code: "Enter the six-digit code from your authenticator app." } };
 
-  const throttled = await throttleAuthAction("mfa-verify", { limit: 5, windowMs: 15 * 60_000, identity: actor.user.id });
+  // The same buckets as every other authenticator code (lib/auth/second-step-lockout).
+  const throttled = await throttleSecondStepCode(actor.user.id);
   if (throttled) return { ok: false, message: throttled };
 
   const factorId = String(formData.get("factorId") ?? "");
@@ -280,6 +282,8 @@ export async function confirmTwoFactorSetupAction(_previous: TwoFactorResult, fo
   // so is the replace pass.
   await clearRecoveryGrant();
   await clearReplaceGrant();
+  // The browser the authenticator was set up in has passed the second step.
+  await rememberSecondStepDevice(actor.user.id);
 
   await recordAudit({
     action: replacing ? "auth.two_factor_replaced" : "auth.two_factor_enabled",
@@ -418,8 +422,10 @@ export async function verifyTwoFactorAction(_previous: TwoFactorResult, formData
   if (!code) return { ok: false, errors: { code: "Enter the six-digit code from your authenticator app." } };
 
   // Bucketed per account, so a stolen password cannot be paired with a
-  // brute-forced code by spreading guesses across addresses.
-  const throttled = await throttleAuthAction("mfa-verify", { limit: 5, windowMs: 15 * 60_000, identity: pending.user.id });
+  // brute-forced code by spreading guesses across addresses. Split in two, so
+  // whoever has the password cannot use those guesses to keep the owner's own
+  // browser from entering its code (lib/auth/second-step-lockout).
+  const throttled = await throttleSecondStepCode(pending.user.id);
   if (throttled) return { ok: false, message: throttled };
 
   const { data: factors, error: listError } = await pending.supabase.auth.mfa.listFactors();
@@ -437,6 +443,8 @@ export async function verifyTwoFactorAction(_previous: TwoFactorResult, formData
   }
   if (!verified) return { ok: false, errors: { code: "That code is incorrect or has expired." } };
   await refuseIfSuspended(pending);
+  // From now on this browser counts as one that has passed the second step.
+  await rememberSecondStepDevice(pending.user.id);
   // The sign-in is finished only now, so its notices go out here, not at the password step.
   await dispatchSignInNotifications(pending.user.id);
 
@@ -473,6 +481,8 @@ export async function redeemRecoveryCodeAction(_previous: TwoFactorResult, formD
   if (!sessionId || !(await issueRecoveryGrant({ userId: pending.user.id, sessionId }))) {
     return { ok: false, message: UNAVAILABLE };
   }
+  // A recovery code is a second step too (lib/auth/second-step-lockout).
+  await rememberSecondStepDevice(pending.user.id);
   await dispatchSignInNotifications(pending.user.id);
 
   redirect("/dashboard/settings");

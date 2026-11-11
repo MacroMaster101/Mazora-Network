@@ -2,7 +2,7 @@ import "server-only";
 
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { getSupabaseConfig } from "@/lib/supabase/config";
-import { throttleAuthAction } from "@/lib/rate-limit";
+import { rememberSecondStepDevice, throttleSecondStepCode } from "@/lib/auth/second-step-lockout";
 import { redeemRecoveryCode } from "@/lib/auth/two-factor-recovery";
 
 /**
@@ -68,8 +68,9 @@ export function accountHasPassword(user: {
 /**
  * The second step, again, right now: a code from the authenticator app
  * (`code`) or an unused recovery code (`recoveryCode`, the "lost your phone"
- * switch). Counted in the sign-in page's guess bucket, so it adds no guesses.
- * Returns an error message, or null when the step is passed.
+ * switch). Counted in the sign-in page's guess buckets, so it adds no guesses
+ * (lib/auth/second-step-lockout). Returns an error message, or null when the
+ * step is passed.
  */
 export async function confirmSecondStep(
   supabase: SupabaseClient,
@@ -83,7 +84,7 @@ export async function confirmSecondStep(
     return formData.has("recoveryCode") ? "Enter one of your recovery codes." : "Enter the six-digit code from your authenticator app.";
   }
 
-  const throttled = await throttleAuthAction("mfa-verify", { limit: 5, windowMs: 15 * 60_000, identity: user.id });
+  const throttled = await throttleSecondStepCode(user.id);
   if (throttled) return throttled;
 
   if (code) {
@@ -91,11 +92,16 @@ export async function confirmSecondStep(
     if (listError) return UNAVAILABLE;
     for (const factor of factors.totp) {
       const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code });
-      if (!error) return null;
+      if (!error) {
+        await rememberSecondStepDevice(user.id);
+        return null;
+      }
     }
     return "That code is incorrect or has expired.";
   }
 
   const outcome = await redeemRecoveryCode(user, recoveryInput, purpose);
-  return outcome.ok ? null : "That recovery code is incorrect or has already been used.";
+  if (!outcome.ok) return "That recovery code is incorrect or has already been used.";
+  await rememberSecondStepDevice(user.id);
+  return null;
 }

@@ -24,10 +24,12 @@ function assertion(flags = 0x05) {
 }
 
 /** Only the provider verification and request infrastructure are mocked. */
-function signInFixture(providerAccepts = true) {
+function signInFixture(providerAccepts = true, passkeys: "ok" | "removed" = "ok") {
   const providerInputs: unknown[] = [];
   const flagInputs: unknown[] = [];
   let grants = 0;
+  let localSignOuts = 0;
+  let devicesRemembered = 0;
   const userId = "00000000-0000-3000-8000-000000000001";
   const sessionId = "00000000-0000-3000-8000-000000000002";
   const actions = loadServerModule<typeof Actions>(new URL("../actions/passkeys.ts", import.meta.url), {
@@ -44,7 +46,8 @@ function signInFixture(providerAccepts = true) {
       "@/lib/auth/owner-grant": {},
       "@/lib/auth/owner-confirmation": {},
       "@/lib/auth/passkey-signin-grant": { issuePasskeySignInGrant: async () => { grants++; return true; } },
-      "@/lib/auth/login-lockout": { rememberLoginDevice: async () => {} },
+      "@/lib/auth/trusted-passkeys": { checkTrustedPasskeys: async () => passkeys },
+      "@/lib/auth/login-lockout": { rememberLoginDevice: async () => { devicesRemembered++; } },
       "@/lib/passkeys/assertion-schema": { passkeyAssertionSchema },
       "@/lib/passkeys/user-verified": { assertionUserVerified: (credential: unknown) => { flagInputs.push(credential); return assertionUserVerified(credential); } },
       "@/lib/supabase/config": { isSupabaseConfigured: () => true },
@@ -59,7 +62,7 @@ function signInFixture(providerAccepts = true) {
       "@/lib/data/site-settings": { getSiteGeneralSettings: async () => ({ passkeysEnabled: true }) },
       "@/lib/data/account-status": { STATUS_UNREADABLE: "unreadable", accountStatusFor: async () => "active" },
       "@/lib/auth/login-identifier": {},
-      "@/lib/auth/signup-trust": {},
+      "@/lib/auth/signup-trust": { endLocalSession: async () => { localSignOuts++; } },
       "@/lib/notifications-auto": { dispatchSignInNotifications: async () => {} },
       "@/lib/security-alerts": { scheduleSecurityAlerts: () => {} },
       "@/lib/auth/account-deletion-proof": {},
@@ -70,7 +73,7 @@ function signInFixture(providerAccepts = true) {
       "@/lib/audit-log": {},
     },
   });
-  return { actions, providerInputs, flagInputs, grants: () => grants };
+  return { actions, providerInputs, flagInputs, grants: () => grants, localSignOuts: () => localSignOuts, devicesRemembered: () => devicesRemembered };
 }
 
 test("case-colliding assertion fields are rejected before provider verification or a second-step grant", async () => {
@@ -113,6 +116,18 @@ test("presence-only keys still owe the authenticator code, and provider refusal 
   assert.equal((await refused.actions.finishPasskeySignInAction({ challengeId: "fake-challenge", credential: assertion() })).ok, false);
   assert.equal(refused.flagInputs.length, 0);
   assert.equal(refused.grants(), 0);
+});
+
+test("a passkey sign-in on an account with an untrusted passkey is refused before it counts for anything", async () => {
+  const fixture = signInFixture(true, "removed");
+  const result = await fixture.actions.finishPasskeySignInAction({ challengeId: "fake-challenge", credential: assertion() });
+  assert.equal(result.ok, false);
+  assert.ok(!result.ok && /removed/.test(result.message));
+  assert.equal(fixture.providerInputs.length, 1, "the provider had accepted the passkey");
+  assert.equal(fixture.localSignOuts(), 1, "the new session is ended in this browser");
+  assert.equal(fixture.grants(), 0, "no second-step pass");
+  assert.equal(fixture.flagInputs.length, 0);
+  assert.equal(fixture.devicesRemembered(), 0, "the device is not remembered");
 });
 
 test("strict assertions accept browser optional fields and refuse malformed or oversized credentials", () => {

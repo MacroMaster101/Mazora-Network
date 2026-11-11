@@ -1,7 +1,7 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { providerAvatar } from "@/lib/avatar-source";
+import { publicProviderAvatar } from "@/lib/avatar-source";
 import { isUuid, uuidArrayLiteral } from "@/lib/validation/id";
 
 /**
@@ -17,8 +17,10 @@ import { isUuid, uuidArrayLiteral } from "@/lib/validation/id";
  * This supplies the second half of that resolution for list readers, in one
  * query for the whole page rather than one per row.
  *
- * `providerAvatar` host-allowlists the URL, so a member cannot get an arbitrary
- * image rendered by editing their own user metadata.
+ * `publicProviderAvatar` host-allowlists the URL, so a member cannot get an
+ * arbitrary image rendered by editing their own user metadata, and leaves out
+ * Discord photos: every caller renders to other people, and that URL carries
+ * the member's Discord id.
  *
  * Best-effort by design: a monogram is an acceptable fallback, but a failure
  * here must never take down a board or a thread.
@@ -42,7 +44,7 @@ export async function providerAvatarsFor(
     )) as unknown as Array<{ id: string; meta: Record<string, unknown> | null }>;
 
     for (const row of rows ?? []) {
-      const url = providerAvatar(row.meta);
+      const url = publicProviderAvatar(row.meta);
       if (url) found.set(row.id, url);
     }
   } catch (error) {
