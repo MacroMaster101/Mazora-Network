@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { AlertTriangle, LifeBuoy, Loader2, ShieldCheck, Smartphone, UserRoundX } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, LifeBuoy, Loader2, ShieldCheck, Smartphone, UserRoundX } from "lucide-react";
 import { deleteAccountAction, requestAccountDeletionCodeAction, type AccountActionResult } from "@/lib/actions/account";
 import { FormRow, Input, Modal, useToast } from "@/components/ui";
 import { OtpInput } from "@/components/auth/auth-forms";
@@ -32,6 +32,8 @@ export function DangerZone({
   const [dialog, setDialog] = useState<"delete" | null>(null);
   const [confirmation, setConfirmation] = useState("");
   const [useRecovery, setUseRecovery] = useState(false);
+  // A mistyped password reads only as "not your current password", so it can be looked at.
+  const [showPassword, setShowPassword] = useState(false);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteAccountAction, initialState);
   const [sendState, sendAction, sendPending] = useActionState(requestAccountDeletionCodeAction, initialState);
   const { toast } = useToast();
@@ -104,14 +106,28 @@ export function DangerZone({
             {hasPassword ? (
               <div className="mt-4">
                 <FormRow label="Current password" htmlFor="delete-password" error={deleteState.errors?.currentPassword}>
-                  <Input
-                    id="delete-password"
-                    name="currentPassword"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    aria-invalid={Boolean(deleteState.errors?.currentPassword)}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="delete-password"
+                      name="currentPassword"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      maxLength={128}
+                      spellCheck={false}
+                      required
+                      aria-invalid={Boolean(deleteState.errors?.currentPassword)}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((value) => !value)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      title={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
+                    </button>
+                  </div>
                 </FormRow>
               </div>
             ) : null}
