@@ -1,8 +1,9 @@
 import "server-only";
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb, schema } from "@/lib/db/client";
 import type { ForumPostImage } from "@/lib/data/forums";
+import { isMissingColumnError } from "@/lib/forums/report-snapshot";
 
 export interface ForumReportItem {
   id: string;
@@ -10,6 +11,12 @@ export interface ForumReportItem {
   note: string | null;
   createdAt: string;
   reporter: string;
+  /**
+   * The post's text when this report was filed (migration 090). Null for a
+   * report filed before 090, or while 090 is not applied. Staff-only, like
+   * every other field here.
+   */
+  reportedBody: string | null;
   /** Open reports on the same post, this one included. */
   reportCount: number;
   post: {
@@ -95,12 +102,15 @@ export async function listOpenForumReports(forumId?: string): Promise<ForumRepor
       imagesByPost.set(postId, [...(imagesByPost.get(postId) ?? []), image]);
     }
 
+    const snapshots = await reportedBodies(db, rows.map((row) => row.id));
+
     return rows.map((row) => ({
       id: row.id,
       reason: row.reason,
       note: row.note,
       createdAt: new Date(row.createdAt).toISOString(),
       reporter: row.reporter ?? "Unknown",
+      reportedBody: snapshots.get(row.id) ?? null,
       reportCount: row.reportCount,
       post: {
         id: row.postId,
@@ -117,6 +127,34 @@ export async function listOpenForumReports(forumId?: string): Promise<ForumRepor
   } catch (error) {
     console.error("Failed to load forum reports", error);
     return [];
+  }
+}
+
+/**
+ * The text each report recorded of its post, by report id.
+ *
+ * Read in its own query, apart from the queue's main one, so the queue keeps
+ * loading while migration 090 has not been applied: a missing column would
+ * otherwise fail the whole select and empty the queue. Any failure here only
+ * loses the "as reported" text, which the queue then does not show.
+ */
+async function reportedBodies(
+  db: NonNullable<ReturnType<typeof getDb>>,
+  reportIds: string[],
+): Promise<Map<string, string>> {
+  if (reportIds.length === 0) return new Map();
+  try {
+    const rows = await db
+      .select({ id: schema.forumReports.id, reportedBody: schema.forumReports.reportedBody })
+      .from(schema.forumReports)
+      .where(and(inArray(schema.forumReports.id, reportIds), isNotNull(schema.forumReports.reportedBody)));
+    return new Map(rows.flatMap((row) => (row.reportedBody === null ? [] : [[row.id, row.reportedBody] as const])));
+  } catch (error) {
+    // Expected until 090 runs, so only anything else is logged as an error.
+    if (!isMissingColumnError(error, "reported_body")) {
+      console.error("Failed to load the reported text of forum reports", error);
+    }
+    return new Map();
   }
 }
 

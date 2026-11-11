@@ -2,15 +2,20 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { sql } from "drizzle-orm";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { getDb } from "@/lib/db/client";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { listAllAuthUsers } from "@/lib/data/accounts";
+import { claimOnce } from "@/lib/rate-limit";
 import {
+  JUST_CONFIRMED_MARGIN_MS,
+  PENDING_SIGNUP_COOKIE,
   authCookieNames,
   mayReplacePending,
   neutralProfileNames,
+  providerConfirmedPendingSignup,
+  signupProvenHere,
   unguessablePassword,
   type AccountLookup,
   type TokenLookup,
@@ -350,6 +355,47 @@ export async function resetUnprovenNames(userId: string): Promise<void> {
     user_metadata: { username: null, display_name: null },
   });
   if (metadataError) console.error("Unproven sign-up metadata was not reset:", metadataError.message);
+}
+
+/**
+ * The OAuth callback, once the account is known: the same question a code or
+ * link confirmation asks (settleSignupConfirmation in actions/auth), for an
+ * email a Google or Discord sign-in has just confirmed.
+ *
+ * The auth server has already removed the unconfirmed password, so only the
+ * names are left to settle. They stay when this browser registered the
+ * account: they are this visitor's own. Otherwise they were typed by whoever
+ * registered the address, and go back to the placeholders.
+ *
+ * Once per account: the rule matches for a few minutes after the confirmation,
+ * and a second sign-in inside them must not undo names the owner has just
+ * picked. With the shared store down the reset still runs, as it is the safe
+ * side. Best-effort like every name reset, and it never stops the sign-in.
+ */
+export async function settleProviderConfirmation(user: User): Promise<void> {
+  try {
+    const confirmedNow = providerConfirmedPendingSignup({
+      confirmationSentAt: user.confirmation_sent_at,
+      invitedAt: user.invited_at,
+      emailConfirmedAt: user.email_confirmed_at,
+      providerLoginsCreatedAt: (user.identities ?? [])
+        .filter((identity) => identity.provider !== "email" && identity.provider !== "phone")
+        .map((identity) => identity.created_at),
+      nowMs: Date.now(),
+    });
+    if (!confirmedNow) return;
+
+    const store = await cookies();
+    if (signupProvenHere(store.get(PENDING_SIGNUP_COOKIE)?.value, user.id)) {
+      // The registration is finished; the marker has nothing left to prove.
+      store.delete(PENDING_SIGNUP_COOKIE);
+      return;
+    }
+    if ((await claimOnce(`provider-confirmed-names:${user.id}`, 2 * JUST_CONFIRMED_MARGIN_MS)) === "duplicate") return;
+    await resetUnprovenNames(user.id);
+  } catch (error) {
+    console.error("A provider-confirmed sign-up could not be settled", error);
+  }
 }
 
 /**

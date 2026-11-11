@@ -118,3 +118,18 @@ test("a reset link reads as a password reset, never as confirming an email", () 
   assert.match(form, /Reset my password/);
   assert.doesNotMatch(form, /confirm (my|your) email/i);
 });
+
+test("asking for a reset takes at least the same time whether or not the account exists", () => {
+  const src = read("../actions/auth.ts");
+  const start = src.indexOf("export async function requestPasswordResetAction");
+  const request = src.slice(start, src.indexOf("\n}\n", start));
+  const started = request.indexOf("const startedAt = Date.now();");
+  const send = request.indexOf("supabase.auth.resetPasswordForEmail(");
+  const floor = request.indexOf("await notSoonerThan(startedAt, RESET_REQUEST_ANSWER_FLOOR_MS);");
+  const answer = request.lastIndexOf("return { ok: true };");
+  assert.ok(started > 0 && started < send && send < floor && floor < answer);
+  // Outside the error branch, so a refused send waits like a sent one.
+  assert.match(request, /\n    \}\r?\n    await notSoonerThan\(startedAt, RESET_REQUEST_ANSWER_FLOOR_MS\);/);
+  assert.equal((request.match(/return \{ ok: true \};/g) ?? []).length, 1);
+  assert.match(src, /const RESET_REQUEST_ANSWER_FLOOR_MS = 1_500;/);
+});

@@ -13,6 +13,7 @@ import { resolvePublicOrigin } from "@/lib/site";
 import { STATUS_UNREADABLE, accountStatusFor } from "@/lib/data/account-status";
 import { rememberLoginDevice } from "@/lib/auth/login-lockout";
 import { checkLinkedLogins, settlePendingLink } from "@/lib/auth/linked-logins";
+import { settleProviderConfirmation } from "@/lib/auth/signup-trust";
 
 /**
  * The origin used to build post-login redirects. In production this is the
@@ -66,6 +67,12 @@ export async function GET(request: NextRequest) {
         // A known device for this account from now on (lib/auth/login-lockout).
         await rememberLoginDevice(data.user.email);
         const profile = await ensureUserProfile(data.user);
+        // When this sign-in is what confirmed an address someone else had
+        // registered, the names on the profile are that person's choice: back
+        // to the placeholders, as a code or link confirmation from another
+        // browser does (lib/auth/signup-trust). After the profile exists, so
+        // there is a row to reset.
+        await settleProviderConfirmation(data.user);
         // The status could not be read at all, so nothing says this account is
         // not suspended (a failed profile read above is null too, which the
         // check below would wave through). Same answer as loginAction: end the

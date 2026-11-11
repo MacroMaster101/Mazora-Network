@@ -26,15 +26,17 @@ function secretMatches(provided: string | null, expected: string): boolean {
  * accepted too for manual invocation.
  */
 export function cronAuthError(request: Request): NextResponse | null {
+  // A refusal depends on the caller's credentials, so no cache may keep it.
+  const noStore = { "Cache-Control": "no-store" };
   const secret = process.env.CRON_SECRET?.trim() ?? "";
   if (secret.length < 16) {
-    return NextResponse.json({ ok: false, error: "cron_not_configured" }, { status: 503 });
+    return NextResponse.json({ ok: false, error: "cron_not_configured" }, { status: 503, headers: noStore });
   }
 
   const header = request.headers.get("authorization");
   const provided = header?.startsWith("Bearer ") ? header.slice(7) : request.headers.get("x-cron-secret");
   if (!secretMatches(provided, secret)) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401, headers: noStore });
   }
 
   return null;

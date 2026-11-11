@@ -122,6 +122,7 @@ function actionFixture({ optedOut = false, signedIn = true, secondStep = null as
       "@/lib/auth/recovery-grant": { issueRecoveryGrant: async () => true, clearRecoveryGrant: async () => {} },
       "@/lib/auth/replace-grant": {}, "@/lib/auth/owner-grant": {}, "@/lib/auth/owner-confirmation": {},
       "@/lib/auth/reauth": { confirmSecondStep: async () => { events.push("second-step"); return secondStep; } },
+      "@/lib/auth/second-step-lockout": { throttleSecondStepCode: async () => null, rememberSecondStepDevice: async () => {} },
       "@/lib/data/account-status": { STATUS_UNREADABLE: "unreadable", accountStatusFor: async () => status },
       "@/lib/auth/login-identifier": { SUSPENDED_PATH: "/account-suspended" },
     },

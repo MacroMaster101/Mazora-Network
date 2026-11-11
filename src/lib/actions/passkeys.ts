@@ -7,6 +7,7 @@ import { getSession, getSessionUserId, isTwoFactorPending, landingPathFor, twoFa
 import { hasOwnerGrant } from "@/lib/auth/owner-grant";
 import { ownerGrantSubject } from "@/lib/auth/owner-confirmation";
 import { issuePasskeySignInGrant } from "@/lib/auth/passkey-signin-grant";
+import { checkTrustedPasskeys, forgetPasskey, markPasskeyPending, trustPasskey } from "@/lib/auth/trusted-passkeys";
 import { rememberLoginDevice } from "@/lib/auth/login-lockout";
 import { assertionUserVerified } from "@/lib/passkeys/user-verified";
 import { passkeyAssertionSchema } from "@/lib/passkeys/assertion-schema";
@@ -50,6 +51,10 @@ const UNAVAILABLE = "Passkeys aren't available right now. Use your password or a
 const SIGN_IN_FAILED = "That passkey couldn't be used to sign in. Try again, or use your password.";
 const EXPIRED = "That took too long. Try the passkey again.";
 const CONFIRM_FIRST = "Confirm it's you again, then create the passkey.";
+const NOT_SAVED = "The passkey couldn't be saved. Try again.";
+// Worded as the linked-login refusal is (login_removed in components/auth/auth-panels).
+const PASSKEY_REMOVED =
+  "A passkey was added to the account without going through Mazora, so it was removed and the account was signed out everywhere. The owner has been emailed.";
 const CREDENTIAL_LIMIT = 20_000;
 
 /** The browser's answer: a JSON object, small, as Supabase's verify endpoints expect. */
@@ -139,6 +144,13 @@ export async function finishPasskeySignInAction(input: {
   });
   if (error || !signedIn?.user) {
     return { ok: false, message: errorCode(error) === "webauthn_challenge_expired" ? EXPIRED : SIGN_IN_FAILED };
+  }
+  // A passkey nobody added through the site (straight through Supabase's API
+  // with a copied session, say) is removed and every session ended, this new
+  // one included, before the sign-in counts for anything (lib/auth/trusted-passkeys).
+  if ((await checkTrustedPasskeys(signedIn.user)) === "removed") {
+    await endLocalSession(supabase);
+    return { ok: false, message: PASSKEY_REMOVED };
   }
   // A known device for this account from now on (lib/auth/login-lockout).
   await rememberLoginDevice(signedIn.user.email);
@@ -257,16 +269,33 @@ export async function finishPasskeyRegistrationAction(input: {
   const challengeId = challengeIdSchema.safeParse(input?.challengeId);
   const credential = credentialSchema.safeParse(input?.credential);
   const name = passkeyNameSchema.safeParse(input?.name ?? "");
-  if (!challengeId.success || !credential.success) return { ok: false, message: "The passkey couldn't be saved. Try again." };
+  if (!challengeId.success || !credential.success) return { ok: false, message: NOT_SAVED };
   // The grant is checked again here: a challenge alone must not be enough.
   if (!(await ownerConfirmed(actor))) return { ok: false, message: CONFIRM_FIRST };
+  // The passkey this stores is trusted only through its id being written below
+  // (lib/auth/trusted-passkeys). Until then nothing may remove it, so the add
+  // is recorded first; if that cannot be written, nothing is stored at all.
+  if (!(await markPasskeyPending(actor.user.id))) return { ok: false, message: NOT_SAVED };
 
   const { data, error } = await actor.supabase.auth.passkey.verifyRegistration({
     challengeId: challengeId.data,
     credential: credential.data as never,
   });
   if (error || !data) {
-    return { ok: false, message: errorCode(error) === "webauthn_challenge_expired" ? EXPIRED : "The passkey couldn't be saved. Try again." };
+    return { ok: false, message: errorCode(error) === "webauthn_challenge_expired" ? EXPIRED : NOT_SAVED };
+  }
+  // A passkey that is not on the trusted list is removed and the account signed
+  // out everywhere. If the id cannot be written, take the passkey back off now
+  // and say so, rather than leave one that disappears later without a word.
+  if (!(await trustPasskey(actor.user.id, data.id))) {
+    const { error: undoError } = await actor.supabase.auth.passkey.delete({ passkeyId: data.id });
+    if (!undoError) return { ok: false, message: NOT_SAVED };
+    console.error("A passkey that could not be trusted could not be taken back off either");
+    return {
+      ok: false,
+      message:
+        "The passkey was created but couldn't be saved to your account, so it will be removed and you will be signed out within a few minutes. Sign in again, then add the passkey once more.",
+    };
   }
   // Supabase names the passkey after the authenticator that holds it ("Windows
   // Hello", "Google Password Manager", "Apple Passwords"), from a public list of
@@ -317,6 +346,9 @@ export async function deletePasskeyAction(input: { passkeyId: string }): Promise
   // Supabase scopes passkey.delete to the signed-in user's own passkeys.
   const { error } = await actor.supabase.auth.passkey.delete({ passkeyId: passkeyId.data });
   if (error) return { ok: false, message: "The passkey couldn't be removed. Try again." };
+  // Off the trusted list as well, after Supabase has removed it (never before:
+  // a passkey still on the account and off the list would be removed as unrecognised).
+  await forgetPasskey(actor.user.id, passkeyId.data);
 
   await recordAudit({
     action: "auth.passkey_removed",

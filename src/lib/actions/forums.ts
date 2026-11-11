@@ -10,7 +10,9 @@ import { recordAudit } from "@/lib/audit-log";
 import { FORUM_BOARD_TAG, getPostForEdit } from "@/lib/data/forums";
 import { attachForumPostImages, removeForumPostImages } from "@/lib/forums/image-store";
 import { dispatchForumReplyNotification } from "@/lib/forums/notify";
+import { isMissingColumnError, reportSnapshot } from "@/lib/forums/report-snapshot";
 import { accountKey, rateLimitShared } from "@/lib/rate-limit";
+import { profileName } from "@/lib/member-name";
 import { REPORT_REASONS, type ReportReason } from "@/lib/report-rules";
 import { attachmentCountError, filesFromFormData, imageSizeError, urlsFromFormData } from "@/lib/suggestion-image-rules";
 import {
@@ -65,7 +67,11 @@ async function currentActor(): Promise<{ actor: ForumActor; userId: string; user
   const db = getDb();
   if (!db) return null;
   const [profile] = await db
-    .select({ accountStatus: schema.profiles.accountStatus })
+    .select({
+      accountStatus: schema.profiles.accountStatus,
+      displayName: schema.profiles.displayName,
+      username: schema.profiles.username,
+    })
     .from(schema.profiles)
     .where(eq(schema.profiles.userId, userId))
     .limit(1);
@@ -78,7 +84,9 @@ async function currentActor(): Promise<{ actor: ForumActor; userId: string; user
       accountStatus: profile?.accountStatus ?? null,
       canModerate: await canManageModule(FORUMS_PERMISSION_KEY, session, userId),
     },
-    username: session.displayName || session.username,
+    // The name other members see in their reply notifications: the profile's,
+    // never the session's metadata fallback (see profileName).
+    username: profileName(profile, session.username),
   };
 }
 
@@ -463,6 +471,7 @@ export async function reportForumPostAction(input: {
     .select({
       id: schema.forumPosts.id,
       authorId: schema.forumPosts.userId,
+      body: schema.forumPosts.body,
       deletedAt: schema.forumPosts.deletedAt,
       topicDeletedAt: schema.forumTopics.deletedAt,
     })
@@ -487,11 +496,32 @@ export async function reportForumPostAction(input: {
     // Untargeted on purpose: the only unique indexes on this table are the two
     // partial "one open report per reporter" indexes from 046, and a post
     // report can only ever trip the post one.
-    const inserted = await db
-      .insert(schema.forumReports)
-      .values({ postId: post.id, reporterId: me.userId, reason: input.reason, note: note || null })
-      .onConflictDoNothing()
-      .returning({ id: schema.forumReports.id });
+    const report = { postId: post.id, reporterId: me.userId, reason: input.reason, note: note || null };
+    let inserted: { id: string }[];
+    try {
+      // The text as the reporter saw it, kept on the report: the author can
+      // still edit the post, and staff must review what was actually flagged.
+      inserted = await db
+        .insert(schema.forumReports)
+        .values({ ...report, reportedBody: reportSnapshot(post.body) })
+        .onConflictDoNothing()
+        .returning({ id: schema.forumReports.id });
+    } catch (error) {
+      if (!isMissingColumnError(error, "reported_body")) throw error;
+      /*
+        Migration 090 has not been applied yet. Drizzle names every column of
+        the table in an INSERT, so the builder cannot leave the new one out;
+        this names only the columns that existed before it. The report is filed
+        without a snapshot rather than refused: a member must never be unable to
+        report a post because of a deploy ordering.
+      */
+      inserted = (await db.execute(sql`
+        insert into ${schema.forumReports} (post_id, reporter_id, reason, note)
+        values (${report.postId}, ${report.reporterId}, ${report.reason}, ${report.note})
+        on conflict do nothing
+        returning id
+      `)) as unknown as { id: string }[];
+    }
     if (!inserted.length) return { ok: true, message: "You have already reported this post." };
   } catch (error) {
     console.error("Failed to file forum report", error);

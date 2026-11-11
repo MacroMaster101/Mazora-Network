@@ -8,6 +8,7 @@ import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageGallery } from "@/lib/auth/permissions";
 import { recordAudit } from "@/lib/audit-log";
 import { getDb, schema } from "@/lib/db/client";
+import { profileName } from "@/lib/member-name";
 import { copyOwnPublicImage, isOwnPublicImageUrl, rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
 import { throttleAuthAction } from "@/lib/rate-limit";
 import { MAX_IMAGE_BYTES } from "@/lib/suggestion-image-rules";
@@ -161,8 +162,14 @@ export async function submitGalleryAction(formData: FormData): Promise<GalleryAc
   const title = clean(formData.get("title"), 160);
   const description = clean(formData.get("description"), 1000);
   const category = readCategory(formData);
-  const accountName = session.displayName || session.username;
-  const authorName = accountName || "Player";
+  // The credit shown to everyone on the gallery comes from the submitter's
+  // profile row, never the session's metadata fallback (see profileName).
+  const [profile] = await db
+    .select({ displayName: schema.profiles.displayName, username: schema.profiles.username })
+    .from(schema.profiles)
+    .where(eq(schema.profiles.userId, userId))
+    .limit(1);
+  const authorName = profileName(profile, session.username || "Player");
 
   if (!title) return { ok: false, message: "Please provide a title for your artwork." };
   if (!category) return { ok: false, message: "Pick one of the listed categories." };

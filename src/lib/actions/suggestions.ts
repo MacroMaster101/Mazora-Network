@@ -7,6 +7,7 @@ import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageSuggestions } from "@/lib/auth/permissions";
 import { canVoteOnComment, COMMENT_VOTES_PER_MINUTE, isVoteValue, type VoteValue } from "@/lib/comments/vote-rules";
 import { getDb, schema } from "@/lib/db/client";
+import { profileName } from "@/lib/member-name";
 import { dispatchSuggestionReplyNotification } from "@/lib/notifications-auto";
 import { accountKey, rateLimitShared } from "@/lib/rate-limit";
 import { attachmentCountError, filesFromFormData, imageSizeError, urlsFromFormData } from "@/lib/suggestion-image-rules";
@@ -211,6 +212,20 @@ export async function postSuggestionReplyAction(formData: FormData): Promise<Res
   // whoever was actually replied to — not the suggestion author.
   const replyTargetAuthorId = answeredAuthorId ?? suggestion.authorId;
 
+  // The name someone else reads in their notification comes from the replier's
+  // profile row, never the session's metadata fallback (see profileName). The
+  // reply is already committed, so a failed lookup falls back to the username
+  // rather than failing anything.
+  const [replierProfile] = await db
+    .select({ displayName: schema.profiles.displayName, username: schema.profiles.username })
+    .from(schema.profiles)
+    .where(eq(schema.profiles.userId, userId))
+    .limit(1)
+    .catch((error) => {
+      console.error("Failed to load the replier's profile name", error);
+      return [];
+    });
+
   // Best-effort: dispatchSuggestionReplyNotification already swallows its own
   // errors internally, so this can never fail the reply that just landed.
   await dispatchSuggestionReplyNotification({
@@ -218,7 +233,7 @@ export async function postSuggestionReplyAction(formData: FormData): Promise<Res
     replierId: userId,
     suggestionId,
     suggestionTitle: suggestion.title,
-    replierName: session.displayName || session.username,
+    replierName: profileName(replierProfile, session.username),
     context: effectiveParent ? "reply" : "suggestion",
   });
 

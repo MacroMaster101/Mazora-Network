@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import * as drizzle from "drizzle-orm";
 import * as dbSchema from "@/lib/db/schema";
+import * as memberName from "@/lib/member-name";
 import * as imageRules from "@/lib/suggestion-image-rules";
 import * as utils from "@/lib/utils";
 import { isPublicBucketObjectUrl } from "@/lib/storage-url";
@@ -30,15 +31,23 @@ function submissionFixture() {
       "drizzle-orm": drizzle,
       "next/cache": { revalidatePath() {} },
       "@/lib/auth": {
-        getSession: async () => ({ username: "Alex_Builder", displayName: "Alex_Builder", role: "member" }),
+        // The session's display name is the user_metadata fallback a member can
+        // write themselves; the credit must come from the profile row instead.
+        getSession: async () => ({ username: "Alex_Builder", displayName: "Mazora Staff", role: "member" }),
         getSessionUserId: async () => ATTACKER,
       },
       "@/lib/auth/permissions": {},
       "@/lib/audit-log": {},
       "@/lib/db/client": {
         schema: dbSchema,
-        getDb: () => ({ insert: () => ({ values: async (row: Record<string, unknown>) => { inserted.push(row); } }) }),
+        getDb: () => ({
+          select: () => ({
+            from: () => ({ where: () => ({ limit: async () => [{ displayName: "Alex Builder", username: "Alex_Builder" }] }) }),
+          }),
+          insert: () => ({ values: async (row: Record<string, unknown>) => { inserted.push(row); } }),
+        }),
       },
+      "@/lib/member-name": memberName,
       "@/lib/news/image-store": {
         isOwnPublicImageUrl: (url: string) => isPublicBucketObjectUrl(url, PROJECT, BUCKET),
         copyOwnPublicImage: async (url: string, keyBase: string) => {
@@ -70,6 +79,8 @@ test("a member linking to someone else's image in our bucket gets their own copy
   assert.notEqual(inserted[0]!.imageUrl, objectUrl(VICTIM_FILE), "the new row never points at the other member's file");
   assert.notEqual(inserted[0]!.thumbnailUrl, objectUrl(VICTIM_FILE));
   assert.match(String(inserted[0]!.imageUrl), /\/gallery\/submit-[0-9a-f-]{36}\.webp$/);
+  // Credited with the profile's name, never the session's metadata fallback.
+  assert.equal(inserted[0]!.authorName, "Alex Builder");
 });
 
 /* ---------------------------------------------------------------- deletion */

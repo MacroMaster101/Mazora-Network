@@ -39,12 +39,12 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   const secret = process.env.BOT_CONFIG_SECRET?.trim();
   if (!secret) {
-    return NextResponse.json({ error: "Not configured." }, { status: 503 });
+    return NextResponse.json({ error: "Not configured." }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 
   const offered = readBearer(request.headers.get("authorization"));
   if (!bearerMatches(offered, secret)) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401, headers: { "Cache-Control": "no-store" } });
   }
 
   const config = await getCachedBotPresenceConfig();

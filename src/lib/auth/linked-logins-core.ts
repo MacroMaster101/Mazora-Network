@@ -13,7 +13,7 @@ import type { User, UserIdentity } from "@supabase/supabase-js";
  * - it was there when the list was first written (migration 085, or the first
  *   time the account is seen without one);
  * - the site's own link flow added it (the callback, while `link_pending` names
- *   that provider);
+ *   that provider, in the browser that started the link);
  * - the provider has verified that its address is the account's own confirmed
  *   email: Supabase links a provider by itself only then, so it is a sign-in
  *   with Google/Discord on the same inbox, which a copied session cannot make.
@@ -61,6 +61,19 @@ export function pendingLinkProvider(meta: Record<string, unknown> | undefined, n
 }
 
 /**
+ * The nonce of a link started on the site, while it may still arrive. The
+ * callback trusts the new login only in the browser holding the signed cookie
+ * for this nonce (lib/auth/link-pending-grant). Null for a pending link with
+ * none: nothing can show which browser started it, so nobody's login is
+ * trusted through it.
+ */
+export function pendingLinkNonce(meta: Record<string, unknown> | undefined, now: number): string | null {
+  if (!pendingLinkProvider(meta, now)) return null;
+  const { nonce } = meta!.link_pending as { nonce?: unknown };
+  return typeof nonce === "string" && nonce ? nonce : null;
+}
+
+/**
  * The provider vouches for the account's own confirmed address. Verified only:
  * a Discord account can carry any address unconfirmed, so a copied session
  * could otherwise link one made with the member's address.
@@ -105,6 +118,9 @@ export function reviewLinkedLogins(user: LinkedLoginUser, now: number): LinkedLo
  * The login the site's own link flow just added, for the callback to trust:
  * the one untrusted identity of the pending provider. Two of them means
  * something else linked one too, so neither is trusted (both are then removed).
+ *
+ * This says which login, not whether to trust it: settlePendingLink first
+ * checks that this browser is the one that started the link (pendingLinkNonce).
  */
 export function pendingLinkToTrust(user: LinkedLoginUser, now: number): string | null {
   const pending = pendingLinkProvider(user.app_metadata, now);

@@ -539,6 +539,7 @@ export async function getTopicComments(
           author: sql<string | null>`coalesce(${schema.profiles.displayName}, ${schema.profiles.username})`,
           authorAvatar: schema.profiles.avatarUrl,
           authorRole: sql<string | null>`(select u.raw_app_meta_data ->> 'role' from auth.users u where u.id = ${schema.forumPosts.userId})`,
+          authorStaffHidden: sql<boolean | null>`(select (u.raw_app_meta_data -> 'staff_public') = 'false'::jsonb from auth.users u where u.id = ${schema.forumPosts.userId})`,
         })
         .from(schema.forumPosts)
         .leftJoin(schema.profiles, eq(schema.profiles.userId, schema.forumPosts.userId))
@@ -589,7 +590,7 @@ export async function getTopicComments(
         isOp: Boolean(authorId && topicAuthorId && authorId === topicAuthorId),
         author: row?.author ?? "Unknown",
         authorAvatar: row ? row.authorAvatar ?? providerAvatars.get(row.authorId) ?? null : null,
-        authorRole: storedRole(row?.authorRole),
+        authorRole: storedRole(row?.authorRole, row?.authorStaffHidden === true),
         images: post.deletedAt ? [] : imagesByPost.get(post.id) ?? [],
         authorStatus: authorId ? presence.get(authorId) ?? null : null,
         myVote: vote === 1 || vote === -1 ? vote : 0,
@@ -668,9 +669,10 @@ export async function getViewerActor(): Promise<ForumActor> {
   }
 }
 
-/** A stored app_metadata role as the rank the public sees (publicRole), or Member. normalizeRoleKey
- *  reads the legacy top-role key as web_dev until migration 055 (removable after). */
-function storedRole(value: unknown): Role {
+/** A stored app_metadata role as the rank the public sees (publicRole), or Member: staff hidden
+ *  from Our Team carry no rank chip. normalizeRoleKey reads the legacy top-role key as web_dev
+ *  until migration 055 (removable after). */
+function storedRole(value: unknown, staffHidden = false): Role {
   const role = normalizeRoleKey(value);
-  return isRoleKey(role) ? publicRole(role) : "member";
+  return isRoleKey(role) ? publicRole(role, staffHidden) : "member";
 }

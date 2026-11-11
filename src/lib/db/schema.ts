@@ -932,6 +932,16 @@ export const forumReports = pgTable("forum_reports", {
   reason: text("reason").notNull(),
   /** Optional context from the reporter (migration 050). */
   note: text("note"),
+  /**
+   * The post's text when it was reported (migration 090), so an author's later
+   * edit cannot hide what staff were asked to review. Null on reports filed
+   * before 090. Staff-only, like the rest of the row.
+   *
+   * Drizzle lists every column of the table in an INSERT, so until 090 is
+   * applied an insert through this table object fails; the report action falls
+   * back to an insert that names its columns (see reportForumPostAction).
+   */
+  reportedBody: text("reported_body"),
   status: text("status").default("open").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),

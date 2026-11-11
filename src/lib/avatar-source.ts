@@ -37,6 +37,24 @@ export function providerAvatar(metadata: Record<string, unknown> | null | undefi
   }
 }
 
+/**
+ * The provider photo that may be shown to other people, or null.
+ *
+ * A Discord photo URL is `cdn.discordapp.com/avatars/<discord user id>/<hash>`:
+ * showing it publishes the member's Discord id and ties their name here to that
+ * Discord account. A member who never chose it as their avatar has not agreed
+ * to that, so public lists (forums, suggestions, who's online) leave it out and
+ * fall back to a monogram. A Discord photo the member saved in profile settings
+ * is in `profiles.avatar_url` and never comes through here. The member's own
+ * header still uses `providerAvatar`: only they see it.
+ */
+export function publicProviderAvatar(metadata: Record<string, unknown> | null | undefined): string | null {
+  const url = providerAvatar(metadata);
+  if (!url) return null;
+  const host = new URL(url).hostname;
+  return host === "cdn.discordapp.com" || host.endsWith(".cdn.discordapp.com") ? null : url;
+}
+
 /** The avatar to display for an account: chosen first, provider second. */
 export function resolveAvatarUrl(
   chosen: string | null | undefined,

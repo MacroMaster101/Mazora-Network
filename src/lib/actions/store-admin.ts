@@ -8,8 +8,7 @@ import { getSession, getSessionUserId } from "@/lib/auth";
 import { canManageStore } from "@/lib/auth/permissions";
 import { recordAudit } from "@/lib/audit-log";
 import { getDb, schema } from "@/lib/db/client";
-import { rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
-import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
+import { isOwnPublicImageUrl, rehostImageFromUrl, storeImageBytes } from "@/lib/news/image-store";
 import { isUuid } from "@/lib/validation/id";
 import { isSitePath } from "@/lib/net/safe-url";
 import {
@@ -76,8 +75,10 @@ function refreshStore(slug?: string) {
   }
 }
 
+// Only the public image bucket is kept as typed; any other storage link (another
+// bucket, a signed link) is re-hosted or refused: see isOwnPublicImageUrl.
 function isOwnStorageUrl(url: string): boolean {
-  return isSupabaseStorageObjectUrl(url, process.env.NEXT_PUBLIC_SUPABASE_URL);
+  return isOwnPublicImageUrl(url);
 }
 
 async function resolveStoreArtwork(

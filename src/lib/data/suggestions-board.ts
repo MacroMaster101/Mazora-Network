@@ -304,6 +304,7 @@ export async function getSuggestionThread(
             authorDisplayName: schema.profiles.displayName,
             authorAvatarUrl: schema.profiles.avatarUrl,
             authorRole: sql<string | null>`(select u.raw_app_meta_data ->> 'role' from auth.users u where u.id = ${schema.suggestionReplies.userId})`,
+            authorStaffHidden: sql<boolean | null>`(select (u.raw_app_meta_data -> 'staff_public') = 'false'::jsonb from auth.users u where u.id = ${schema.suggestionReplies.userId})`,
           })
           .from(schema.suggestionReplies)
           .leftJoin(schema.profiles, eq(schema.suggestionReplies.userId, schema.profiles.userId))
@@ -386,7 +387,7 @@ export async function getSuggestionThread(
           displayName: r?.authorDisplayName || null,
           avatarUrl: r ? r.authorAvatarUrl || providerAvatars.get(r.authorId) || null : null,
         },
-        authorRole: storedRole(r?.authorRole),
+        authorRole: storedRole(r?.authorRole, r?.authorStaffHidden === true),
         // A removed reply's text and images must never reach the client: they
         // are serialised into the page payload even when the DOM shows a tombstone.
         body: reply.deletedAt ? "" : r?.body ?? "",
@@ -426,9 +427,10 @@ export async function getSuggestionThread(
   }
 }
 
-/** A stored app_metadata role as the rank the public sees (publicRole), or Member. normalizeRoleKey
- *  reads the legacy top-role key as web_dev until migration 055 (removable after). */
-function storedRole(value: unknown): Role {
+/** A stored app_metadata role as the rank the public sees (publicRole), or Member: staff hidden
+ *  from Our Team carry no rank chip. normalizeRoleKey reads the legacy top-role key as web_dev
+ *  until migration 055 (removable after). */
+function storedRole(value: unknown, staffHidden = false): Role {
   const role = normalizeRoleKey(value);
-  return isRoleKey(role) ? publicRole(role) : "member";
+  return isRoleKey(role) ? publicRole(role, staffHidden) : "member";
 }

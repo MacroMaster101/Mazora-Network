@@ -70,7 +70,8 @@ test("turning two-step off or regenerating codes asks for a code again", () => {
   const helper = read("../auth/reauth.ts");
   assert.match(helper, /mfa\.challengeAndVerify\(\{ factorId: factor\.id, code \}\)/);
   assert.match(helper, /redeemRecoveryCode\(user, recoveryInput, purpose\)/);
-  assert.match(helper, /throttleAuthAction\("mfa-verify"/);
+  // Counted with every other authenticator code (second-step-lockout.test.ts).
+  assert.match(helper, /const throttled = await throttleSecondStepCode\(user\.id\);\s*if \(throttled\) return throttled;/);
   assert.doesNotMatch(helper, /^["']use server["'];?\s*$/m, "not a server-action file");
 });
 
@@ -161,6 +162,36 @@ test("password reset on a two-step account also needs the second factor", () => 
   // A recovery code is the same shared rule as on the sign-in page.
   assert.match(src, /await redeemRecoveryCode\(user, recoveryCode, "password-reset"\)/);
   assert.match(read("../actions/two-factor.ts"), /await redeemRecoveryCode\(pending\.user, input, "sign-in"\)/);
+});
+
+test("a reset that already passed /two-factor with a recovery code is finished by the service role", () => {
+  const src = read("../actions/auth.ts");
+  const start = src.indexOf("export async function finishPasswordResetAction");
+  const reset = src.slice(start, src.indexOf("\n}\n", start));
+
+  // Owed: the code is asked for on the form. Not owed, because a recovery code
+  // was spent on /two-factor in this session: that pass decides, nothing typed here.
+  const gate = reset.indexOf("if (await isTwoFactorPending() || await isEmailTwoFactorSignIn()) {");
+  const recovered = reset.indexOf("} else if ((await getSession())?.recoveredSignIn) {");
+  assert.ok(gate > 0 && recovered > gate, "only when nothing is owed");
+  assert.match(reset.slice(recovered, recovered + 900), /viaRecoveryCode = true;\s*\}/);
+  assert.equal((reset.match(/viaRecoveryCode = /g) ?? []).length, 3, "false, the form's recovery code, or the pass: no other way to set it");
+  assert.doesNotMatch(reset, /viaRecoveryCode = (?!false;|step === "recovery";|true;)/);
+
+  // The pass is the signed one for exactly this user and session, on an account that has an authenticator.
+  const index = read("../auth/index.ts");
+  assert.match(index, /hasAuthenticator &&\s*token\.aal !== "aal2" &&\s*\(await hasRecoveryGrant\(\{ userId: data\.user\.id, sessionId: token\.sessionId \}\)\)/);
+  assert.match(index, /\.\.\.\(state\.recovered \? \{ recoveredSignIn: true \} : \{\}\),/);
+
+  // It skips nothing else: the reset grant comes first, and the suspension and
+  // same-password checks still stand between it and the change.
+  assert.ok(reset.indexOf("await hasResetGrant(supabase)") < gate);
+  const change = reset.indexOf("admin.auth.admin.updateUserById(userData.user.id, { password: parsed.data.password })");
+  assert.ok(reset.indexOf('=== "suspended"') > recovered && reset.indexOf('=== "suspended"') < change);
+  assert.ok(reset.indexOf("passwordMatchesCurrent(email, parsed.data.password)") > recovered);
+  assert.match(reset, /const admin = viaRecoveryCode \? getSupabaseAdmin\(\) : null;\s*if \(viaRecoveryCode && !admin\) return \{ ok: false,/);
+  // An email code never counts here: it is the inbox again, which the reset already is.
+  assert.doesNotMatch(reset, /emailVerified|passkeySignIn/);
 });
 
 test("a reset never says whether a guessed password is the current one before the second step", () => {

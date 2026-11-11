@@ -17,17 +17,21 @@ import { normalizeCategory } from "@/lib/news/categories";
 import { importDiscordAnnouncements, slugifyTitle } from "@/lib/news/discord-import";
 import {
   discordOriginalKey,
+  isOwnPublicImageUrl,
   publicUrlIfExists,
   rehostImageFromUrl,
   storeImageBytes,
 } from "@/lib/news/image-store";
 import { cleanAndUnwrapImageUrl } from "@/lib/utils";
-import { isSupabaseStorageObjectUrl } from "@/lib/storage-url";
 import { isSitePath } from "@/lib/net/safe-url";
 
-/** True when a link already points at our own storage, so no copy is needed. */
+/**
+ * True when a link already points at an image in our public image bucket, so no
+ * copy is needed. Any other storage link (another bucket, a signed link) is
+ * re-hosted like a link to somebody else's site: see isOwnPublicImageUrl.
+ */
 function isOwnStorageUrl(url: string): boolean {
-  return isSupabaseStorageObjectUrl(url, process.env.NEXT_PUBLIC_SUPABASE_URL);
+  return isOwnPublicImageUrl(url);
 }
 
 export interface NewsActionResult {
