@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "@/components/ui/app-link";
-import { LifeBuoy, Loader2, Mail, ShieldCheck, Smartphone } from "lucide-react";
+import { Eye, EyeOff, LifeBuoy, Loader2, Mail, ShieldCheck, Smartphone } from "lucide-react";
 import { OtpInput } from "@/components/auth/auth-forms";
 import { FormRow, Input, Modal } from "@/components/ui";
 import {
@@ -40,6 +40,8 @@ export function OwnerConfirmForm({
   const [notice, setNotice] = useState<string | null>(null);
   // Also learned from the send attempt, for forms opened without the status.
   const [unconfirmed, setUnconfirmed] = useState(emailUnconfirmed);
+  // A mistyped password reads only as "incorrect", so the member can look at what they typed.
+  const [showPassword, setShowPassword] = useState(false);
   const busy = status !== "idle" || sending;
 
   const sendEmailCode = async () => {
@@ -123,7 +125,29 @@ export function OwnerConfirmForm({
       )}
       {proof === "password" && (
         <FormRow label="Your current password" htmlFor="owner-confirm-password">
-          <Input id="owner-confirm-password" name="password" type="password" autoComplete="current-password" required autoFocus disabled={busy} />
+          <div className="relative">
+            <Input
+              id="owner-confirm-password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              maxLength={128}
+              spellCheck={false}
+              required
+              autoFocus
+              disabled={busy}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              title={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
+            </button>
+          </div>
         </FormRow>
       )}
       {proof === "email" && unconfirmed && (
