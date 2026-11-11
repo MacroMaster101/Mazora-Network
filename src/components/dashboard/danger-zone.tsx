@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, type FormEvent } from "react";
 import { AlertTriangle, Eye, EyeOff, LifeBuoy, Loader2, ShieldCheck, Smartphone, UserRoundX } from "lucide-react";
 import { deleteAccountAction, requestAccountDeletionCodeAction, type AccountActionResult } from "@/lib/actions/account";
 import { FormRow, Input, Modal, useToast } from "@/components/ui";
@@ -34,6 +34,8 @@ export function DangerZone({
   const [useRecovery, setUseRecovery] = useState(false);
   // A mistyped password reads only as "not your current password", so it can be looked at.
   const [showPassword, setShowPassword] = useState(false);
+  // Said under the field: a disabled button looks the same as an enabled one, so a click did nothing.
+  const [confirmationError, setConfirmationError] = useState<string | null>(null);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteAccountAction, initialState);
   const [sendState, sendAction, sendPending] = useActionState(requestAccountDeletionCodeAction, initialState);
   const { toast } = useToast();
@@ -55,7 +57,18 @@ export function DangerZone({
     if (deletePending || sendPending) return;
     setDialog(null);
     setConfirmation("");
+    setConfirmationError(null);
     setUseRecovery(false);
+  };
+
+  const confirmationMatches = confirmation.trim().toLowerCase() === username.toLowerCase();
+
+  // Only the delete button is checked here: "Send confirmation code" submits the same form.
+  const checkConfirmation = (event: FormEvent<HTMLFormElement>) => {
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    if (!submitter?.hasAttribute("data-delete-submit") || confirmationMatches) return;
+    event.preventDefault();
+    setConfirmationError(`Type ${username} to confirm.`);
   };
 
   return (
@@ -81,7 +94,7 @@ export function DangerZone({
       </section>
 
       <Modal open={dialog === "delete"} onClose={closeDialog} label="Permanently delete account">
-        <form action={deleteAction} className="panel mx-auto max-w-md border-danger/40 p-6 sm:p-7">
+        <form action={deleteAction} onSubmit={checkConfirmation} className="panel mx-auto max-w-md border-danger/40 p-6 sm:p-7">
           <h2 className="font-display text-xl font-bold text-danger">Permanently delete account?</h2>
           <p className="mt-2 text-sm text-muted">
             This removes your login, profile, linked accounts, submissions, orders, votes, and notifications. This cannot be undone.
@@ -90,17 +103,20 @@ export function DangerZone({
             <FormRow
               label={`Type ${username} to confirm`}
               htmlFor="delete-confirmation"
-              error={deleteState.errors?.confirmation}
+              error={confirmationError ?? deleteState.errors?.confirmation}
             >
               <Input
                 id="delete-confirmation"
                 name="confirmation"
                 value={confirmation}
-                onChange={(event) => setConfirmation(event.target.value)}
+                onChange={(event) => {
+                  setConfirmation(event.target.value);
+                  setConfirmationError(null);
+                }}
                 autoComplete="off"
                 spellCheck={false}
                 required
-                aria-invalid={Boolean(deleteState.errors?.confirmation)}
+                aria-invalid={Boolean(confirmationError ?? deleteState.errors?.confirmation)}
               />
             </FormRow>
             {hasPassword ? (
@@ -187,8 +203,9 @@ export function DangerZone({
             </button>
             <button
               type="submit"
+              data-delete-submit
               className="btn btn-ghost btn-sm border-danger/40 bg-danger/10 text-danger"
-              disabled={deletePending || sendPending || confirmation.toLowerCase() !== username.toLowerCase()}
+              disabled={deletePending || sendPending}
             >
               {deletePending ? <Loader2 size={14} className="animate-spin" /> : <UserRoundX size={14} />}
               {deletePending ? "Deleting…" : "Delete my account"}
